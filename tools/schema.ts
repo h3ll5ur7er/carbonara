@@ -3,6 +3,7 @@
 import { writeFileSync } from "node:fs";
 import { z } from "zod";
 import { PackDataFile, PackManifest, StarterFile } from "../src/contracts/pack";
+import { isMain } from "./is-main";
 
 export const SCHEMAS = {
   "schemas/pack-manifest.schema.json": { schema: PackManifest, title: "Carbonara pack manifest (manifest.yaml)" },
@@ -15,6 +16,6 @@ export function render(schema: z.ZodType, title: string): string {
   return `${JSON.stringify(json, null, 2)}\n`;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   for (const [file, { schema, title }] of Object.entries(SCHEMAS)) writeFileSync(file, render(schema, title));
 }

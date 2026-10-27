@@ -11,6 +11,7 @@ import { watchPack } from "./dev";
 import { importPack } from "./import";
 import { newPack } from "./new";
 import { typecheckPlugin } from "./typecheck";
+import { isMain } from "../is-main";
 
 const USAGE = `Usage:
   carbonara-pack new <id> [--into packs] [--name <name>]   Create a pack from the template
@@ -119,6 +120,6 @@ function inFolder(issue: Issue, folder: string): Issue {
   return { ...issue, path: [join(folder, file), ...rest] };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   process.exitCode = await run(process.argv.slice(2), { log: console.log, error: console.error });
 }

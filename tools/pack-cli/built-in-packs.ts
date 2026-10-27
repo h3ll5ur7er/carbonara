@@ -6,6 +6,7 @@ import { fail, ok, type Result } from "../../src/contracts/result";
 import { sha256 } from "../../src/access/packs/archive";
 import { describeIssue } from "../../src/utilities/issues";
 import { packFolder } from "./build";
+import { isMain } from "../is-main";
 
 export const INDEX = "virtual:built-in-packs";
 
@@ -30,7 +31,7 @@ export async function renderBuiltInPacks(folders: string[]): Promise<Result<Map<
   return ok(new Map([[INDEX, `export default [\n${entries.join(",\n")}\n];`], ...modules]));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const result = await renderBuiltInPacks(process.argv.slice(2));
   process.stdout.write(JSON.stringify(result.ok ? { ok: true, value: [...result.value] } : result));
 }

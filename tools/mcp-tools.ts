@@ -8,6 +8,7 @@ import { mcpTools } from "../src/client/features/mcp/tools";
 import { Document } from "../src/contracts/document";
 import { managers, type Contracts, type McpGroup } from "../src/contracts/managers";
 import { render as renderSchema, SCHEMAS } from "./schema";
+import { isMain } from "./is-main";
 
 export const MANIFEST_FILE = "crates/mcp/manifest.json";
 
@@ -147,4 +148,4 @@ export function render(manifest: McpManifest): string {
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) writeFileSync(MANIFEST_FILE, render(buildManifest()));
+if (isMain(import.meta.url)) writeFileSync(MANIFEST_FILE, render(buildManifest()));
