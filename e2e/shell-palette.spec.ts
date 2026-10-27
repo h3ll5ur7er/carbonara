@@ -47,6 +47,8 @@ test("quick-add: typing an item and pressing Enter adds a node through the editi
         {
           type: "addNode",
           graph: "root",
+          // Named by the palette, so the keyboard focus can follow the node onto the canvas.
+          id: expect.stringMatching(/^iron-plate-[0-9a-f]{6}$/),
           node: { kind: "recipe", recipe: "iron-plate" },
           // Where the user is looking: the middle of the visible canvas.
           position: { x: expect.any(Number), y: expect.any(Number) },

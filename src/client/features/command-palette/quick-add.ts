@@ -39,16 +39,18 @@ export function quickAddEntries(pack: PackData): QuickAddEntry[] {
   });
 }
 
-/** Adds a node running the entry's recipe at `position`, as one undo step. */
+/** Adds a node running the entry's recipe at `position`, as one undo step; under `id` when given. */
 export function addRecipeNode(
   editing: Pick<Connector["editing"], "apply">,
   documentId: string,
   entry: QuickAddEntry,
   position: Position,
+  id?: string,
 ): ReturnType<Connector["editing"]["apply"]> {
+  const node = { kind: "recipe" as const, recipe: entry.recipeId };
   return editing.apply({
     documentId,
-    commands: [{ type: "addNode", graph: "root", node: { kind: "recipe", recipe: entry.recipeId }, position }],
+    commands: [{ type: "addNode", graph: "root", ...(id !== undefined && { id }), node, position }],
     label: `Add ${entry.title}`,
   });
 }

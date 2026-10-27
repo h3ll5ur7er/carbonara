@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { DEFAULT_PLAN_OPTIONS, type Events, type PlanOptions, type Proposal } from "../../../contracts/managers";
 import type { Subscribable } from "../../../utilities/rpc";
 import type { Point } from "../../canvas/adapter";
+import { rememberFocus } from "../../ui/focus-return";
 import type { GoalRow } from "./plan";
 
 export type PlannerStage =
@@ -52,15 +53,23 @@ const fresh = (): Omit<PlannerState, "open"> => ({
 
 export const usePlanner = create<PlannerState>(() => ({ open: false, ...fresh() }));
 
+/** Gives the keyboard focus back to where it was when the planner was opened (it isn't a dialog that would). */
+let giveFocusBack: (() => void) | undefined;
+
 export function togglePlanner(): void {
   const { open } = usePlanner.getState();
   if (open) closePlanner();
-  else usePlanner.setState({ open: true });
+  else {
+    giveFocusBack = rememberFocus();
+    usePlanner.setState({ open: true });
+  }
 }
 
 /** Closes the planner and drops its proposal; the goals stay for next time. */
 export function closePlanner(): void {
   usePlanner.setState({ open: false, stage: "goals", proposal: null, offset: { x: 0, y: 0 }, error: null });
+  giveFocusBack?.();
+  giveFocusBack = undefined;
 }
 
 /** The planner, emptied for another document. */

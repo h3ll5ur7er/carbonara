@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Position } from "../../../contracts/document";
 import { canvasEditActions } from "../../canvas/edit-actions";
+import { focusNodeWhenShown } from "../../canvas/focus";
 import { viewportCentre } from "../../canvas/viewport";
 import { useConnector } from "../../core/connector";
 import { errorMessage, toast } from "../../shell/toasts";
@@ -48,15 +49,21 @@ export function useQuickAdd(document: QuickAddDocument | null): QuickAdd | null 
       // Mid-view, clear of the nodes already there, when a canvas is on screen.
       const position =
         canvasEditActions()?.placeNew({ kind: "recipe", recipe: entry.recipeId }) ?? viewportCentre() ?? origin;
-      addRecipeNode(connector.editing, documentId, entry, position).then(
-        (result) =>
-          result.ok
-            ? toast({ tone: "success", title: `Added ${entry.title}` })
-            : toast({
-                tone: "error",
-                title: `Couldn't add ${entry.title}`,
-                description: result.error.map((issue) => issue.message).join(" "),
-              }),
+      // Named here, so the keyboard focus can follow it onto the canvas once it's drawn.
+      const id = `${entry.recipeId}-${crypto.randomUUID().slice(0, 6)}`;
+      addRecipeNode(connector.editing, documentId, entry, position, id).then(
+        (result) => {
+          if (!result.ok) {
+            toast({
+              tone: "error",
+              title: `Couldn't add ${entry.title}`,
+              description: result.error.map((issue) => issue.message).join(" "),
+            });
+            return;
+          }
+          focusNodeWhenShown(id);
+          toast({ tone: "success", title: `Added ${entry.title}` });
+        },
         (error: unknown) =>
           toast({ tone: "error", title: `Couldn't add ${entry.title}`, description: errorMessage(error) }),
       );
