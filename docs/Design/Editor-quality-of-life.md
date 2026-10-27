@@ -9,6 +9,26 @@ These features decide whether the editor feels pleasant during a long session. T
 - **Auto-arrange** the whole graph or the selection, left → right (default) or top → bottom. It uses ELK layered layout with ordering that follows the item flow, to keep edge crossings low, and animates to the new positions. Locked nodes stay where they are.
 - **Align** left, centre, right, top, middle or bottom. **Distribute** horizontally or vertically. **Straighten chain** lines up a linear chain on one row.
 - Snap to grid (hold `Alt` to bypass), smart alignment guides with spacing indicators, and arrow-key nudging (`Shift` for big steps).
+
+### Selecting, snapping and nudging on the canvas
+
+| Gesture | Does |
+| --- | --- |
+| Drag on empty canvas | Box selection; it takes every node it touches |
+| `Alt`-drag on empty canvas | Lasso; it takes the nodes whose centre it encloses (frames are left out) |
+| `Shift` with either, or `Shift`-click | Adds to the selection |
+| Scroll, middle- or right-drag, `Space`-drag | Pan |
+| `Ctrl`/`⌘`-scroll, pinch | Zoom |
+| Arrow keys | Nudge the selection one grid step (24); `Shift` four steps; `Alt` one unit. One edit per press |
+| `F` / `Shift+F` | Zoom to fit (clear of the side panels) / to the selection, animated with `--duration-slow` (none with reduced motion). Both are in the command palette |
+
+While a node is dragged ([[src/client/canvas/model/snap.ts]], [[src/client/canvas/react-flow/snapping.tsx]]):
+
+- Its left, centre or right line (top, middle or bottom for the other axis) snaps to the same lines of nodes on screen when it comes within 6 screen pixels. Frames and the other dragged nodes don't count.
+- It also snaps to **even spacing** among the nodes in its row (or column): centred between its two nearest neighbours, or one more step of the gap between the two neighbours on one side. Both equal gaps are marked with ticks and their size.
+- Otherwise it snaps to the grid. The nearest candidate wins, so a node never jumps more than 6 pixels or half a grid step.
+- Nodes dragged along with it move by the same amount. Accent lines show every alignment that holds after the snap. `Alt` while dragging places freely.
+- React Flow's own delete key is off until delete commands exist, so nothing disappears only on screen.
 - Edge styles (orthogonal or smooth), reroute points (double-click an edge), and bundled edges for main buses.
 
 ## Clipboard and ghost placement

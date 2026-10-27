@@ -81,8 +81,9 @@ test("Escape closes the palette and Ctrl+K toggles it", async ({ page }) => {
 test("an unmatched search says so", async ({ page }) => {
   await openScene(page);
   await page.keyboard.press("Control+K");
-  await page.keyboard.type("zzzz");
-  await expect(page.getByText("Nothing matches “zzzz”.")).toBeVisible();
+  // cmdk's fuzzy score accepts a letter repeated, so the search uses one that no command contains.
+  await page.keyboard.type("qqqq");
+  await expect(page.getByText("Nothing matches “qqqq”.")).toBeVisible();
 });
 
 test("shortcuts run commands", async ({ page }) => {
@@ -106,6 +107,8 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Toggle library\s*Ctrl\s*B/,
     /Toggle inspector\s*Ctrl\s*I/,
     /Switch light and dark theme\s*Ctrl\s*Shift\s*L/,
+    /Zoom to fit\s*F/,
+    /Zoom to selection\s*Shift\s*F/,
   ]);
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowDown");

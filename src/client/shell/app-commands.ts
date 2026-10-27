@@ -1,6 +1,7 @@
 // The app's commands. Register every new action here (or in a registry built from these), so the palette,
 // the menus and the keyboard all reach it.
 import { Command, PanelLeft, PanelRight, SunMoon } from "lucide-react";
+import { canvasCommands } from "../canvas/commands";
 import { createCommandRegistry, type CommandDefinition } from "../core/commands";
 import { paletteCommandId } from "../features/command-palette/command-palette";
 import { togglePalette } from "../features/command-palette/palette-store";
@@ -44,6 +45,7 @@ export const appCommands: CommandDefinition[] = [
     icon: SunMoon,
     run: toggleThemePreference,
   },
+  ...canvasCommands,
 ];
 
 export const appRegistry = createCommandRegistry(appCommands);

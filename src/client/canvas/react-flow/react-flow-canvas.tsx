@@ -1,5 +1,7 @@
 // The CanvasAdapter drawn with React Flow. Nodes are positioned locally while dragged and reported once
 // dropped; everything else comes from the scene, so the document stays the single source of truth.
+// Interaction model (docs/Design/Editor-quality-of-life.md): drag on empty canvas selects with a box, Alt-drag
+// with a lasso; scroll, middle- or right-drag and Space-drag pan; Ctrl or pinch zooms; arrows nudge.
 import {
   applyEdgeChanges,
   applyNodeChanges,
@@ -7,6 +9,7 @@ import {
   BackgroundVariant,
   ReactFlow,
   ReactFlowProvider,
+  SelectionMode,
   useStore,
   useReactFlow,
   useStoreApi,
@@ -19,19 +22,23 @@ import {
   type OnConnectEnd,
   type OnNodeDrag,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { CanvasViewProps, Insets } from "../adapter";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import type { CanvasViewProps, Insets, Point } from "../adapter";
 import { connectionItem } from "../model/connect";
 import { particlesShown } from "../model/flow-style";
 import { lodTier } from "../model/lod";
 import { GRID } from "../model/geometry";
 import type { CanvasScene, EdgeView, NodeView } from "../model/scene";
+import { insideLasso, nudgeOffset } from "../model/selection";
+import { setCanvasActions } from "../viewport";
 import { visibleCentre } from "../model/view";
 import { FrameNode, JunctionNode, NoteNode, PlaceholderNode } from "./annotation-nodes";
 import { CanvasContext } from "./context";
 import { FlowEdge } from "./flow-edge";
+import { LassoArea } from "./lasso";
 import { handleBounds } from "./port-handle";
 import { RecipeNode } from "./recipe-node";
+import { SnapMarks, useSnapping } from "./snapping";
 import { SinkNode, SourceNode } from "./terminal-nodes";
 import type { FlowEdge as FlowEdgeType, FlowNode } from "./types";
 
@@ -85,17 +92,24 @@ function FlowCanvas({
   const particles = useStore((state) => particlesShown(state.transform[2]));
   const context = useMemo(() => ({ results, rateUnit, lod }), [results, rateUnit, lod]);
 
+  const store = useStoreApi<FlowNode, FlowEdgeType>();
+  const snapping = useSnapping();
+  const { snapChanges } = snapping;
   const onNodesChange = useCallback(
-    (changes: NodeChange<FlowNode>[]) => setNodes((current) => applyNodeChanges(changes, current)),
-    [],
+    (changes: NodeChange<FlowNode>[]) => {
+      const snapped = snapChanges(changes, store.getState().nodes);
+      setNodes((current) => applyNodeChanges(snapped, current));
+    },
+    [snapChanges, store],
   );
   const onEdgesChange = useCallback(
     (changes: EdgeChange<FlowEdgeType>[]) => setEdges((current) => applyEdgeChanges(changes, current)),
     [],
   );
+  const { onNodeDragEnd } = snapping;
   const onNodeDragStop: OnNodeDrag<FlowNode> = useCallback(
-    (_event, _node, dragged) => onMoveNodes(Object.fromEntries(dragged.map((node) => [node.id, node.position]))),
-    [onMoveNodes],
+    (_event, _node, dragged) => onMoveNodes(onNodeDragEnd(dragged)),
+    [onMoveNodes, onNodeDragEnd],
   );
   const isValidConnection = useCallback(
     (connection: Connection | FlowEdgeType) => connectionItem(normalise(connection)) !== undefined,
@@ -109,7 +123,7 @@ function FlowCanvas({
     [onConnect],
   );
 
-  const { screenToFlowPosition } = useReactFlow<FlowNode, FlowEdgeType>();
+  const { screenToFlowPosition, fitView } = useReactFlow<FlowNode, FlowEdgeType>();
   const onConnectEnd: OnConnectEnd = useCallback(
     (event, connection) => {
       // Only a drop on the empty pane asks for a new node; a drop on a node or port is a connection attempt.
@@ -134,7 +148,6 @@ function FlowCanvas({
     [scene, screenToFlowPosition, onPortDropped],
   );
 
-  const store = useStoreApi<FlowNode, FlowEdgeType>();
   const reportCentre = useCallback(() => {
     const { transform, width, height } = store.getState();
     const [x, y, zoom] = transform;
@@ -142,52 +155,131 @@ function FlowCanvas({
   }, [store, insets, onViewCentre]);
   useEffect(reportCentre, [reportCentre]);
 
+  useEffect(() => {
+    const fit = (nodes?: FlowNode[]) =>
+      void fitView({ ...fitOptions(insets), ...(nodes && { nodes }), duration: motionDuration() });
+    setCanvasActions({
+      zoomToFit: () => fit(),
+      zoomToSelection: () => {
+        const selected = store.getState().nodes.filter((node) => node.selected);
+        fit(selected.length > 0 ? selected : undefined);
+      },
+    });
+    return () => setCanvasActions(undefined);
+  }, [fitView, insets, store]);
+
+  const onLasso = useCallback(
+    (polygon: Point[], additive: boolean) => {
+      const shape = polygon.map((point) => screenToFlowPosition(point));
+      const candidates = store
+        .getState()
+        .nodes.filter((node) => node.type !== "frame")
+        .map((node) => ({ id: node.id, ...node.position, width: node.width ?? 0, height: node.height ?? 0 }));
+      const chosen = new Set(insideLasso(candidates, shape));
+      setNodes((current) =>
+        current.map((node) => {
+          const selected = chosen.has(node.id) || (additive && !!node.selected);
+          return node.selected === selected ? node : { ...node, selected };
+        }),
+      );
+    },
+    [screenToFlowPosition, store],
+  );
+
+  // Arrow keys nudge the selection; the move is one edit. Captured, so React Flow's own nudging stays out.
+  const onKeyDownCapture = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      const offset = nudgeOffset(event.key, event, GRID);
+      const editable =
+        event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable]");
+      if (!offset || editable) return;
+      const selected = store.getState().nodes.filter((node) => node.selected);
+      if (selected.length === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const moved = Object.fromEntries(
+        selected.map((node) => [node.id, { x: node.position.x + offset.x, y: node.position.y + offset.y }]),
+      );
+      setNodes((current) =>
+        current.map((node) => {
+          const position = moved[node.id];
+          return position ? { ...node, position } : node;
+        }),
+      );
+      onMoveNodes(moved);
+    },
+    [store, onMoveNodes],
+  );
+
   return (
     <CanvasContext value={context}>
-      <ReactFlow<FlowNode, FlowEdgeType>
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeDragStop={onNodeDragStop}
-        onConnect={handleConnect}
-        onConnectEnd={onConnectEnd}
-        onInit={reportCentre}
-        onMoveEnd={reportCentre}
-        // Bottom centre is the one place the floating side panels never cover.
-        attributionPosition="bottom-center"
-        isValidConnection={isValidConnection}
-        {...(initialViewport ? { defaultViewport: initialViewport } : { fitView: true })}
-        fitViewOptions={fitOptions(insets)}
-        minZoom={0.05}
-        maxZoom={2}
-        aria-label="Factory canvas"
-        className={`lod-${lod} ${particles ? "" : "particles-off"}`}
-        // Culling pays off while part of the graph is on screen. At chip zoom most of it is, and mounting
-        // and unmounting chips at the screen edges on every pan frame costs more than drawing them all.
-        onlyRenderVisibleElements={lod !== "chip"}
-      >
-        <Background
-          id="minor"
-          variant={BackgroundVariant.Dots}
-          gap={GRID}
-          size={DOT_SIZE}
-          offset={centredOnGrid(GRID, DOT_SIZE)}
-          color="var(--color-grid-dot)"
-        />
-        <Background
-          id="major"
-          variant={BackgroundVariant.Dots}
-          gap={GRID * MAJOR_GRID_EVERY}
-          size={MAJOR_DOT_SIZE}
-          offset={centredOnGrid(GRID * MAJOR_GRID_EVERY, MAJOR_DOT_SIZE)}
-          color="var(--color-grid-dot-major)"
-        />
-      </ReactFlow>
+      <div className="size-full" onKeyDownCapture={onKeyDownCapture}>
+        <LassoArea onLasso={onLasso}>
+          <ReactFlow<FlowNode, FlowEdgeType>
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onNodeDragStart={snapping.onNodeDragStart}
+            onNodeDrag={snapping.onNodeDrag}
+            onNodeDragStop={onNodeDragStop}
+            selectionOnDrag
+            selectionMode={SelectionMode.Partial}
+            selectionKeyCode={null}
+            multiSelectionKeyCode="Shift"
+            panOnDrag={PAN_BUTTONS}
+            panOnScroll
+            // Deleting waits for delete commands (Editor QoL); React Flow's would only hide nodes locally.
+            deleteKeyCode={null}
+            onConnect={handleConnect}
+            onConnectEnd={onConnectEnd}
+            onInit={reportCentre}
+            onMoveEnd={reportCentre}
+            // Bottom centre is the one place the floating side panels never cover.
+            attributionPosition="bottom-center"
+            isValidConnection={isValidConnection}
+            {...(initialViewport ? { defaultViewport: initialViewport } : { fitView: true })}
+            fitViewOptions={fitOptions(insets)}
+            minZoom={0.05}
+            maxZoom={2}
+            aria-label="Factory canvas"
+            className={`lod-${lod} ${particles ? "" : "particles-off"}`}
+            // Culling pays off while part of the graph is on screen. At chip zoom most of it is, and mounting
+            // and unmounting chips at the screen edges on every pan frame costs more than drawing them all.
+            onlyRenderVisibleElements={lod !== "chip"}
+          >
+            <Background
+              id="minor"
+              variant={BackgroundVariant.Dots}
+              gap={GRID}
+              size={DOT_SIZE}
+              offset={centredOnGrid(GRID, DOT_SIZE)}
+              color="var(--color-grid-dot)"
+            />
+            <Background
+              id="major"
+              variant={BackgroundVariant.Dots}
+              gap={GRID * MAJOR_GRID_EVERY}
+              size={MAJOR_DOT_SIZE}
+              offset={centredOnGrid(GRID * MAJOR_GRID_EVERY, MAJOR_DOT_SIZE)}
+              color="var(--color-grid-dot-major)"
+            />
+            <SnapMarks guides={snapping.marks.guides} gaps={snapping.marks.gaps} />
+          </ReactFlow>
+        </LassoArea>
+      </div>
     </CanvasContext>
   );
+}
+
+/** Middle and right mouse buttons pan; the left one selects. */
+const PAN_BUTTONS = [1, 2];
+
+/** The slow motion token in milliseconds: 0 when the user prefers reduced motion. */
+function motionDuration(): number {
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--duration-slow")) || 0;
 }
 
 /** Room around a fitted graph, in screen pixels, on top of what the panels cover. */

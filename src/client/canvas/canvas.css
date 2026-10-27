@@ -120,6 +120,14 @@
     }
   }
 
+  .lasso {
+    fill: var(--color-accent-soft);
+    stroke: var(--color-accent);
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+    stroke-linejoin: round;
+  }
+
   .react-flow__connectionline path {
     stroke: var(--color-accent);
     stroke-width: 2;
