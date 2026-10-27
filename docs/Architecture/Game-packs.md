@@ -91,8 +91,23 @@ manifest.yaml:4:1: engine: Needs pack format ^2, but this version of Carbonara r
 ## Built-in and third-party packs
 
 - **Built-in packs:** the app ships every pack we maintain (`packs/satisfactory`, `packs/factorio`, …). They're built at app build time, preinstalled and trusted, and they update with the app. They can also be updated on their own, without an app release.
-- **Third-party packs:** drop a `.cpack` on the app, open it with a file dialog, or double-click it on desktop. The `packs` manager reads it, the `packs` engine validates the manifest and data and checks the `engine` range, and errors name the file plus the YAML line and column. Because a pack contains code, installing one shows a trust prompt with its id, version and hash ([[Architecture/Plugins]]). Installed packs are stored in OPFS (web) or the app data folder (desktop).
+- **Third-party packs:** drop a `.cpack` on the app, open it with a file dialog, or double-click it on desktop. The `packs` manager reads it, the `packs` engine validates the manifest and data and checks the `engine` range, and errors name the file plus the YAML line and column. Because a pack contains code, installing one shows a trust prompt with its id, version and hash ([[Architecture/Plugins]]). Installed packs are stored in IndexedDB (web) or the app data folder (desktop).
 - **Identity:** a pack is content-addressed (a hash of the whole archive). Documents record pack id, version and hash. When a document's pack is missing or has a different version, opening it offers to install or migrate.
+
+### Where packs live
+
+The `packs` access component ([[src/access/packs/library.ts]]) implements the `PackStore` from [[src/contracts/access.ts]] plus `install` and `remove`. It hides three things:
+
+- **The archive format** ([[src/access/packs/archive.ts]]): a `.cpack` is a zip, opened with fflate in the backend worker so it never blocks the UI. Its identity is the hex SHA-256 of the archive bytes. Pack builds are reproducible (sorted entries, a fixed zip timestamp), so building the same folder twice gives the same hash.
+- **Built-in packs:** the Vite plugin in [[tools/pack-cli/built-in-packs.ts]] builds every folder in `packs/` that has a `manifest.yaml` with the same code as `carbonara-pack build`, and serves them as the virtual module `virtual:built-in-packs`: a list of `{ info, load }`, where `load` imports the pack's data and plugin as separate chunks on first use. Built-in plugins are bundled into the backend worker like any other module. A broken pack fails the app build with the CLI's messages. The **template pack is built in only by the dev server** (and so in e2e tests), so the app has something to plan with until the game packs land; production builds leave it out. While `pnpm dev` runs, editing a file in `packs/` rebuilds the packs and reloads the app.
+- **Installed packs** are kept in the `KeyValueStorage` port ([[src/contracts/platform.ts]]) that documents use too: IndexedDB (database `carbonara-packs`) on the web, memory in tests ([[src/utilities/memory-key-value.ts]]). Each pack has two keys: `info/<id>` holds its `PackInfo`, so listing reads no pack data, and `contents/<id>` its validated data and its plugin's source. The info is written last and removed first, so a pack counts as installed only while it's complete. Loading an installed pack needs no unzipping or validating again. Plugins load through the `ModuleLoader` port: a Blob URL `import()` in the backend worker ([[src/platforms/web/module-loader.ts]]), a data URL in Node. Installing loads the plugin once and refuses a pack whose plugin doesn't load or doesn't `export default` a plugin with an `id`.
+
+An installed pack with the id of a built-in pack stands in for it until it's removed; that's how a built-in pack updates without an app release. Installing a pack whose id is already installed replaces it.
+
+Why not OPFS: a pack's data and plugin are structured-cloneable values of a few megabytes, which IndexedDB stores well, and one storage port with one contract suite ([[src/contracts/platform.contract.ts]], run against memory and IndexedDB) is simpler than two. OPFS pays off for streaming large binary files; reconsider it if packs start keeping icons or other assets in bulk.
+
+> [!WARNING]
+> Third-party plugins currently run in the backend worker like built-in ones. Moving them to an opaque-origin plugin worker is [[CARB-42]].
 
 ## Authoring
 
