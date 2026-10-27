@@ -2,7 +2,7 @@
 id: CARB-82
 title: MCP proposals as ghosts and apply_proposal
 type: feature
-status: backlog
+status: todo
 priority: medium
 labels: [mcp, planner]
 wave: "3"

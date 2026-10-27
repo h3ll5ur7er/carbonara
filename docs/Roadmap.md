@@ -11,7 +11,7 @@ The work is planned on the task board (`tasks/`) in waves. Each task has a `wave
 | 0 — Foundations | Scaffold, CI, and the contracts every later task builds on: pack and document schemas, solver IR, manager contracts, plugin API, the template pack | Sequential. The contracts are frozen at the end |
 | 1 — Core vertical slice | Solver, compiler and analysis; canvas; app shell; game packs; documents and editing | Five agents in parallel, one per epic |
 | 2 — Depth | Subgraphs, plugins, planner, editor quality of life, desktop, MCP | Six agents in parallel |
-| 3 — Polish | Onboarding, visual QA, accessibility, author docs, release | Two or three agents plus review |
+| 3 — Polish | Onboarding, visual QA, accessibility, author docs, release; plus what Wave 2 left: subgraph UX, paste with a ghost, the 50k-node budgets, and the follow-ups its merges filed | Six agents in parallel for the features and follow-ups, then visual QA and accessibility over the finished UI, then the release |
 
 ## Milestones
 

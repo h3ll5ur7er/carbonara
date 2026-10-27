@@ -2,7 +2,7 @@
 id: CARB-84
 title: Editor quality-of-life loose ends
 type: chore
-status: backlog
+status: todo
 priority: low
 labels: [canvas, ux]
 wave: "3"

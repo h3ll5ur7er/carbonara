@@ -2,10 +2,10 @@
 id: CARB-59
 title: Keep a 50k-node factory interactive
 type: improvement
-status: backlog
+status: todo
 priority: high
 labels: [performance]
-wave: "2"
+wave: "3"
 milestone: "M3 Megafactory"
 ---
 

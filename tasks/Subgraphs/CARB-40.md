@@ -2,10 +2,10 @@
 id: CARB-40
 title: Reuse blueprints from a library
 type: feature
-status: backlog
+status: todo
 priority: medium
 labels: [subgraphs, ux]
-wave: "2"
+wave: "3"
 milestone: "M3 Megafactory"
 ---
 

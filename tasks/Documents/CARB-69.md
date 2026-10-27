@@ -2,10 +2,10 @@
 id: CARB-69
 title: Reopen recent documents
 type: feature
-status: backlog
+status: todo
 priority: medium
 labels: [documents, ux]
-wave: "2"
+wave: "3"
 milestone: "M4 Ship"
 ---
 

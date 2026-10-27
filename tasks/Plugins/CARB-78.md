@@ -2,7 +2,7 @@
 id: CARB-78
 title: Factorio productivity research and quality of machines
 type: feature
-status: backlog
+status: todo
 priority: low
 labels: [plugins, factorio]
 wave: "3"

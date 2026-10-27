@@ -2,10 +2,10 @@
 id: CARB-39
 title: Collapse, enter and leave subgraphs
 type: feature
-status: backlog
+status: todo
 priority: high
 labels: [canvas, subgraphs, ux]
-wave: "2"
+wave: "3"
 milestone: "M3 Megafactory"
 ---
 

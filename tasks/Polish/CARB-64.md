@@ -2,7 +2,7 @@
 id: CARB-64
 title: Welcome new players
 type: feature
-status: backlog
+status: todo
 priority: high
 labels: [ux]
 wave: "3"

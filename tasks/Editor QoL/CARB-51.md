@@ -2,10 +2,10 @@
 id: CARB-51
 title: Copy and paste with a ghost preview
 type: feature
-status: backlog
+status: todo
 priority: urgent
 labels: [qol, ux]
-wave: "2"
+wave: "3"
 milestone: "M2 It's a game"
 ---
 

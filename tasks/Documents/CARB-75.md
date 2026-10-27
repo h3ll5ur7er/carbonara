@@ -2,10 +2,10 @@
 id: CARB-75
 title: Rename a factory
 type: feature
-status: backlog
+status: todo
 priority: low
 labels: [documents, ux]
-wave: "2"
+wave: "3"
 milestone: "M4 Ship"
 ---
 

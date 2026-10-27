@@ -5,7 +5,7 @@ type: improvement
 status: in-progress
 priority: high
 labels: [solver, performance]
-wave: "2"
+wave: "3"
 milestone: "M3 Megafactory"
 ---
 

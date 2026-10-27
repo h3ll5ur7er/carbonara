@@ -2,7 +2,7 @@
 id: CARB-77
 title: Model Factorio power generation, heat and fluid temperatures
 type: feature
-status: backlog
+status: todo
 priority: medium
 labels: [plugins, factorio]
 wave: "3"

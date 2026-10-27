@@ -2,7 +2,7 @@
 id: CARB-81
 title: Smarter plans: buildings, resource weights and belts
 type: feature
-status: backlog
+status: todo
 priority: medium
 labels: [planner]
 wave: "3"
