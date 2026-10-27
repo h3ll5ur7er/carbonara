@@ -11,7 +11,10 @@ export default function SceneHost() {
     <TooltipProvider>
       {SceneComponent ? (
         <Suspense fallback={null}>
-          <SceneComponent />
+          {/* Tells tests the scene has loaded; `contents` keeps it out of the layout. */}
+          <div data-scene={pick.kind === "scene" ? pick.name : undefined} className="contents">
+            <SceneComponent />
+          </div>
         </Suspense>
       ) : (
         <SceneIndex requested={pick.kind === "index" ? pick.requested : ""} />

@@ -11,7 +11,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? [["html", { open: "never" }], ["list"]] : "list",
   use: { baseURL: url, trace: "retain-on-failure" },
-  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002 } },
+  // A low per-pixel threshold: the dark theme is low-contrast, and the default (0.2) misses whole panels in it.
+  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002, threshold: 0.05 } },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
   webServer: {
     command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,

@@ -1,7 +1,9 @@
 // Dev-only scenes: fixed states of the UI for screenshot tests and visual QA, picked with `?scene=<name>`.
 // Each scene loads lazily, so none of this reaches the production bundle (see `App`).
-// To add one, export a component as the default of a module and register it below; canvas scenes live in
-// `src/client/canvas/scenes/`. A placeholder stands in for a scene whose feature doesn't exist yet.
+//
+// To add one, export a component as the default of a module and register it below. Canvas scenes live in
+// `src/client/canvas/scenes/`; register them here under the canonical names. A placeholder stands in for a
+// canonical scene until its feature exists: replace its entry with the real scene and update the baselines.
 import type { ComponentType } from "react";
 
 export interface Scene {
@@ -13,7 +15,22 @@ export interface Scene {
 
 export type SceneRegistry = Record<string, Scene>;
 
+function placeholder(title: string, task: string): Scene {
+  return {
+    title,
+    placeholder: true,
+    load: () => import("./placeholder").then(({ placeholderScene }) => ({ default: placeholderScene(title, task) })),
+  };
+}
+
 export const scenes: SceneRegistry = {
+  // The canonical scenes of docs/Design.md (Visual QA), screenshot in dark and light by e2e/scenes.spec.ts.
+  empty: { title: "Empty state", load: () => import("./empty") },
+  chain: placeholder("A 20-node chain", "CARB-16"),
+  congested: placeholder("A congested graph", "CARB-17"),
+  subgraph: placeholder("Inside a subgraph", "CARB-39"),
+  "ghost-paste": placeholder("The ghost paste", "CARB-51"),
+  // The design system and the shell.
   gallery: { title: "Primitives gallery", load: () => import("./gallery") },
   inspector: { title: "Side panels and the inspector", load: () => import("./inspector") },
   palette: { title: "Command palette with quick-add", load: () => import("./palette") },

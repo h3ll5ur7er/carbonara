@@ -100,6 +100,6 @@ Full keyboard navigation (between nodes and ports), visible focus rings, ARIA on
 
 ## Visual QA
 
-Playwright screenshot tests cover a set of canonical scenes: empty state, a 20-node chain, a congested graph, inside a subgraph, the ghost paste, and each in dark and light. UI work is checked against these scenes before it's merged, and an intentional visual change updates the baseline in the same commit.
+Playwright screenshot tests cover a set of canonical scenes: empty state, a 20-node chain, a congested graph, inside a subgraph, the ghost paste, and each in dark and light. UI work is checked against these scenes before it's merged, and an intentional visual change updates the baseline in the same commit. The scenes, how to add one and how to update the baselines are on [[Development]] (Scenes, Screenshot tests).
 
 [SUBPAGES]
