@@ -55,6 +55,11 @@ pub fn validate(model: &Model) -> Result<(), InvalidModel> {
         }
     }
     for (c, constraint) in model.constraints.iter().enumerate() {
+        check(
+            !constraint.terms.is_empty(),
+            format!("constraints[{c}].terms"),
+            || "empty".into(),
+        )?;
         for (t, term) in constraint.terms.iter().enumerate() {
             node(term.node, format!("constraints[{c}].terms[{t}].node"))?;
             finite(
@@ -186,6 +191,18 @@ mod tests {
         assert_eq!(
             error(|m| m.edges[0].ratio = Some(1.5)),
             "edges[0].ratio: not between 0 and 1"
+        );
+    }
+
+    #[test]
+    fn rejects_constraints_without_terms() {
+        assert_eq!(
+            error(|m| m.constraints.push(Constraint {
+                terms: vec![],
+                op: Comparison::AtMost,
+                rhs: 1.0
+            })),
+            "constraints[0].terms: empty"
         );
     }
 

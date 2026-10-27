@@ -5,6 +5,7 @@ import { createAutosavedDocumentStore } from "../../access/documents/autosave";
 import { createPackLibrary } from "../../access/packs/library";
 import { managers, type Events } from "../../contracts/managers";
 import type { EventMessage, Request } from "../../contracts/rpc";
+import { createAnalysisManager } from "../../managers/analysis";
 import { createEditingManager } from "../../managers/editing";
 import { createPacksManager } from "../../managers/packs";
 import { createWorkspaceManager } from "../../managers/workspace";
@@ -33,6 +34,7 @@ export function startBackend(transport: Transport): void {
     workspace: createWorkspaceManager({ documents, packs, events: bus, newId }),
     editing: createEditingManager({ documents, events: bus, newId }),
     packs: createPacksManager({ library: packs, bus }),
+    analysis: createAnalysisManager({ bus, documents, packs }),
   });
   transport.listen(async (message) => {
     await restored;

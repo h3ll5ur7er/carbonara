@@ -33,6 +33,7 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 | `pnpm carbonara-pack <command>` | The pack CLI: `new`, `validate`, `build`, `dev`, `import` ([[Architecture/Game-packs#Authoring]]) |
 | `pnpm pack:build <folder> [--out dist/packs]` | Bundles a pack folder's plugin and zips it into `<out>/<id>-<version>.cpack` |
 | `pnpm pack:import <pack> <file>… [--icons <folder>]…` | Regenerates a pack's data and icons with its plugin's importer |
+| `pnpm bench` | Edit → results timings on generated 500 / 1k / 10k / 50k-node factories, with the WebAssembly module as built (`pnpm build:wasm` builds release). Exits with 1 when a budget from [[Architecture/Solver]] is exceeded |
 | `cargo test` | Rust tests (solver) |
 | `cargo clippy --all-targets -- -D warnings` / `cargo fmt --check` | Rust lint and format |
 

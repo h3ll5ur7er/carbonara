@@ -9,6 +9,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+good_lp = { version = "1.15", default-features = false, features = ["microlp"] }
 serde = { version = "1", features = ["derive"] }
 ts-rs = "12"
 
