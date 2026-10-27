@@ -2,7 +2,7 @@
 id: CARB-105
 title: Keep the planner's resource weights and buildings in the save profile
 type: improvement
-status: backlog
+status: todo
 priority: low
 labels: [planner]
 milestone: "M3 Megafactory"

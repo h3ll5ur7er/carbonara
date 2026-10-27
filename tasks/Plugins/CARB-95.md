@@ -2,7 +2,7 @@
 id: CARB-95
 title: Draw ports for the items a plugin's effective recipe uses
 type: improvement
-status: backlog
+status: todo
 priority: low
 labels: [canvas, plugins]
 ---

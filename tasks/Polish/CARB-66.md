@@ -2,7 +2,7 @@
 id: CARB-66
 title: Audit accessibility
 type: improvement
-status: backlog
+status: todo
 priority: medium
 labels: [a11y]
 wave: "3"
