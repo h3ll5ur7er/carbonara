@@ -106,6 +106,31 @@ While a node is dragged ([[src/client/canvas/model/snap.ts]], [[src/client/canva
 - **Multi-select editing** (selection toolbar): *Recipe* swaps every selected machine to a recipe they could all run (same main product); *Belt* puts the selected flows and the flows of the selected nodes on a belt or pipe (only flows of the items it carries) or removes the limit. Clock and modules wait for plugin fields in the inspector ([[CARB-41]]).
 - New commands: `setRecipe` (keeps fields and pins; drops a building the caller doesn't name) and `setLogistics`.
 
+### Organising: notes, frames, tags
+
+| Command | Shortcut | Does |
+| --- | --- | --- |
+| Add note | `N` | A sticky note in the middle of the view, clear of the other nodes |
+| Frame selection | `Shift+G` | A frame around the selected nodes: a grid step of room, two above for the label |
+| Tag red … purple, Remove tag | — (selection toolbar, palette) | A colour tab on the top edge of the selected nodes (`setTag`; stored on the position, like the lock) |
+
+- **Edit in place:** double-click a note (or a frame's label) to edit it; `Ctrl+Enter` in a note or `Enter` in a label, or clicking away, keeps it (`setText`), `Escape` drops it. Keys typed there stay in the field.
+- **Resize** a selected note or frame by its handles; the new size is one edit when you let go. Locked ones don't show handles.
+- Tag colours are hues on the item-tint scale (canvas.css), so they work in both themes. Frames still take their tint from `tone`.
+- Not done yet: collapsing frames.
+
+### Navigating: bookmarks, back and forward
+
+| Command | Shortcut | Does |
+| --- | --- | --- |
+| Bookmark this view | `Shift+B` | Saves the view in the first free of nine slots (slot 1 again once all are taken) and says which |
+| Go to bookmark 1–9 | `1` … `9` | Glides there |
+| Back / Forward | `Ctrl+[` / `Ctrl+]` | Through the places you looked at, like a browser ([[src/client/canvas/model/navigation.ts]]) |
+
+- A view that came to rest counts as a new place when it moved by a third of the screen or zoomed by a fifth; smaller moves only update where you are, so back returns to where you were before each jump. Zoom to fit, jumps from find and bookmarks count too.
+- Kept per document for the session (they don't go into the file).
+- The spec's `Ctrl+1…9` are taken by browsers for their tabs, so bookmarks use the plain digits; the shortcut editor ([[CARB-56]]) can change them.
+
 ### Balance and units
 
 - **Fit to demand / Fit to supply** (inspector, on a machine): pins the machine count that makes exactly what the consumers downstream want of its main product, or that the producers upstream can keep busy ([[src/client/shell/inspector/balance.ts]]). Both work from the latest solve: a consumer wants what it takes less what reaches it from elsewhere, a sink with a target wants its target, a producer can spare what it makes less what it sends elsewhere, a source its limit; junctions pass both through. A machine's rate is its solved rate per machine (so plugin modifiers count), or the pack's recipe when it's idle. Each button shows its count and is off when nothing sets one (no consumer that wants a set amount, no limited supply).

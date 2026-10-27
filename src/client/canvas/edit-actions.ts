@@ -1,10 +1,11 @@
 // What the canvas offers the app's commands for editing the document on screen: the actions on its selection,
 // arranging, undo, and where a new node should go. Set by the document canvas on screen; empty without one.
-import type { Node, Position } from "../../contracts/document";
+import type { Node, Position, TagColour } from "../../contracts/document";
 import type { ArrangeDirection } from "../../contracts/layout";
 import type { AlignMode, DistributeAxis } from "./model/align";
+import type { NavigationActions } from "./use-navigation";
 
-export interface CanvasEditActions {
+export interface CanvasEditActions extends NavigationActions {
   /** Lays out the selection (two or more nodes) or else the whole graph. */
   arrange(direction: ArrangeDirection): void;
   /** Deletes the selected nodes and flows; with `bridge`, reconnects the flows that ran through the nodes. */
@@ -15,6 +16,12 @@ export interface CanvasEditActions {
   distribute(axis: DistributeAxis): void;
   /** Levels the flows between the selected nodes. */
   straighten(): void;
+  /** Adds a sticky note in the middle of the view, clear of the other nodes. */
+  addNote(): void;
+  /** Puts a frame around the selected nodes. */
+  frameSelection(): void;
+  /** Gives the selected nodes a colour tag, or removes it (null). */
+  tag(tag: TagColour | null): void;
   /** Locks the selected nodes, or unlocks them when they all are locked already. */
   toggleLock(): void;
   /** Shows rates in a rate unit (`per_minute`), a belt (`belt:<id>`), or `belts`: the pack's fastest belt. */

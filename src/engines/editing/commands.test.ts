@@ -339,6 +339,31 @@ describe("changing recipes and belts", () => {
   });
 });
 
+describe("notes, frames and colour tags", () => {
+  it("changes a note's text and a frame's label", () => {
+    const { document: next } = edit(
+      { type: "setText", graph: "root", id: "hint", text: "Upgrade to Mk.2" },
+      { type: "setText", graph: "root", id: "area", text: "Iron" },
+    );
+    expect(next.graph.nodes["hint"]).toEqual({ kind: "note", text: "Upgrade to Mk.2" });
+    expect(next.graph.nodes["area"]).toMatchObject({ kind: "frame", label: "Iron" });
+  });
+
+  it("refuses text on nodes that have none", () => {
+    expect(rejection({ type: "setText", graph: "root", id: "ore", text: "x" })).toEqual([
+      { path: ["commands", 0, "id"], message: "ore is neither a note nor a frame" },
+    ]);
+  });
+
+  it("tags nodes with a colour on their position, and removes it", () => {
+    const { document: tagged } = edit({ type: "setTag", graph: "root", ids: ["ore", "split"], tag: "blue" });
+    expect(tagged.layout["root"]?.["ore"]).toEqual({ x: 0, y: 0, tag: "blue" });
+    expect(tagged.layout["root"]?.["split"]).toEqual({ x: 0, y: 0, tag: "blue" });
+    const cleared = applyCommands(tagged, [{ type: "setTag", graph: "root", ids: ["ore"], tag: null }]);
+    expect(cleared.ok && cleared.value.document.layout["root"]?.["ore"]).toEqual({ x: 0, y: 0 });
+  });
+});
+
 describe("changing the display settings", () => {
   it("sets the ones given, clears the ones set to null and keeps the rest", () => {
     const { document: next } = edit({ type: "setSettings", settings: { belt: "belt-mk3", machineGroups: "even" } });

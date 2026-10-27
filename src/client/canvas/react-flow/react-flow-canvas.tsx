@@ -42,16 +42,17 @@ import { RecipeNode } from "./recipe-node";
 import { SnapMarks, useSnapping } from "./snapping";
 import { useAltHeld, useInsertTarget } from "./edge-gestures";
 import { SinkNode, SourceNode } from "./terminal-nodes";
+import { withTag } from "./tag-badge";
 import { motionDurations, useMoveTween } from "./tween";
 import type { FlowEdge as FlowEdgeType, FlowNode } from "./types";
 
 const nodeTypes = {
-  recipe: RecipeNode,
-  source: SourceNode,
-  sink: SinkNode,
-  junction: JunctionNode,
-  note: NoteNode,
-  frame: FrameNode,
+  recipe: withTag(RecipeNode),
+  source: withTag(SourceNode),
+  sink: withTag(SinkNode),
+  junction: withTag(JunctionNode),
+  note: withTag(NoteNode),
+  frame: withTag(FrameNode),
   placeholder: PlaceholderNode,
 } as NodeTypes;
 
@@ -84,6 +85,9 @@ function FlowCanvas({
   onInsert,
   onRewire,
   onDelete,
+  onEditText,
+  onResize,
+  onViewSettled,
 }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
@@ -102,7 +106,10 @@ function FlowCanvas({
   // One subscriber to the zoom for the whole canvas: nodes re-render only when the tier changes.
   const lod = useStore((state) => lodTier(state.transform[2]));
   const particles = useStore((state) => particlesShown(state.transform[2]));
-  const context = useMemo(() => ({ results, rateUnit, machineGroups, lod }), [results, rateUnit, machineGroups, lod]);
+  const context = useMemo(
+    () => ({ results, rateUnit, machineGroups, lod, editText: onEditText, resize: onResize }),
+    [results, rateUnit, machineGroups, lod, onEditText, onResize],
+  );
 
   const store = useStoreApi<FlowNode, FlowEdgeType>();
   // Once per adopted scene. It reads `nodes`: React Flow's store catches up with them in an effect of its own.
@@ -203,7 +210,7 @@ function FlowCanvas({
     [onConnect],
   );
 
-  const { screenToFlowPosition, fitView } = useReactFlow<FlowNode, FlowEdgeType>();
+  const { screenToFlowPosition, fitView, setViewport } = useReactFlow<FlowNode, FlowEdgeType>();
   const onConnectEnd: OnConnectEnd = useCallback(
     (event, connection) => {
       // Only a drop on the empty pane asks for a new node; a drop on a node or port is a connection attempt.
@@ -234,11 +241,23 @@ function FlowCanvas({
     if (width > 0) onViewCentre(visibleCentre({ x, y, zoom }, { width, height }, insets));
   }, [store, insets, onViewCentre]);
   useEffect(reportCentre, [reportCentre]);
+  const onMoveEnd = useCallback(() => {
+    reportCentre();
+    const { transform, width, height } = store.getState();
+    const [x, y, zoom] = transform;
+    if (width > 0) onViewSettled({ x, y, zoom }, { width, height });
+  }, [reportCentre, store, onViewSettled]);
 
   useEffect(() => {
+    // Moves made here settle without React Flow saying so: report them, for back and forward.
+    const settled = () => onMoveEnd();
     const fit = (nodes?: FlowNode[]) =>
       // The whole graph shows at most at 100%; a selection may be zoomed in on up to the canvas maximum.
-      void fitView({ ...fitOptions(insets), ...(nodes && { nodes, maxZoom: MAX_ZOOM }), duration: motionDuration() });
+      void fitView({
+        ...fitOptions(insets),
+        ...(nodes && { nodes, maxZoom: MAX_ZOOM }),
+        duration: motionDuration(),
+      }).then(settled);
     setCanvasActions({
       zoomToFit: () => fit(),
       zoomToSelection: () => {
@@ -254,11 +273,19 @@ function FlowCanvas({
         );
         const targets = store.getState().nodes.filter((node) => chosen.has(node.id));
         // Close enough to read the cards, never closer than real size.
-        if (targets.length > 0) void fitView({ ...fitOptions(insets), nodes: targets, duration: motionDuration() });
+        if (targets.length > 0) {
+          void fitView({ ...fitOptions(insets), nodes: targets, duration: motionDuration() }).then(settled);
+        }
+      },
+      goTo: (viewport) => void setViewport(viewport, { duration: motionDuration() }).then(settled),
+      view: () => {
+        const { transform, width, height } = store.getState();
+        const [x, y, zoom] = transform;
+        return { viewport: { x, y, zoom }, size: { width, height } };
       },
     });
     return () => setCanvasActions(undefined);
-  }, [fitView, insets, store]);
+  }, [fitView, setViewport, insets, store, onMoveEnd]);
 
   const onLasso = useCallback(
     (polygon: Point[], additive: boolean) => {
@@ -348,8 +375,8 @@ function FlowCanvas({
             onConnect={handleConnect}
             onConnectEnd={onConnectEnd}
             onSelectionChange={reportSelection}
-            onInit={reportCentre}
-            onMoveEnd={reportCentre}
+            onInit={onMoveEnd}
+            onMoveEnd={onMoveEnd}
             // Bottom centre is the one place the floating side panels never cover.
             attributionPosition="bottom-center"
             isValidConnection={isValidConnection}

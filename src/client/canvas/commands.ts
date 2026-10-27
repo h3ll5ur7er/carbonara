@@ -8,17 +8,24 @@ import {
   AlignStartHorizontal,
   AlignStartVertical,
   AlignVerticalSpaceBetween,
+  ArrowLeft,
+  ArrowRight,
+  Bookmark,
+  BookmarkCheck,
   Cable,
   Factory,
   Gauge,
   ChevronsDown,
   ChevronsRight,
   Focus,
+  Frame,
   Lock,
   Maximize,
   MoveHorizontal,
   Redo2,
   Search,
+  StickyNote,
+  Tag,
   Trash,
   Undo2,
 } from "lucide-react";
@@ -26,6 +33,9 @@ import type { CommandDefinition } from "../core/commands";
 import { setFindOpen, useFind } from "../features/find/find-store";
 import { canvasEditActions } from "./edit-actions";
 import type { AlignMode } from "./model/align";
+import { TagColour } from "../../contracts/document";
+
+const TAG_COLOURS = TagColour.options;
 import { canvasActions } from "./viewport";
 
 /** Align commands, by mode: title, icon, words people may search for. */
@@ -196,5 +206,67 @@ export const canvasCommands: CommandDefinition[] = [
     keywords: ["pin", "fix", "freeze", "keep", "position"],
     icon: Lock,
     run: () => canvasEditActions()?.toggleLock(),
+  },
+  {
+    id: "arrange.frameSelection",
+    title: "Frame selection",
+    group: "Arrange",
+    shortcut: "Shift+G",
+    keywords: ["group", "box", "area", "label", "section"],
+    icon: Frame,
+    run: () => canvasEditActions()?.frameSelection(),
+  },
+  {
+    id: "edit.addNote",
+    title: "Add note",
+    group: "Edit",
+    shortcut: "N",
+    keywords: ["sticky", "comment", "text", "annotate"],
+    icon: StickyNote,
+    run: () => canvasEditActions()?.addNote(),
+  },
+  ...[...TAG_COLOURS, null].map((tag): CommandDefinition => ({
+    id: `tag.${tag ?? "none"}`,
+    title: tag ? `Tag ${tag}` : "Remove tag",
+    group: "Arrange",
+    keywords: ["colour", "color", "mark", "label", ...(tag ? [tag] : ["clear", "untag"])],
+    icon: Tag,
+    run: () => canvasEditActions()?.tag(tag),
+  })),
+  {
+    id: "view.bookmark",
+    title: "Bookmark this view",
+    group: "View",
+    shortcut: "Shift+B",
+    keywords: ["save", "remember", "place", "viewport"],
+    icon: Bookmark,
+    run: () => canvasEditActions()?.bookmarkView(),
+  },
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((slot): CommandDefinition => ({
+    id: `view.bookmark${slot}`,
+    title: `Go to bookmark ${slot}`,
+    group: "View",
+    shortcut: String(slot),
+    keywords: ["jump", "place", "viewport"],
+    icon: BookmarkCheck,
+    run: () => canvasEditActions()?.goToBookmark(slot),
+  })),
+  {
+    id: "view.back",
+    title: "Back",
+    group: "View",
+    shortcut: "Mod+[",
+    keywords: ["previous", "history", "where I was", "return"],
+    icon: ArrowLeft,
+    run: () => canvasEditActions()?.back(),
+  },
+  {
+    id: "view.forward",
+    title: "Forward",
+    group: "View",
+    shortcut: "Mod+]",
+    keywords: ["next", "history"],
+    icon: ArrowRight,
+    run: () => canvasEditActions()?.forward(),
   },
 ];

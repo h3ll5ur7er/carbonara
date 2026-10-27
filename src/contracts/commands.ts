@@ -1,6 +1,6 @@
 // Edits a client can ask the editing manager for. Each command is undoable; a batch is one undo step.
 import { z } from "zod";
-import { Edge, LocalId, Node, Pin, Position } from "./document";
+import { Edge, LocalId, Node, Pin, Position, TagColour } from "./document";
 import { Id, RateUnit } from "./pack";
 
 /** `root`, or the id of the blueprint whose graph the command edits. */
@@ -46,6 +46,12 @@ export const Command = z.discriminatedUnion("type", [
     .describe(
       "Changes the recipe of recipe nodes; their fields and pins stay. Flows the recipe can't take aren't removed.",
     ),
+  z
+    .object({ type: z.literal("setText"), graph: GraphScope, id: LocalId, text: z.string() })
+    .describe("Changes a note's text or a frame's label."),
+  z
+    .object({ type: z.literal("setTag"), graph: GraphScope, ids: z.array(LocalId).min(1), tag: TagColour.nullable() })
+    .describe("Gives nodes a colour tag (on their position), or removes it."),
   z
     .object({
       type: z.literal("setLogistics"),

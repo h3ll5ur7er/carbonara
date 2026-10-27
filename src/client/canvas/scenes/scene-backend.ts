@@ -83,6 +83,19 @@ function apply(draft: Draft<Document>, command: Command, newId: () => string) {
     case "disconnect":
       for (const id of command.ids) Reflect.deleteProperty(graph.edges, id);
       return;
+    case "setText": {
+      const node = graph.nodes[command.id];
+      if (node?.kind === "note") node.text = command.text;
+      if (node?.kind === "frame") node.label = command.text;
+      return;
+    }
+    case "setTag":
+      for (const id of command.ids) {
+        const position = (layout[id] ??= { x: 0, y: 0 });
+        if (command.tag) position.tag = command.tag;
+        else delete position.tag;
+      }
+      return;
     case "setLocked":
       for (const id of command.ids) {
         const position = (layout[id] ??= { x: 0, y: 0 });

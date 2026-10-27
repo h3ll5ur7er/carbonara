@@ -4,10 +4,11 @@
 import { ChevronDown } from "lucide-react";
 import type { RefObject } from "react";
 import type { CommandInput } from "../../contracts/commands";
-import type { Document, LocalId } from "../../contracts/document";
+import { TagColour, type Document, type LocalId } from "../../contracts/document";
 import type { PackData } from "../../contracts/pack";
 import { alternativesFor, recipeChangeCommands } from "../features/find/find";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "../ui/menu";
+import { canvasEditActions } from "./edit-actions";
 import type { Selection } from "./use-edit-actions";
 
 export interface MultiEditProps {
@@ -39,6 +40,22 @@ export function MultiEdit(props: MultiEditProps) {
         </MenuTrigger>
         <MenuContent>
           <BeltItems {...props} />
+        </MenuContent>
+      </Menu>
+      <Menu>
+        <MenuTrigger className={trigger}>
+          Tag <ChevronDown className="size-3.5" aria-hidden />
+        </MenuTrigger>
+        <MenuContent>
+          {[...TagColour.options, null].map((tag) => (
+            <MenuItem
+              key={tag ?? "none"}
+              icon={tag ? <span data-tag={tag} className="node-tag-swatch item-tint" /> : undefined}
+              onSelect={() => canvasEditActions()?.tag(tag)}
+            >
+              {tag ? tag.charAt(0).toUpperCase() + tag.slice(1) : "No tag"}
+            </MenuItem>
+          ))}
         </MenuContent>
       </Menu>
     </>

@@ -13,7 +13,7 @@ const byId = new Map(canvasCommands.map((command) => [command.id, command]));
 const GROUPS: string[][] = [
   tidyCommandIds.slice(0, 6),
   tidyCommandIds.slice(6),
-  ["arrange.leftToRight", "arrange.toggleLock"],
+  ["arrange.leftToRight", "arrange.frameSelection", "arrange.toggleLock"],
 ];
 
 export function SelectionToolbar({ left, right, multiEdit }: { left: number; right: number; multiEdit?: ReactNode }) {

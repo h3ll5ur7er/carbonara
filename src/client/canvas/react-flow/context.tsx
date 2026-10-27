@@ -9,6 +9,9 @@ export interface CanvasContextValue {
   results: ResultSlots;
   rateUnit: RateDisplay;
   machineGroups: MachineGroups;
+  /** Notes and frames report in-place edits and resizes through these. */
+  editText(node: LocalId, text: string): void;
+  resize(node: LocalId, rect: { x: number; y: number; width: number; height: number }): void;
   /** How much of each node to draw at the current zoom. */
   lod: LodTier;
 }
@@ -28,6 +31,12 @@ export function useRateUnit(): RateDisplay {
 
 export function useMachineGroups(): MachineGroups {
   return useCanvasContext().machineGroups;
+}
+
+/** How notes and frames report edits made on the canvas. */
+export function useAnnotationEdits(): Pick<CanvasContextValue, "editText" | "resize"> {
+  const { editText, resize } = useCanvasContext();
+  return { editText, resize };
 }
 
 export function useLod(): LodTier {

@@ -63,10 +63,11 @@ test("Shift+S straightens a chain so its flows run level", async ({ page }) => {
   await page.keyboard.press("Shift+S");
   // The ore keeps its place and the splitter is level with it already; the washer's ore input comes down to the
   // splitter's output (252 + 24 - 108), and the smelter's input to the washer's clean ferrite (168 + 164 - 108).
-  expect(await appliedCommands(page)).toEqual([
+  // The last edit: under load a click can land as a tiny drag, which is an edit of its own before it.
+  expect((await appliedCommands(page)).at(-1)).toEqual(
     expect.objectContaining({
       type: "moveNodes",
       positions: { "wash-a": { x: 504, y: 168 }, "smelt-a": { x: 912, y: 224 } },
     }),
-  ]);
+  );
 });

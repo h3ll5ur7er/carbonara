@@ -29,6 +29,14 @@ describe("appCommands", () => {
       "units.per_hour",
       "units.belts",
       "units.roundToBuildable",
+      // Tags: also on the selection toolbar.
+      "tag.red",
+      "tag.orange",
+      "tag.yellow",
+      "tag.green",
+      "tag.blue",
+      "tag.purple",
+      "tag.none",
     ]);
     for (const command of appCommands) {
       if (!paletteOnly.has(command.id)) expect(command.shortcut, command.id).toBeDefined();

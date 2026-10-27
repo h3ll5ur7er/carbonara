@@ -1,6 +1,6 @@
 // What the canvas offers to the rest of the app about its view: where the user is looking (quick-add places
 // new nodes there) and the zoom actions the app's commands run. Set by the canvas on screen; empty without one.
-import type { Point } from "./adapter";
+import type { Point, Viewport } from "./adapter";
 
 export interface CanvasActions {
   /** Shows the whole graph, clear of the side panels. */
@@ -9,6 +9,10 @@ export interface CanvasActions {
   zoomToSelection(): void;
   /** Selects these nodes and brings them into view (find's jump). */
   focus(nodeIds: string[]): void;
+  /** Moves the view there, animated (bookmarks, back and forward). */
+  goTo(viewport: Viewport): void;
+  /** Where the view is now, and the canvas's size in screen pixels. */
+  view(): { viewport: Viewport; size: { width: number; height: number } };
 }
 
 let centre: Point | undefined;

@@ -7,6 +7,7 @@ import type { PackData } from "../../contracts/pack";
 import { useConnector } from "../core/connector";
 import { errorMessage, toast } from "../shell/toasts";
 import { setCanvasEditActions, type CanvasEditActions } from "./edit-actions";
+import type { NavigationActions } from "./use-navigation";
 import type { Point } from "./adapter";
 import { align, distribute, straightenChain, type AlignMode, type Box } from "./model/align";
 import { freeSpot, obstaclesOf } from "./model/free-spot";
@@ -28,6 +29,8 @@ export interface EditActionsInput {
   scene: CanvasScene;
   selection: RefObject<Selection>;
   apply(commands: CommandInput[], label: string): Promise<void>;
+  /** Back, forward and bookmarks (use-navigation.ts). */
+  navigation: NavigationActions;
 }
 
 /** Builds the actions, registers them while the canvas is on screen, and returns them for the canvas's own keys. */
@@ -38,6 +41,7 @@ export function useEditActions({
   scene,
   selection,
   apply,
+  navigation,
 }: EditActionsInput): CanvasEditActions {
   const connector = useConnector();
   const documentId = document.id;
@@ -61,6 +65,16 @@ export function useEditActions({
     const move = (moves: Record<LocalId, Point>, label: string) => {
       const positions = Object.fromEntries(Object.entries(moves).map(([id, at]) => [id, { ...layout?.[id], ...at }]));
       if (Object.keys(positions).length > 0) void apply([{ type: "moveNodes", graph, positions }], label);
+    };
+    /** Mid-view, clear of the other nodes. */
+    const placeNew = (node: Node) => {
+      const [view] = createSceneBuilder()({ nodes: { new: node }, edges: {} }, undefined, pack).nodes;
+      const width = view?.width ?? 0;
+      const height = view?.height ?? 0;
+      const centre = viewportCentre() ?? { x: 0, y: 0 };
+      const snap = (value: number) => Math.round(value / GRID) * GRID;
+      const wanted = { x: snap(centre.x - width / 2), y: snap(centre.y - height / 2), width, height };
+      return freeSpot(wanted, obstaclesOf(scene.nodes), GRID);
     };
     return {
       arrange(direction) {
@@ -103,6 +117,25 @@ export function useEditActions({
       straighten() {
         move(straightenChain(scene, selection.current.nodes), "Straighten chain");
       },
+      addNote() {
+        const node: Node = { kind: "note", text: "Note" };
+        void apply([{ type: "addNode", graph, node, position: placeNew(node) }], "Add note");
+      },
+      frameSelection() {
+        const boxes = selectedBoxes();
+        if (boxes.length === 0) return;
+        // A grid step around the nodes, two above for the label.
+        const left = Math.min(...boxes.map((box) => box.x)) - GRID;
+        const top = Math.min(...boxes.map((box) => box.y)) - GRID * 2;
+        const right = Math.max(...boxes.map((box) => box.x + box.width)) + GRID;
+        const bottom = Math.max(...boxes.map((box) => box.y + box.height)) + GRID;
+        const position = { x: left, y: top, width: right - left, height: bottom - top };
+        void apply([{ type: "addNode", graph, node: { kind: "frame", label: "Frame" }, position }], "Frame selection");
+      },
+      tag(tag) {
+        const ids = selection.current.nodes;
+        if (ids.length > 0) void apply([{ type: "setTag", graph, ids, tag }], tag ? `Tag ${tag}` : "Remove tag");
+      },
       toggleLock() {
         const ids = selection.current.nodes;
         if (ids.length === 0) return;
@@ -128,17 +161,10 @@ export function useEditActions({
       },
       undo: () => report("Undo", connector.editing.undo({ documentId })),
       redo: () => report("Redo", connector.editing.redo({ documentId })),
-      placeNew(node: Node) {
-        const [view] = createSceneBuilder()({ nodes: { new: node }, edges: {} }, undefined, pack).nodes;
-        const width = view?.width ?? 0;
-        const height = view?.height ?? 0;
-        const centre = viewportCentre() ?? { x: 0, y: 0 };
-        const snap = (value: number) => Math.round(value / GRID) * GRID;
-        const wanted = { x: snap(centre.x - width / 2), y: snap(centre.y - height / 2), width, height };
-        return freeSpot(wanted, obstaclesOf(scene.nodes), GRID);
-      },
+      placeNew,
+      ...navigation,
     };
-  }, [connector, document.settings, documentId, graph, shown, layout, pack, scene, selection, apply]);
+  }, [connector, document.settings, documentId, graph, shown, layout, pack, scene, selection, apply, navigation]);
 
   useEffect(() => {
     setCanvasEditActions(actions);

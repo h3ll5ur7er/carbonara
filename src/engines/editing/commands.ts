@@ -56,6 +56,8 @@ const LABELS: Record<Command["type"], string> = {
   setSettings: "Change settings",
   setRecipe: "Change recipe",
   setLogistics: "Change belt",
+  setText: "Change text",
+  setTag: "Tag nodes",
 };
 
 /** A name for the history when the caller gives none. */
@@ -169,6 +171,28 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
         node.recipe = command.recipe;
         if (command.building !== undefined) node.building = command.building;
         else delete node.building;
+      }
+      return;
+    }
+    case "setText": {
+      const node = graph.nodes[command.id];
+      if (!node) return issue(["id"], `Unknown node ${command.id}`);
+      if (node.kind === "note") node.text = command.text;
+      else if (node.kind === "frame") node.label = command.text;
+      else return issue(["id"], `${command.id} is neither a note nor a frame`);
+      return;
+    }
+    case "setTag": {
+      for (const [index, id] of command.ids.entries()) {
+        if (!graph.nodes[id]) return issue(["ids", index], `Unknown node ${id}`);
+      }
+      for (const id of command.ids) {
+        const position = document.layout[scope]?.[id];
+        if (command.tag === null) {
+          if (position?.tag !== undefined) delete position.tag;
+        } else if (position?.tag !== command.tag) {
+          (document.layout[scope] ??= {})[id] = { ...(position ?? { x: 0, y: 0 }), tag: command.tag };
+        }
       }
       return;
     }

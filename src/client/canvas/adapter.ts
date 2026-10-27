@@ -60,6 +60,12 @@ export interface CanvasViewProps {
   onInsert(node: LocalId, edge: LocalId, position: Point): void;
   /** One end of a flow was dragged (with Alt) to another port. */
   onRewire(edge: LocalId, to: { from: LocalId; to: LocalId; item: Id }): void;
+  /** The view came to rest (after a pan, a zoom, a jump), on a canvas of this size in screen pixels. */
+  onViewSettled(viewport: Viewport, size: { width: number; height: number }): void;
+  /** A note's text or a frame's label was edited in place. */
+  onEditText(node: LocalId, text: string): void;
+  /** A note or frame was resized (top-left corner and size, flow units). */
+  onResize(node: LocalId, rect: { x: number; y: number; width: number; height: number }): void;
   /** Backspace on the canvas: delete the selection (and bridge, with Mod+Shift), as the Delete key's command does. */
   onDelete(bridge: boolean): void;
 }

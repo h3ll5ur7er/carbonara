@@ -18,7 +18,7 @@ graph:                                  # the root graph
 blueprints:                             # subgraph definitions, see Subgraphs
   <id>: { name: Iron rods, graph: { nodes, edges } }
 layout:                                 # positions, per graph: `root` or a blueprint id
-  root: { <node id>: { x, y, width?, height?, locked? } }
+  root: { <node id>: { x, y, width?, height?, locked?, tag? } }
 settings: { rateUnit: per_minute, belt?: conveyor-2, machineGroups?: even }   # how rates and machine counts read
 ```
 
@@ -62,6 +62,8 @@ Documents change only through `Command`s ([[src/contracts/commands.ts]]) sent to
 | `moveNodes` | Replaces positions (the whole `Position`, so callers keep `width`, `height` and `locked`) |
 | `setNodeFields`, `setPin` | A recipe node's plugin fields, its pin |
 | `setRate` | A source's limit or a sink's target |
+| `setText` | A note's text or a frame's label |
+| `setTag` | Gives nodes a colour tag (`tag` on their position, created at the origin if missing), or removes it |
 | `setRecipe` | Swaps the recipe of recipe nodes, keeping fields and pins; a building not named is dropped (the recipe's first applies). Flows it can't take stay: callers remove them in the same batch |
 | `setLogistics` | Sets or clears the belt or pipe tier of flows |
 | `setSettings` | The document's display settings (`rateUnit`, `belt`, `machineGroups`); null puts one back to its default. It names no graph |

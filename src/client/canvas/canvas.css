@@ -78,6 +78,61 @@
     scale: 4;
   }
 
+  /* Colour tags: a tab on the node's top edge, in the tag's hue (the item tint, so both themes work). */
+  .node-tag {
+    position: absolute;
+    top: calc(var(--spacing) * -1);
+    left: calc(var(--spacing) * 4);
+    width: calc(var(--spacing) * 8);
+    height: calc(var(--spacing) * 2);
+    border-radius: 9999px;
+    background: var(--item-fg);
+    box-shadow: 0 0 0 2px var(--color-canvas);
+    pointer-events: none;
+  }
+  /* A swatch of the tag colour, for menus. */
+  .node-tag-swatch {
+    display: inline-block;
+    width: calc(var(--spacing) * 3);
+    height: calc(var(--spacing) * 3);
+    border-radius: 9999px;
+    background: var(--item-fg);
+  }
+  :is(.node-tag, .node-tag-swatch)[data-tag="red"] {
+    --hue: 25;
+  }
+  :is(.node-tag, .node-tag-swatch)[data-tag="orange"] {
+    --hue: 60;
+  }
+  :is(.node-tag, .node-tag-swatch)[data-tag="yellow"] {
+    --hue: 95;
+  }
+  :is(.node-tag, .node-tag-swatch)[data-tag="green"] {
+    --hue: 150;
+  }
+  :is(.node-tag, .node-tag-swatch)[data-tag="blue"] {
+    --hue: 250;
+  }
+  :is(.node-tag, .node-tag-swatch)[data-tag="purple"] {
+    --hue: 310;
+  }
+  .react-flow.lod-chip .node-tag {
+    scale: 4;
+    transform-origin: left top;
+  }
+
+  /* Resizing notes and frames. */
+  .react-flow .resize-line {
+    border-color: var(--color-accent);
+  }
+  .react-flow .resize-handle {
+    width: calc(var(--spacing) * 2.5);
+    height: calc(var(--spacing) * 2.5);
+    border-radius: var(--radius-xs);
+    border: 1.5px solid var(--color-accent);
+    background: var(--color-surface-2);
+  }
+
   .react-flow__node:focus-visible {
     outline: none;
   }

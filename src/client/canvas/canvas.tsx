@@ -29,6 +29,7 @@ import { recipeChangeCommands, type FindResult } from "../features/find/find";
 import { useFind } from "../features/find/find-store";
 import type { Id } from "../../contracts/pack";
 import { useEditActions, type Selection } from "./use-edit-actions";
+import { useNavigation } from "./use-navigation";
 import { setViewportCentre } from "./viewport";
 
 /** The renderer in use; the only place that names it. */
@@ -99,6 +100,9 @@ function EmptyCanvas() {
       onInsert={ignore}
       onRewire={ignore}
       onDelete={ignore}
+      onEditText={ignore}
+      onResize={ignore}
+      onViewSettled={ignore}
       onViewCentre={setViewportCentre}
       onSelectionChange={ignore}
     />
@@ -177,7 +181,8 @@ function DocumentCanvas({
     },
     [onSelectionChange],
   );
-  const actions = useEditActions({ document, pack, graph, scene, selection, apply });
+  const navigation = useNavigation(document.id);
+  const actions = useEditActions({ document, pack, graph, scene, selection, apply, navigation: navigation.actions });
   const onDelete: CanvasViewProps["onDelete"] = useCallback((bridge) => actions.deleteSelection(bridge), [actions]);
   const onInsert: CanvasViewProps["onInsert"] = useCallback(
     (nodeId, edgeId, point) => {
@@ -213,6 +218,19 @@ function DocumentCanvas({
       );
     },
     [apply, graph, shown],
+  );
+
+  const onEditText: CanvasViewProps["onEditText"] = useCallback(
+    (id, text) => {
+      const kind = shown?.nodes[id]?.kind;
+      void apply([{ type: "setText", graph, id, text }], kind === "frame" ? "Rename frame" : "Edit note");
+    },
+    [apply, graph, shown],
+  );
+  const onResize: CanvasViewProps["onResize"] = useCallback(
+    (id, rect) =>
+      void apply([{ type: "moveNodes", graph, positions: { [id]: { ...layout?.[id], ...rect } } }], "Resize"),
+    [apply, graph, layout],
   );
 
   const finding = useFind((state) => state.open);
@@ -282,6 +300,9 @@ function DocumentCanvas({
         onInsert={onInsert}
         onRewire={onRewire}
         onDelete={onDelete}
+        onEditText={onEditText}
+        onResize={onResize}
+        onViewSettled={navigation.onViewSettled}
       />
       {several && !finding && (
         <SelectionToolbar

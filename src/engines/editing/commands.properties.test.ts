@@ -91,6 +91,19 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       recipe: fc.constantFrom("iron-ingot", "iron-alloy"),
     }),
     fc.record({
+      type: fc.constant("setText" as const),
+      graph,
+      // A note and a frame, plus nodes the command must refuse.
+      id: fc.constantFrom("hint", "area", ...pools.nodes.slice(0, 1)),
+      text: fc.string(),
+    }),
+    fc.record({
+      type: fc.constant("setTag" as const),
+      graph,
+      ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),
+      tag: fc.constantFrom("red" as const, "blue" as const, null),
+    }),
+    fc.record({
       type: fc.constant("setLogistics" as const),
       graph,
       ids: fc.uniqueArray(edgeId, { minLength: 1, maxLength: 2 }),
