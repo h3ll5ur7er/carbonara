@@ -10,6 +10,7 @@ import {
   Link,
   PanelLeft,
   PanelRight,
+  PencilLine,
   SunMoon,
   X,
 } from "lucide-react";
@@ -82,6 +83,15 @@ export const appCommands: CommandDefinition[] = [
     keywords: ["tab", "document"],
     icon: X,
     run: () => documentActions.closeDocument(),
+  },
+  {
+    id: "file.rename",
+    title: "Rename factory…",
+    group: "File",
+    shortcut: "F2",
+    keywords: ["name", "title", "tab", "document"],
+    icon: PencilLine,
+    run: () => documentActions.renameDocument(),
   },
   {
     id: "view.toggleLibrary",

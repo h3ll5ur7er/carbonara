@@ -904,6 +904,25 @@
                   "properties": {
                     "type": {
                       "type": "string",
+                      "const": "renameDocument"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "name"
+                  ],
+                  "description": "Renames the factory (its tab follows)."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
                       "const": "removeAndBridge"
                     },
                     "graph": {

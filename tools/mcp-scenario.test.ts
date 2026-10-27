@@ -25,7 +25,9 @@ import { createAnalysisManager } from "../src/managers/analysis";
 import { createEditingManager } from "../src/managers/editing";
 import { createPlanningManager } from "../src/managers/planning";
 import { createWorkspaceManager } from "../src/managers/workspace";
+import { createPreferenceStore } from "../src/access/preferences/preferences";
 import { createEventBus } from "../src/utilities/events";
+import { createMemoryKeyValueStorage } from "../src/utilities/memory-key-value";
 import { connect, createDispatcher, type Transport } from "../src/utilities/rpc";
 import { buildManifest } from "./mcp-tools";
 
@@ -47,6 +49,8 @@ function memoryDocuments(): DocumentStore {
       return stored;
     },
     remove: (documentId) => void open.delete(documentId),
+    recent: () => [],
+    takeRecent: () => undefined,
   };
 }
 
@@ -79,7 +83,13 @@ function carbonara() {
   let nextId = 1;
   const newId = () => `id-${nextId++}`;
   const dispatch = createDispatcher(contracts, {
-    workspace: createWorkspaceManager({ documents, packs, events: bus, newId }),
+    workspace: createWorkspaceManager({
+      documents,
+      packs,
+      preferences: createPreferenceStore(createMemoryKeyValueStorage()),
+      events: bus,
+      newId,
+    }),
     editing: createEditingManager({ documents, events: bus, newId, layout: new ELK() }),
     analysis: createAnalysisManager({ bus, documents, packs }),
     packs: { listPacks: async () => [factorio.info], getPackData: async () => factorio.data },

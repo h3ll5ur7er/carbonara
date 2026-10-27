@@ -60,6 +60,7 @@ function fakeManagers() {
         recipes: [],
         logistics: [],
         resources: [],
+        starters: [],
       }),
     },
   });

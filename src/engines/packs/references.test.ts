@@ -45,3 +45,45 @@ describe("checkReferences", () => {
     expect(checkReferences(data)).toEqual([{ path: ["items", 2, "id"], message: "Item 'ore' is defined twice" }]);
   });
 });
+
+describe("checkReferences on starter factories", () => {
+  const starter = {
+    id: "plates",
+    name: "Plates",
+    graph: {
+      nodes: {
+        ore: { kind: "source", item: "ore" },
+        smelt: { kind: "recipe", recipe: "plate", building: "furnace" },
+        out: { kind: "sink", item: "plate" },
+        hint: { kind: "note", text: "Add more furnaces" },
+      },
+      edges: { a: { from: "ore", to: "smelt", item: "ore" }, b: { from: "smelt", to: "out", item: "plate" } },
+    },
+  };
+  const withStarter = (graph: unknown) => withChange({ starters: [{ ...starter, graph }] });
+
+  it("finds nothing wrong with a starter that uses the pack's data", () => {
+    expect(checkReferences(withChange({ starters: [starter] }))).toEqual([]);
+  });
+
+  it("reports recipes, buildings and items the pack doesn't define", () => {
+    const nodes = {
+      smelt: { kind: "recipe", recipe: "gear", building: "press" },
+      out: { kind: "sink", item: "gear" },
+    };
+    expect(checkReferences(withStarter({ nodes, edges: {} }))).toEqual([
+      { path: ["starters", 0, "graph", "nodes", "smelt", "recipe"], message: "Unknown recipe 'gear'" },
+      { path: ["starters", 0, "graph", "nodes", "smelt", "building"], message: "Unknown building 'press'" },
+      { path: ["starters", 0, "graph", "nodes", "out", "item"], message: "Unknown item 'gear'" },
+    ]);
+  });
+
+  it("reports flows between nodes that aren't there, and of unknown items or belts", () => {
+    const edges = { a: { from: "ghost", to: "smelt", item: "coal", logistics: "belt" } };
+    expect(checkReferences(withStarter({ nodes: starter.graph.nodes, edges }))).toEqual([
+      { path: ["starters", 0, "graph", "edges", "a", "from"], message: "Unknown node 'ghost'" },
+      { path: ["starters", 0, "graph", "edges", "a", "item"], message: "Unknown item 'coal'" },
+      { path: ["starters", 0, "graph", "edges", "a", "logistics"], message: "Unknown logistics 'belt'" },
+    ]);
+  });
+});

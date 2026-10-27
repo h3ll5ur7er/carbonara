@@ -59,6 +59,7 @@ const LABELS: Record<Command["type"], string> = {
   setLogistics: "Change belt",
   setText: "Change text",
   setTag: "Tag nodes",
+  renameDocument: "Rename factory",
 };
 
 /** A name for the history when the caller gives none. */
@@ -85,6 +86,10 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
         Object.assign(document.settings, { [key]: value });
       }
     }
+    return;
+  }
+  if (command.type === "renameDocument") {
+    if (document.name !== command.name) document.name = command.name;
     return;
   }
   const scope = command.graph;

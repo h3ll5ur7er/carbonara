@@ -79,6 +79,7 @@ describe("PackData", () => {
       recipes: [],
       logistics: [],
       resources: [],
+      starters: [],
     });
   });
 

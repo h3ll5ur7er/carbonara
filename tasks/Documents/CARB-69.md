@@ -2,7 +2,7 @@
 id: CARB-69
 title: Reopen recent documents
 type: feature
-status: todo
+status: in-progress
 priority: medium
 labels: [documents, ux]
 wave: "3"

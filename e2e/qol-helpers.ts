@@ -13,6 +13,7 @@ const NO_PACK: PackData = {
   recipes: [],
   logistics: [],
   resources: [],
+  starters: [],
 };
 
 /** Opens a copy of the scene's document in the live app and waits for its nodes. */

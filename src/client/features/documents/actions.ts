@@ -7,7 +7,7 @@ import type { Connector } from "../../core/connector";
 import type { WorkspaceModel } from "../../core/workspace-model";
 import { errorMessage, toast } from "../../shell/toasts";
 import { fileNameFor, shareUrl } from "./links";
-import { setNewDocumentDialogOpen } from "./new-document-store";
+import { setNewDocumentDialogOpen, setRenaming } from "./new-document-store";
 
 export interface DocumentActions {
   newDocument(): void;
@@ -18,6 +18,10 @@ export interface DocumentActions {
   copyShareLink(): void;
   /** Closes the given document, or the one on screen. */
   closeDocument(documentId?: string): void;
+  /** Starts editing the name of the given document's tab, or the one on screen. */
+  renameDocument(documentId?: string): void;
+  /** Renames the document (one undoable edit) unless the name is empty or unchanged, and stops editing. */
+  commitRename(documentId: string, name: string): void;
 }
 
 let current: DocumentActions | null = null;
@@ -56,6 +60,8 @@ export const documentActions: DocumentActions = {
   saveFile: () => current?.saveFile(),
   copyShareLink: () => current?.copyShareLink(),
   closeDocument: (documentId) => current?.closeDocument(documentId),
+  renameDocument: (documentId) => current?.renameDocument(documentId),
+  commitRename: (documentId, name) => current?.commitRename(documentId, name),
 };
 
 export function createDocumentActions(connector: Connector, workspace: WorkspaceModel): DocumentActions {
@@ -120,6 +126,22 @@ export function createDocumentActions(connector: Connector, workspace: Workspace
     closeDocument(documentId) {
       const id = documentId ?? active()?.id;
       if (id) connector.workspace.closeDocument({ documentId: id }).catch(failed("Couldn't close the factory"));
+    },
+    renameDocument(documentId) {
+      const id = documentId ?? active()?.id;
+      if (id) setRenaming(id);
+    },
+    commitRename(documentId, name) {
+      setRenaming(null);
+      const trimmed = name.trim();
+      const document = workspace.store.getState().documents.find((candidate) => candidate.id === documentId);
+      if (!document || !trimmed || trimmed === document.name) return;
+      connector.editing
+        .apply({ documentId, commands: [{ type: "renameDocument", name: trimmed }], label: `Rename to ${trimmed}` })
+        .then((result) => {
+          if (!result.ok) throw new Error(result.error.map((issue) => issue.message).join("; "));
+        })
+        .catch(failed("Couldn't rename the factory"));
     },
   };
 }

@@ -3,7 +3,7 @@
 id: factorio
 name: Factorio
 version: 1.0.0
-engine: ^1
+engine: ^1.1
 game: { name: Factorio, version: "2.1" }
 data: data/
 plugin: plugin/index.js

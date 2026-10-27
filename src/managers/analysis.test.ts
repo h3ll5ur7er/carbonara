@@ -28,6 +28,8 @@ function memoryDocuments(): DocumentStore {
       return stored;
     },
     remove: (documentId) => void open.delete(documentId),
+    recent: () => [],
+    takeRecent: () => undefined,
   };
 }
 

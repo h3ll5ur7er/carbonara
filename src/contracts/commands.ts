@@ -79,6 +79,9 @@ export const Command = z.discriminatedUnion("type", [
     })
     .describe("Changes the document's display settings; null puts one back to its default, a missing one stays."),
   z
+    .object({ type: z.literal("renameDocument"), name: z.string().trim().min(1).max(120) })
+    .describe("Renames the factory (its tab follows)."),
+  z
     .object({ type: z.literal("removeAndBridge"), graph: GraphScope, ids: z.array(LocalId).min(1) })
     .describe(
       "Removes nodes and keeps the flow connected: each flow that went into them is connected to each that came " +
