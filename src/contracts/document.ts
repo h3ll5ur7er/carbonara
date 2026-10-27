@@ -88,6 +88,13 @@ export const Document = z.object({
   settings: z
     .object({
       rateUnit: RateUnit.optional(),
+      belt: Id.optional().describe(
+        'Show the rates of items this belt or pipe carries as multiples of its capacity ("2 × Fast Conveyor").',
+      ),
+      machineGroups: z
+        .enum(["fill", "even"])
+        .optional()
+        .describe("How machine counts read: 4 × 100% + 1 × 37.5% (fill, the default) or 5 × 87.5% (even)."),
       plugin: z
         .record(z.string(), z.unknown())
         .optional()

@@ -53,6 +53,7 @@ const LABELS: Record<Command["type"], string> = {
   setRate: "Change rate",
   setLocked: "Lock nodes",
   removeAndBridge: "Delete and bridge",
+  setSettings: "Change settings",
 };
 
 /** A name for the history when the caller gives none. */
@@ -64,6 +65,15 @@ export function describeCommands(commands: Command[]): string {
 
 /** Mutates the draft, or returns the problem (relative to the command) without touching it. */
 function applyCommand(document: Document, command: ResolvedCommand): Issue | undefined {
+  if (command.type === "setSettings") {
+    for (const [key, value] of Object.entries(command.settings)) {
+      if (value === null) Reflect.deleteProperty(document.settings, key);
+      else if (value !== undefined && document.settings[key as keyof Document["settings"]] !== value) {
+        Object.assign(document.settings, { [key]: value });
+      }
+    }
+    return;
+  }
   const scope = command.graph;
   const graph = graphOf(document, scope);
   if (!graph) return issue(["graph"], `Unknown graph ${scope}`);

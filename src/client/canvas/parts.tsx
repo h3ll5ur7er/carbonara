@@ -1,7 +1,7 @@
 // Small pieces every canvas renderer and the canvas features draw with: item chips, rates, the efficiency ring.
 import type { CSSProperties } from "react";
-import type { RateUnit } from "../../contracts/pack";
-import { formatRate } from "./model/format";
+import type { ItemForm, RateUnit } from "../../contracts/pack";
+import { formatRate, type RateDisplay } from "./model/format";
 import { hueOf, monogram } from "./model/item-chip";
 import type { ItemView } from "./model/scene";
 
@@ -34,18 +34,21 @@ export function ItemChip({ item, size = "md" }: { item: ItemView; size?: keyof t
   );
 }
 
-/** A rate in the document's unit; a dash while there is no result. */
+/** A rate in the document's unit (in belts, for the items its belt carries); a dash while there is no result. */
 export function Rate({
   perSecond,
   unit,
+  form,
   className = "",
 }: {
   perSecond: number | undefined;
-  unit: RateUnit;
+  unit: RateUnit | RateDisplay;
+  /** The item's form, so a belt unit applies only to what the belt carries. */
+  form?: ItemForm | undefined;
   className?: string;
 }) {
   if (perSecond === undefined) return <span className={`font-mono text-fg-faint ${className}`}>—</span>;
-  const rate = formatRate(perSecond, unit);
+  const rate = formatRate(perSecond, unit, form);
   return (
     <span className={`font-mono whitespace-nowrap ${className}`}>
       {rate.value}

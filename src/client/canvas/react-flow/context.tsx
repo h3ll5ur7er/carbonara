@@ -1,13 +1,14 @@
 // What node and edge components read besides their own props: their result slot and the display unit.
 import { createContext, useCallback, useContext, useSyncExternalStore } from "react";
 import type { LocalId } from "../../../contracts/document";
-import type { RateUnit } from "../../../contracts/pack";
+import type { MachineGroups, RateDisplay } from "../model/format";
 import type { LodTier } from "../model/lod";
 import type { EdgeSlot, NodeSlot, ResultSlots } from "../model/result-slots";
 
 export interface CanvasContextValue {
   results: ResultSlots;
-  rateUnit: RateUnit;
+  rateUnit: RateDisplay;
+  machineGroups: MachineGroups;
   /** How much of each node to draw at the current zoom. */
   lod: LodTier;
 }
@@ -20,8 +21,13 @@ function useCanvasContext(): CanvasContextValue {
   return value;
 }
 
-export function useRateUnit(): RateUnit {
+/** How rates are shown: the unit, and the belt for the items it carries. */
+export function useRateUnit(): RateDisplay {
   return useCanvasContext().rateUnit;
+}
+
+export function useMachineGroups(): MachineGroups {
+  return useCanvasContext().machineGroups;
 }
 
 export function useLod(): LodTier {

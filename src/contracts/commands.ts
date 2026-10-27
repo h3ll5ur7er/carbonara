@@ -1,6 +1,7 @@
 // Edits a client can ask the editing manager for. Each command is undoable; a batch is one undo step.
 import { z } from "zod";
 import { Edge, LocalId, Node, Pin, Position } from "./document";
+import { Id, RateUnit } from "./pack";
 
 /** `root`, or the id of the blueprint whose graph the command edits. */
 export const GraphScope = z.string().min(1).default("root");
@@ -34,6 +35,16 @@ export const Command = z.discriminatedUnion("type", [
       .nullable()
       .describe("A source's supply limit or a sink's target, in items per second; null removes it."),
   }),
+  z
+    .object({
+      type: z.literal("setSettings"),
+      settings: z.object({
+        rateUnit: RateUnit.nullable().optional(),
+        belt: Id.nullable().optional(),
+        machineGroups: z.enum(["fill", "even"]).nullable().optional(),
+      }),
+    })
+    .describe("Changes the document's display settings; null puts one back to its default, a missing one stays."),
   z
     .object({ type: z.literal("removeAndBridge"), graph: GraphScope, ids: z.array(LocalId).min(1) })
     .describe(

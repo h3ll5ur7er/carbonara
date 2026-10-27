@@ -17,6 +17,10 @@ export interface CanvasEditActions {
   straighten(): void;
   /** Locks the selected nodes, or unlocks them when they all are locked already. */
   toggleLock(): void;
+  /** Shows rates in a rate unit (`per_minute`), a belt (`belt:<id>`), or `belts`: the pack's fastest belt. */
+  showRatesIn(choice: string): void;
+  /** Switches machine counts between "4 × 100% + 1 × 37.5%" and "5 × 87.5%". */
+  toggleMachineGroups(): void;
   undo(): void;
   redo(): void;
   /** Where a node added from outside the canvas (quick-add) goes: mid-view, clear of the others. */

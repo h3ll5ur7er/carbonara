@@ -7,6 +7,7 @@ import type { PackData, RateUnit } from "../../../contracts/pack";
 import type { AnalysisResults } from "../../../contracts/results";
 import { clean, formatMachines, formatNumber } from "../../../utilities/numbers";
 import { fromPerSecond, rateSuffix, toPerSecond } from "../../../utilities/units";
+import { balanceMachines, type Balance } from "./balance";
 import type { InspectedNode } from "./inspector";
 
 /** A recipe's machine count, a sink's target or a source's supply limit, in the units the user sees. */
@@ -19,6 +20,8 @@ export interface Production {
   value: number | null;
   /** What the latest solve came to. */
   actual: number | undefined;
+  /** Machines only: the counts that fit the neighbours (balance.ts). */
+  fits?: Balance;
 }
 
 export interface InspectInput {
@@ -53,6 +56,7 @@ export function inspectNode({ document, pack, results, nodeId }: InspectInput): 
           unit: "",
           value: node.pin?.type === "machines" ? node.pin.count : null,
           actual: activity,
+          fits: balanceMachines(document, pack, results, nodeId),
         },
       };
     }

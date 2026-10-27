@@ -14,12 +14,14 @@ import { errorMessage, toast } from "../shell/toasts";
 import type { CanvasAdapter, CanvasViewProps, Insets, PortDrop, Viewport } from "./adapter";
 import "./canvas.css";
 import { freeSpot, obstaclesOf } from "./model/free-spot";
+import { rateDisplayOf, type RateDisplay } from "./model/format";
 import { GRID } from "./model/geometry";
 import { createResultSlots } from "./model/result-slots";
 import { insertCommands } from "./model/insert";
 import { createSceneBuilder, type CanvasScene, type NodeView } from "./model/scene";
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
 import { SelectionToolbar } from "./selection-toolbar";
+import { UnitsPicker } from "./units-picker";
 import { useEditActions, type Selection } from "./use-edit-actions";
 import { setViewportCentre } from "./viewport";
 
@@ -62,6 +64,7 @@ export function Canvas({
 }
 
 const EMPTY_SCENE: CanvasScene = { nodes: [], edges: [] };
+const EMPTY_RATES: RateDisplay = { unit: "per_minute" };
 
 /** The side panels float `inset-3` (12 px) from the canvas edges (src/client/shell/side-panel.tsx). */
 const PANEL_MARGIN = 12;
@@ -82,7 +85,8 @@ function EmptyCanvas() {
       scene={EMPTY_SCENE}
       insets={insets}
       results={results}
-      rateUnit="per_minute"
+      rateUnit={EMPTY_RATES}
+      machineGroups="fill"
       onMoveNodes={ignore}
       onConnect={ignore}
       onPortDropped={ignore}
@@ -220,7 +224,7 @@ function DocumentCanvas({
   );
   const usage = useMemo(() => (shown ? recipeUsage(shown) : {}), [shown]);
   const request = useMemo(() => drop && { item: drop.item, side: drop.side }, [drop]);
-  const rateUnit = document.settings.rateUnit ?? pack.units.rate;
+  const rateUnit = useMemo(() => rateDisplayOf(document.settings, pack), [document.settings, pack]);
   const onPick = useCallback(
     (entry: PickerEntry) => {
       if (!drop) return;
@@ -239,6 +243,7 @@ function DocumentCanvas({
         insets={insets}
         results={slots}
         rateUnit={rateUnit}
+        machineGroups={document.settings.machineGroups ?? "fill"}
         onMoveNodes={onMoveNodes}
         onConnect={onConnect}
         onPortDropped={onPortDropped}
@@ -249,12 +254,13 @@ function DocumentCanvas({
         onDelete={onDelete}
       />
       {several && <SelectionToolbar left={insets.left} right={insets.right} />}
+      <UnitsPicker settings={document.settings} pack={pack} left={insets.left} actions={actions} />
       {drop && request && (
         <RecipePicker
           pack={pack}
           request={request}
           usage={usage}
-          rateUnit={rateUnit}
+          rateUnit={rateUnit.unit}
           at={drop.screen}
           bounds={drop.bounds}
           onPick={onPick}

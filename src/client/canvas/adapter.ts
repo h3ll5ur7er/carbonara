@@ -3,7 +3,8 @@
 // it never talks to managers or knows about commands. See docs/Architecture.md, "How the canvas is drawn".
 import type { ComponentType } from "react";
 import type { LocalId } from "../../contracts/document";
-import type { Id, RateUnit } from "../../contracts/pack";
+import type { Id } from "../../contracts/pack";
+import type { MachineGroups, RateDisplay } from "./model/format";
 import type { ResultSlots } from "./model/result-slots";
 import type { CanvasScene } from "./model/scene";
 
@@ -41,8 +42,10 @@ export interface CanvasViewProps {
   /** Screen pixels at the left and right edges that floating panels cover; fitting keeps the graph clear of them. */
   insets: Insets;
   results: ResultSlots;
-  /** The unit rates are shown in. */
-  rateUnit: RateUnit;
+  /** How rates are shown: the document's unit, and its belt for the items that belt carries. */
+  rateUnit: RateDisplay;
+  /** How machine counts read: "fill" (4 × 100% + 1 × 37.5%) or "even" (5 × 87.5%). */
+  machineGroups: MachineGroups;
   /** Nodes were dropped at new positions (top-left corners, flow units). */
   onMoveNodes(positions: Record<LocalId, Point>): void;
   /** The user connected two ports. */

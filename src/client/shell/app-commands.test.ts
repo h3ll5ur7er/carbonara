@@ -23,6 +23,12 @@ describe("appCommands", () => {
       "align.bottom",
       "align.distributeHorizontally",
       "align.distributeVertically",
+      // Display settings: also on the canvas's units picker.
+      "units.per_second",
+      "units.per_minute",
+      "units.per_hour",
+      "units.belts",
+      "units.roundToBuildable",
     ]);
     for (const command of appCommands) {
       if (!paletteOnly.has(command.id)) expect(command.shortcut, command.id).toBeDefined();

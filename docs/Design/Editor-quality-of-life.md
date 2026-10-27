@@ -90,11 +90,21 @@ While a node is dragged ([[src/client/canvas/model/snap.ts]], [[src/client/canva
 - **Inserting** ([[src/client/canvas/model/insert.ts]]): a node fits a flow when it takes the flow's item and passes on something the consumer takes, the same item if it can (a junction, a buffer) or else what it makes (a wire machine dropped onto a plates flow that ends in a wire consumer). The flow's belt carries on where the item stays the same. Only a single node without flows of its own is inserted; anything else is just moved. Flows that loop back (below their nodes) aren't targets.
 - **Rewiring** keeps the flow's belt and share; it only moves a flow to a port of the same item.
 - Deleting a node whose flows are selected too deletes those flows once, with the node.
- change the recipe, clock, modules or belt tier of every selected node at once.
+
+### More editing
+
+- **Multi-select editing:** change the recipe, clock, modules or belt tier of every selected node at once.
 - **Find** (`Ctrl+F`) items, recipes and nodes across the whole factory, including inside subgraphs, and jump to them. **Replace recipe everywhere.**
 - **Balance:** fit a node's machine count to downstream demand or upstream supply. **Round to buildable** switches between "4 × 100% + 1 × 37.5%" and "5 × 87.5%".
 - Lock nodes; group frames (colour, label, collapsible); sticky notes; colour tags.
 - Units per document: /s, /min, /h, or **belts** ("2.0 × Mk.3 belt").
+
+### Balance and units
+
+- **Fit to demand / Fit to supply** (inspector, on a machine): pins the machine count that makes exactly what the consumers downstream want of its main product, or that the producers upstream can keep busy ([[src/client/shell/inspector/balance.ts]]). Both work from the latest solve: a consumer wants what it takes less what reaches it from elsewhere, a sink with a target wants its target, a producer can spare what it makes less what it sends elsewhere, a source its limit; junctions pass both through. A machine's rate is its solved rate per machine (so plugin modifiers count), or the pack's recipe when it's idle. Each button shows its count and is off when nothing sets one (no consumer that wants a set amount, no limited supply).
+- **Rates in belts**: the units picker in the canvas's bottom-left corner (and the "Show rates …" commands) chooses /s, /min, /h or one of the pack's belts and pipes. With a belt, the rates of the items it carries read as multiples of its capacity ("1.47 × Conveyor"); other items keep the rate unit. "Show rates in belts" picks the fastest solid carrier. Stored as `settings.belt` next to `settings.rateUnit` ([[src/client/canvas/model/format.ts]]).
+- **Round to buildable** (the toggle next to the units, or the command): machine counts read "5 × 87.5%" (every machine at the same clock) instead of "4 × 100% + 1 × 37.5%". A document setting (`settings.machineGroups`): one choice per factory.
+- Both settings change through the `setSettings` command, so they're undoable. The inspector's number fields keep the rate unit.
 
 ## Navigation
 

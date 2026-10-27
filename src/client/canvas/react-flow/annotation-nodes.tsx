@@ -22,6 +22,7 @@ export const JunctionNode = memo(function JunctionNode({ id, data: { view }, sel
         <Rate
           perSecond={throughput}
           unit={unit}
+          form={view.item?.form}
           className="absolute top-full left-1/2 mt-1 -translate-x-1/2 text-2xs text-fg-subtle"
         />
       )}

@@ -9,6 +9,8 @@ import {
   AlignStartVertical,
   AlignVerticalSpaceBetween,
   Cable,
+  Factory,
+  Gauge,
   ChevronsDown,
   ChevronsRight,
   Focus,
@@ -101,6 +103,29 @@ export const canvasCommands: CommandDefinition[] = [
     keywords: ["fit", "selected", "focus", "frame"],
     icon: Focus,
     run: () => canvasActions()?.zoomToSelection(),
+  },
+  ...(
+    [
+      ["per_second", "Show rates per second", "/s"],
+      ["per_minute", "Show rates per minute", "/min"],
+      ["per_hour", "Show rates per hour", "/h"],
+      ["belts", "Show rates in belts", "belt"],
+    ] as const
+  ).map(([choice, title, word]): CommandDefinition => ({
+    id: `units.${choice}`,
+    title,
+    group: "View",
+    keywords: ["unit", "rate", word, "display"],
+    icon: Gauge,
+    run: () => canvasEditActions()?.showRatesIn(choice),
+  })),
+  {
+    id: "units.roundToBuildable",
+    title: "Round machines to buildable",
+    group: "View",
+    keywords: ["even", "clock", "underclock", "fill", "machine count", "groups"],
+    icon: Factory,
+    run: () => canvasEditActions()?.toggleMachineGroups(),
   },
   {
     id: "arrange.leftToRight",

@@ -10,6 +10,7 @@ import { setCanvasEditActions, type CanvasEditActions } from "./edit-actions";
 import type { Point } from "./adapter";
 import { align, distribute, straightenChain, type AlignMode, type Box } from "./model/align";
 import { freeSpot, obstaclesOf } from "./model/free-spot";
+import { rateChoices, settingsFor } from "./model/format";
 import { GRID } from "./model/geometry";
 import { createSceneBuilder, type CanvasScene } from "./model/scene";
 import { shapesOf } from "./model/shapes";
@@ -108,6 +109,23 @@ export function useEditActions({
         const locked = !ids.every((id) => layout?.[id]?.locked);
         void apply([{ type: "setLocked", graph, ids, locked }], locked ? "Lock" : "Unlock");
       },
+      showRatesIn(choice) {
+        // The fastest solid carrier: what "belts" means in factory games.
+        const fastest = [...pack.logistics]
+          .filter((logistics) => logistics.carries === "solid")
+          .sort((a, b) => b.capacity - a.capacity)[0];
+        const resolved = choice === "belts" ? (fastest ? `belt:${fastest.id}` : undefined) : choice;
+        if (resolved === undefined) return;
+        const label = rateChoices(pack).find((option) => option.value === resolved)?.label ?? resolved;
+        void apply([{ type: "setSettings", settings: settingsFor(resolved) }], `Show rates in ${label}`);
+      },
+      toggleMachineGroups() {
+        const even = document.settings.machineGroups !== "even";
+        void apply(
+          [{ type: "setSettings", settings: { machineGroups: even ? "even" : null } }],
+          even ? "Round machines to buildable" : "Fill machines to 100%",
+        );
+      },
       undo: () => report("Undo", connector.editing.undo({ documentId })),
       redo: () => report("Redo", connector.editing.redo({ documentId })),
       placeNew(node: Node) {
@@ -120,7 +138,7 @@ export function useEditActions({
         return freeSpot(wanted, obstaclesOf(scene.nodes), GRID);
       },
     };
-  }, [connector, documentId, graph, shown, layout, pack, scene, selection, apply]);
+  }, [connector, document.settings, documentId, graph, shown, layout, pack, scene, selection, apply]);
 
   useEffect(() => {
     setCanvasEditActions(actions);

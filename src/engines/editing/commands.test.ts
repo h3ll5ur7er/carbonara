@@ -295,6 +295,19 @@ describe("deleting and bridging", () => {
   });
 });
 
+describe("changing the display settings", () => {
+  it("sets the ones given, clears the ones set to null and keeps the rest", () => {
+    const { document: next } = edit({ type: "setSettings", settings: { belt: "belt-mk3", machineGroups: "even" } });
+    expect(next.settings).toEqual({ rateUnit: "per_minute", belt: "belt-mk3", machineGroups: "even" });
+    const cleared = applyCommands(next, [{ type: "setSettings", settings: { rateUnit: null, belt: null } }]);
+    expect(cleared.ok && cleared.value.document.settings).toEqual({ machineGroups: "even" });
+  });
+
+  it("changes nothing when the settings are as asked", () => {
+    expect(edit({ type: "setSettings", settings: { rateUnit: "per_minute", belt: null } }).patches).toEqual([]);
+  });
+});
+
 describe("locking nodes", () => {
   it("marks their positions locked, and unlocks them again", () => {
     const { document: locked } = edit({ type: "setLocked", graph: "root", ids: ["ore", "split"], locked: true });

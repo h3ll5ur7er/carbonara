@@ -25,14 +25,14 @@ export const SourceNode = memo(function SourceNode({ id, data: { view }, selecte
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-baseline justify-between gap-2">
           <span className="truncate text-base font-semibold tracking-tight text-fg">{view.item.name}</span>
-          <Rate perSecond={supplied} unit={unit} className="text-xs text-fg" />
+          <Rate perSecond={supplied} unit={unit} form={view.item.form} className="text-xs text-fg" />
         </div>
         <span className="truncate text-2xs text-fg-subtle">
           Source
           {view.maxPerSecond !== undefined && (
             <>
               <span className="px-1 text-fg-faint">·</span>
-              up to <Rate perSecond={view.maxPerSecond} unit={unit} className="text-fg-muted" />
+              up to <Rate perSecond={view.maxPerSecond} unit={unit} form={view.item.form} className="text-fg-muted" />
             </>
           )}
         </span>
@@ -60,7 +60,7 @@ export const SinkNode = memo(function SinkNode({ id, data: { view }, selected }:
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-baseline justify-between gap-2">
           <span className="truncate text-base font-semibold tracking-tight text-fg">{view.item.name}</span>
-          <Rate perSecond={delivered} unit={unit} className="text-xs text-fg" />
+          <Rate perSecond={delivered} unit={unit} form={view.item.form} className="text-xs text-fg" />
         </div>
         {progress === undefined ? (
           <span className="text-2xs text-fg-subtle">Output</span>
@@ -73,7 +73,8 @@ export const SinkNode = memo(function SinkNode({ id, data: { view }, selected }:
               />
             </span>
             <span className="font-mono text-2xs text-fg-subtle">
-              {formatNumber(progress * 100)}% of <Rate perSecond={view.targetPerSecond} unit={unit} />
+              {formatNumber(progress * 100)}% of{" "}
+              <Rate perSecond={view.targetPerSecond} unit={unit} form={view.item.form} />
             </span>
           </div>
         )}

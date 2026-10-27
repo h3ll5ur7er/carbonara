@@ -75,6 +75,7 @@ function FlowCanvas({
   insets,
   results,
   rateUnit,
+  machineGroups,
   onMoveNodes,
   onConnect,
   onViewCentre,
@@ -101,7 +102,7 @@ function FlowCanvas({
   // One subscriber to the zoom for the whole canvas: nodes re-render only when the tier changes.
   const lod = useStore((state) => lodTier(state.transform[2]));
   const particles = useStore((state) => particlesShown(state.transform[2]));
-  const context = useMemo(() => ({ results, rateUnit, lod }), [results, rateUnit, lod]);
+  const context = useMemo(() => ({ results, rateUnit, machineGroups, lod }), [results, rateUnit, machineGroups, lod]);
 
   const store = useStoreApi<FlowNode, FlowEdgeType>();
   // Once per adopted scene. It reads `nodes`: React Flow's store catches up with them in an effect of its own.

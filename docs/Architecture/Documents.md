@@ -19,7 +19,7 @@ blueprints:                             # subgraph definitions, see Subgraphs
   <id>: { name: Iron rods, graph: { nodes, edges } }
 layout:                                 # positions, per graph: `root` or a blueprint id
   root: { <node id>: { x, y, width?, height?, locked? } }
-settings: { rateUnit: per_minute }      # display unit for this document
+settings: { rateUnit: per_minute, belt?: conveyor-2, machineGroups?: even }   # how rates and machine counts read
 ```
 
 Nodes and edges are maps keyed by id, not arrays. That keeps patch paths stable (`graph/nodes/smelt/fields/clock`) for undo, events and MCP tools.
@@ -62,6 +62,7 @@ Documents change only through `Command`s ([[src/contracts/commands.ts]]) sent to
 | `moveNodes` | Replaces positions (the whole `Position`, so callers keep `width`, `height` and `locked`) |
 | `setNodeFields`, `setPin` | A recipe node's plugin fields, its pin |
 | `setRate` | A source's limit or a sink's target |
+| `setSettings` | The document's display settings (`rateUnit`, `belt`, `machineGroups`); null puts one back to its default. It names no graph |
 | `setLocked` | Locks nodes in place (`locked: true` on their position, which it creates at the origin if missing) or unlocks them |
 
 A batch is all or nothing. The engine rejects it, as a value with the path of the offending command (`["commands", 1, "edge", "from"]`), when a command:

@@ -7,14 +7,15 @@ import { monogram } from "../model/item-chip";
 import type { NodeSlot } from "../model/result-slots";
 import type { PortView } from "../model/scene";
 import { EfficiencyRing, ItemChip, Rate, ShortIcon } from "../parts";
-import { useLod, useNodeSlot, useRateUnit } from "./context";
+import { useLod, useMachineGroups, useNodeSlot, useRateUnit } from "./context";
 import { PortHandle } from "./port-handle";
 import type { FlowNodeProps } from "./types";
 
 export const RecipeNode = memo(function RecipeNode({ id, data: { view }, selected }: FlowNodeProps<"recipe">) {
   const slot = useNodeSlot(id);
   const lod = useLod();
-  const machines = slot ? formatMachines(slot.result.activity) : undefined;
+  const groups = useMachineGroups();
+  const machines = slot ? formatMachines(slot.result.activity, groups) : undefined;
   const short = Object.keys(slot?.deficits ?? {}).length > 0;
   const firstOutput = view.ports.find((port) => port.direction === "out");
   const handles = view.ports.map((port) => <PortHandle key={port.handle} port={port} />);
@@ -110,7 +111,12 @@ function PortRow({ port, slot, divided }: { port: PortView; slot: NodeSlot | und
       {!output && <ItemChip item={port.item} size="sm" />}
       <span className="min-w-0 flex-1 truncate text-xs text-fg-muted">{port.item.name}</span>
       {deficit !== undefined && <ShortIcon />}
-      <Rate perSecond={rate} unit={unit} className={`text-xs ${deficit ? "text-flow-over-capacity" : "text-fg"}`} />
+      <Rate
+        perSecond={rate}
+        unit={unit}
+        form={port.item.form}
+        className={`text-xs ${deficit ? "text-flow-over-capacity" : "text-fg"}`}
+      />
       {output && <ItemChip item={port.item} size="sm" />}
     </li>
   );

@@ -46,6 +46,13 @@ export function createSceneBackend(
 }
 
 function apply(draft: Draft<Document>, command: Command, newId: () => string) {
+  if (command.type === "setSettings") {
+    for (const [key, value] of Object.entries(command.settings)) {
+      if (value === null) Reflect.deleteProperty(draft.settings, key);
+      else if (value !== undefined) Object.assign(draft.settings, { [key]: value });
+    }
+    return;
+  }
   const graph = command.graph === "root" ? draft.graph : draft.blueprints[command.graph]?.graph;
   if (!graph) return;
   const layout = (draft.layout[command.graph] ??= {});

@@ -85,6 +85,17 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       perSecond: fc.option(fc.double({ min: 0, max: 100, noNaN: true }), { nil: null }),
     }),
     fc.record({
+      type: fc.constant("setSettings" as const),
+      settings: fc.record(
+        {
+          rateUnit: fc.constantFrom("per_second" as const, "per_minute" as const, null),
+          belt: fc.constantFrom("belt-mk1", "pipe", null),
+          machineGroups: fc.constantFrom("fill" as const, "even" as const, null),
+        },
+        { requiredKeys: [] },
+      ),
+    }),
+    fc.record({
       type: fc.constant("removeAndBridge" as const),
       graph,
       ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),
