@@ -1,6 +1,6 @@
 # Carbonara — Implementation Plan
 
-A game-agnostic, node-based factory planner. It works in the browser and can be installed as a desktop app via Tauri. Game data is loaded from data packs, game mechanics come from plugins, and the solver core is written in Rust and compiled to WASM.
+A game-agnostic, node-based factory planner. It works in the browser and can be installed as a desktop app via Tauri. Each game is supported by a **game pack**: a single zipped file with a custom extension (`.cpack`). It always contains both the game data (items, recipes, buildings and so on) and the plugin code for that game's mechanics. The solver core is written in Rust and compiled to WASM.
 
 ---
 
@@ -25,7 +25,8 @@ A game-agnostic, node-based factory planner. It works in the browser and can be 
 | Worker RPC | Comlink + transferable `ArrayBuffer`s | Zero-copy result transfer, no JSON overhead on hot paths |
 | Solver | Rust: `good_lp` modelling layer → `microlp` (pure Rust, WASM-friendly), with `clarabel` as a second backend behind a trait | No C toolchain in the WASM build. Backends can be swapped for very large models |
 | WASM | `wasm-bindgen` + `wasm-pack`, `postcard` for IR encoding | Small binary and compact IR |
-| Schemas | `zod` for data packs and documents (with JSON Schema generated for external authors). Solver IR is defined in Rust with TS types generated via `tsify` | Each layer has one source of truth |
+| Game packs | `.cpack` = zip read with `fflate` in a worker; plugin code bundled with `esbuild` by our pack CLI | One file to share or install; unzipping never blocks the UI |
+| Schemas | `zod` for pack manifests, pack data and documents (with JSON Schema generated for external authors). Solver IR is defined in Rust with TS types generated via `tsify` | Each layer has one source of truth |
 | Layout | ELK.js (layered) in a worker | Good automatic layout for left-to-right production chains |
 | Persistence | IndexedDB (Dexie) autosave; `.carbonara` files (gzipped JSON); share links | Works offline, and documents are portable |
 | Desktop | Tauri 2 (same web bundle, native file I/O, menus, file associations, auto-update) | Little extra code needed |
@@ -45,16 +46,16 @@ carbonara/
 │  ├─ solver/              # graph IR, LP model builder, subgraph compiler, decomposition
 │  └─ solver-wasm/         # wasm-bindgen bindings, postcard decode/encode
 ├─ packages/
-│  ├─ schema/              # zod: GamePack, Document, migrations; emits JSON Schema
-│  ├─ engine/              # doc→IR compiler, plugin host, solver worker, result store
+│  ├─ schema/              # zod: PackManifest, PackData, Document, migrations; emits JSON Schema
+│  ├─ engine/              # pack loader, doc→IR compiler, plugin host, solver worker, result store
 │  ├─ canvas/              # CanvasAdapter + React Flow implementation, node/edge components
 │  ├─ ui/                  # design system: tokens, primitives, icons, panels
-│  └─ plugin-api/          # public types + definePlugin() for plugin authors
-├─ plugins/
+│  ├─ plugin-api/          # public types + definePlugin() for pack authors
+│  └─ pack-cli/            # `carbonara-pack`: validate, bundle plugin, zip → .cpack, dev watch
+├─ packs/                  # each folder builds into one .cpack (data + plugin together)
+│  ├─ demo/                # small original pack (no copyrighted data) for dev, tests, onboarding
 │  ├─ satisfactory/        # clock speed, somersloops, alternates, power curve, Docs.json importer
 │  └─ factorio/            # modules, beacons, quality, heat, fluid temps, data-raw importer
-├─ gamepacks/
-│  └─ demo/                # small original pack (no copyrighted data) for dev, tests, onboarding
 └─ bench/                  # generated mega-factories (1k / 10k / 50k nodes) + perf harness
 ```
 
@@ -62,14 +63,41 @@ carbonara/
 
 ## 4. Data model
 
-### 4.1 Game pack (user-uploadable JSON/YAML)
+### 4.1 Game pack (`.cpack`)
+
+A game pack is the single unit that adds a game to Carbonara. Data and plugin code always ship together: a document references exactly one pack, and the pack's plugin can rely on its own data being there. Nothing gets installed without the other half.
+
+```
+satisfactory.cpack              # zip archive, custom extension
+├─ manifest.yaml                # identity, versions, entry points, hash
+├─ data/                        # JSON or YAML, split into as many files as you like
+│  ├─ items.yaml
+│  ├─ buildings.yaml
+│  ├─ recipes.yaml
+│  ├─ logistics.yaml
+│  └─ resources.yaml
+├─ plugin/
+│  └─ index.js                  # bundled ESM: definePlugin({...}), see §7
+├─ icons/                       # PNG/SVG/WebP referenced from data
+├─ locales/                     # optional: en.yaml, de.yaml … for item/recipe names
+└─ README.md                    # shown in the pack manager
+```
 
 ```yaml
+# manifest.yaml
 id: satisfactory
 name: Satisfactory
-version: 1.0.0
+version: 1.2.0                   # pack version (semver)
+engine: ^1                       # plugin API / schema version this pack targets
+game: { name: Satisfactory, version: "1.1" }
+data: data/                      # all files here are merged in order
+plugin: plugin/index.js          # required; the template ships a no-op plugin
+theme: { accent: "#f5a623" }     # packs may tint the UI
+```
+
+```yaml
+# data/*.yaml (merged)
 units: { rate: per_minute }
-plugins: [satisfactory-core]          # optional behaviour plugins
 items:
   - { id: iron-ore,   name: Iron Ore,   form: solid, icon: icons/iron-ore.png }
   - { id: iron-ingot, name: Iron Ingot, form: solid }
@@ -96,12 +124,13 @@ logistics:
   - { id: pipe-mk1, carries: fluid, capacity: 300 }
 resources:
   - { id: iron-ore, extractors: [miner-mk1, miner-mk2], nodes: { impure: 39, normal: 42, pure: 46 } }
-theme: { accent: "#f5a623" }           # packs may tint the UI
 ```
 
-- Validation uses zod and shows readable errors with the YAML line and column.
-- Packs are content-addressed (hash). Documents record which pack hash and plugin versions they were solved with.
-- **Licensing:** we ship only the original demo pack. The Satisfactory and Factorio packs are produced by **importers** that read data from the user's own installation (`CommunityResources/Docs/*.json` for Satisfactory and `factorio --dump-data` for Factorio), so we never redistribute game assets.
+- **Loading:** you drop a `.cpack` on the app, open it via a file dialog, or double-click it on desktop (Tauri file association). The engine worker unzips it, validates the manifest and data with zod, and checks that the `engine` range is compatible. Readable errors give the file name plus the YAML line and column. Because the pack contains code, installing it shows a trust prompt (see §7). Installed packs are stored in IndexedDB/OPFS (web) or the app data folder (desktop).
+- **Identity:** a pack is content-addressed (a hash of the whole archive). Documents record pack id, version and hash. Opening a document whose pack is missing or a different version offers to install or migrate.
+- **Authoring:** `carbonara-pack` (in `packages/pack-cli`) scaffolds a new pack from a template (with a no-op plugin), validates it, bundles the plugin's TypeScript with esbuild, and zips it into a `.cpack`. **Dev mode** loads an unpacked pack folder and hot-reloads it when files change. On the web this uses the File System Access API; on desktop it watches the folder.
+- **Licensing:** we ship only the original demo pack complete. The Satisfactory and Factorio packs ship their plugin and an **importer** (a plugin hook), but no game data or icons. On first load, the pack asks for a file from your own install (`CommunityResources/Docs/*.json` for Satisfactory, `factorio --dump-data` for Factorio). It generates `data/` and icons locally and saves the completed pack, so we never redistribute game assets.
+- **v1 scope:** one pack per document. Mod packs that extend a base pack (`extends: factorio`) are a later addition, and the manifest leaves room for it.
 
 ### 4.2 Document
 
@@ -174,11 +203,11 @@ A subgraph is a reusable **blueprint** with typed boundary ports (inputs and out
 
 ## 7. Plugin system
 
-There are two layers.
+Every game pack has exactly one plugin (`plugin/index.js` inside the `.cpack`), and that plugin works with the pack's own data. A game with no special mechanics uses the template's no-op plugin.
 
-**Data plugins (declarative):** game packs, plus declared node fields such as `clock`, `modules` or `somersloops`. Their inspector UI is rendered automatically from field descriptors (slider, stepper, enum, item-slot picker).
+**Declarative parts:** node fields such as `clock`, `modules` or `somersloops`. Their inspector UI is rendered automatically from field descriptors (slider, stepper, enum, item-slot picker), so most packs need no UI code.
 
-**Behaviour plugins (code):** ESM modules that run *inside the engine worker*. They have no DOM access and see only the plugin API. Installing a third-party plugin requires an explicit trust confirmation.
+**Code (hooks):** the plugin is an ESM module that runs *inside the engine worker*. It has no DOM access and sees only the plugin API. Because every pack contains code, installing a pack that isn't built in requires an explicit trust confirmation, which shows the pack's id, version and hash.
 
 ```ts
 export default definePlugin({
@@ -203,6 +232,8 @@ export default definePlugin({
   validate(node, sol) { /* … */ },
   // UI contributions (declarative): panels, commands, node badges, custom node kinds
   contributes: { commands: [...], panels: [...], nodeKinds: [...] },
+  // optional: generate data/ + icons from a file in the user's game install (see §4.1)
+  importer: { accepts: ['Docs.json', 'en-US.json'], run(files, ctx) { /* → { data, icons } */ } },
 });
 ```
 
@@ -256,9 +287,9 @@ The work is split into waves. Each wave fans out to sub-agents in isolated git w
 
 ### Wave 0 — Foundations & contracts (sequential, me)
 - Monorepo scaffold (pnpm + Cargo workspaces), Biome, CI (lint, typecheck, test, wasm build, Playwright).
-- `packages/schema`: zod `GamePack` and `Document` v1, plus JSON Schema output.
+- `packages/schema`: zod `PackManifest`, `PackData` and `Document` v1, plus JSON Schema output.
 - `crates/solver` IR types + `tsify` TS bindings; `packages/plugin-api` types.
-- `gamepacks/demo` (about 15 items and 12 recipes, including a loop and a byproduct).
+- `packs/demo` (about 15 items and 12 recipes, including a loop and a byproduct, with a no-op plugin), plus a minimal `pack-cli build` that zips it into `demo.cpack`.
 - Design tokens + an empty app shell that renders a React Flow canvas.
 - **Exit criteria:** `pnpm dev` shows the shell, `cargo test` passes, and CI is green. The contracts are frozen.
 
@@ -268,7 +299,7 @@ The work is split into waves. Each wave fans out to sub-agents in isolated git w
 | **Solver** | LP builder, tiered objectives, slack diagnostics, component decomposition + hash cache, WASM bindings, worker + Comlink bridge | proptest conservation invariants hold; solves the demo-pack scenes; 10k-node bench within budget |
 | **Canvas** | `CanvasAdapter`, recipe/source/sink/splitter node components, ports, flow edges with particles, LOD tiers, drag-to-picker | Storybook-style scene screenshots approved; 60 fps pan with 1k nodes |
 | **Shell & design system** | tokens, panels, inspector framework (field-descriptor renderer), command palette, toasts, theming | screenshot suite passes in dark and light; keyboard-navigable |
-| **Game data** | pack loader (JSON/YAML), validation error UI, Satisfactory `Docs.json` importer, Factorio `data-raw` importer, icon pipeline | real data imports cleanly; schema fixtures tested |
+| **Game packs** | `.cpack` loader (unzip, manifest + data validation, engine-range check), validation error UI, pack manager panel, `pack-cli` (scaffold, validate, bundle, zip, dev watch), Satisfactory `Docs.json` + Factorio `data-raw` importers, icon pipeline | real data imports cleanly into complete packs; schema fixtures and malformed-archive tests pass |
 | **Document** | store, Immer patches → undo/redo + worker sync, IndexedDB autosave, `.carbonara` file I/O, migrations | round-trip and undo property tests pass |
 
 **Milestone M1 "It flows":** on the demo pack, place nodes, connect them, and see live rates, deficits and belt saturation.
@@ -277,9 +308,9 @@ The work is split into waves. Each wave fans out to sub-agents in isolated git w
 | Agent | Scope |
 |---|---|
 | **Subgraphs** | macro-recipe compiler (1-DOF, multi-mode, inline fallback), collapse/expand UX, breadcrumbs, blueprint library |
-| **Plugins** | plugin host in the worker, hook pipeline, trust UI, `satisfactory` + `factorio` reference plugins |
+| **Plugins** | plugin host in the worker, hook pipeline, trust UI, plugins for the `satisfactory` + `factorio` packs |
 | **Planner** | Optimize mode, goal planner → generated graph, ELK auto-layout worker, Totals dashboard, Sankey view |
-| **Desktop & perf** | Tauri 2 shell (file associations, native dialogs, menus, updater), bench harness in CI, perf profiling pass |
+| **Desktop & perf** | Tauri 2 shell (file associations for `.carbonara` and `.cpack`, native dialogs, menus, updater), bench harness in CI, perf profiling pass |
 
 **Milestone M2 "It's a game":** Satisfactory import works with alternates, overclock and somersloops. **M3 "Megafactory":** a 50k-node factory built from subgraphs stays interactive, and the Factorio pack with modules, beacons and quality works.
 
@@ -297,7 +328,8 @@ Onboarding tour, empty states, micro-interactions, a visual QA pass over every s
 | React Flow slows down with very large *visible* graphs | LOD tiers, culling, results kept outside React state, and subgraphs keep the visible count low. The `CanvasAdapter` leaves room for a WebGL renderer |
 | Subgraph projection is hard in general | Handle the common cases exactly (1-DOF and a few modes) and flatten the rest, with clear UX hints |
 | `microlp` is too slow for huge flat LPs | Solver backend trait with `clarabel` as an alternative; decomposition and hierarchy reduce problem size first |
-| Third-party plugin code is a security risk | Plugins run in a worker with no DOM, UI contributions are declarative only, and installing requires an explicit trust prompt |
+| Third-party pack code is a security risk | Plugins run in a worker with no DOM, UI contributions are declarative only, and installing a pack requires an explicit trust prompt showing its hash. Signed packs can come later |
+| A pack update breaks existing documents | Documents pin pack id + version + hash; the `engine` range is checked on load; data id changes go through pack-provided migrations |
 | Game data licensing | Importers read data from the user's own installation; we ship only the original demo pack |
 | Numerical noise ("59.99999/min") | Tiered solves, epsilon cleanup, and rational display |
 
