@@ -2,7 +2,7 @@
 id: CARB-86
 title: Inspector and planner inside subgraphs
 type: improvement
-status: in-progress
+status: review
 priority: medium
 labels: [subgraphs, inspector, planner]
 ---
@@ -17,7 +17,7 @@ Two views still think in the root graph ([[CARB-39]]):
 - [x] Instance section in the inspector
 - [x] Planner accepts into the graph on screen
 - [x] Tests (inspect and panel component tests, the planning manager inside a blueprint)
-- [ ] E2e: the inspector on an instance, a plan accepted inside a subgraph
+- [x] E2e: the inspector on an instance, a plan accepted inside a subgraph ([[e2e/subgraphs.spec.ts]])
 
 ## Decisions
 

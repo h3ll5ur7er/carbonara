@@ -143,6 +143,65 @@ test("clicking a library card picks the blueprint up, a click on the canvas puts
   await expect(card).toContainText("Placed 3 times");
 });
 
+test("the inspector shows an instance's blueprint and ports, renames it, selects its copies and opens it", async ({
+  page,
+}) => {
+  const { document } = subgraphScene(NO_PACK);
+  await openDocument(page, document);
+  await instances(page).first().locator("header").click();
+  const inspector = page.getByRole("complementary", { name: "Inspector" });
+  await expect(inspector.getByRole("heading", { name: "Copper Wire line" })).toBeVisible();
+  await expect(inspector).toContainText("placed 2 times");
+  await expect(inspector.getByRole("region", { name: "Ports" }).getByRole("listitem")).toHaveText([
+    /Cuprite Ore\s*In/,
+    /Copper Wire\s*Out/,
+    /Slag\s*Out/,
+  ]);
+
+  // Renaming the blueprint renames every copy, as one step.
+  const name = inspector.getByRole("textbox", { name: "Name" });
+  await name.fill("Wire module");
+  await name.press("Enter");
+  await expect(instances(page)).toHaveText([/Wire module/, /Wire module/]);
+
+  await inspector.getByRole("button", { name: "Select all 2" }).click();
+  for (const instance of await instances(page).all()) await expect(instance).toHaveClass(/selected/);
+
+  // A click on empty canvas, then on one of them: it alone is selected.
+  await page.locator(".react-flow__pane").click({ position: { x: 24, y: 24 } });
+  await instances(page).first().locator("header").click();
+  await inspector.getByRole("button", { name: "Open" }).click();
+  await expect(breadcrumbs(page)).toContainText("Wire module");
+  await page.keyboard.press("ControlOrMeta+Z");
+  await expect(breadcrumbs(page)).toContainText("Copper Wire line");
+});
+
+test("the planner plans into the subgraph on screen", async ({ page }) => {
+  const { document } = subgraphScene(NO_PACK);
+  await openDocument(page, document);
+  await instances(page).first().getByRole("button", { name: "Open" }).click();
+  await expect(breadcrumbs(page)).toContainText("Copper Wire line");
+
+  await page.keyboard.press("p");
+  const planner = page.getByRole("region", { name: "Plan production" });
+  await planner.getByLabel("Goal 1 item").fill("iron gear");
+  await page.keyboard.press("Enter");
+  const rate = planner.getByLabel("Goal 1 rate");
+  await rate.fill("1");
+  await rate.press("Enter");
+  await planner.getByRole("button", { name: "Plan", exact: true }).click();
+  await expect(page.locator(".react-flow__node.ghost").first()).toBeVisible();
+  await planner.getByRole("button", { name: "Accept" }).click();
+
+  // The gears are made inside the blueprint; the factory around has none.
+  const gears = page.locator('.react-flow__node:not(.ghost)[data-id="iron-gear"]');
+  await expect(gears).toHaveCount(1);
+  await breadcrumbs(page).getByRole("button", { name: document.name }).click();
+  await expect(breadcrumbs(page)).toBeHidden();
+  await expect(instances(page)).toHaveCount(2);
+  await expect(gears).toHaveCount(0);
+});
+
 for (const colorScheme of ["dark", "light"] as const) {
   test(`instance cards and the blueprint library in ${colorScheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
