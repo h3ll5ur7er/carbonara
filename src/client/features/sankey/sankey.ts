@@ -56,7 +56,7 @@ export interface SankeyLayout {
 
 export const NODE_WIDTH = 14;
 /** Room above a node for its label, and between bands passing a column. */
-export const LABEL_ROOM = 30;
+export const LABEL_ROOM = 34;
 const PASSING_GAP = 10;
 /** Room around the chart: above for the first labels, right for the outputs' labels. */
 const MARGIN = { top: LABEL_ROOM + 2, right: 160, bottom: 24, left: 24 };
