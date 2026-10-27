@@ -97,7 +97,8 @@ export function cardRing(selected: boolean, short: boolean): string {
   return "ring-1 ring-line";
 }
 
-function PortRow({ port, slot, divided }: { port: PortView; slot: NodeSlot | undefined; divided: boolean }) {
+/** One port of a card: its item, name and live rate, with a warning when the node is short of it. */
+export function PortRow({ port, slot, divided }: { port: PortView; slot: NodeSlot | undefined; divided: boolean }) {
   const unit = useRateUnit();
   const output = port.direction === "out";
   const rate = (output ? slot?.result.outputs : slot?.result.inputs)?.[port.item.id];

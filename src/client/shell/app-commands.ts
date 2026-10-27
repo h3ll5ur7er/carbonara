@@ -19,6 +19,7 @@ import { plannerCommands } from "../features/planner/commands";
 import { totalsCommands } from "../features/totals/commands";
 import { sankeyCommands } from "../features/sankey/commands";
 import { heatmapCommands } from "../features/heatmap/commands";
+import { subgraphCommands } from "../features/subgraphs/commands";
 import { customisableRegistry, setCheatSheetOpen, useShortcuts } from "../features/shortcuts/store";
 import { paletteCommandId } from "../features/command-palette/command-palette";
 import { documentActions } from "../features/documents/actions";
@@ -111,6 +112,7 @@ export const appCommands: CommandDefinition[] = [
     run: toggleThemePreference,
   },
   ...canvasCommands,
+  ...subgraphCommands,
   ...plannerCommands,
   ...totalsCommands,
   ...sankeyCommands,

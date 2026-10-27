@@ -6,6 +6,7 @@ import type { Document, LocalId, Node } from "../../contracts/document";
 import type { PackData } from "../../contracts/pack";
 import { useConnector } from "../core/connector";
 import { errorMessage, toast } from "../shell/toasts";
+import { blueprintName } from "../features/subgraphs/path";
 import { setCanvasEditActions, type CanvasEditActions } from "./edit-actions";
 import type { NavigationActions } from "./use-navigation";
 import type { Point } from "./adapter";
@@ -32,6 +33,10 @@ export interface EditActionsInput {
   apply(commands: CommandInput[], label: string): Promise<void>;
   /** Back, forward and bookmarks (use-navigation.ts). */
   navigation: NavigationActions;
+  /** Opens a subgraph instance; nothing opens without it. */
+  openSubgraph?: ((instance: LocalId) => void) | undefined;
+  /** Selects these nodes as soon as the canvas draws them (a collapse's new instance). */
+  selectWhenShown(ids: LocalId[]): void;
 }
 
 /** Builds the actions, registers them while the canvas is on screen, and returns them for the canvas's own keys. */
@@ -43,6 +48,8 @@ export function useEditActions({
   selection,
   apply,
   navigation,
+  openSubgraph,
+  selectWhenShown,
 }: EditActionsInput): CanvasEditActions {
   const connector = useConnector();
   const documentId = document.id;
@@ -167,6 +174,59 @@ export function useEditActions({
           (error: unknown) => failed("Export the picture", errorMessage(error)),
         );
       },
+      collapseSelection() {
+        const ids = selection.current.nodes.filter((id) => shown?.nodes[id] && shown.nodes[id].kind !== "port");
+        if (ids.length === 0) {
+          toast({ title: "Nothing to collapse", description: "Select the nodes to put into a subgraph first." });
+          return;
+        }
+        const boxes = selectedBoxes().filter((box) => ids.includes(box.id));
+        const left = Math.min(...boxes.map((box) => box.x));
+        const top = Math.min(...boxes.map((box) => box.y));
+        const bounds = {
+          x: left,
+          y: top,
+          width: Math.max(...boxes.map((box) => box.x + box.width)) - left,
+          height: Math.max(...boxes.map((box) => box.y + box.height)) - top,
+        };
+        const suffix = crypto.randomUUID().slice(0, 8);
+        const instance = `subgraph-${suffix}`;
+        const name = blueprintName(document, pack, graph, ids);
+        selectWhenShown([instance]);
+        void apply(
+          [
+            {
+              type: "collapse",
+              graph,
+              ids,
+              name,
+              blueprint: `blueprint-${suffix}`,
+              instance,
+              ...(boxes.length > 0 && { bounds }),
+            },
+          ],
+          `Collapse into ${name}`,
+        );
+      },
+      expandSelection() {
+        const ids = selection.current.nodes.filter((id) => shown?.nodes[id]?.kind === "instance");
+        if (ids.length === 0) {
+          toast({ title: "Nothing to expand", description: "Select a subgraph first." });
+          return;
+        }
+        void apply(
+          ids.map((id) => ({ type: "expand", graph, id }) as const),
+          ids.length === 1 ? "Expand subgraph" : `Expand ${ids.length} subgraphs`,
+        );
+      },
+      openSubgraph() {
+        const [instance] = selection.current.nodes.filter((id) => shown?.nodes[id]?.kind === "instance");
+        if (!instance) {
+          toast({ title: "No subgraph selected", description: "Select a subgraph to open it." });
+          return;
+        }
+        openSubgraph?.(instance);
+      },
       undo: () => report("Undo", connector.editing.undo({ documentId })),
       redo: () => report("Redo", connector.editing.redo({ documentId })),
       placeNew,
@@ -174,8 +234,7 @@ export function useEditActions({
     };
   }, [
     connector,
-    document.name,
-    document.settings,
+    document,
     documentId,
     graph,
     shown,
@@ -185,6 +244,8 @@ export function useEditActions({
     selection,
     apply,
     navigation,
+    openSubgraph,
+    selectWhenShown,
   ]);
 
   useEffect(() => {

@@ -65,10 +65,16 @@ export async function isolatePlugin(
           })) as AnalysisResults;
           return { ...results, documentId: document.id, version, graph: "root" };
         },
-        // Blueprints' insides aren't expanded for sandboxed packs yet (CARB-39): their instances still solve.
-        blueprints: {},
-        blueprintResults: async (graph) => {
-          throw new Error(`Blueprint ${graph} can't be expanded in the plugin sandbox yet`);
+        blueprints: blueprintIndices(answer.blueprints, answer.model.blueprints?.length ?? 0),
+        async blueprintResults(graph, outcome, version) {
+          const results = (await sandbox.call({
+            call: "blueprintResults",
+            compileId: answer.compileId,
+            graph,
+            outcome,
+            version,
+          })) as AnalysisResults;
+          return { ...results, documentId: document.id, version, graph };
         },
       };
     },
@@ -137,6 +143,16 @@ function connect(port: SandboxPort, timeoutMs: number, stopped: () => void): Con
     },
     stop: () => stop(),
   };
+}
+
+/** The sandbox's blueprint indices that point into the model; anything else it answered is dropped. */
+function blueprintIndices(answered: unknown, count: number): Record<string, number> {
+  if (typeof answered !== "object" || answered === null) return {};
+  return Object.fromEntries(
+    Object.entries(answered).filter(
+      ([, index]) => typeof index === "number" && Number.isInteger(index) && index >= 0 && index < count,
+    ),
+  );
 }
 
 function isReply(data: unknown): data is SandboxReply {

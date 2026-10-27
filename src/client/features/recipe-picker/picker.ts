@@ -156,8 +156,8 @@ export function placeNode(
 
 export interface Picked {
   graph: string;
-  /** The node and port the drag started from. */
-  from: { node: LocalId; item: Id; side: "in" | "out" };
+  /** The node and port the drag started from (on a subgraph instance, `port` is the blueprint's port). */
+  from: { node: LocalId; item: Id; side: "in" | "out"; port?: LocalId };
   entry: PickerEntry;
   /** The drop point in flow units. */
   drop: { x: number; y: number };
@@ -179,8 +179,11 @@ export function applyPick(
 export function pickCommands(pack: PackData, pick: Picked): CommandInput[] {
   const { graph, from, entry, drop, id } = pick;
   const { x, y } = placeNode(pack, entry, from, drop);
+  const port = from.port;
   const edge =
-    from.side === "out" ? { from: from.node, to: id, item: from.item } : { from: id, to: from.node, item: from.item };
+    from.side === "out"
+      ? { from: from.node, ...(port !== undefined && { fromPort: port }), to: id, item: from.item }
+      : { from: id, to: from.node, ...(port !== undefined && { toPort: port }), item: from.item };
   return [
     { type: "addNode", graph, id, node: entryNode(entry), position: { x, y } },
     { type: "connect", graph, edge },

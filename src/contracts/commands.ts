@@ -87,6 +87,33 @@ export const Command = z.discriminatedUnion("type", [
   z
     .object({ type: z.literal("setLocked"), graph: GraphScope, ids: z.array(LocalId).min(1), locked: z.boolean() })
     .describe("Locks nodes in place (dragging, nudging and arranging leave them), or unlocks them."),
+  z
+    .object({
+      type: z.literal("collapse"),
+      graph: GraphScope,
+      ids: z.array(LocalId).min(1).describe("The nodes to collapse; not ports."),
+      blueprint: LocalId.optional().describe("The new blueprint's id. Chosen by the manager when left out."),
+      instance: LocalId.optional().describe("The id of the instance that takes their place. Chosen when left out."),
+      name: z.string().min(1).describe("The new blueprint's name."),
+      bounds: z
+        .object({ x: z.number(), y: z.number(), width: z.number().nonnegative(), height: z.number().nonnegative() })
+        .optional()
+        .describe("Where the nodes are drawn, so the ports go beside them. Estimated from positions when left out."),
+    })
+    .describe(
+      "Collapses nodes into a subgraph: moves them into a new blueprint and puts an instance of it where they " +
+        "were. Each flow that crossed the selection now runs through a port of the blueprint (ports are inferred " +
+        "from those flows; flows of one item from one node share a port).",
+    ),
+  z
+    .object({ type: z.literal("expand"), graph: GraphScope, id: LocalId.describe("A subgraph instance node.") })
+    .describe(
+      "Expands a subgraph instance: puts a copy of its blueprint's nodes and flows in its place and reconnects " +
+        "the flows through its ports. Expanding the last instance of a blueprint dissolves the blueprint.",
+    ),
+  z
+    .object({ type: z.literal("renameBlueprint"), blueprint: LocalId, name: z.string().min(1) })
+    .describe("Renames a blueprint (every instance shows the new name)."),
 ]);
 export type Command = z.infer<typeof Command>;
 export type CommandInput = z.input<typeof Command>;

@@ -68,6 +68,9 @@ Documents change only through `Command`s ([[src/contracts/commands.ts]]) sent to
 | `setLogistics` | Sets or clears the belt or pipe tier of flows |
 | `setSettings` | The document's display settings (`rateUnit`, `belt`, `machineGroups`); null puts one back to its default. It names no graph |
 | `setLocked` | Locks nodes in place (`locked: true` on their position, which it creates at the origin if missing) or unlocks them |
+| `collapse` | Collapses nodes into a subgraph: a new blueprint holds them, an instance takes their place ([[#Collapse and expand]]) |
+| `expand` | Puts a copy of an instance's blueprint in its place and reconnects its flows; the last instance of a blueprint dissolves it |
+| `renameBlueprint` | A blueprint's name. It names no graph |
 
 A batch is all or nothing. The engine rejects it, as a value with the path of the offending command (`["commands", 1, "edge", "from"]`), when a command:
 
@@ -78,6 +81,16 @@ A batch is all or nothing. The engine rejects it, as a value with the path of th
 - sets fields or a pin on anything but a recipe node, or a rate (`setRate`: a source's limit, a sink's target) on anything but a source or sink.
 
 Removing nodes also removes their positions and every edge that touches them; removing a blueprint's port node also removes the edges that reach that port through the blueprint's instances. Property tests check that `undo(do(x)) = x` for random command sequences and that no edge or position is ever left dangling.
+
+### Collapse and expand
+
+The rules live in [[src/engines/editing/subgraphs.ts]]. `collapse({ graph, ids, name, blueprint?, instance?, bounds? })`:
+
+- The selected nodes (not ports: they belong to the graph's own boundary) move into a new blueprint under their own ids, with their positions and the flows between them. The instance goes where the selection's top-left corner was.
+- **Ports are inferred** from the flows that crossed the selection. Each crossing flow is cut in two at a port: the half outside runs to (or from) the instance's port, the half inside from (or to) the port node. Flows of one item between one node outside and several inside (or several outside and one inside) **share a port**: the shared side gets one flow, named after the first, with their belt if they all had the same one. A share (`ratio`) stays on its source's half, so flows whose shared half would be the source's and that carry a share keep ports of their own. Port nodes are named `in-<item>` / `out-<item>` (`~2` when taken) and laid out beside the nodes, inputs left and outputs right; `bounds` (where the client draws the nodes) places them, or else the positions do.
+- The manager names the blueprint and the instance (random UUIDs) unless the command does; ids are the caller's choice so that the engine stays pure.
+
+`expand({ graph, id })` is its inverse: the blueprint's nodes (not its ports) are copied in place of the instance, moved so that their top-left corner is where the instance is, with ids that clash renamed (`~2`). At each port, every flow that reached it outside is joined with every flow that left it inside: when one side had a single flow, the other side's flows keep their ids and belts; otherwise the joined flows are named `<outside>+<inside>`. A flow from an input port straight to an output port joins the flows outside both. When no instance of the blueprint is left in any graph, the blueprint and its layout are removed, so expanding what a collapse made gives back exactly the document before it (a property test over random documents and selections checks `expand(collapse(x)) = x`).
 
 The `editing` manager ([[src/managers/editing.ts]]) runs the use case:
 

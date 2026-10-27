@@ -46,7 +46,7 @@ A blueprint's inside is solved for the boundary flows its instances got: its bod
 - It is solved **lazily**: only when asked for, once per document version, reusing the solved model's cached components and summaries. Its results carry the document version they belong to.
 - **Watching.** `analysis.watchResults({ documentId, graph })` makes every solve of the document publish that blueprint's results with `resultsChanged` too, until `analysis.unwatchResults` with the same arguments. Watches count, so two views of one blueprint each watch and unwatch. Closing the document drops its watches. The root graph's results are always published; clients that show only the root ignore other graphs.
 
-Per-instance results (one instance of several) are not offered yet: when the UI needs them ([[CARB-39]]), `getResults` can take a path of instance ids.
+**No per-instance results.** Inside a blueprint the canvas shows all its instances together, and says so ("2 instances" in the breadcrumbs). We decided against results per instance for [[CARB-39]]: a blueprint is one definition, and what you edit inside it is every copy at once, so the combined load is what that view is about (machines to build in total, belts that overflow anywhere); with one instance, the usual case, the numbers are exactly that instance's. Each instance's boundary flows and scale are on its card in the graph around. Should a view of one copy ever be needed, `getResults` can take a path of instance ids.
 
 ## Results
 
@@ -66,6 +66,11 @@ When the graph around can't supply an instance, a shortage can be explained in s
 
 ## Interaction
 
-- Select nodes and press `Ctrl+G` to collapse them into a subgraph. Ports are inferred from the edges crossing the selection.
-- Double-click an instance to zoom into it, with breadcrumbs to go back up.
-- Blueprints live in a library panel and can be dragged into any graph, shown as a ghost until you place them (see [[Design/Editor quality of life]]).
+The commands and gestures are on [[Design/Editor quality of life]] (Subgraphs); the editing rules for collapse and expand on [[Architecture/Documents]] (Collapse and expand).
+
+- **Collapse** (`Ctrl+G`): the selection becomes a new blueprint, named after what leaves it ("Copper Wire line"), and an instance takes its place, selected. Ports are inferred from the flows that cross the selection. **Expand** (`Ctrl+Shift+G`) puts the nodes back.
+- **Open** an instance (double-click, its card's *Open* button, or `Ctrl+↓`): the view zooms into its card, then the blueprint's graph grows in. **Leave** (`Ctrl+↑`, the breadcrumbs' up button, or any crumb) does the reverse: the graph above comes back zoomed into the instance and glides out to where the view was. With reduced motion both are instant.
+- Inside, the canvas edits the blueprint's graph (every command names it as its `graph`), and its results are followed with `analysis.watchResults` while it's on screen ([[src/client/core/results-model.ts]]). The inspector, the totals, the heatmap and the Sankey overview describe the graph on screen.
+- **Breadcrumbs** at the canvas's top-left: the factory, then each blueprint opened; double-click the last one (or `F2`) to rename the blueprint. The path is kept per document for the session, and cut back when an undo, expand or delete takes an opened instance away ([[src/client/features/subgraphs/path.ts]]).
+- **Library** (`Ctrl+B`, the left panel): every blueprint of the document with its inputs and outputs and how often it's placed. Drag one onto the canvas (it follows as a ghost and lands where it's let go), or click it and then click where it goes; `Esc` cancels, and `Enter` on a card places it in the middle of the view. A blueprint can't be placed inside itself, or inside one it's part of. All copies share the blueprint: they compile to one blueprint in the model and so one summary, and an edit inside changes them all ([[src/managers/analysis.test.ts]]).
+- Third-party packs expand blueprints in their plugin sandbox, like built-in ones ([[Architecture/Plugins]]).
