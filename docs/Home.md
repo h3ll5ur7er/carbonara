@@ -22,6 +22,7 @@ It runs in the browser and as a desktop app (Tauri). The desktop app also runs a
 | Page | Covers |
 | --- | --- |
 | [[Architecture]] | Components, layers and call rules, threads, the tech stack |
+| [[Architecture/Documents]] | The document format: nodes, edges, pins, layout, units, migrations |
 | [[Architecture/Solver]] | LP formulation, readable results, performance budgets |
 | [[Architecture/Subgraphs]] | Hierarchical pre-computation with macro recipes |
 | [[Architecture/Game packs]] | The `.cpack` format, loading, authoring, assets |
