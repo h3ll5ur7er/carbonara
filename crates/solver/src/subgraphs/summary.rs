@@ -4,8 +4,9 @@
 //! internal output or input no edge can carry: a byproduct it dumps, an input it lacks) and, when it has
 //! pins, its design scale `t`. With every other port balanced exactly and pins turned into ratios to `t`,
 //! the coordinates a blueprint can produce form a cone. Its dimension is how many independent ways the
-//! blueprint can run; its extreme rays are the modes. Directional LPs over the cone, cut by
-//! `Σ coordinates = 1`, find both (`hull`). Node maxima and constraints that hold at zero limit how far
+//! blueprint can run; its extreme rays are modes, and so are the ways between them that cost less than
+//! combining them (`lower_vertices`). Directional LPs over the cone, cut by `Σ coordinates = 1`, find
+//! all of them (`hull`). Node maxima and constraints that hold at zero limit how far
 //! an instance can run: along a single mode that is the macro node's maximum; several modes with limits
 //! are inlined, since the limits couple them.
 
