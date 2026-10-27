@@ -95,6 +95,16 @@ function setUp(packs = [template]) {
   return { bus, documents, analysis, published, edit, command, nextResults };
 }
 
+/** Every number to 12 significant digits. */
+function rounded(value: unknown): unknown {
+  if (typeof value === "number") return Number(value.toPrecision(12));
+  if (Array.isArray(value)) return value.map(rounded);
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, rounded(inner)]));
+  }
+  return value;
+}
+
 function withTarget(perSecond: number): Document {
   const document = waterLoop();
   document.graph.nodes.plates = { kind: "sink", item: "iron-plate", targetPerSecond: perSecond };
@@ -148,7 +158,8 @@ describe("the analysis manager", () => {
       const fresh = setUp();
       fresh.edit(documents.get("doc-water")?.document as Document);
       const expected = await fresh.analysis.getResults({ documentId: "doc-water", graph: "root" });
-      expect(followed).toEqual({ ...expected, version: followed?.version });
+      // The solver re-solves from its last solve, so the last bits may differ.
+      expect(rounded(followed)).toEqual(rounded({ ...expected, version: followed?.version }));
     }
   });
 

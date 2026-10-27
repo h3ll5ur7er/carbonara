@@ -214,6 +214,37 @@ proptest! {
     }
 
     #[test]
+    fn re_solving_for_new_pins_from_the_last_solve_reaches_the_same_optimum(
+        factory in factory(),
+        pins in prop::collection::vec(prop::sample::select(vec![0.0, 0.25, 1.0, 2.0, 3.5, 7.0]), 10),
+    ) {
+        // The same factory, every pin moved: each component starts from its last LP.
+        let mut solver = Solver::new(MicroLp);
+        prop_assert!(solver.solve(&factory).is_ok());
+        let mut edited = factory.clone();
+        for (node, pin) in edited.nodes.iter_mut().zip(&pins) {
+            if node.pin.is_some() {
+                node.pin = Some(*pin);
+            }
+        }
+        let (Ok(warm), Ok(cold)) = (solver.solve(&edited), solve(&edited)) else {
+            return Err(TestCaseError::fail("expected solutions"));
+        };
+        let (a, b) = (objectives(&edited, &warm), objectives(&edited, &cold));
+        for tier in 0..5 {
+            prop_assert!((a[tier] - b[tier]).abs() <= 1e-6 * (1.0 + b[tier].abs()), "tier {tier}: {a:?} vs {b:?}");
+        }
+        // Met pins are met exactly, as from scratch.
+        for (index, node) in edited.nodes.iter().enumerate() {
+            let missed = |solution: &Solution| solution.pin_misses.iter().any(|miss| miss.node == index as u32);
+            if let (Some(pin), false) = (node.pin, missed(&cold)) {
+                prop_assert!(!missed(&warm), "node {index} misses its pin");
+                prop_assert!((warm.activity[index] - pin).abs() <= 1e-9 * (1.0 + pin));
+            }
+        }
+    }
+
+    #[test]
     fn solving_changes_gives_what_solving_each_model_whole_gives(
         parts in prop::collection::vec(factory(), 1..4),
         edits in prop::collection::vec((any::<prop::sample::Index>(), prop::option::of(factory())), 1..5),

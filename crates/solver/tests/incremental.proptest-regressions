@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 456f5d666ab2f776f53e7d28c13ef752191a95effe61ccd449e5438081d6d356 # shrinks to factory = Model { items: 4, nodes: [Node { kind: Process, rates: [Rate { item: 0, per_second: -0.25 }], max: None, pin: None, cost: 0.0, blueprint: None }, Node { kind: Process, rates: [Rate { item: 0, per_second: -0.25 }], max: None, pin: None, cost: 0.0, blueprint: None }, Node { kind: Process, rates: [Rate { item: 0, per_second: -0.25 }], max: None, pin: Some(0.0), cost: 2.0, blueprint: None }], edges: [], constraints: [], blueprints: [] }, pins = [2.0, 0.0, 7.0, 7.0, 0.25, 7.0, 1.0, 0.25, 3.5, 0.0]

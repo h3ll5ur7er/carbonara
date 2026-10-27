@@ -87,7 +87,17 @@ pub fn solve_inline(model: &Model) -> Result<Solution, SolveError> {
 
 /// One LP for a model without instances.
 fn solve_flat(model: &Model, backend: &impl Backend) -> Result<Solution, SolveError> {
+    Ok(solve_flat_from(model, backend, None)?.0)
+}
+
+/// `solve_flat`, starting from what an earlier solve of a model of the same shape left (`fingerprint::shape`).
+fn solve_flat_from(
+    model: &Model,
+    backend: &impl Backend,
+    start: Option<program::Start>,
+) -> Result<(Solution, Option<program::Start>), SolveError> {
     let mut formulation = formulation::formulate(model);
-    let values = backend.minimise_in_order(&mut formulation.program, &formulation.tiers)?;
-    Ok(formulation.read(&values))
+    let (values, start) =
+        backend.minimise_in_order_from(&mut formulation.program, &formulation.tiers, start)?;
+    Ok((formulation.read(&values), start))
 }
