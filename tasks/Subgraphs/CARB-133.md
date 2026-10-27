@@ -2,7 +2,7 @@
 id: CARB-133
 title: A blueprint's summary misses a cheaper way of running
 type: bug
-status: review
+status: done
 priority: high
 labels: [solver, subgraphs]
 wave: "3"
