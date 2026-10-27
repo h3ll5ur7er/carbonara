@@ -72,6 +72,7 @@ The shell ([[src/client/app.tsx]], `src/client/shell/`) is a top bar over a full
 | Toggle totals | `T` |
 | Sankey overview | `S` |
 | Bottleneck heatmap | `H` |
+| Rename factory… | `F2` |
 
 - **Command palette** (`Ctrl+K`, or the search field in the top bar): type to filter, arrow keys to move, Enter to run, Escape to close. With a document open, typing an item or recipe name also lists **quick-add** entries: every recipe of the document's pack, found by its name, its outputs and their aliases, and its buildings, showing where it runs and what it turns into what. Picking one sends one `addNode` command to `editing.apply` ("Add Iron Plate") and confirms with a toast. Quick-added nodes land in the middle of the visible canvas, clear of the nodes already there ([[Design/Editor quality of life]], Auto-arrange and lock).
 - **Toasts:** `toast({ title, description, tone })` from anywhere in the client; `info` and `success` close after 4 s, `error` after 8 s. At most three show at once. Screen readers announce them and F8 jumps to them.
@@ -136,7 +137,7 @@ The side panels float over the canvas, so the canvas reads which are open and tr
 - **Inspector** side panel: plugin fields, per-item breakdowns, and "what-if" recipe swaps with delta previews.
 - **Totals dashboard:** raw resources against map limits, power, building counts and build cost.
 - Undo/redo with a history panel; multiple document tabs; autosave; share links.
-- First run asks which game you're playing and opens a starter factory for it, with an interactive tour.
+- First run asks which game you're playing and opens a starter factory for it, with an interactive tour (Welcome and tour below).
 - The many smaller conveniences are on [[Design/Editor quality of life]].
 
 ### Goal planner
@@ -171,6 +172,16 @@ A ghost previews nodes and flows that aren't in the document yet: planner propos
 - **API:** `Canvas` takes `ghost: { graph, positions, results?, placement, label }` and reports `onGhostPlace(offset)` and `onGhostCancel()`. `placement` is `{ mode: "fixed", offset }` (drawn there; dragging moves it as one and reports the new offset when dropped) or `{ mode: "pointer" }` (its centre follows the pointer, snapped to the grid; a click places it, Escape cancels). `placedPositions(positions, offset)` gives where its nodes land.
 - **Drawing:** the ghost's nodes and edges are the canvas's own components under `ghost:` ids, so they match every level of detail; `results` (by the ghost's own ids) feed their machine counts and rates. They are translucent with a dashed accent outline, flows are dashed in the accent, and ports are hidden; none of it can be selected or connected. Behind them a dashed, accent-tinted **frame** with a label ("Proposal · drag to move") that keeps its size on screen is the handle to drag the ghost by.
 - Moving a ghost changes only its placement, so its content isn't rebuilt and it isn't revealed again.
+
+### Welcome and tour
+
+The first impression (`src/client/features/onboarding/`): one question, then a real factory and the real core loop, in about a minute.
+
+- **First run** (no tour progress in the preferences, [[Architecture/Documents]], Preferences): the welcome screen asks *Which game do you play?* with one card per game pack (a monogram on the pack's accent, the game's name and version). Picking one opens the pack's first starter factory ([[Architecture/Game packs]], Starter factories), or an empty factory when it has none, and starts the tour. *Skip — I'll find my own way* goes to the usual welcome and is remembered.
+- **The tour** is a card at the top of the canvas (`TourCard`), with a breathing accent ring around what the step is about. Its steps follow the core loop on the starter factory: *Welcome*, *Add a recipe* (the palette, ringed), *Connect it through its ports*, *Set a target* (the inspector, ringed), *Watch it solve*, *Let Carbonara plan* (`P`), *You're all set*. Steps that ask for something wait ("Waiting for you") and move on by themselves once the factory shows it was done ([[src/client/features/onboarding/tour.ts]]: a new recipe node; that node connected on both sides; a target set or changed; the planner open); the others have *Next*.
+- **Skippable and resumable:** the card's × or *Skip tour* closes it where it is, and *Skip step* moves on. Progress is saved in the preferences after every step, so a reload carries on with an unfinished tour, and a finished or skipped one never starts by itself again. *Take the tour* in the command palette resumes it where it was left (from the start once completed); with no factory open it asks for a game first.
+- **Keyboard and assistive tech:** the card is a non-modal dialog; starting the tour or moving on with its buttons focuses its main button, so Enter goes through the explaining steps, while steps that move on by themselves leave the focus where the person is working. The title and text are a polite live region, so each new step is announced. The ring and the card's entrance follow the motion tokens; the ring only breathes without `prefers-reduced-motion`.
+- **Tests:** [[e2e/onboarding.spec.ts]] completes the tour on the Template Works starter and checks that skipping is remembered and the palette resumes it, plus screenshots of the game picker and a tour step in both themes. Automated browsers (`navigator.webdriver`) skip the first run unless the address has `?first-run`, so no other spec sees it.
 
 ## Performance
 

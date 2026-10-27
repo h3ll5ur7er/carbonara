@@ -68,6 +68,7 @@ Documents change only through `Command`s ([[src/contracts/commands.ts]]) sent to
 | `setLogistics` | Sets or clears the belt or pipe tier of flows |
 | `setSettings` | The document's display settings (`rateUnit`, `belt`, `machineGroups`); null puts one back to its default. It names no graph |
 | `setLocked` | Locks nodes in place (`locked: true` on their position, which it creates at the origin if missing) or unlocks them |
+| `renameDocument` | The document's `name` (trimmed, 1 to 120 characters). It names no graph. The workspace re-announces the tabs when a name changes, undo included |
 
 A batch is all or nothing. The engine rejects it, as a value with the path of the offending command (`["commands", 1, "edge", "from"]`), when a command:
 
@@ -96,7 +97,7 @@ Because patches keep unchanged parts by identity, components subscribe with the 
 
 The documents access component ([[src/access/documents/autosave.ts]], [[src/access/documents/files.ts]]) holds the documents open in this session and saves them.
 
-- **Autosave.** The web backend's `DocumentStore` writes each changed document through to IndexedDB in the background, so a reload never loses work. A burst of changes (a drag, a paste) is written once, with its latest state. On start it restores the documents that were open, upgraded to the current version; documents it can't load (from a newer Carbonara) are reported and stay saved, untouched. Closing a document deletes its autosave.
+- **Autosave.** The web backend's `DocumentStore` writes each changed document through to IndexedDB in the background, so a reload never loses work. A burst of changes (a drag, a paste) is written once, with its latest state. On start it restores the documents that were open, upgraded to the current version; documents it can't load (from a newer Carbonara) are reported and stay saved, untouched. Closing a document moves it from the open documents to the **recent** ones: a second storage (`carbonara-recent`, each entry `{ closedAt, document }`) that keeps the ten closed last and deletes older ones as newer closes push them out. Reopening one takes it off that list. Every `DocumentStore` keeps the recent list (`recent()`, `takeRecent(id)`); the memory store holds it for the session.
 - **Files.** A `.carbonara` file is the document as gzipped UTF-8 JSON. `workspace.exportDocument` returns those bytes (a `Uint8Array`, not a string: gzip is binary, and bytes cross the worker boundary as they are) and `workspace.importDocument` takes them. Reading also accepts plain JSON, so a file someone unzipped and edited by hand opens too. Damaged files are refused as values ("Not a Carbonara document").
 - **Share links.** A share link carries the whole `.carbonara` file in the URL fragment, in base64url ([[src/access/documents/share-links.ts]]). The fragment never reaches a server, so nothing is uploaded anywhere. Very large documents make long URLs; there's no size limit yet.
 - **Platform port.** IndexedDB hides behind the `KeyValueStorage` port ([[src/contracts/platform.ts]]), implemented for the web by [[src/platforms/web/indexeddb.ts]]; the desktop app by [[src/platforms/tauri/key-value.ts]] (one JSON file per key in the app data folder; see [[Architecture/Desktop]]); Node implements the same port later. Every port implementation passes [[src/contracts/platform.contract.ts]], and every `DocumentStore` (memory, autosaved) passes [[src/access/documents/store.contract.ts]].
@@ -109,23 +110,29 @@ The `workspace` manager ([[src/managers/workspace.ts]]) owns the set of open doc
 
 | Method | Does |
 | --- | --- |
-| `createDocument({ name, packId })` | An empty document for an installed pack, recording the pack's version and hash |
+| `createDocument({ name, packId, starter? })` | An empty document for an installed pack, recording the pack's version and hash; with `starter`, a copy of that starter factory of the pack ([[Architecture/Game packs]], Starter factories) |
 | `listDocuments()` | The open documents in the order they were opened |
 | `importDocument({ bytes })` | Opens a `.carbonara` file (or plain JSON); a `Result`, since files can be broken |
 | `exportDocument({ documentId })` | The document as `.carbonara` bytes |
-| `closeDocument({ documentId })` | Closes it and deletes its autosave; closing a closed document does nothing |
+| `closeDocument({ documentId })` | Closes it; it stays among the recent documents. Closing a closed document does nothing |
+| `listRecent()` | The recently closed documents, newest first: id, name, pack and when it was closed |
+| `openRecent({ documentId })` | Opens a recent document again (as a copy under a new id if one with its id is open); a `Result`, since it may have been pushed out |
 | `createShareLink({ documentId })` | The URL fragment (without `#`) that opens a copy of the document |
 | `openShareLink({ fragment })` | Opens the document in a fragment; a `Result` |
-
+| `getPreferences()` / `setPreferences({ preferences })` | What the app remembers about the person (see Preferences below); setting changes only the preferences given |
 | `getRestoreProblems()` | What went wrong restoring last session's documents (they stay saved); the client shows it once as a toast |
 
-Every change to the set publishes `documentsChanged` with the new list. A document opened while one with the same id is open (the same file twice, your own share link) becomes a copy under a new id, so the two edit separately. Until the packs access component exists ([[CARB-25]]) the web backend knows no packs, so `createDocument` refuses every pack there; importing works.
+Every change to the set publishes `documentsChanged` with the new list, and so does a rename: the workspace listens to `documentChanged` and announces the list again when a patch touches a document's `name`, so the editing manager stays unaware of tabs. A document opened while one with the same id is open (the same file twice, your own share link) becomes a copy under a new id, so the two edit separately.
+
+### Preferences
+
+The preferences access component ([[src/access/preferences/preferences.ts]]) keeps what the app remembers about the person across sessions in the platform's `KeyValueStorage` (`carbonara-preferences`: IndexedDB on the web, the app data folder on desktop), one key per preference. The shape is [[src/contracts/preferences.ts]], where every preference is optional; a stored value it can't read is ignored rather than failing the rest. Today it holds `tour`, how far the welcome tour got ([[Design]], Welcome and tour). Settings that live in the browser's `localStorage` or in memory (custom shortcuts, theme, panel layout) can move here when they need to follow the person to the desktop app.
 
 ## In the client
 
 The client mirrors the workspace in a small **workspace model** ([[src/client/core/workspace-model.ts]]): the open documents (the tabs, following `documentsChanged`) and the active one, which is client state. Closing the active tab activates the tab that takes its place, or the new last one. [[src/client/core/models.tsx]] provides the workspace model and the read model to React (`useWorkspace`, `useActiveDocument`).
 
-The File commands (new, open, save, copy share link, close) are in the command registry, so the palette, the app menu and the keyboard reach them. A share link in the address bar is `#doc=<fragment>`; opening the app with one opens a copy of the document and removes the fragment from the address bar.
+The File commands (new, open, save, copy share link, close, rename) are in the command registry, so the palette, the app menu and the keyboard reach them. **Renaming:** double-click a tab, or *Rename factory…* (`F2`) for the one on screen; the tab's name becomes a field, Enter or leaving it renames (one `renameDocument` edit, so `Ctrl Z` undoes it), Escape keeps the old name. **Recent documents:** with no factory open, the welcome screen lists the recently closed ones with their game and when they were closed; clicking one reopens it. A share link in the address bar is `#doc=<fragment>`; opening the app with one opens a copy of the document and removes the fragment from the address bar.
 
 ## Versions and migrations
 

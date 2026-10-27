@@ -8,7 +8,7 @@ Plugins are how games differ without the core changing (open/closed principle). 
 
 ## The API
 
-The plugin contract is [[src/contracts/plugin.ts]]. Every hook is optional and pure: it gets the pack data and the document's plugin settings (`settings.plugin`, e.g. a save profile) and returns values; it never touches the document, storage or the DOM.
+The plugin contract is [[src/contracts/plugin.ts]]; [[Guides/Plugin authoring]] walks through writing one. Every hook is optional and pure: it gets the pack data and the document's plugin settings (`settings.plugin`, e.g. a save profile) and returns values; it never touches the document, storage or the DOM.
 
 | Hook | When | Returns |
 | --- | --- | --- |
