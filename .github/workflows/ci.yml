@@ -33,6 +33,17 @@ jobs:
       - name: Generated TS types of the solver IR are up to date
         run: git diff --exit-code src/contracts/ir
 
+  bench:
+    name: Performance budgets
+    runs-on: ubuntu-latest
+    # The budgets from docs/Architecture/Solver.md aren't met yet (see CARB-12): the job reports the
+    # numbers and fails, but doesn't block. Remove this line once they are met.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup # builds the WebAssembly module in release mode
+      - run: pnpm bench
+
   e2e:
     name: End-to-end and screenshots
     runs-on: ubuntu-latest

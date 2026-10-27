@@ -91,10 +91,21 @@ The LP library sits behind the `Backend` trait ([[crates/solver/src/program.rs]]
 4. **Results bypass React state:** results land in the client's result store, and each node component subscribes to its own slot, so a solve re-renders only the nodes whose numbers changed. For now they travel as the plain `AnalysisResults` records from [[src/contracts/results.ts]]; typed arrays only if the benchmarks show the transfer matters.
 5. **Backend trait:** `microlp` first, `clarabel` behind the same trait for very large models.
 
-**Budgets** (checked in CI by `bench/`):
+**Budgets** (checked in CI by `bench/`, see [[Development]]):
 
-| Scenario | Edit → numbers on screen |
-| --- | --- |
-| 500-node component | < 16 ms |
-| 10k-node flat graph | < 150 ms |
-| 50k-node factory built from subgraphs | < 50 ms |
+| Scenario | Edit → numbers on screen | Measured (Oct 2026) |
+| --- | --- | --- |
+| 500-node component | < 16 ms | 155 ms median, 228 ms p95 |
+| 10k-node flat graph | < 150 ms | 300 ms median (20 components of 500 nodes) |
+| 50k-node factory built from subgraphs | < 50 ms | Not measurable before subgraphs (Wave 2); a flat 50k graph of 100 components takes 1.15 s |
+
+> [!WARNING]
+> The budgets aren't met yet. The CI job `Performance budgets` reports the numbers and fails without blocking (`continue-on-error`) until they are.
+
+`bench/factories.ts` generates production lines of motor cells from the template pack (water loop, slag byproduct, belt capacities, one machine pin per cell); `bench/run.ts` times edit → results: compile the whole document, solve incrementally (one component re-solved), map back. Release WebAssembly in Node 22 on the cloud CI machine; the numbers above are medians of 10–30 edits.
+
+Where the time goes, and what would help:
+
+- **The LP solve is most of it.** One 500-node component is an LP of about 2,600 variables and 1,800 rows, and each tier is a cold microlp simplex: about 30–40 ms natively, about twice that in WebAssembly. clarabel (interior point, through the same good_lp layer) measured the same. A plan without shortages needs three LPs (pins, deficits and overflow settle in one when they can all be zero, an exact shortcut); one with shortages needs six.
+- Ideas, in order of expected gain: warm-starting each tier (and each edit) from the previous basis, which means driving microlp directly instead of through good_lp; presolving the program (fixed slacks, ports with a single edge); a network-simplex special case for components without plugin constraints.
+- **Compile and map-back are O(document)** per edit: about 60 ms and 30–60 ms for 10k nodes. Compiling only the changed component would take most of that off the 10k case.
