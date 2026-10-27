@@ -128,6 +128,51 @@
     stroke-linejoin: round;
   }
 
+  /*
+   * The ghost (ghost/use-ghost-layer.tsx): the canvas's own cards and flows, translucent and in the accent,
+   * over a dashed frame that marks the whole preview. It reads as "not built yet" at any zoom.
+   */
+  .react-flow__node.ghost {
+    opacity: 0.78;
+    filter: saturate(0.85);
+    pointer-events: none;
+  }
+  .react-flow__node.ghost > * {
+    outline: 1.5px dashed color-mix(in oklab, var(--color-accent) 70%, transparent);
+    outline-offset: 3px;
+  }
+  .react-flow__node.ghost .react-flow__handle {
+    visibility: hidden;
+  }
+  .react-flow .react-flow__edge.ghost {
+    pointer-events: none;
+  }
+  .react-flow .react-flow__edge.ghost .flow {
+    --flow: var(--color-accent);
+  }
+  .react-flow .react-flow__edge.ghost .flow .flow-line {
+    stroke-dasharray: 10 7;
+  }
+
+  .react-flow__node.ghost-frame {
+    cursor: grab;
+  }
+  .react-flow__node.ghost-frame.dragging {
+    cursor: grabbing;
+  }
+  .ghost-frame-area {
+    background: color-mix(in oklab, var(--color-accent) 5%, transparent);
+    border: 1.5px dashed color-mix(in oklab, var(--color-accent) 75%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-accent) 4%, transparent);
+  }
+  /* While a ghost follows the pointer, clicks go to the pane underneath to place it. */
+  .react-flow.ghost-following .react-flow__node.ghost-frame {
+    pointer-events: none;
+  }
+  .react-flow.ghost-following .react-flow__pane {
+    cursor: copy;
+  }
+
   .react-flow__connectionline path {
     stroke: var(--color-accent);
     stroke-width: 2;

@@ -15,6 +15,7 @@ import { createDocumentActions, setDocumentActions } from "./features/documents/
 import { DocumentTabs } from "./features/documents/document-tabs";
 import { sharedDocumentIn } from "./features/documents/links";
 import { NewDocumentDialog } from "./features/documents/new-document-dialog";
+import { useFactoryOverlays } from "./features/planner/factory-overlays";
 import { Welcome } from "./features/documents/welcome";
 import { McpHost } from "./features/mcp/host";
 import { errorMessage, toast } from "./shell/toasts";
@@ -62,11 +63,13 @@ export function LiveApp() {
 
 /** The active document on the canvas, with its live results; a hint how to start while it's empty. */
 function DocumentCanvas({
+  info,
   document,
   packData,
   results,
   onSelectionChange,
 }: ActiveDocument & { onSelectionChange(nodeIds: string[]): void }) {
+  const overlays = useFactoryOverlays({ info, document, pack: packData, results: results ?? null });
   const empty = !document || Object.keys(document.graph.nodes).length === 0;
   return (
     <>
@@ -76,9 +79,11 @@ function DocumentCanvas({
           {...(packData && { pack: packData })}
           results={results ?? null}
           onSelectionChange={onSelectionChange}
+          {...overlays.canvas}
         />
       </div>
-      {empty && (
+      {overlays.layers}
+      {empty && !overlays.previewing && (
         <EmptyState hint={`Search for a recipe with ${shortcutOf(paletteCommandId)}, then build from its ports.`} />
       )}
     </>

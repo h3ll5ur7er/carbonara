@@ -13,6 +13,7 @@ import {
   useStore,
   useReactFlow,
   useStoreApi,
+  ViewportPortal,
   type Connection,
   type EdgeChange,
   type EdgeTypes,
@@ -32,6 +33,8 @@ import type { CanvasScene, EdgeView, NodeView } from "../model/scene";
 import { insideLasso, nudgeOffset } from "../model/selection";
 import { setCanvasActions } from "../viewport";
 import { visibleCentre } from "../model/view";
+import { GhostFrameNode, useGhostLayer } from "../ghost/use-ghost-layer";
+import { isGhost } from "../ghost/ghost";
 import { FrameNode, JunctionNode, NoteNode, PlaceholderNode } from "./annotation-nodes";
 import { CanvasContext } from "./context";
 import { FlowEdge } from "./flow-edge";
@@ -50,6 +53,7 @@ const nodeTypes = {
   note: NoteNode,
   frame: FrameNode,
   placeholder: PlaceholderNode,
+  ghostFrame: GhostFrameNode,
 } as NodeTypes;
 
 const edgeTypes = { flow: FlowEdge } as EdgeTypes;
@@ -77,6 +81,10 @@ function FlowCanvas({
   onViewCentre,
   onPortDropped,
   onSelectionChange,
+  ghost,
+  onGhostPlace = ignore,
+  onGhostCancel = ignore,
+  overlay,
 }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
@@ -96,12 +104,29 @@ function FlowCanvas({
   const store = useStoreApi<FlowNode, FlowEdgeType>();
   const snapping = useSnapping();
   const { snapChanges } = snapping;
+  const { screenToFlowPosition, fitView } = useReactFlow<FlowNode, FlowEdgeType>();
+  const { getNodesBounds } = useReactFlow<FlowNode, FlowEdgeType>();
+  // Shows a new ghost, with the graph around it while cards stay readable at the zoom that takes.
+  const reveal = useCallback(
+    (ghostNodes: { id: string }[], context: { id: string }[]) => {
+      const { width, height } = store.getState();
+      const all = [...ghostNodes, ...context];
+      const bounds = getNodesBounds(all.map((node) => node.id));
+      const room = { width: width - insets.left - insets.right - 2 * FIT_MARGIN, height: height - 2 * FIT_MARGIN };
+      const zoom = Math.min(room.width / bounds.width, room.height / bounds.height);
+      const shown = lodTier(zoom) === "chip" ? ghostNodes : all;
+      void fitView({ ...fitOptions(insets), nodes: shown, duration: motionDuration() });
+    },
+    [fitView, getNodesBounds, insets, store],
+  );
+  const ghostLayer = useGhostLayer({ ghost, onPlace: onGhostPlace, onCancel: onGhostCancel, reveal });
+  const { takeChanges, onKeyDown: ghostKeyDown } = ghostLayer;
   const onNodesChange = useCallback(
     (changes: NodeChange<FlowNode>[]) => {
-      const snapped = snapChanges(changes, store.getState().nodes);
+      const snapped = snapChanges(takeChanges(changes), store.getState().nodes);
       setNodes((current) => applyNodeChanges(snapped, current));
     },
-    [snapChanges, store],
+    [snapChanges, store, takeChanges],
   );
   const onEdgesChange = useCallback(
     (changes: EdgeChange<FlowEdgeType>[]) => setEdges((current) => applyEdgeChanges(changes, current)),
@@ -109,8 +134,17 @@ function FlowCanvas({
   );
   const { onNodeDragEnd } = snapping;
   const onNodeDragStop: OnNodeDrag<FlowNode> = useCallback(
-    (_event, _node, dragged) => onMoveNodes(onNodeDragEnd(dragged)),
+    (_event, node, dragged) => {
+      if (!isGhost(node.id)) onMoveNodes(onNodeDragEnd(dragged));
+    },
     [onMoveNodes, onNodeDragEnd],
+  );
+  const { onNodeDragStart: startSnapping } = snapping;
+  const onNodeDragStart: OnNodeDrag<FlowNode> = useCallback(
+    (event, node, dragged) => {
+      if (!isGhost(node.id)) startSnapping(event, node, dragged);
+    },
+    [startSnapping],
   );
   const isValidConnection = useCallback(
     (connection: Connection | FlowEdgeType) => connectionItem(normalise(connection)) !== undefined,
@@ -124,7 +158,6 @@ function FlowCanvas({
     [onConnect],
   );
 
-  const { screenToFlowPosition, fitView } = useReactFlow<FlowNode, FlowEdgeType>();
   const onConnectEnd: OnConnectEnd = useCallback(
     (event, connection) => {
       // Only a drop on the empty pane asks for a new node; a drop on a node or port is a connection attempt.
@@ -191,6 +224,7 @@ function FlowCanvas({
   // Arrow keys nudge the selection; the move is one edit. Captured, so React Flow's own nudging stays out.
   const onKeyDownCapture = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
+      if (ghostKeyDown(event)) return;
       const offset = nudgeOffset(event.key, event, GRID);
       const editable =
         event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable]");
@@ -210,7 +244,7 @@ function FlowCanvas({
       );
       onMoveNodes(moved);
     },
-    [store, onMoveNodes],
+    [store, onMoveNodes, ghostKeyDown],
   );
 
   // React Flow wants this handler stable; it reports every selection change, including box and lasso.
@@ -224,13 +258,13 @@ function FlowCanvas({
       <div className="size-full" onKeyDownCapture={onKeyDownCapture}>
         <LassoArea onLasso={onLasso}>
           <ReactFlow<FlowNode, FlowEdgeType>
-            nodes={nodes}
-            edges={edges}
+            nodes={ghostLayer.nodes.length > 0 ? [...nodes, ...ghostLayer.nodes] : nodes}
+            edges={ghostLayer.edges.length > 0 ? [...edges, ...ghostLayer.edges] : edges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
-            onNodeDragStart={snapping.onNodeDragStart}
+            onNodeDragStart={onNodeDragStart}
             onNodeDrag={snapping.onNodeDrag}
             onNodeDragStop={onNodeDragStop}
             selectionOnDrag
@@ -243,6 +277,8 @@ function FlowCanvas({
             deleteKeyCode={null}
             onConnect={handleConnect}
             onConnectEnd={onConnectEnd}
+            onPaneMouseMove={ghostLayer.onPaneMouseMove}
+            onPaneClick={ghostLayer.onPaneClick}
             onSelectionChange={reportSelection}
             onInit={reportCentre}
             onMoveEnd={reportCentre}
@@ -254,7 +290,7 @@ function FlowCanvas({
             minZoom={0.05}
             maxZoom={MAX_ZOOM}
             aria-label="Factory canvas"
-            className={`lod-${lod} ${particles ? "" : "particles-off"}`}
+            className={`lod-${lod} ${particles ? "" : "particles-off"} ${ghostLayer.following ? "ghost-following" : ""}`}
             // Culling pays off while part of the graph is on screen. At chip zoom most of it is, and mounting
             // and unmounting chips at the screen edges on every pan frame costs more than drawing them all.
             onlyRenderVisibleElements={lod !== "chip"}
@@ -276,12 +312,15 @@ function FlowCanvas({
               color="var(--color-grid-dot-major)"
             />
             <SnapMarks guides={snapping.marks.guides} gaps={snapping.marks.gaps} />
+            {overlay && <ViewportPortal>{overlay}</ViewportPortal>}
           </ReactFlow>
         </LassoArea>
       </div>
     </CanvasContext>
   );
 }
+
+const ignore = () => undefined;
 
 /** Middle and right mouse buttons pan; the left one selects. */
 const PAN_BUTTONS = [1, 2];

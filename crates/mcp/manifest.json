@@ -754,6 +754,154 @@
       }
     },
     {
+      "name": "plan_production",
+      "description": "Plan a production chain that makes the target items at the given rates (items per second) with the document's pack, using as few raw resources (or buildings) as possible. Returns a proposal: the nodes and flows to add next to the existing factory, a summary (buildings, raw inputs, byproducts, power) and anything that can't be met. Nothing changes until the proposal's commands are applied.",
+      "group": "plan",
+      "manager": "planning",
+      "method": "planProduction",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The document's id from list_documents, or \"active\" for the document on screen in Carbonara."
+          },
+          "options": {
+            "default": {
+              "objective": "resources",
+              "alternates": true,
+              "exclude": []
+            },
+            "type": "object",
+            "properties": {
+              "objective": {
+                "default": "resources",
+                "description": "What to use as little of: raw resources, or buildings.",
+                "type": "string",
+                "enum": [
+                  "resources",
+                  "buildings"
+                ]
+              },
+              "alternates": {
+                "default": true,
+                "description": "Whether alternate recipes may be used.",
+                "type": "boolean"
+              },
+              "exclude": {
+                "default": [],
+                "description": "Recipes the plan must not use.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                }
+              }
+            }
+          },
+          "targets": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "item": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                },
+                "perSecond": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Items per second."
+                }
+              },
+              "required": [
+                "item",
+                "perSecond"
+              ]
+            }
+          }
+        },
+        "required": [
+          "documentId",
+          "targets"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "compare_recipes",
+      "description": "Compare the recipes that make an item: plan the item at the given rate (items per second) once with each recipe and report each plan's buildings, raw inputs, byproducts and power, best first.",
+      "group": "plan",
+      "manager": "planning",
+      "method": "compareRecipes",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The document's id from list_documents, or \"active\" for the document on screen in Carbonara."
+          },
+          "options": {
+            "default": {
+              "objective": "resources",
+              "alternates": true,
+              "exclude": []
+            },
+            "type": "object",
+            "properties": {
+              "objective": {
+                "default": "resources",
+                "description": "What to use as little of: raw resources, or buildings.",
+                "type": "string",
+                "enum": [
+                  "resources",
+                  "buildings"
+                ]
+              },
+              "alternates": {
+                "default": true,
+                "description": "Whether alternate recipes may be used.",
+                "type": "boolean"
+              },
+              "exclude": {
+                "default": [],
+                "description": "Recipes the plan must not use.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                }
+              }
+            }
+          },
+          "item": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+          },
+          "perSecond": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Items per second."
+          }
+        },
+        "required": [
+          "documentId",
+          "item",
+          "perSecond"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
       "name": "list_packs",
       "description": "List the installed game packs.",
       "group": "read",

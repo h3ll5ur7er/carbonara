@@ -1,9 +1,10 @@
 // The seam between the canvas host and whatever draws the canvas (React Flow today, perhaps WebGL later).
 // A renderer gets a renderer-neutral scene and the result slots, and reports the user's intents back;
 // it never talks to managers or knows about commands. See docs/Architecture.md, "How the canvas is drawn".
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { LocalId } from "../../contracts/document";
 import type { Id, RateUnit } from "../../contracts/pack";
+import type { GhostView } from "./ghost/ghost";
 import type { ResultSlots } from "./model/result-slots";
 import type { CanvasScene } from "./model/scene";
 
@@ -53,6 +54,14 @@ export interface CanvasViewProps {
   onViewCentre(centre: Point): void;
   /** The selected nodes changed. */
   onSelectionChange(nodeIds: LocalId[]): void;
+  /** A preview to draw over the scene (ghost/ghost.ts); its numbers are in `results` under ghost ids. */
+  ghost?: GhostView | undefined;
+  /** The ghost was dragged to, or clicked down at, this offset from its positions. */
+  onGhostPlace?(offset: Point): void;
+  /** Escape while the ghost follows the pointer. */
+  onGhostCancel?(): void;
+  /** Drawn over the graph in flow coordinates (the bottleneck heatmap); it never takes the pointer. */
+  overlay?: ReactNode;
 }
 
 /** A renderer of the factory canvas. */

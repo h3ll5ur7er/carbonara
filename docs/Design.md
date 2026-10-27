@@ -68,6 +68,10 @@ The shell ([[src/client/app.tsx]], `src/client/shell/`) is a top bar over a full
 | Toggle library | `Ctrl+B` |
 | Toggle inspector | `Ctrl+I` |
 | Switch light and dark theme | `Ctrl+Shift+L` |
+| Plan production… | `P` |
+| Toggle totals | `T` |
+| Sankey overview | `S` |
+| Bottleneck heatmap | `H` |
 
 - **Command palette** (`Ctrl+K`, or the search field in the top bar): type to filter, arrow keys to move, Enter to run, Escape to close. With a document open, typing an item or recipe name also lists **quick-add** entries: every recipe of the document's pack, found by its name, its outputs and their aliases, and its buildings, showing where it runs and what it turns into what. Picking one sends one `addNode` command to `editing.apply` ("Add Iron Plate") and confirms with a toast. Quick-added nodes land at the origin until the canvas can say where the user is looking.
 - **Toasts:** `toast({ title, description, tone })` from anywhere in the client; `info` and `success` close after 4 s, `error` after 8 s. At most three show at once. Screen readers announce them and F8 jumps to them.
@@ -76,7 +80,7 @@ The shell ([[src/client/app.tsx]], `src/client/shell/`) is a top bar over a full
 
 - Edge thickness grows with the log of throughput. Animated particles travel along edges, and their speed and density encode the rate. Animation turns off automatically when zoomed out or when the user prefers reduced motion.
 - Saturation colours: teal means healthy, amber means more than 90% of belt capacity, red means over capacity or a deficit. A colour-blind-safe palette is available as an option.
-- An optional **bottleneck heatmap** overlay and a **Sankey** overview mode give a whole-factory view.
+- An optional **bottleneck heatmap** overlay and a **Sankey** overview mode give a whole-factory view (see Whole-factory views below).
 
 How the canvas does it ([[src/client/canvas/model/flow-style.ts]], styles in `src/client/canvas/canvas.css`):
 
@@ -128,12 +132,45 @@ The side panels float over the canvas, so the canvas reads which are open and tr
   - The new node's connecting port lands under the pointer (snapped to the grid horizontally), and adding plus connecting is one `editing.apply` batch, so it's one undo step.
 - A **command palette** (`Ctrl+K`) reaches every action. Typing "iron plate" quick-adds a node.
 - **Collapse to subgraph** (`Ctrl+G`), zoom-into transitions and breadcrumbs ([[Architecture/Subgraphs]]).
-- **Goal planner:** pick target outputs and rates; the app proposes the whole chain as a ghost you can accept, adjust or discard.
+- **Goal planner:** pick target outputs and rates; the app proposes the whole chain as a ghost you can accept, adjust or discard (see Goal planner below).
 - **Inspector** side panel: plugin fields, per-item breakdowns, and "what-if" recipe swaps with delta previews.
 - **Totals dashboard:** raw resources against map limits, power, building counts and build cost.
 - Undo/redo with a history panel; multiple document tabs; autosave; share links.
 - First run asks which game you're playing and opens a starter factory for it, with an interactive tour.
 - The many smaller conveniences are on [[Design/Editor quality of life]].
+
+### Goal planner
+
+`Plan production…` (`P`, or the command palette) opens the planner card at the canvas's top-left, beside the library when it's open ([[src/client/features/planner/planner-panel.tsx]]). The canvas counts the card as an inset, like the side panels, so fitting keeps clear of it.
+
+| Stage | Shows |
+| --- | --- |
+| Goals | One row per goal: an item picker (type to search names, aliases and ids; what recipes make first, raw resources marked) and a rate in the document's unit, 1/s worth by default. *Add a goal*; options *Use as few* (Resources or Buildings) and *Alternate recipes*. *Plan* asks the `planning` manager ([[Architecture/Planning]]) |
+| Proposal | The goals as chips; three stats (machines to build, power in MW, total raw input); buildings by count; raw inputs with a bar against the map's limit (healthy, amber above 90%, red over); byproducts; a red callout for what the map can't supply. *Discard*, *Adjust* (back to the goals, the ghost stays until the next plan), *Accept* (focused, so Enter accepts) |
+| Accepted | "Added to …", with *Undo* (the whole plan is one step), *Plan more* and *Done* |
+
+The proposal appears on the canvas as a **ghost** beside the factory, brought into view with the nearby part of the factory when cards stay readable at that zoom (otherwise the ghost alone). Accepting sends the proposal's commands, moved to where the ghost was left, as one `editing.apply` batch labelled "Plan 15/min Motor". Escape closes the card.
+
+### Totals
+
+The totals dashboard sits at the canvas's bottom-left ([[src/client/features/totals/totals-panel.tsx]]), following the latest solve. Collapsed, it's a pill: machines, power and, in red with a warning sign, any raw resource drawn beyond the map's limit. Expanded (click it, or `T`, "Toggle totals"), a card like the planner's summary: machines, power in MW and total raw input as tiles (compact as `50.3k` when large); raw resources with a bar against the pack's `resources.limit` (healthy, amber above 90%, red with a warning sign over it); buildings by count; what leaves through outputs; and a red callout for shortages. The expanded card counts as an inset for fitting; while the planner is open it hides, since the planner sums up its proposal.
+
+The numbers ([[src/client/features/totals/summary.ts]]) are the analysis's `totals` (raw inputs, buildings rounded up per node) plus power (the plugin's derived `power` metric in MW, or `powerMW`; else the building's `power.consume` × machines), sink throughput as outputs, and deficits and surpluses from the diagnostics. The planner's card uses the same summary parts. Build cost waits for packs to describe costs.
+
+### Whole-factory views
+
+- **Sankey overview** (`S`, Escape closes; [[src/client/features/sankey/sankey.ts]]): the factory as columns of bars joined by bands as wide as their rates, over the canvas and clear of the side panels. Columns follow the longest path along the flow (sources first, sinks last); a column keeps the canvas's top-to-bottom order, so the overview reads like the factory. One scale for every band, so the fullest column fills three quarters of the height. Bands are filled shapes in their item's tint (a wide stroke folds over itself on steep bends); flows near or over capacity get an amber or red outline; recycling loops (flows that run right to left on the canvas) run back below the chart, dashed. Hovering a bar or band dims everything not connected to it. Labels carry a halo in the canvas colour.
+- **Bottleneck heatmap** (`H`; [[src/client/features/heatmap/heat.ts]]): soft radial glows drawn over the canvas in flow coordinates (the canvas's `overlay`): amber along flows above 90% of their belt's capacity, red along flows over it and around machines short of an input. Healthy flows fade while it's on. A legend at the top says what the colours mean.
+
+Both, the planner and the totals are wired into a document's canvas by one hook, `useFactoryOverlays` ([[src/client/features/planner/factory-overlays.tsx]]).
+
+### Ghosts
+
+A ghost previews nodes and flows that aren't in the document yet: planner proposals today, pastes and blueprint drags later ([[Design/Editor quality of life]], Clipboard and ghost placement). It lives in `src/client/canvas/ghost/`:
+
+- **API:** `Canvas` takes `ghost: { graph, positions, results?, placement, label }` and reports `onGhostPlace(offset)` and `onGhostCancel()`. `placement` is `{ mode: "fixed", offset }` (drawn there; dragging moves it as one and reports the new offset when dropped) or `{ mode: "pointer" }` (its centre follows the pointer, snapped to the grid; a click places it, Escape cancels). `placedPositions(positions, offset)` gives where its nodes land.
+- **Drawing:** the ghost's nodes and edges are the canvas's own components under `ghost:` ids, so they match every level of detail; `results` (by the ghost's own ids) feed their machine counts and rates. They are translucent with a dashed accent outline, flows are dashed in the accent, and ports are hidden; none of it can be selected or connected. Behind them a dashed, accent-tinted **frame** with a label ("Proposal · drag to move") that keeps its size on screen is the handle to drag the ghost by.
+- Moving a ghost changes only its placement, so its content isn't rebuilt and it isn't revealed again.
 
 ## Performance
 
@@ -165,7 +202,7 @@ Full keyboard navigation (between nodes and ports), visible focus rings, ARIA on
 
 ## Visual QA
 
-Playwright screenshot tests cover a set of canonical scenes: empty state, a 20-node chain, a congested graph, inside a subgraph, the ghost paste, and each in dark and light. UI work is checked against these scenes before it's merged, and an intentional visual change updates the baseline in the same commit. The scenes, how to add one and how to update the baselines are on [[Development]] (Scenes, Screenshot tests).
+Playwright screenshot tests cover a set of canonical scenes: empty state, a 20-node chain, a congested graph, inside a subgraph, the ghost paste, and each in dark and light. UI work is checked against these scenes before it's merged, and an intentional visual change updates the baseline in the same commit. The scenes, how to add one and how to update the baselines are on [[Development]] (Scenes, Screenshot tests). The goal planner and the totals have scenes of their own: `planner` (`e2e/planner-scene.spec.ts`), a real proposal for 15 motors a minute beside a small copper line, and `totals` (`e2e/planner-totals.spec.ts`), a planned gear and wire works with ferrite near the map's limit and cuprite over it. Both read fixtures in `src/client/scenes/` that `src/managers/planning.test.ts` produces with the real engines and keeps current (`UPDATE_FIXTURES=1` regenerates them).
 
 The canvas scenes are fixtures in `src/client/canvas/scenes/`, built on the template pack (read straight from `packs/_template`). In development, `?scene=<name>` shows one, for example `/?scene=chain`; add `&zoom=1&focus=<node id>` to look at it up close. Edits in a scene go through the real connector and RPC dispatcher to a scene backend that applies them in memory, and that backend lists them in `window.carbonaraScene.commands` for e2e tests. The scene code is left out of production builds.
 

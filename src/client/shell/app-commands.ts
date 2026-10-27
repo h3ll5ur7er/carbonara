@@ -2,6 +2,10 @@
 // the menus and the keyboard all reach it.
 import { Bot, Command, Download, FilePlus, FolderOpen, Link, PanelLeft, PanelRight, SunMoon, X } from "lucide-react";
 import { canvasCommands } from "../canvas/commands";
+import { plannerCommands } from "../features/planner/commands";
+import { totalsCommands } from "../features/totals/commands";
+import { sankeyCommands } from "../features/sankey/commands";
+import { heatmapCommands } from "../features/heatmap/commands";
 import { createCommandRegistry, type CommandDefinition } from "../core/commands";
 import { paletteCommandId } from "../features/command-palette/command-palette";
 import { documentActions } from "../features/documents/actions";
@@ -94,6 +98,10 @@ export const appCommands: CommandDefinition[] = [
     run: toggleThemePreference,
   },
   ...canvasCommands,
+  ...plannerCommands,
+  ...totalsCommands,
+  ...sankeyCommands,
+  ...heatmapCommands,
   {
     id: "ai.access",
     title: "AI access and activity…",

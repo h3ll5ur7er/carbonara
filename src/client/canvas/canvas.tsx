@@ -1,6 +1,6 @@
 // The factory canvas. Hides how a document is drawn (React Flow today, behind the CanvasAdapter seam) and
 // turns what the user does on it into `editing` commands sent through the connector.
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CommandInput } from "../../contracts/commands";
 import type { Document, LocalId } from "../../contracts/document";
 import type { PackData } from "../../contracts/pack";
@@ -11,8 +11,9 @@ import type { Issue } from "../../contracts/issues";
 import { pickCommands, recipeUsage, type PickerEntry } from "../features/recipe-picker/picker";
 import { RecipePicker } from "../features/recipe-picker/recipe-picker";
 import { errorMessage, toast } from "../shell/toasts";
-import type { CanvasAdapter, CanvasViewProps, Insets, PortDrop, Viewport } from "./adapter";
+import type { CanvasAdapter, CanvasViewProps, Insets, Point, PortDrop, Viewport } from "./adapter";
 import "./canvas.css";
+import { ghostContent, withGhostResults, type Ghost } from "./ghost/ghost";
 import { createResultSlots } from "./model/result-slots";
 import { createSceneBuilder, type CanvasScene } from "./model/scene";
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
@@ -33,6 +34,15 @@ export interface CanvasProps {
   viewport?: Viewport;
   /** The selected nodes changed. */
   onSelectionChange?: (nodeIds: LocalId[]) => void;
+  /** A preview over the graph, such as a planner proposal (ghost/ghost.ts). */
+  ghost?: Ghost | undefined;
+  /** The ghost was moved or placed: its offset from its positions. */
+  onGhostPlace?: (offset: Point) => void;
+  onGhostCancel?: () => void;
+  /** Screen pixels that overlays on the canvas cover besides the side panels; fitting keeps clear of them. */
+  reserved?: Partial<Insets> | undefined;
+  /** Drawn over the graph in flow coordinates, such as the bottleneck heatmap. */
+  overlay?: ReactNode;
 }
 
 export function Canvas({
@@ -42,6 +52,7 @@ export function Canvas({
   graph = "root",
   viewport,
   onSelectionChange = ignore,
+  ...overlay
 }: CanvasProps) {
   if (!document || !pack) return <EmptyCanvas />;
   return (
@@ -52,6 +63,7 @@ export function Canvas({
       graph={graph}
       {...(viewport && { viewport })}
       onSelectionChange={onSelectionChange}
+      {...overlay}
     />
   );
 }
@@ -61,11 +73,13 @@ const EMPTY_SCENE: CanvasScene = { nodes: [], edges: [] };
 /** The side panels float `inset-3` (12 px) from the canvas edges (src/client/shell/side-panel.tsx). */
 const PANEL_MARGIN = 12;
 
-/** What the open side panels cover of the canvas. */
-function usePanelInsets(): Insets {
+/** What the open side panels (and other overlays, `reserved`) cover of the canvas. */
+function usePanelInsets(reserved?: Partial<Insets>): Insets {
   const left = usePanels((panels) => (panels.left.open ? panels.left.width + PANEL_MARGIN : 0));
   const right = usePanels((panels) => (panels.right.open ? panels.right.width + PANEL_MARGIN : 0));
-  return useMemo(() => ({ left, right }), [left, right]);
+  const extraLeft = reserved?.left ?? 0;
+  const extraRight = reserved?.right ?? 0;
+  return useMemo(() => ({ left: left + extraLeft, right: right + extraRight }), [left, right, extraLeft, extraRight]);
 }
 const ignore = () => undefined;
 
@@ -94,7 +108,12 @@ function DocumentCanvas({
   graph,
   viewport,
   onSelectionChange,
-}: {
+  ghost,
+  onGhostPlace,
+  onGhostCancel,
+  reserved,
+  overlay,
+}: Pick<CanvasProps, "ghost" | "onGhostPlace" | "onGhostCancel" | "reserved" | "overlay"> & {
   document: Document;
   pack: PackData;
   results: AnalysisResults | null;
@@ -103,7 +122,7 @@ function DocumentCanvas({
   onSelectionChange: (nodeIds: LocalId[]) => void;
 }) {
   const connector = useConnector();
-  const insets = usePanelInsets();
+  const insets = usePanelInsets(reserved);
   const [buildScene] = useState(createSceneBuilder);
   const shown = graph === "root" ? document.graph : document.blueprints[graph]?.graph;
   const layout = document.layout[graph];
@@ -112,7 +131,26 @@ function DocumentCanvas({
     [buildScene, shown, layout, pack],
   );
 
-  const forGraph = results?.graph === graph ? results : null;
+  const [buildGhostScene] = useState(createSceneBuilder);
+  // The ghost's content and its placement change apart: moving it mustn't rebuild (or re-reveal) it.
+  const {
+    graph: ghostGraph,
+    positions: ghostPositions,
+    label: ghostLabel,
+    placement,
+    results: ghostResults,
+  } = ghost ?? {};
+  const content = useMemo(
+    () =>
+      ghostGraph && ghostPositions && ghostContent(buildGhostScene(ghostGraph, ghostPositions, pack), ghostLabel ?? ""),
+    [buildGhostScene, ghostGraph, ghostPositions, ghostLabel, pack],
+  );
+  const ghostScene = useMemo(() => content && placement && { ...content, placement }, [content, placement]);
+
+  const forGraph = useMemo(
+    () => withGhostResults(results?.graph === graph ? results : null, ghostResults),
+    [results, graph, ghostResults],
+  );
   const [slots] = useState(() => {
     const created = createResultSlots();
     created.update(forGraph);
@@ -187,6 +225,10 @@ function DocumentCanvas({
         onPortDropped={onPortDropped}
         onViewCentre={setViewportCentre}
         onSelectionChange={onSelectionChange}
+        ghost={ghostScene}
+        {...(onGhostPlace && { onGhostPlace })}
+        {...(onGhostCancel && { onGhostCancel })}
+        overlay={overlay}
       />
       {drop && request && (
         <RecipePicker

@@ -24,6 +24,8 @@ describe("the MCP tools", () => {
       "undo → editing.undo",
       "get_totals → analysis.getResults",
       "get_diagnostics → analysis.getResults",
+      "plan_production → planning.planProduction",
+      "compare_recipes → planning.compareRecipes",
       "list_packs → packs.listPacks",
       "get_pack_data → packs.getPackData",
     ]);

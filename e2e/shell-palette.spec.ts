@@ -120,6 +120,10 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Switch light and dark theme\s*Ctrl\s*Shift\s*L/,
     /Zoom to fit\s*F/,
     /Zoom to selection\s*Shift\s*F/,
+    /Toggle totals\s*T/,
+    /Sankey overview\s*S/,
+    /Bottleneck heatmap\s*H/,
+    /Plan production…\s*P/,
     /AI access and activity…\s*Ctrl\s*Shift\s*A/,
   ]);
   // Typeahead moves to the item, wherever new commands put it.

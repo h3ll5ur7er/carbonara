@@ -93,6 +93,21 @@ describe("mapping a solution back to the document", () => {
     });
   });
 
+  it("counts buildings whose ids are also names on plain objects, such as Satisfactory's constructor", () => {
+    const renamed = (id: string) => (id === "furnace" ? "constructor" : id);
+    const constructors = {
+      ...pack,
+      buildings: pack.buildings.map((building) => ({ ...building, id: renamed(building.id) })),
+      recipes: pack.recipes.map((recipe) => ({ ...recipe, buildings: recipe.buildings.map(renamed) })),
+    };
+    const built = compile({ document: waterLoop(), pack: constructors, plugin: noPlugin });
+    expect(toResults(built, ok(solution), noPlugin, 7).totals.buildings).toEqual({
+      constructor: 3,
+      purifier: 1,
+      washer: 1,
+    });
+  });
+
   it("keeps the compiler's diagnostics", () => {
     const broken = compile({
       document: { ...waterLoop(), graph: { nodes: { x: { kind: "recipe", recipe: "nope" } }, edges: {} } },

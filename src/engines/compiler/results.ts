@@ -108,7 +108,9 @@ export function toResults(
     if (info?.context) {
       const building = info.context.building.id;
       // Noise such as 3.00000001 machines must not round up to 4.
-      buildings[building] = (buildings[building] ?? 0) + Math.ceil(clean(activity));
+      // Own keys only: an id such as "constructor" would otherwise start from Object.prototype's.
+      const counted = Object.hasOwn(buildings, building) ? (buildings[building] ?? 0) : 0;
+      buildings[building] = counted + Math.ceil(clean(activity));
     }
   });
 

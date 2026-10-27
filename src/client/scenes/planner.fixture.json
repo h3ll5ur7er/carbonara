@@ -1,0 +1,715 @@
+{
+  "document": {
+    "format": "carbonara",
+    "version": 1,
+    "id": "scene-planner",
+    "name": "Copper works",
+    "pack": {
+      "id": "template",
+      "version": "1.0.0",
+      "hash": "sha256-template"
+    },
+    "graph": {
+      "nodes": {
+        "ore": {
+          "kind": "source",
+          "item": "cuprite-ore"
+        },
+        "plates": {
+          "kind": "recipe",
+          "recipe": "copper-plate"
+        },
+        "wire": {
+          "kind": "recipe",
+          "recipe": "copper-wire"
+        },
+        "slag": {
+          "kind": "sink",
+          "item": "slag"
+        },
+        "out": {
+          "kind": "sink",
+          "item": "copper-wire",
+          "targetPerSecond": 2
+        }
+      },
+      "edges": {
+        "ore-plates": {
+          "from": "ore",
+          "to": "plates",
+          "item": "cuprite-ore",
+          "logistics": "conveyor-1"
+        },
+        "plates-wire": {
+          "from": "plates",
+          "to": "wire",
+          "item": "copper-plate",
+          "logistics": "conveyor-1"
+        },
+        "plates-slag": {
+          "from": "plates",
+          "to": "slag",
+          "item": "slag",
+          "logistics": "conveyor-1"
+        },
+        "wire-out": {
+          "from": "wire",
+          "to": "out",
+          "item": "copper-wire",
+          "logistics": "conveyor-1"
+        }
+      }
+    },
+    "blueprints": {},
+    "layout": {
+      "root": {
+        "ore": {
+          "x": 0,
+          "y": 72
+        },
+        "plates": {
+          "x": 360,
+          "y": 0
+        },
+        "wire": {
+          "x": 768,
+          "y": 0
+        },
+        "slag": {
+          "x": 768,
+          "y": 216
+        },
+        "out": {
+          "x": 1176,
+          "y": 72
+        }
+      }
+    },
+    "settings": {
+      "rateUnit": "per_minute"
+    }
+  },
+  "results": {
+    "documentId": "scene-planner",
+    "version": 1,
+    "graph": "root",
+    "nodes": {
+      "ore": {
+        "activity": 2,
+        "inputs": {},
+        "outputs": {
+          "cuprite-ore": 2
+        }
+      },
+      "out": {
+        "activity": 2,
+        "inputs": {
+          "copper-wire": 2
+        },
+        "outputs": {}
+      },
+      "plates": {
+        "activity": 3,
+        "inputs": {
+          "cuprite-ore": 2
+        },
+        "outputs": {
+          "copper-plate": 1,
+          "slag": 1
+        }
+      },
+      "slag": {
+        "activity": 1,
+        "inputs": {
+          "slag": 1
+        },
+        "outputs": {}
+      },
+      "wire": {
+        "activity": 0.5,
+        "inputs": {
+          "copper-plate": 1
+        },
+        "outputs": {
+          "copper-wire": 2
+        }
+      }
+    },
+    "edges": {
+      "ore-plates": {
+        "perSecond": 2,
+        "capacity": 15
+      },
+      "plates-slag": {
+        "perSecond": 1,
+        "capacity": 15
+      },
+      "plates-wire": {
+        "perSecond": 1,
+        "capacity": 15
+      },
+      "wire-out": {
+        "perSecond": 2,
+        "capacity": 15
+      }
+    },
+    "diagnostics": [],
+    "totals": {
+      "raw": {
+        "cuprite-ore": 2
+      },
+      "buildings": {
+        "furnace": 3,
+        "assembler": 1
+      }
+    }
+  },
+  "proposal": {
+    "documentId": "scene-planner",
+    "targets": [
+      {
+        "item": "motor",
+        "perSecond": 0.25
+      }
+    ],
+    "commands": [
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "source-ferrite-ore",
+        "node": {
+          "kind": "source",
+          "item": "ferrite-ore"
+        },
+        "position": {
+          "x": 1632,
+          "y": 312
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "source-cuprite-ore",
+        "node": {
+          "kind": "source",
+          "item": "cuprite-ore"
+        },
+        "position": {
+          "x": 1632,
+          "y": 48
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "source-water",
+        "node": {
+          "kind": "source",
+          "item": "water"
+        },
+        "position": {
+          "x": 1632,
+          "y": 432
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "motor",
+        "node": {
+          "kind": "recipe",
+          "recipe": "motor"
+        },
+        "position": {
+          "x": 3216,
+          "y": 144
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "iron-gear",
+        "node": {
+          "kind": "recipe",
+          "recipe": "iron-gear"
+        },
+        "position": {
+          "x": 2808,
+          "y": 360
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "circuit",
+        "node": {
+          "kind": "recipe",
+          "recipe": "circuit"
+        },
+        "position": {
+          "x": 2808,
+          "y": 120
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "copper-wire",
+        "node": {
+          "kind": "recipe",
+          "recipe": "copper-wire"
+        },
+        "position": {
+          "x": 2400,
+          "y": 24
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "iron-plate",
+        "node": {
+          "kind": "recipe",
+          "recipe": "iron-plate"
+        },
+        "position": {
+          "x": 2400,
+          "y": 264
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "copper-plate",
+        "node": {
+          "kind": "recipe",
+          "recipe": "copper-plate"
+        },
+        "position": {
+          "x": 1992,
+          "y": 0
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "wash-ferrite",
+        "node": {
+          "kind": "recipe",
+          "recipe": "wash-ferrite"
+        },
+        "position": {
+          "x": 1992,
+          "y": 240
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "purify-water",
+        "node": {
+          "kind": "recipe",
+          "recipe": "purify-water"
+        },
+        "position": {
+          "x": 2400,
+          "y": 600
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "output-motor",
+        "node": {
+          "kind": "sink",
+          "item": "motor",
+          "targetPerSecond": 0.25
+        },
+        "position": {
+          "x": 3624,
+          "y": 216
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "byproduct-slag",
+        "node": {
+          "kind": "sink",
+          "item": "slag"
+        },
+        "position": {
+          "x": 2400,
+          "y": 480
+        }
+      },
+      {
+        "type": "addNode",
+        "graph": "root",
+        "id": "byproduct-sludge",
+        "node": {
+          "kind": "sink",
+          "item": "sludge"
+        },
+        "position": {
+          "x": 2808,
+          "y": 648
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "motor-output-motor",
+        "edge": {
+          "from": "motor",
+          "to": "output-motor",
+          "item": "motor"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "iron-gear-motor",
+        "edge": {
+          "from": "iron-gear",
+          "to": "motor",
+          "item": "iron-gear"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "circuit-motor",
+        "edge": {
+          "from": "circuit",
+          "to": "motor",
+          "item": "circuit"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "copper-wire-motor",
+        "edge": {
+          "from": "copper-wire",
+          "to": "motor",
+          "item": "copper-wire"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "copper-wire-circuit",
+        "edge": {
+          "from": "copper-wire",
+          "to": "circuit",
+          "item": "copper-wire"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "iron-plate-iron-gear",
+        "edge": {
+          "from": "iron-plate",
+          "to": "iron-gear",
+          "item": "iron-plate"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "iron-plate-circuit",
+        "edge": {
+          "from": "iron-plate",
+          "to": "circuit",
+          "item": "iron-plate"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "copper-plate-copper-wire",
+        "edge": {
+          "from": "copper-plate",
+          "to": "copper-wire",
+          "item": "copper-plate"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "wash-ferrite-iron-plate",
+        "edge": {
+          "from": "wash-ferrite",
+          "to": "iron-plate",
+          "item": "clean-ferrite"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "source-ferrite-ore-wash-ferrite",
+        "edge": {
+          "from": "source-ferrite-ore",
+          "to": "wash-ferrite",
+          "item": "ferrite-ore"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "source-cuprite-ore-copper-plate",
+        "edge": {
+          "from": "source-cuprite-ore",
+          "to": "copper-plate",
+          "item": "cuprite-ore"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "source-water-wash-ferrite",
+        "edge": {
+          "from": "source-water",
+          "to": "wash-ferrite",
+          "item": "water"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "purify-water-wash-ferrite",
+        "edge": {
+          "from": "purify-water",
+          "to": "wash-ferrite",
+          "item": "water"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "purify-water-byproduct-sludge",
+        "edge": {
+          "from": "purify-water",
+          "to": "byproduct-sludge",
+          "item": "sludge"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "wash-ferrite-purify-water",
+        "edge": {
+          "from": "wash-ferrite",
+          "to": "purify-water",
+          "item": "dirty-water"
+        }
+      },
+      {
+        "type": "connect",
+        "graph": "root",
+        "id": "copper-plate-byproduct-slag",
+        "edge": {
+          "from": "copper-plate",
+          "to": "byproduct-slag",
+          "item": "slag"
+        }
+      }
+    ],
+    "results": {
+      "nodes": {
+        "source-ferrite-ore": {
+          "activity": 1.25,
+          "inputs": {},
+          "outputs": {
+            "ferrite-ore": 1.25
+          }
+        },
+        "source-cuprite-ore": {
+          "activity": 1.75,
+          "inputs": {},
+          "outputs": {
+            "cuprite-ore": 1.75
+          }
+        },
+        "source-water": {
+          "activity": 0.15625,
+          "inputs": {},
+          "outputs": {
+            "water": 0.15625
+          }
+        },
+        "motor": {
+          "activity": 2.5,
+          "inputs": {
+            "iron-gear": 0.5,
+            "copper-wire": 1,
+            "circuit": 0.25
+          },
+          "outputs": {
+            "motor": 0.25
+          }
+        },
+        "iron-gear": {
+          "activity": 0.5,
+          "inputs": {
+            "iron-plate": 1
+          },
+          "outputs": {
+            "iron-gear": 0.5
+          }
+        },
+        "circuit": {
+          "activity": 1.25,
+          "inputs": {
+            "iron-plate": 0.25,
+            "copper-wire": 0.7500000000000001
+          },
+          "outputs": {
+            "circuit": 0.25
+          }
+        },
+        "copper-wire": {
+          "activity": 0.4375,
+          "inputs": {
+            "copper-plate": 0.875
+          },
+          "outputs": {
+            "copper-wire": 1.75
+          }
+        },
+        "iron-plate": {
+          "activity": 3.75,
+          "inputs": {
+            "clean-ferrite": 1.25
+          },
+          "outputs": {
+            "iron-plate": 1.25
+          }
+        },
+        "copper-plate": {
+          "activity": 2.625,
+          "inputs": {
+            "cuprite-ore": 1.75
+          },
+          "outputs": {
+            "copper-plate": 0.875,
+            "slag": 0.875
+          }
+        },
+        "wash-ferrite": {
+          "activity": 1.25,
+          "inputs": {
+            "ferrite-ore": 1.25,
+            "water": 0.625
+          },
+          "outputs": {
+            "dirty-water": 0.625,
+            "clean-ferrite": 1.25
+          }
+        },
+        "purify-water": {
+          "activity": 0.625,
+          "inputs": {
+            "dirty-water": 0.625
+          },
+          "outputs": {
+            "water": 0.46875,
+            "sludge": 0.15625
+          }
+        },
+        "output-motor": {
+          "activity": 0.25,
+          "inputs": {
+            "motor": 0.25
+          },
+          "outputs": {}
+        },
+        "byproduct-slag": {
+          "activity": 0.875,
+          "inputs": {
+            "slag": 0.875
+          },
+          "outputs": {}
+        },
+        "byproduct-sludge": {
+          "activity": 0.15625,
+          "inputs": {
+            "sludge": 0.15625
+          },
+          "outputs": {}
+        }
+      },
+      "edges": {
+        "motor-output-motor": {
+          "perSecond": 0.25
+        },
+        "iron-gear-motor": {
+          "perSecond": 0.5
+        },
+        "circuit-motor": {
+          "perSecond": 0.25
+        },
+        "copper-wire-motor": {
+          "perSecond": 1
+        },
+        "copper-wire-circuit": {
+          "perSecond": 0.75
+        },
+        "iron-plate-iron-gear": {
+          "perSecond": 1
+        },
+        "iron-plate-circuit": {
+          "perSecond": 0.25
+        },
+        "copper-plate-copper-wire": {
+          "perSecond": 0.875
+        },
+        "wash-ferrite-iron-plate": {
+          "perSecond": 1.25
+        },
+        "source-ferrite-ore-wash-ferrite": {
+          "perSecond": 1.25
+        },
+        "source-cuprite-ore-copper-plate": {
+          "perSecond": 1.75
+        },
+        "source-water-wash-ferrite": {
+          "perSecond": 0.15625
+        },
+        "purify-water-wash-ferrite": {
+          "perSecond": 0.46875
+        },
+        "purify-water-byproduct-sludge": {
+          "perSecond": 0.15625
+        },
+        "wash-ferrite-purify-water": {
+          "perSecond": 0.625
+        },
+        "copper-plate-byproduct-slag": {
+          "perSecond": 0.875
+        }
+      }
+    },
+    "summary": {
+      "buildings": {
+        "assembler": 7,
+        "furnace": 7,
+        "washer": 2,
+        "purifier": 1
+      },
+      "raw": {
+        "ferrite-ore": 1.25,
+        "cuprite-ore": 1.75,
+        "water": 0.15625
+      },
+      "byproducts": {
+        "slag": 0.875,
+        "sludge": 0.15625
+      },
+      "shortfalls": {},
+      "powerMW": 8.890625
+    }
+  }
+}

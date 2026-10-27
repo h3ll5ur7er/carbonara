@@ -22,6 +22,13 @@ const results: AnalysisResults = {
   totals: { raw: { "iron-ore": 2 }, buildings: { smelter: 4 } },
 };
 const info = { id: "doc-1", name: "Iron", packId: "satisfactory", version: 2 };
+const proposal = {
+  documentId: "doc-1",
+  targets: [{ item: "iron-ingot", perSecond: 1 }],
+  commands: [],
+  results: { nodes: {}, edges: {} },
+  summary: { buildings: {}, raw: {}, byproducts: {}, shortfalls: {}, powerMW: 0 },
+};
 
 /** The managers behind the bridge, recording what they were asked. */
 function fakeManagers() {
@@ -40,6 +47,10 @@ function fakeManagers() {
       undo: record("editing.undo", info),
     },
     analysis: { getResults: record("analysis.getResults", results) },
+    planning: {
+      planProduction: record("planning.planProduction", { ok: true as const, value: proposal }),
+      compareRecipes: record("planning.compareRecipes", { ok: true as const, value: [] }),
+    },
     packs: {
       listPacks: record("packs.listPacks", []),
       getPackData: record("packs.getPackData", {
@@ -105,6 +116,8 @@ describe("the MCP bridge", () => {
     const args: Record<string, unknown> = {
       get_pack_data: { packId: "satisfactory" },
       edit_graph: { documentId: "doc-1", commands: [{ type: "removeNodes", ids: ["ore"] }] },
+      plan_production: { documentId: "doc-1", targets: [{ item: "iron-ingot", perSecond: 1 }] },
+      compare_recipes: { documentId: "doc-1", item: "iron-ingot", perSecond: 1 },
     };
     for (const { tool, manager, method } of mcpTools(managers)) {
       const response = await call(tool, args[tool] ?? { documentId: "doc-1" });

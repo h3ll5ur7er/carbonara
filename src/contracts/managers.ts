@@ -5,9 +5,9 @@ import { Command } from "./commands";
 import type { OpenDocument } from "./access";
 import type { Patch } from "./patches";
 import type { Issue } from "./issues";
-import type { PackData, PackManifest } from "./pack";
+import { Id, type PackData, type PackManifest } from "./pack";
 import type { PluginDescription } from "./plugin";
-import type { AnalysisResults } from "./results";
+import type { AnalysisResults, EdgeResult, NodeResult } from "./results";
 import type { Result } from "./result";
 
 export type McpGroup = "read" | "plan" | "edit" | "authoring";
@@ -64,6 +64,63 @@ export interface PackInspection {
   hash: string;
   issues: Issue[];
 }
+
+/** Something the planner should make: an item at a rate. */
+export const PlanTarget = z.object({
+  item: Id,
+  perSecond: z.number().positive().describe("Items per second."),
+});
+export type PlanTarget = z.infer<typeof PlanTarget>;
+
+/** How the planner chooses among recipes. */
+export const PlanOptions = z.object({
+  objective: z
+    .enum(["resources", "buildings"])
+    .default("resources")
+    .describe("What to use as little of: raw resources, or buildings."),
+  alternates: z.boolean().default(true).describe("Whether alternate recipes may be used."),
+  exclude: z.array(Id).default([]).describe("Recipes the plan must not use."),
+});
+export type PlanOptions = z.output<typeof PlanOptions>;
+
+/** What a proposal adds up to. All rates are items per second. */
+export interface ProposalSummary {
+  /** Buildings by building id (machine counts rounded up per node, as in `Totals`). */
+  buildings: Record<Id, number>;
+  /** Raw inputs by item. */
+  raw: Record<Id, number>;
+  /** What the plan makes but doesn't use, by item; the proposal sends it to outputs. */
+  byproducts: Record<Id, number>;
+  /** What couldn't be made, by item, e.g. because a raw resource ran into its map limit. Empty when all is met. */
+  shortfalls: Record<Id, number>;
+  /** Power the buildings draw, in MW (the plugin's `powerMW` where it derives one). */
+  powerMW: number;
+}
+
+/** A planned factory, not yet part of the document: shown as a ghost until it's accepted or discarded. */
+export interface Proposal {
+  documentId: string;
+  targets: PlanTarget[];
+  /**
+   * The planned nodes (`addNode`, with ids free in the document and positions next to its factory), then the
+   * flows between them (`connect`). Accepting applies them as one `editing.apply` batch: one undo step.
+   */
+  commands: Command[];
+  /** The planned solve, by the commands' node and edge ids, to preview machine counts and flows. */
+  results: { nodes: Record<string, NodeResult>; edges: Record<string, EdgeResult> };
+  summary: ProposalSummary;
+}
+
+/** One recipe for an item, planned on its own. */
+export interface RecipeComparison {
+  recipe: Id;
+  summary: ProposalSummary;
+}
+
+const planRequest = z.object({
+  documentId: z.string().min(1),
+  options: PlanOptions.default({ objective: "resources", alternates: true, exclude: [] }),
+});
 
 export const managers = {
   workspace: {
@@ -134,6 +191,24 @@ export const managers = {
           "pins and errors, with rates in items per second. An empty list means the factory runs as planned.",
       },
     ]),
+  },
+  planning: {
+    planProduction: method<Result<Proposal>>()(planRequest.extend({ targets: z.array(PlanTarget).min(1) }), {
+      tool: "plan_production",
+      group: "plan",
+      description:
+        "Plan a production chain that makes the target items at the given rates (items per second) with the " +
+        "document's pack, using as few raw resources (or buildings) as possible. Returns a proposal: the nodes " +
+        "and flows to add next to the existing factory, a summary (buildings, raw inputs, byproducts, power) and " +
+        "anything that can't be met. Nothing changes until the proposal's commands are applied.",
+    }),
+    compareRecipes: method<Result<RecipeComparison[]>>()(planRequest.extend(PlanTarget.shape), {
+      tool: "compare_recipes",
+      group: "plan",
+      description:
+        "Compare the recipes that make an item: plan the item at the given rate (items per second) once with " +
+        "each recipe and report each plan's buildings, raw inputs, byproducts and power, best first.",
+    }),
   },
   packs: {
     listPacks: method<PackInfo[]>()(none, {
