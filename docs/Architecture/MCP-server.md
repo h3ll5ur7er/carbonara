@@ -72,6 +72,8 @@ attachMcpShell({
     send: (answer) => void invoke("mcp_answer", { answer }),
     listen: (listener) => void listen("mcp-call", (event) => listener(event.payload)),
   },
+  // For the copy-config snippets: { url: server.url(), token, command: std::env::current_exe() }
+  connection: await invoke("mcp_connection"),
 });
 ```
 
@@ -103,6 +105,22 @@ Still to come, each with the manager method it needs: `search_catalog` and `get_
 **One edit tool, not one per command.** `edit_graph` takes any batch of commands rather than separate `add_nodes`, `connect` and `set_node_fields` tools: the command union is the single source of truth for edits, so new commands reach MCP clients without touching the generator; a production line (nodes plus the edges between them) stays one undo step, as each tool call should be; and the JSON Schema of the union documents every command for the model. The cost is one large input schema.
 
 **Resources** (in the manifest): the JSON Schemas of pack manifests, pack data and documents; the plugin API (the text of [[src/contracts/plugin.ts]]); and `carbonara://documents/active`, which the server answers by calling `get_graph` for the active document. **Prompts:** `design_production_line(item, rate)` and `create_pack(game)`.
+
+## Permissions and activity
+
+*AI access and activity* (command palette, `Mod+Shift+A`; [[src/client/features/mcp/access-dialog.tsx]]) has a switch per group, the copy-config snippets for Claude Code, Claude Desktop and other clients, and the activity log.
+
+| Group | Default | Allows |
+| --- | --- | --- |
+| Read | On | Looking at open factories, their results and the game packs |
+| Plan | Off | Planning production lines as proposals |
+| Edit | Off | Changing factories, one undoable step per call |
+| Pack authoring | Off | Creating and changing packs in dev folders |
+
+- **The webview's bridge enforces them**, not the Rust server. The switches and the log live in the app, and every call from either transport passes the bridge, so it is the one place to check; the server stays a stateless forwarder. Tools of a switched-off group are still listed: a call is refused with a message that tells the model to ask the person to switch the group on, which needs no "tools changed" notifications.
+- **Every call is logged** ([[src/client/features/mcp/access.ts]]): tool, group, document, when, how it ended (done, failed, refused) and why. The log keeps the latest 200 calls.
+- **"AI: …" labels:** a method that takes a `label` (today `editing.apply`, behind `edit_graph`) gets the model's label prefixed with `AI: `, or `AI: Edit` without one, so the undo history shows which steps the AI made.
+- The switches live in memory, like the theme: every start of the app is read-only again until a preferences store can persist them.
 
 ## Example
 

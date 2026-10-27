@@ -7,6 +7,7 @@ import type { AnalysisResults } from "../../../contracts/results";
 import type { Response } from "../../../contracts/rpc";
 import type { Transport } from "../../../utilities/rpc";
 import { fakeConnector } from "../../scenes/fake-backend";
+import { createMcpAccess, GROUPS, type McpAccess } from "./access";
 import { startMcpBridge, type BridgeRequest } from "./bridge";
 import { mcpTools } from "./tools";
 
@@ -54,8 +55,15 @@ function fakeManagers() {
   return { backend, calls };
 }
 
+/** Every group switched on, so a test can reach any tool. */
+function allowingAll(): McpAccess {
+  const access = createMcpAccess(() => 0);
+  for (const { group } of GROUPS) access.allow(group, true);
+  return access;
+}
+
 /** Plays the desktop shell: sends tool calls to the bridge and collects its answers. */
-function shell(activeDocumentId: string | null = "doc-1") {
+function shell(activeDocumentId: string | null = "doc-1", access = allowingAll()) {
   const { backend, calls } = fakeManagers();
   let toBridge: (message: unknown) => void = () => undefined;
   const answers = new Map<number, (response: Response) => void>();
@@ -63,7 +71,7 @@ function shell(activeDocumentId: string | null = "doc-1") {
     send: (message) => answers.get((message as Response).id)?.(message as Response),
     listen: (listener) => (toBridge = listener),
   };
-  startMcpBridge({ transport, contracts: managers, backend, activeDocumentId: () => activeDocumentId });
+  startMcpBridge({ transport, contracts: managers, backend, activeDocumentId: () => activeDocumentId, access });
   let nextId = 1;
   const call = (tool: string, args: unknown = {}) => {
     const entry = mcpTools(managers).find((candidate) => candidate.tool === tool);
@@ -145,6 +153,7 @@ describe("the MCP bridge", () => {
         listDocuments: vi.fn().mockRejectedValue(new Error("Disk on fire")),
       },
     });
+    const access = createMcpAccess(() => 0);
     let toBridge: (message: unknown) => void = () => undefined;
     const answer = new Promise<unknown>((resolve) => {
       startMcpBridge({
@@ -152,9 +161,59 @@ describe("the MCP bridge", () => {
         contracts: managers,
         backend: failing,
         activeDocumentId: () => null,
+        access,
       });
     });
     toBridge({ id: 7, tool: "list_documents", manager: "workspace", method: "listDocuments", args: {} });
     expect(await answer).toEqual({ id: 7, ok: false, error: { message: "Disk on fire" } });
+    expect(access.store.getState().activity).toMatchObject([
+      { tool: "list_documents", status: "failed", message: "Disk on fire" },
+    ]);
+  });
+});
+
+describe("the MCP bridge's permissions", () => {
+  it("refuse tools of groups that are switched off, before any manager hears of them", async () => {
+    const { call, calls } = shell("doc-1", createMcpAccess());
+    const response = await call("edit_graph", { documentId: "doc-1", commands: [{ type: "removeNodes", ids: ["a"] }] });
+    expect(response).toMatchObject({
+      ok: false,
+      error: { message: expect.stringMatching(/Edit tools are switched off/) },
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("follow the switches as the person changes them", async () => {
+    const access = createMcpAccess();
+    const { call } = shell("doc-1", access);
+    expect((await call("undo", { documentId: "doc-1" })).ok).toBe(false);
+    access.allow("edit", true);
+    expect((await call("undo", { documentId: "doc-1" })).ok).toBe(true);
+    access.allow("read", false);
+    expect((await call("list_documents")).ok).toBe(false);
+  });
+
+  it("log every call with its document and how it ended, refusals included", async () => {
+    const access = createMcpAccess(() => 0);
+    const { call } = shell("doc-1", access);
+    await call("get_totals", { documentId: "active" });
+    await call("undo", { documentId: "doc-1" });
+    expect(access.store.getState().activity).toMatchObject([
+      { tool: "undo", group: "edit", document: "doc-1", status: "refused" },
+      { tool: "get_totals", group: "read", document: "doc-1", status: "done" },
+    ]);
+  });
+});
+
+describe("edits through MCP", () => {
+  it('are labelled "AI: …" in the undo history', async () => {
+    const { call, calls } = shell();
+    const commands = [{ type: "removeNodes", ids: ["ore"] }];
+    await call("edit_graph", { documentId: "doc-1", commands, label: "Remove the ore" });
+    await call("edit_graph", { documentId: "doc-1", commands });
+    expect(calls.map((entry) => JSON.parse(entry.slice(entry.indexOf(" "))).label)).toEqual([
+      "AI: Remove the ore",
+      "AI: Edit",
+    ]);
   });
 });
