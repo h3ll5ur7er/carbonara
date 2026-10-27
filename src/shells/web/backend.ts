@@ -1,12 +1,15 @@
 // Composition root of the web backend: wires managers to their access components and platforms,
 // and serves them over a transport (the backend worker's message port).
+import builtInPacks from "virtual:built-in-packs";
 import { createAutosavedDocumentStore } from "../../access/documents/autosave";
-import type { PackStore } from "../../contracts/access";
+import { createPackLibrary } from "../../access/packs/library";
 import { managers, type Events } from "../../contracts/managers";
 import type { EventMessage, Request } from "../../contracts/rpc";
 import { createEditingManager } from "../../managers/editing";
+import { createPacksManager } from "../../managers/packs";
 import { createWorkspaceManager } from "../../managers/workspace";
 import { createIndexedDbStorage } from "../../platforms/web/indexeddb";
+import { loadModule } from "../../platforms/web/module-loader";
 import { createEventBus } from "../../utilities/events";
 import { createDispatcher, type Transport } from "../../utilities/rpc";
 
@@ -19,12 +22,17 @@ export function startBackend(transport: Transport): void {
   // documents that can't be loaded stay saved, and reporting them waits for a UI.
   const restored = documents.restore().catch(() => []);
   const newId = () => crypto.randomUUID();
-  // Stand-in until the packs access component exists (CARB-25): no packs, so createDocument refuses every pack.
-  const packs: PackStore = { list: async () => [], get: async () => undefined };
+  // Built-in packs and the packs installed in IndexedDB; the workspace and packs managers share the one library.
+  const packs = createPackLibrary({
+    builtIns: builtInPacks,
+    storage: createIndexedDbStorage("carbonara-packs"),
+    loadModule,
+  });
 
   const dispatch = createDispatcher(managers, {
     workspace: createWorkspaceManager({ documents, packs, events: bus, newId }),
     editing: createEditingManager({ documents, events: bus, newId }),
+    packs: createPacksManager({ library: packs, bus }),
   });
   transport.listen(async (message) => {
     await restored;

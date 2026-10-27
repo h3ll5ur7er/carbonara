@@ -45,10 +45,9 @@ export function validate<S extends z.ZodType>(source: Source, schema: S): Result
 
 /** Messages for the mistakes authors make most; zod's own message for everything else. */
 function readableMessage(issue: z.core.$ZodRawIssue): string | undefined {
-  if (issue.code !== "invalid_type") return undefined;
   if (issue.input === undefined) return "Required";
   // `version: 1.0` is a number to YAML.
-  if (issue.expected === "string" && typeof issue.input === "number") {
+  if (issue.code === "invalid_type" && issue.expected === "string" && typeof issue.input === "number") {
     return `Expected text, not the number ${issue.input}; write it in quotes`;
   }
   return undefined;

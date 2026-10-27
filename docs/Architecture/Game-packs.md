@@ -109,6 +109,33 @@ Why not OPFS: a pack's data and plugin are structured-cloneable values of a few 
 > [!WARNING]
 > Third-party plugins currently run in the backend worker like built-in ones. Moving them to an opaque-origin plugin worker is [[CARB-42]].
 
+### Installing a pack
+
+The `packs` manager ([[src/managers/packs.ts]]) sequences it; the client's pack feature ([[src/client/features/packs/packs.tsx]]) is the UI.
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant UI as Client (packs feature)
+  participant M as packs manager
+  participant E as packs engine
+  participant A as packs access
+  User->>UI: drops a .cpack (or "Install from file…" in the pack manager)
+  UI->>M: inspectPack(bytes)
+  M->>A: openArchive (unzip, SHA-256)
+  M->>E: readPackFiles
+  M-->>UI: manifest, hash, issues (no pack code has run)
+  UI->>User: trust prompt: name, id, version, game, file, SHA-256, or the issues
+  User->>UI: Install
+  UI->>M: installPack(bytes)
+  M->>E: readPackFiles (again: the bytes are all the manager trusts)
+  M->>A: install (loads the plugin once, then stores)
+  M-->>UI: packsChanged event, Result
+```
+
+- The top bar's **Game packs** button opens the pack manager: every pack with its version, id and the start of its hash; built-in packs are marked, installed ones can be removed. Dropping a `.cpack` anywhere on the app, or picking one, opens the trust prompt. Its dialogs are native `<dialog>` elements until the design system has its dialog primitive ([[CARB-21]]).
+- `getPackData` and `removePack` throw for packs that don't exist or aren't installed: a client only asks for packs it was told about.
+
 ## Authoring
 
 - `carbonara-pack new <id>` scaffolds a pack from `packs/_template` (*Template Works*), a small original example game with a no-op plugin. The template is the starting point for authors and a test fixture; the app doesn't list it.

@@ -1,4 +1,5 @@
 // The app's top bar: wordmark, open documents, global controls.
+import { Packs } from "./features/packs/packs";
 import { ThemeToggle } from "./ui/theme-toggle";
 
 export function TopBar() {
@@ -14,6 +15,7 @@ export function TopBar() {
         </span>
       </nav>
       <div className="ml-auto flex items-center">
+        <Packs />
         <ThemeToggle />
       </div>
     </header>

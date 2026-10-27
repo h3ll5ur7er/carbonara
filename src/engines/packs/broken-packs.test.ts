@@ -76,6 +76,11 @@ const broken: [name: string, change: Record<string, string | null>, messages: st
     ["data/items.yaml:4:5: items[1].name: Required"],
   ],
   [
+    "an item without a form",
+    { "data/items.yaml": edit("data/items.yaml", ", form: solid }\n  - { id: plate", " }\n  - { id: plate") },
+    ["data/items.yaml:3:5: items[0].form: Required"],
+  ],
+  [
     "a recipe using an unknown item",
     { "data/recipes.yaml": edit("data/recipes.yaml", "ore: 1", "coal: 1") },
     ["data/recipes.yaml:7:11: recipes[0].in.coal: Unknown item 'coal'"],
