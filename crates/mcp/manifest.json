@@ -956,6 +956,123 @@
                     "locked"
                   ],
                   "description": "Locks nodes in place (dragging, nudging and arranging leave them), or unlocks them."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "collapse"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "ids": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": "The nodes to collapse; not ports."
+                    },
+                    "blueprint": {
+                      "description": "The new blueprint's id. Chosen by the manager when left out.",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "instance": {
+                      "description": "The id of the instance that takes their place. Chosen when left out.",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "The new blueprint's name."
+                    },
+                    "bounds": {
+                      "description": "Where the nodes are drawn, so the ports go beside them. Estimated from positions when left out.",
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "width": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "height": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "width",
+                        "height"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "ids",
+                    "name"
+                  ],
+                  "description": "Collapses nodes into a subgraph: moves them into a new blueprint and puts an instance of it where they were. Each flow that crossed the selection now runs through a port of the blueprint (ports are inferred from those flows; flows of one item from one node share a port)."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "expand"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "A subgraph instance node."
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ],
+                  "description": "Expands a subgraph instance: puts a copy of its blueprint's nodes and flows in its place and reconnects the flows through its ports. Expanding the last instance of a blueprint dissolves the blueprint."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "renameBlueprint"
+                    },
+                    "blueprint": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "blueprint",
+                    "name"
+                  ],
+                  "description": "Renames a blueprint (every instance shows the new name)."
                 }
               ]
             }

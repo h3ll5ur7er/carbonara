@@ -7,12 +7,18 @@ import type { Document, Edge, Graph, Node } from "../../contracts/document";
 import type { Issue } from "../../contracts/issues";
 import type { Patch } from "../../contracts/patches";
 import { fail, ok, type Result } from "../../contracts/result";
+import { allGraphs, contains, freeId, graphOf, issue, portsOf } from "./graphs";
+import { collapse, expand } from "./subgraphs";
 
 // Immer's patch support is opt-in; enabling it twice is harmless.
 enablePatches();
 
-type WithId<C> = C extends { type: "addNode" | "connect" } ? Omit<C, "id"> & { id: string } : C;
-/** A command whose new node or edge already has its id. */
+type WithId<C> = C extends { type: "addNode" | "connect" }
+  ? Omit<C, "id"> & { id: string }
+  : C extends { type: "collapse" }
+    ? Omit<C, "blueprint" | "instance"> & { blueprint: string; instance: string }
+    : C;
+/** A command whose new node, edge or blueprint already has its id. */
 export type ResolvedCommand = WithId<Command>;
 
 export interface Edit {
@@ -59,6 +65,9 @@ const LABELS: Record<Command["type"], string> = {
   setLogistics: "Change belt",
   setText: "Change text",
   setTag: "Tag nodes",
+  collapse: "Collapse into subgraph",
+  expand: "Expand subgraph",
+  renameBlueprint: "Rename blueprint",
 };
 
 /** A name for the history when the caller gives none. */
@@ -87,11 +96,21 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     }
     return;
   }
+  if (command.type === "renameBlueprint") {
+    const blueprint = document.blueprints[command.blueprint];
+    if (!blueprint) return issue(["blueprint"], `Unknown blueprint ${command.blueprint}`);
+    blueprint.name = command.name;
+    return;
+  }
   const scope = command.graph;
   const graph = graphOf(document, scope);
   if (!graph) return issue(["graph"], `Unknown graph ${scope}`);
 
   switch (command.type) {
+    case "collapse":
+      return collapse(document, scope, graph, command);
+    case "expand":
+      return expand(document, scope, graph, command);
     case "addNode": {
       if (graph.nodes[command.id]) return issue(["id"], `Node ${command.id} already exists`);
       const problem = checkNode(document, scope, command.node);
@@ -114,7 +133,7 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
       const removed = new Set(command.ids);
       const bridges = bridgesAround(graph, removed);
       removeNodes(document, scope, graph, removed);
-      for (const [id, edge] of bridges) graph.edges[freeId(graph, id)] = edge;
+      for (const [id, edge] of bridges) graph.edges[freeId((taken) => taken in graph.edges, id)] = edge;
       return;
     }
     case "connect": {
@@ -236,7 +255,7 @@ function checkNode(document: Document, scope: string, node: Node): Issue | undef
   if (node.kind === "port" && scope === "root") return issue(["node", "kind"], "Ports only exist inside blueprints");
   if (node.kind !== "instance") return;
   if (!document.blueprints[node.blueprint]) return issue(["node", "blueprint"], `Unknown blueprint ${node.blueprint}`);
-  if (contains(document, node.blueprint, scope, new Set())) {
+  if (contains(document, node.blueprint, scope)) {
     return issue(["node", "blueprint"], `Blueprint ${node.blueprint} can't contain itself`);
   }
 }
@@ -317,42 +336,4 @@ function bridgesAround(graph: Graph, removed: Set<string>): [string, Edge][] {
     }
   }
   return bridges;
-}
-
-/** `id`, or `id~2`, `id~3` … when it's taken. */
-function freeId(graph: Graph, id: string): string {
-  let candidate = id;
-  for (let suffix = 2; graph.edges[candidate]; suffix++) candidate = `${id}~${suffix}`;
-  return candidate;
-}
-
-function graphOf(document: Document, scope: string): Graph | undefined {
-  return scope === "root" ? document.graph : document.blueprints[scope]?.graph;
-}
-
-function allGraphs(document: Document): Graph[] {
-  return [document.graph, ...Object.values(document.blueprints).map((blueprint) => blueprint.graph)];
-}
-
-/** The ids of an instance node's ports in that direction; nothing for other nodes. */
-function portsOf(document: Document, node: Node | undefined, direction: "in" | "out"): string[] {
-  if (node?.kind !== "instance") return [];
-  const nodes = document.blueprints[node.blueprint]?.graph.nodes ?? {};
-  return Object.keys(nodes).filter((id) => {
-    const port = nodes[id];
-    return port?.kind === "port" && port.direction === direction;
-  });
-}
-
-/** Whether placing `blueprint` into the graph `scope` would make a blueprint contain itself. */
-function contains(document: Document, blueprint: string, scope: string, seen: Set<string>): boolean {
-  if (blueprint === scope) return true;
-  if (seen.has(blueprint)) return false;
-  seen.add(blueprint);
-  const nodes = Object.values(document.blueprints[blueprint]?.graph.nodes ?? {});
-  return nodes.some((node) => node.kind === "instance" && contains(document, node.blueprint, scope, seen));
-}
-
-function issue(path: Issue["path"], message: string): Issue {
-  return { path, message };
 }

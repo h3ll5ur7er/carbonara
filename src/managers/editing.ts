@@ -134,5 +134,8 @@ function unknownDocument(documentId: string): Result<never> {
 
 function withId(command: Command, newId: () => string): ResolvedCommand {
   if (command.type === "addNode" || command.type === "connect") return { ...command, id: command.id ?? newId() };
+  if (command.type === "collapse") {
+    return { ...command, blueprint: command.blueprint ?? newId(), instance: command.instance ?? newId() };
+  }
   return command;
 }

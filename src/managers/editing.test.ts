@@ -49,6 +49,16 @@ describe("the editing manager", () => {
     expect(documents.get("doc-1")?.version).toBe(2);
   });
 
+  it("chooses the ids of a collapse's blueprint and instance, and one undo expands it again", async () => {
+    const { apply, current, editing } = setup();
+    await apply([{ type: "collapse", ids: ["smelt", "split"], name: "Smelting" }]);
+    const collapsed = await current();
+    expect(collapsed.blueprints["id-1"]?.name).toBe("Smelting");
+    expect(collapsed.graph.nodes["id-2"]).toEqual({ kind: "instance", blueprint: "id-1" });
+    await editing.undo({ documentId: "doc-1" });
+    expect(await current()).toEqual(original);
+  });
+
   it("keeps the ids callers choose", async () => {
     const { apply, current } = setup();
     await apply([{ ...addJunction, id: "bus" }]);
