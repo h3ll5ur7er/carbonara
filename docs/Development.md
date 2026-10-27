@@ -103,7 +103,7 @@ macOS needs the Xcode command line tools, Windows the WebView2 runtime (preinsta
 | `cargo test -p carbonara-desktop` / `cargo clippy -p carbonara-desktop --all-targets -- -D warnings` | The Rust shell's tests and lint |
 | `pnpm tauri icon icon.svg -o src-tauri/icons` | Regenerates the app icons (then delete the `android/`, `ios/` and Store logos it also writes) |
 
-The Rust shell (`src/shells/tauri/src-tauri`) is a workspace member but not a default member, so plain `cargo test`, `cargo clippy` and `cargo build` don't need the system libraries. A new crate goes into both `members` and `default-members` of the root `Cargo.toml`, or plain `cargo test` skips it. Run its checks with `-p carbonara-desktop` when you change the shell.
+The Rust shell (`src/shells/tauri/src-tauri`) is a workspace member but not a default member, so plain `cargo test`, `cargo clippy` and `cargo build` don't need the system libraries. A new crate goes into both `members` and `default-members` of the root `Cargo.toml`, or plain `cargo test` skips it. Run its checks with `-p carbonara-desktop` when you change the shell. CI does on every push (job *Desktop app (Linux)*), and builds a `.deb`.
 
 `pnpm tauri` runs the CLI in `src/shells/tauri`, where it finds `src-tauri/`, so paths you pass it are relative to that folder unless absolute.
 

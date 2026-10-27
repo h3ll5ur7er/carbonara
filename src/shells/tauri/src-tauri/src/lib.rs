@@ -1,10 +1,11 @@
 //! The desktop shell: the web app (src/shells/tauri/main.tsx) in a native window, with storage in the app data
-//! folder, native file dialogs, file associations and one running instance. The webview reaches it only through the
-//! commands below; see docs/Architecture/Desktop.md.
+//! folder, native file dialogs, file associations, one running instance, and updates. The webview reaches it only
+//! through the commands below; see docs/Architecture/Desktop.md.
 
 mod dialogs;
 mod opened;
 mod storage;
+mod updater;
 
 use opened::{FileContents, OpenedFiles};
 use std::path::Path;
@@ -116,6 +117,10 @@ pub fn run() {
             // It forwards each tool call to the webview's connector as an ordinary manager call, so it needs the
             // `AppHandle` (to emit the call and receive the answer) and nothing else from this shell.
             // See docs/Architecture/Desktop.md, "MCP server".
+
+            if updater::is_configured(&app.config().plugins) {
+                updater::start(app.handle())?;
+            }
             Ok(())
         })
         .build(tauri::generate_context!())

@@ -1,6 +1,6 @@
 # Desktop
 
-The desktop app is the web app in a Tauri 2 window. It runs the same client, managers and engines; what changes is the platform underneath (storage in the app data folder, native file dialogs) and what only a desktop app can do: open files by double-click, keep one running instance, have a menu bar, and later serve MCP ([[Architecture/MCP server]]). Task: [[CARB-57]].
+The desktop app is the web app in a Tauri 2 window. It runs the same client, managers and engines; what changes is the platform underneath (storage in the app data folder, native file dialogs) and what only a desktop app can do: open files by double-click, keep one running instance, have a menu bar, update itself, and later serve MCP ([[Architecture/MCP server]]). Tasks: [[CARB-57]] (shell), [[CARB-58]] (releases and updates).
 
 [TOC]
 
@@ -19,7 +19,7 @@ src/shells/tauri/
    ├─ tauri.conf.json        # window, CSP, bundles, file associations
    ├─ capabilities/          # what the webview may call
    ├─ linux/                 # the .desktop template and MIME types for the .deb and .rpm
-   └─ src/                   # lib.rs (commands, setup), storage.rs, dialogs.rs, opened.rs
+   └─ src/                   # lib.rs (commands, setup), storage.rs, dialogs.rs, opened.rs, updater.rs
 src/platforms/tauri/         # the tauri platform: KeyValueStorage, FileAccess, the invoke proxy
 ```
 
@@ -44,6 +44,7 @@ flowchart LR
     storage[storage.rs: app data folder]
     dialogs[dialogs.rs: native dialogs]
     opened[opened.rs: files opened with the app]
+    updater[updater.rs]
   end
   client -- RPC --> managers
   kv -- "invoke over a MessagePort" --> serve
@@ -91,6 +92,35 @@ On macOS the menu bar is built from the command registry ([[src/shells/tauri/men
 - A Content Security Policy (`tauri.conf.json`, `app.security.csp`) allows only the app's own scripts, Blob URLs (installed packs' plugins) and WebAssembly.
 - Storage names are checked in Rust, so a storage can't leave the storage folder.
 
+## Updates and releases
+
+The updater plugin ([[src/shells/tauri/src-tauri/src/updater.rs]]) checks `latest.json` of the latest GitHub release when the app starts and asks before it installs and restarts. Only builds from the release workflow carry the updater's configuration: the workflow writes `tauri.release.conf.json` with the version from the tag, the updater's public key and endpoint, and `createUpdaterArtifacts`. Local and CI builds have no updater and never check.
+
+`.github/workflows/release.yml` runs on tags `v*`: a matrix of Linux (Ubuntu 22.04, for an older glibc), Windows and macOS (universal) builds the installers with `tauri-action` and attaches them, the signed update archives and `latest.json` to a **draft** release. Publishing the draft releases it to installed apps. On Linux only the AppImage updates itself; the `.deb` and `.rpm` update through the package manager.
+
+### Setup the repository owner does once
+
+1. Create the updater's signing key pair on your machine, and choose a password when asked:
+   ```bash
+   pnpm tauri signer generate -w ~/.tauri/carbonara.key
+   ```
+   This writes `~/.tauri/carbonara.key` (private) and `~/.tauri/carbonara.key.pub` (public). Never commit either file; keep the private key and its password in your password manager. If the private key is lost, installed apps can't update any more and need a manual reinstall.
+2. In GitHub, **Settings → Secrets and variables → Actions**:
+   - **Secrets** tab, *New repository secret*: `TAURI_SIGNING_PRIVATE_KEY` with the contents of `~/.tauri/carbonara.key`, and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` with its password.
+   - **Variables** tab, *New repository variable*: `TAURI_UPDATER_PUBKEY` with the contents of `~/.tauri/carbonara.key.pub` (one line).
+3. **Settings → Actions → General → Workflow permissions**: the workflow asks for `contents: write` itself; if the organisation restricts that, allow *Read and write permissions*.
+
+### Releasing
+
+1. Tag the commit with a version of three numbers (`v0.2.0`; the Windows installer refuses pre-release suffixes such as `-beta`) and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
+2. Wait for the *Release* workflow; it creates the draft release *Carbonara v0.2.0* with all installers.
+3. Check the draft, then **Publish release**. Installed apps offer the update on their next start.
+
+The version in `package.json` stays `0.0.0`: the tag is the release's version.
+
+> [!NOTE]
+> The installers aren't code-signed. macOS says the app "can't be opened" until it's allowed in *System Settings → Privacy & Security* (or opened with right-click → *Open*), and Windows SmartScreen asks once. Code signing needs an Apple Developer ID and a Windows certificate; `tauri-action` reads them from the `APPLE_CERTIFICATE`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` secrets (macOS) and `bundle.windows.certificateThumbprint` or a signing command (Windows) once someone sets them up.
+
 ## MCP server
 
 The MCP server ([[CARB-60]], `crates/mcp`) starts in the Rust shell's `setup` in [[src/shells/tauri/src-tauri/src/lib.rs]], where a comment marks the place: add the crate as a dependency of `carbonara-desktop` and start it there with the `AppHandle`. The managers live in the webview's backend worker, so a tool call has to reach them through the webview: for example, the shell emits the call as an event, a small listener on the UI thread (next to `OpenedFiles` in [[src/shells/tauri/main.tsx]]) passes it to the connector as an ordinary manager call, and answers through a command. Nothing else in this shell needs to change.
@@ -102,9 +132,11 @@ See [[Development#Desktop]] for the commands. What runs where:
 | Check | Where |
 | --- | --- |
 | TS platform implementations, the proxy, opened files, the menu mapping, the desktop backend | `pnpm test` |
-| The Rust store, opened-file handling | `cargo test -p carbonara-desktop` |
+| The Rust store, opened-file handling, updater configuration | `cargo test -p carbonara-desktop` |
+| The app builds and bundles on Linux | CI job *Desktop app (Linux)* on every push |
+| Installers for all three systems | `release.yml`, on tags |
 
-Dialogs, file associations, the single-instance hand-over and the macOS menu bar need a desktop session to try by hand.
+Dialogs, file associations, the single-instance hand-over, the macOS menu bar and the updater's check need a desktop session to try by hand.
 
 ## Known gaps
 
