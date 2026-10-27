@@ -84,6 +84,7 @@ name = "carbonara-solver-wasm"
 version = "0.1.0"
 dependencies = [
  "carbonara-solver",
+ "serde",
  "serde-wasm-bindgen",
  "wasm-bindgen",
 ]

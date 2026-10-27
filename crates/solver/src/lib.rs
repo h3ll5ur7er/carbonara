@@ -75,6 +75,9 @@ pub fn solve_whole(model: &Model, backend: &impl Backend) -> Result<Solution, So
 /// later tier infeasible. microlp's values are accurate to about 1e-8.
 const HOLD_TOLERANCE: f64 = 1e-8;
 
+/// Below microlp's own working tolerance: a slack this small is zero.
+const ZERO: f64 = 1e-10;
+
 /// Lexicographic minimisation: each tier is minimised, then held at its optimum for the tiers after it.
 fn minimise_in_order(
     program: &mut Program,
@@ -88,11 +91,17 @@ fn minimise_in_order(
             Hold::EachSlack => {
                 // Bounds only ever tighten: a slack's own limits stay.
                 for &(var, _) in &tier.terms {
-                    let value = solved[var].max(0.0);
-                    let tolerance = HOLD_TOLERANCE * (1.0 + value);
+                    let value = solved[var];
                     let (min, max) = &mut program.bounds[var];
-                    *min = min.max(value - tolerance);
-                    *max = max.min(value + tolerance);
+                    if value <= ZERO {
+                        // A zero slack sits on its bound, so holding it at exactly zero stays feasible,
+                        // and later tiers can't nudge a met pin by the tolerance.
+                        *max = 0.0;
+                    } else {
+                        let tolerance = HOLD_TOLERANCE * (1.0 + value);
+                        *min = min.max(value - tolerance);
+                        *max = max.min(value + tolerance);
+                    }
                 }
             }
             Hold::Total => {

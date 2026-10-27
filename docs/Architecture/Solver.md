@@ -50,7 +50,7 @@ Constraints:
 4. Cost `Σ cost · x`
 5. Surplus. Last, so that choices left free (an unpinned sink after a pinned machine) take what is made instead of wasting it. Without it such flows would be arbitrary
 
-After a slack tier is solved, **each of its slacks is held** at its value (± 1e-8 relative); the cost tier holds only its total. Holding only a slack tier's total let later tiers shift a tiny amount of shortage to another port, which showed up as spurious diagnostics. The tolerance exists because microlp's values are accurate to about 1e-8; holding exactly made feasible models infeasible. A slack is reported only when it's larger than 1e-7 of the quantity it qualifies (the port's throughput, the edge's flow, the pin).
+After a slack tier is solved, **each of its slacks is held**: a zero slack at exactly zero (it sits on its bound, so that stays feasible, and met pins stay exact), a positive one at its value ± 1e-8 relative. The cost tier holds only its total (± 1e-8 relative). Holding only a slack tier's total let later tiers shift a tiny amount of shortage to another port, which showed up as spurious diagnostics. The tolerance exists because microlp's values are accurate to about 1e-8; holding positive values exactly made feasible models infeasible. So non-zero slacks, and the values around them, may be off by about 1e-8 relative; the readable-number formatting hides that. A slack is reported only when it's larger than 1e-7 of the quantity it qualifies (the port's throughput, the edge's flow, the pin).
 
 Propagate mode is simply the case where most variables are pinned.
 
