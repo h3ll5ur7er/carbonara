@@ -9,9 +9,9 @@ wave: "2"
 milestone: "M3 Megafactory"
 ---
 
-Measured in [[CARB-12]] (median edit → results, release WASM): a 500-node component takes 155 ms against a 16 ms budget, a 10k-node flat graph 300 ms against 150 ms ([[Architecture/Solver]]). Most of the time is the LP: each objective tier is a fresh microlp solve; clarabel was no faster.
+Measured in [[CARB-12]] (median edit → results, release WASM): a 500-node component takes 155 ms against a 16 ms budget (since relaxed to 100 ms), a 10k-node flat graph 300 ms against 150 ms ([[Architecture/Solver]]). Most of the time is the LP: each objective tier is a fresh microlp solve; clarabel was no faster.
 
-**Done when** the CI job "Performance budgets" passes and is made blocking, or the budgets in [[Architecture/Solver]] are revised with measurements and reasons and the project owner agrees.
+**Done when** the CI job "Performance budgets" passes (500 nodes < 100 ms, 10k < 150 ms) and is made blocking.
 
 - [ ] Profile compile vs. solve vs. transfer at 500 and 10k nodes
 - [ ] Compile only changed components (compile is ~60 ms at 10k)

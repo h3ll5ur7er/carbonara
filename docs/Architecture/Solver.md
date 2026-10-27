@@ -91,11 +91,11 @@ The LP library sits behind the `Backend` trait ([[crates/solver/src/program.rs]]
 4. **Results bypass React state:** results land in the client's result store, and each node component subscribes to its own slot, so a solve re-renders only the nodes whose numbers changed. For now they travel as the plain `AnalysisResults` records from [[src/contracts/results.ts]]; typed arrays only if the benchmarks show the transfer matters.
 5. **Backend trait:** `microlp` first, `clarabel` behind the same trait for very large models.
 
-**Budgets** (checked in CI by `bench/`, see [[Development]]):
+**Budgets** (checked in CI by `bench/`, see [[Development]]). The 500-node budget was 16 ms (one frame) and was relaxed to 100 ms by the project owner: a plan that recomputes while you edit still feels instant at 100 ms, and the canvas never waits for the solver anyway.
 
 | Scenario | Edit → numbers on screen | Measured (Oct 2026) |
 | --- | --- | --- |
-| 500-node component | < 16 ms | 155 ms median, 228 ms p95 |
+| 500-node component | < 100 ms | 155 ms median, 228 ms p95 |
 | 10k-node flat graph | < 150 ms | 300 ms median (20 components of 500 nodes) |
 | 50k-node factory built from subgraphs | < 50 ms | Not measurable before subgraphs (Wave 2); a flat 50k graph of 100 components takes 1.15 s |
 

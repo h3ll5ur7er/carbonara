@@ -19,7 +19,7 @@ interface Scenario {
 }
 
 const SCENARIOS: Scenario[] = [
-  { name: "500-node component", lines: 1, nodesPerLine: 500, budget: 16, edits: 30 },
+  { name: "500-node component", lines: 1, nodesPerLine: 500, budget: 100, edits: 30 },
   { name: "1k-node factory, 2 components", lines: 2, nodesPerLine: 500, edits: 30 },
   { name: "10k-node flat graph, 20 components", lines: 20, nodesPerLine: 500, budget: 150, edits: 20 },
   // The 50k budget is for factories built from subgraphs (Wave 2); a flat one is measured for reference.
