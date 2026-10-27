@@ -1,0 +1,68 @@
+# Shapes the solver must handle: a water loop (wash ⇄ purify), byproducts (slag, sludge),
+# an alternate recipe, a recipe two buildings can run, and an expected-value output (recycling).
+recipes:
+  - id: wash-ferrite
+    name: Washed Ferrite
+    buildings: [washer]
+    time: 2
+    in: { ferrite-ore: 2, water: 1 }
+    out: { clean-ferrite: 2, dirty-water: 1 }
+  - id: purify-water
+    buildings: [purifier]
+    time: 4
+    in: { dirty-water: 4 }
+    out: { water: 3, sludge: 1 }
+  - id: iron-plate
+    buildings: [furnace]
+    time: 3
+    in: { clean-ferrite: 1 }
+    out: { iron-plate: 1 }
+  - id: iron-plate-from-ore
+    name: Iron Plate (Coal Smelting)
+    buildings: [furnace]
+    time: 4
+    in: { ferrite-ore: 2, coal: 1 }
+    out: { iron-plate: 1 }
+    tags: [alternate]
+  - id: copper-plate
+    buildings: [furnace]
+    time: 3
+    in: { cuprite-ore: 2 }
+    out: { copper-plate: 1, slag: 1 }
+  - id: iron-gear
+    buildings: [assembler, fast-assembler]
+    time: 1
+    in: { iron-plate: 2 }
+    out: { iron-gear: 1 }
+  - id: copper-wire
+    buildings: [assembler, fast-assembler]
+    time: 0.5
+    in: { copper-plate: 1 }
+    out: { copper-wire: 2 }
+  - id: circuit
+    buildings: [assembler, fast-assembler]
+    time: 5
+    in: { iron-plate: 1, copper-wire: 3 }
+    out: { circuit: 1 }
+  - id: motor
+    buildings: [assembler, fast-assembler]
+    time: 10
+    in: { iron-gear: 2, circuit: 1, copper-wire: 4 }
+    out: { motor: 1 }
+  - id: concrete
+    buildings: [mixer]
+    time: 2
+    in: { slag: 2, sludge: 1, water: 1 }
+    out: { concrete: 1 }
+  - id: dry-sludge
+    name: Coal from Sludge
+    buildings: [furnace]
+    time: 6
+    in: { sludge: 3 }
+    out: { coal: 1 }
+  - id: recycle-motor
+    name: Motor Recycling
+    buildings: [assembler]
+    time: 2
+    in: { motor: 1 }
+    out: { iron-gear: 1, copper-wire: 2, circuit: 0.5 }

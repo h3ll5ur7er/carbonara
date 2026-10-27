@@ -1,0 +1,10 @@
+logistics:
+  - { id: conveyor-1, name: Conveyor, aliases: [basic belt, slow belt], carries: solid, capacity: 15 }
+  - { id: conveyor-2, name: Fast Conveyor, aliases: [fast belt], carries: solid, capacity: 30 }
+  - { id: pipe, name: Pipe, carries: fluid, capacity: 100 }
+
+resources:
+  - { item: ferrite-ore, limit: 500 }
+  - { item: cuprite-ore, limit: 300 }
+  - { item: coal, limit: 200 }
+  - { item: water }

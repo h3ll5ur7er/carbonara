@@ -1,0 +1,18 @@
+units: { rate: per_second }
+
+items:
+  - { id: ferrite-ore, name: Ferrite Ore, form: solid }
+  - { id: cuprite-ore, name: Cuprite Ore, form: solid }
+  - { id: coal, name: Coal, form: solid }
+  - { id: water, name: Water, form: fluid }
+  - { id: dirty-water, name: Dirty Water, form: fluid }
+  - { id: sludge, name: Sludge, form: solid }
+  - { id: clean-ferrite, name: Clean Ferrite, form: solid }
+  - { id: iron-plate, name: Iron Plate, form: solid }
+  - { id: copper-plate, name: Copper Plate, form: solid }
+  - { id: slag, name: Slag, form: solid }
+  - { id: iron-gear, name: Iron Gear, form: solid, aliases: [gear] }
+  - { id: copper-wire, name: Copper Wire, form: solid, aliases: [wire] }
+  - { id: circuit, name: Circuit, form: solid }
+  - { id: motor, name: Motor, form: solid }
+  - { id: concrete, name: Concrete, form: solid }

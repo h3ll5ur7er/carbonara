@@ -1,0 +1,10 @@
+# The template pack: a small original game for pack authors to start from (`carbonara-pack new`)
+# and Carbonara's own test fixture. It uses no assets from any real game.
+id: template
+name: Template Works
+version: 1.0.0
+engine: ^1
+game: { name: Template Works }
+data: data/
+plugin: plugin/index.js
+theme: { accent: "#f5a623" }

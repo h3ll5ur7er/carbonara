@@ -1,0 +1,7 @@
+buildings:
+  - { id: furnace, name: Furnace, power: { consume: 0.5 } }
+  - { id: assembler, name: Assembler, power: { consume: 0.75 } }
+  - { id: fast-assembler, name: Fast Assembler, speed: 2, power: { consume: 2 } }
+  - { id: washer, name: Ore Washer, power: { consume: 1 } }
+  - { id: purifier, name: Water Purifier, power: { consume: 1.5 } }
+  - { id: mixer, name: Mixer, power: { consume: 1 } }

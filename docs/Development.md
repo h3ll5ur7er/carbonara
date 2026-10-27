@@ -28,6 +28,7 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 | `pnpm e2e` | Playwright end-to-end and screenshot tests (starts the dev server itself) |
 | `pnpm format` / `pnpm format:check` | Prettier |
 | `pnpm schema` | Regenerates the JSON Schemas in `schemas/` from the zod contracts |
+| `pnpm pack:build <folder> [out]` | Bundles a pack folder's plugin and zips it into `<out>/<id>-<version>.cpack` (default `dist/packs/`) |
 | `cargo test` | Rust tests (solver) |
 | `cargo clippy --all-targets -- -D warnings` / `cargo fmt --check` | Rust lint and format |
 

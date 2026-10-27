@@ -75,6 +75,10 @@ Item ids may carry a variant after `@` (`steam@500`, `gear@rare`), for plugins t
 
 The zod schemas in [[src/contracts/pack.ts]] are the source of truth for the shape. `pnpm schema` generates JSON Schemas for pack authors and editors into `schemas/`, and a test fails when they're out of date. Rules beyond the shape (every reference resolves, no id defined twice) are the `packs` engine's: [[src/engines/packs/references.ts]].
 
+## Reading a pack
+
+Whether it comes from a `.cpack` or an unpacked folder, a pack is a set of files, and one pure function decides whether they make a valid pack: `readPackFiles` in [[src/engines/packs/files.ts]]. It parses `manifest.yaml`, checks the plugin file exists, merges the files in `data/` in name order (arrays are concatenated; `units` may be defined in only one file), validates the result and checks every reference. Problems come back as issues whose path starts with the file name.
+
 ## Built-in and third-party packs
 
 - **Built-in packs:** the app ships every pack we maintain (`packs/satisfactory`, `packs/factorio`, …). They're built at app build time, preinstalled and trusted, and they update with the app. They can also be updated on their own, without an app release.
@@ -83,7 +87,7 @@ The zod schemas in [[src/contracts/pack.ts]] are the source of truth for the sha
 
 ## Authoring
 
-- `carbonara-pack new <id>` scaffolds a pack from `packs/_template`, a small original example game with a no-op plugin. The template is the starting point for authors and a test fixture; the app doesn't list it.
+- `carbonara-pack new <id>` scaffolds a pack from `packs/_template` (*Template Works*), a small original example game with a no-op plugin. The template is the starting point for authors and a test fixture; the app doesn't list it.
 - `carbonara-pack validate`, `build` (bundles the plugin with esbuild and zips it into a `.cpack`) and `dev` (the app loads the unpacked folder and reloads it on change). On the web, dev mode uses the File System Access API; on desktop the shell watches the folder.
 - `carbonara-pack import <game> --from <file>` runs the pack plugin's importer to regenerate `data/` from the game's own data files (Satisfactory's `Docs.json`, Factorio's `--dump-data` output) when a game updates. Icons are sourced once and normalised to WebP at fixed sizes.
 - The MCP server exposes the same steps as tools for AI-assisted authoring ([[Architecture/MCP server]]).
