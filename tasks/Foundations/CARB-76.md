@@ -2,7 +2,7 @@
 id: CARB-76
 title: Render screenshots in one pinned environment
 type: bug
-status: review
+status: done
 priority: urgent
 labels: [tooling, tests]
 wave: "1"
@@ -17,4 +17,6 @@ CI was red since the Solver merge: every screenshot test failed on GitHub with 1
 - [x] CI e2e job in the image
 - [x] Baselines regenerated in the image; full suite green there (92 tests)
 - [x] A flaky select keyboard test waits for the list's focus before pressing keys
-- [ ] CI green on GitHub
+- [x] The e2e job takes the solver's WebAssembly module as an artifact from the web job (the image has no C toolchain)
+- [x] Load-sensitive canvas frame-budget tests run only with `E2E_PERF=1`, in the non-blocking performance job
+- [x] CI green on GitHub (run 28: e2e in the image passed; Pages deployed)
