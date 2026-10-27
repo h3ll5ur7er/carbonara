@@ -2,7 +2,7 @@
 id: CARB-25
 title: Read packs from bundles, storage and files
 type: feature
-status: review
+status: done
 priority: urgent
 labels: [packs, access]
 wave: "1"

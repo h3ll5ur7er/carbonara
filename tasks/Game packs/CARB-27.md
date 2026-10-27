@@ -2,7 +2,7 @@
 id: CARB-27
 title: Manage packs in the app
 type: feature
-status: review
+status: done
 priority: high
 labels: [packs, managers, ui]
 wave: "1"

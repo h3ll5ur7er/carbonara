@@ -2,7 +2,7 @@
 id: CARB-28
 title: Build the pack CLI
 type: feature
-status: review
+status: done
 priority: medium
 labels: [packs, tooling]
 wave: "1"

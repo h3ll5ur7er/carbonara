@@ -2,7 +2,7 @@
 id: CARB-26
 title: Validate packs with readable errors
 type: feature
-status: review
+status: done
 priority: high
 labels: [packs, engines]
 wave: "1"
