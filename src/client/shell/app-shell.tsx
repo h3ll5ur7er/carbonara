@@ -77,14 +77,15 @@ export function EmptyCanvas() {
   );
 }
 
-function EmptyState() {
+/** Over the canvas while it has nothing to show; `hint` says how to start. */
+export function EmptyState({ hint = "Machines and the flows between them will appear here." }: { hint?: string }) {
   return (
     <div className="pointer-events-none absolute inset-0 grid place-items-center">
       <div className="canvas-clearing flex flex-col items-center gap-4 px-24 py-16 text-center">
         <GhostNode />
         <div className="flex flex-col gap-1">
           <p className="text-lg font-medium tracking-tight text-fg-muted">This factory is empty</p>
-          <p className="text-sm text-fg-subtle">Machines and the flows between them will appear here.</p>
+          <p className="text-sm text-fg-subtle">{hint}</p>
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@
 id: CARB-70
 title: Show document tabs and open share links
 type: feature
-status: in-progress
+status: done
 priority: high
 labels: [documents, ui]
 wave: "1"
@@ -20,8 +20,8 @@ The workspace manager and the read model exist ([[CARB-33]], [[CARB-35]]), but t
 - [x] Open `#doc=…` share links on load; "Copy share link"
 - [x] Open / save `.carbonara` via file dialogs (`Mod+O`, `Mod+S`)
 - [x] Show autosave restore problems as a toast (new `workspace.getRestoreProblems`)
-- [ ] The canvas draws the active document from the read model — waits for the Canvas epic ([[CARB-16]])
-- [ ] Rename a factory — needs a contract method; not started
+- [x] The canvas draws the active document with its live results ([[src/client/live-app.tsx]]); quick-add places nodes at the visible centre ([[e2e/live-canvas.spec.ts]])
+- [ ] ~~Rename a factory~~ moved to [[CARB-75]]
 
 **Decisions**
 

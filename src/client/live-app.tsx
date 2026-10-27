@@ -2,9 +2,12 @@
 // (Scenes render `AppShell` with fixed data instead.)
 import { useEffect } from "react";
 import { Canvas } from "./canvas/canvas";
-import { AppShell, EmptyCanvas } from "./shell/app-shell";
+import { formatShortcut, platformOf } from "./core/commands-shortcuts";
+import { paletteCommandId } from "./features/command-palette/command-palette";
+import { appRegistry } from "./shell/app-commands";
+import { AppShell, EmptyState } from "./shell/app-shell";
 import { useConnector } from "./core/connector";
-import { useActiveDocument, useModels, useWorkspace } from "./core/models";
+import { useActiveDocument, useModels, useWorkspace, type ActiveDocument } from "./core/models";
 import { createDocumentActions, setDocumentActions } from "./features/documents/actions";
 import { DocumentTabs } from "./features/documents/document-tabs";
 import { sharedDocumentIn } from "./features/documents/links";
@@ -16,7 +19,8 @@ export function LiveApp() {
   const connector = useConnector();
   const { workspace } = useModels();
   const loaded = useWorkspace((state) => state.loaded);
-  const { info } = useActiveDocument();
+  const active = useActiveDocument();
+  const { info } = active;
 
   useEffect(() => {
     setDocumentActions(createDocumentActions(connector, workspace));
@@ -31,12 +35,32 @@ export function LiveApp() {
       <AppShell
         document={info}
         tabs={<DocumentTabs />}
-        canvas={info ? <EmptyCanvas /> : <WelcomeCanvas loaded={loaded} />}
+        canvas={info ? <DocumentCanvas {...active} /> : <WelcomeCanvas loaded={loaded} />}
       />
       <NewDocumentDialog />
     </>
   );
 }
+
+/** The active document on the canvas, with its live results; a hint how to start while it's empty. */
+function DocumentCanvas({ document, packData, results }: ActiveDocument) {
+  const empty = !document || Object.keys(document.graph.nodes).length === 0;
+  return (
+    <>
+      <div className="canvas-backdrop absolute inset-0">
+        <Canvas {...(document && { document })} {...(packData && { pack: packData })} results={results ?? null} />
+      </div>
+      {empty && (
+        <EmptyState hint={`Search for a recipe with ${shortcutOf(paletteCommandId)}, then build from its ports.`} />
+      )}
+    </>
+  );
+}
+
+const shortcutOf = (id: string) => {
+  const shortcut = appRegistry.get(id)?.shortcut;
+  return shortcut ? formatShortcut(shortcut, platformOf(navigator.platform)).join(" ") : "the command palette";
+};
 
 /** The canvas backdrop with the welcome over it, once we know nothing is open (no flash while loading). */
 function WelcomeCanvas({ loaded }: { loaded: boolean }) {

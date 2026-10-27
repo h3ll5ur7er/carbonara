@@ -2,6 +2,7 @@
 // entry goes to `editing.apply`. Outcomes are reported as toasts.
 import { useEffect, useState } from "react";
 import type { Position } from "../../../contracts/document";
+import { viewportCentre } from "../../canvas/viewport";
 import { useConnector } from "../../core/connector";
 import { errorMessage, toast } from "../../shell/toasts";
 import { addRecipeNode, quickAddEntries, type QuickAddEntry } from "./quick-add";
@@ -17,7 +18,7 @@ export interface QuickAddDocument {
   packId: string;
 }
 
-/** Where a quick-added node lands until the canvas can say where the user is looking. */
+/** Where a quick-added node lands when no canvas says where the user is looking (scenes, tests). */
 const origin: Position = { x: 0, y: 0 };
 
 export function useQuickAdd(document: QuickAddDocument | null): QuickAdd | null {
@@ -43,7 +44,7 @@ export function useQuickAdd(document: QuickAddDocument | null): QuickAdd | null 
   return {
     entries: loaded.entries,
     add(entry) {
-      addRecipeNode(connector.editing, documentId, entry, origin).then(
+      addRecipeNode(connector.editing, documentId, entry, viewportCentre() ?? origin).then(
         (result) =>
           result.ok
             ? toast({ tone: "success", title: `Added ${entry.title}` })

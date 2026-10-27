@@ -1,0 +1,142 @@
+/*
+ * Canvas styles that utilities can't express: tints derived from an item's hue, and React Flow's own
+ * elements drawn with our tokens. Colours here are derived tokens (see docs/Design.md, Nodes); components
+ * still only reference variables.
+ *
+ * Same layer order as Tailwind's, declared again because this file may load before the main stylesheet.
+ */
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* An item's tint: set `--hue` (degrees) on the element, use the variables below. */
+  .item-tint {
+    --item-bg: light-dark(oklch(0.94 0.045 var(--hue)), oklch(0.34 0.06 var(--hue)));
+    --item-fg: light-dark(oklch(0.42 0.12 var(--hue)), oklch(0.88 0.09 var(--hue)));
+    --item-line: light-dark(oklch(0.42 0.12 var(--hue) / 0.18), oklch(0.88 0.09 var(--hue) / 0.16));
+    --item-wash: light-dark(oklch(0.7 0.09 var(--hue) / 0.07), oklch(0.7 0.09 var(--hue) / 0.06));
+  }
+
+  /* Ports: a ring in the item's colour that fills on hover and while connecting. */
+  .react-flow__handle.port-handle {
+    min-width: 0;
+    min-height: 0;
+    transform: none;
+    border-radius: 9999px;
+    border: 2px solid var(--item-fg);
+    background: var(--color-surface-2);
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      scale var(--duration-fast) var(--ease-out);
+  }
+
+  .react-flow__handle.port-handle:hover,
+  .react-flow__handle.port-handle.connectingfrom,
+  .react-flow__handle.port-handle.connectingto {
+    background: var(--item-fg);
+    box-shadow: 0 0 0 4px var(--item-line);
+    scale: 1.3;
+  }
+
+  /* At overview zoom ports are specks; they stay in the DOM (edges are measured from them) but out of sight. */
+  .react-flow.lod-chip .react-flow__handle.port-handle {
+    visibility: hidden;
+  }
+
+  .react-flow__node:focus-visible {
+    outline: none;
+  }
+
+  .react-flow__node:focus-visible > * {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+
+  .react-flow__selection,
+  .react-flow__nodesselection-rect {
+    background: var(--color-accent-soft);
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-xs);
+  }
+
+  /*
+   * Flows. `--flow` is the saturation colour (the colour-blind palette swaps the --flow-* inputs);
+   * `--flow-width`, `--spacing` (flow units) and `--cycle` come from model/flow-style.ts.
+   * Selectors carry React Flow's classes so they win over its edge styles.
+   */
+  .react-flow .react-flow__edge .flow {
+    --flow: var(--flow-healthy);
+  }
+  .react-flow .react-flow__edge .flow[data-saturation="near-capacity"] {
+    --flow: var(--flow-near-capacity);
+  }
+  .react-flow .react-flow__edge .flow[data-saturation="over-capacity"] {
+    --flow: var(--flow-over-capacity);
+  }
+  .react-flow .react-flow__edge .flow[data-saturation="unknown"] {
+    --flow: var(--color-line-strong);
+  }
+
+  .react-flow .react-flow__edge .flow .flow-line {
+    stroke: color-mix(in oklab, var(--flow) 72%, transparent);
+    stroke-width: calc(var(--flow-width) * 1px);
+    stroke-linecap: round;
+    transition: stroke var(--duration-base) var(--ease-out);
+  }
+  .react-flow .react-flow__edge .flow[data-selected] .flow-line,
+  .react-flow .react-flow__edge:hover .flow .flow-line {
+    stroke: var(--flow);
+  }
+
+  /* A soft glow that draws the eye to flows at or over their capacity. */
+  .react-flow .react-flow__edge .flow .flow-halo {
+    stroke: var(--flow);
+    stroke-opacity: 0.2;
+    stroke-width: calc(var(--flow-width) * 1px + 10px);
+    stroke-linecap: round;
+    pointer-events: none;
+  }
+  .react-flow .react-flow__edge .flow[data-selected] .flow-halo {
+    stroke-opacity: 0.32;
+  }
+
+  /* Particles: round dots made of a dash pattern, moved along the path by shifting the pattern. */
+  .react-flow .react-flow__edge .flow .flow-particles {
+    stroke: color-mix(in oklab, var(--flow) 25%, white);
+    stroke-width: max(calc(var(--flow-width) * 0.55px), 2.5px);
+    stroke-linecap: round;
+    stroke-dasharray: 0 calc(var(--spacing) * 1px);
+    animation: flow-particles var(--cycle) linear infinite;
+    pointer-events: none;
+  }
+
+  /* Particles stop when zoomed out (set by the renderer) and for people who prefer less motion. */
+  .react-flow.particles-off .flow-particles {
+    display: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .react-flow .react-flow__edge .flow .flow-particles {
+      display: none;
+    }
+  }
+
+  .lasso {
+    fill: var(--color-accent-soft);
+    stroke: var(--color-accent);
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+    stroke-linejoin: round;
+  }
+
+  .react-flow__connectionline path {
+    stroke: var(--color-accent);
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
+  }
+}
+
+@keyframes flow-particles {
+  to {
+    stroke-dashoffset: calc(var(--spacing) * -1px);
+  }
+}

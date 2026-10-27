@@ -44,7 +44,13 @@ test("quick-add: typing an item and pressing Enter adds a node through the editi
       documentId: "scene",
       label: "Add Iron Plate",
       commands: [
-        { type: "addNode", graph: "root", node: { kind: "recipe", recipe: "iron-plate" }, position: { x: 0, y: 0 } },
+        {
+          type: "addNode",
+          graph: "root",
+          node: { kind: "recipe", recipe: "iron-plate" },
+          // Where the user is looking: the middle of the visible canvas.
+          position: { x: expect.any(Number), y: expect.any(Number) },
+        },
       ],
     },
   ]);
@@ -81,8 +87,9 @@ test("Escape closes the palette and Ctrl+K toggles it", async ({ page }) => {
 test("an unmatched search says so", async ({ page }) => {
   await openScene(page);
   await page.keyboard.press("Control+K");
-  await page.keyboard.type("zzzz");
-  await expect(page.getByText("Nothing matches “zzzz”.")).toBeVisible();
+  // cmdk's fuzzy score accepts a letter repeated, so the search uses one that no command contains.
+  await page.keyboard.type("qqqq");
+  await expect(page.getByText("Nothing matches “qqqq”.")).toBeVisible();
 });
 
 test("shortcuts run commands", async ({ page }) => {
@@ -111,10 +118,12 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Toggle library\s*Ctrl\s*B/,
     /Toggle inspector\s*Ctrl\s*I/,
     /Switch light and dark theme\s*Ctrl\s*Shift\s*L/,
+    /Zoom to fit\s*F/,
+    /Zoom to selection\s*Shift\s*F/,
   ]);
-  // "Toggle inspector" is second to last.
-  await page.keyboard.press("End");
-  await page.keyboard.press("ArrowUp");
+  // Typeahead moves to the item, wherever new commands put it.
+  await page.keyboard.type("Toggle i");
+  await expect(menu.getByRole("menuitem", { name: /Toggle inspector/ })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("complementary", { name: "Inspector" })).toBeHidden();
 });

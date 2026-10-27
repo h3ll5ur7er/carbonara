@@ -15,6 +15,10 @@ export interface Scene {
 
 export type SceneRegistry = Record<string, Scene>;
 
+function canvasScene(name: "chain" | "congested" | "perf"): Promise<{ default: ComponentType }> {
+  return import("../canvas/scenes/scene-canvas").then((module) => ({ default: module.canvasScene(name) }));
+}
+
 function placeholder(title: string, task: string): Scene {
   return {
     title,
@@ -26,10 +30,12 @@ function placeholder(title: string, task: string): Scene {
 export const scenes: SceneRegistry = {
   // The canonical scenes of docs/Design.md (Visual QA), screenshot in dark and light by e2e/scenes.spec.ts.
   empty: { title: "Empty state", load: () => import("./empty") },
-  chain: placeholder("A 20-node chain", "CARB-16"),
-  congested: placeholder("A congested graph", "CARB-17"),
+  chain: { title: "A 20-node chain", load: () => canvasScene("chain") },
+  congested: { title: "A congested graph", load: () => canvasScene("congested") },
   subgraph: placeholder("Inside a subgraph", "CARB-39"),
   "ghost-paste": placeholder("The ghost paste", "CARB-51"),
+  // The canvas perf harness (e2e/canvas-perf.spec.ts): 1,000 nodes.
+  perf: { title: "1,000 nodes for the perf harness", load: () => canvasScene("perf") },
   // The design system and the shell.
   gallery: { title: "Primitives gallery", load: () => import("./gallery") },
   inspector: { title: "Side panels and the inspector", load: () => import("./inspector") },
