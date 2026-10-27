@@ -5,3 +5,5 @@ export { buildSuperstructure, type Role, type Superstructure, type Superstructur
 export { weigh } from "./objective";
 export { propose, type ProposeInput } from "./proposal";
 export { rank, rivals } from "./compare";
+export { probeDocument, ratesOf, runningOnce, type RecipeRates } from "./probe";
+export { allowedRecipes } from "./superstructure";

@@ -2,9 +2,11 @@
 // loaded it) and its English locale files into pack data. Hides the dump format: prototype types, energy written as
 // strings ("75kW"), recipe categories (one in 2.0, several in 2.1), probabilistic results, defaults the dump leaves
 // out, and that names live in separate locale files. Quality levels become item variants (`iron-plate@rare`), and
-// what the mechanics plugin needs becomes building fields and recipe tags. Maintainer tooling
-// (`pnpm pack:import factorio`); the app never runs it.
+// what the mechanics plugin needs becomes building fields and recipe tags. Power generation becomes recipes of the
+// buildings that make steam, heat, plasma and electricity, with fluids that generators burn for their heat split by
+// temperature (`steam@500`). Maintainer tooling (`pnpm pack:import factorio`); the app never runs it.
 import type { Building, Item, Logistics, PackDataFile, Recipe, Resource } from "../../../src/contracts/pack";
+import { atTemperature, ELECTRICITY, HEAT, temperatureOf } from "./energy";
 import { localise, parseLocale } from "./locale";
 
 /** The dump, then the English locale of every built-in mod (data/<mod>/locale/en/<mod>.cfg). The locale is optional. */
@@ -22,6 +24,20 @@ export const ACCEPTS = [
 const CRAFTING_MACHINES = ["assembling-machine", "furnace", "rocket-silo"];
 /** Prototype types of buildings that extract resources, in the order the pack lists them. */
 const EXTRACTORS = ["mining-drill", "offshore-pump", "agricultural-tower", "asteroid-collector"];
+/** Prototype types of buildings that make steam, heat, plasma or electricity, in the order the pack lists them. */
+const GENERATORS = ["boiler", "reactor", "fusion-reactor", "generator", "fusion-generator"];
+/** Power recipes run for a second: their amounts are rates of one building, and electricity and heat are in MW. */
+const POWER_SECONDS = 1;
+/**
+ * The most neighbours a reactor can have: a nuclear reactor shares its sides with four, a fusion reactor's eight
+ * fluid connections can each reach another (its plasma then stays below the fluid's 10,000,000 °C maximum).
+ */
+const MAX_NEIGHBOURS: Record<string, number> = { reactor: 4, "fusion-reactor": 8 };
+/** What a burner takes first: the fuel players start with. Other fuels follow by name. */
+const DEFAULT_FUEL = "coal";
+/** FluidPrototype's defaults: 1 kJ per unit and °C, from 15 °C. */
+const DEFAULT_HEAT_CAPACITY = 1000;
+const DEFAULT_TEMPERATURE = 15;
 
 /** A belt moves `speed` tiles per tick; a tile holds 4 items on each of its 2 lanes. */
 const BELT_ITEMS_PER_TILE = 8;
@@ -50,6 +66,9 @@ type Dump = Record<string, Record<string, Prototype> | undefined>;
 interface Amount {
   type?: string;
   name: string;
+  temperature?: number;
+  minimum_temperature?: number;
+  maximum_temperature?: number;
   amount?: number;
   amount_min?: number;
   amount_max?: number;
@@ -104,7 +123,32 @@ export function importDump(files: Record<string, Uint8Array>): {
       .filter((entry) => entry.parameter !== true && entry.hidden !== true)
       .map((entry) => [entry.name, entry]),
   );
-  const product = (name: string) => items.get(name) ?? fluids.get(name);
+  /** The prototype of an item, fluid or fluid variant (`steam@500` is steam). */
+  const product = (name: string) => {
+    const base = temperatureOf(name)?.fluid ?? name;
+    return items.get(base) ?? fluids.get(base);
+  };
+
+  // Fluids that generators burn for their heat (steam, plasma) are told apart by temperature: each temperature
+  // something makes them at is a variant. Boilers make steam at their target temperature, recipes at their
+  // result's, fusion reactors plasma at its default temperature, hotter with each neighbour.
+  const temperatures = new Map<string, Set<number>>();
+  for (const generator of prototypes("generator")) burnsHeatOf(fluidBox(generator.fluid_box).filter);
+  for (const generator of prototypes("fusion-generator")) burnsHeatOf(fluidBox(generator.input_fluid_box).filter);
+  function burnsHeatOf(fluid: string | undefined) {
+    if (fluid && fluids.has(fluid)) temperatures.set(fluid, new Set());
+  }
+  const temperatureOfFluid = (name: string) => number(fluids.get(name)?.default_temperature) ?? DEFAULT_TEMPERATURE;
+  /** The fluid's id at a temperature (its default when none is given), noting the variant; other ids as they are. */
+  const fluidAt = (name: string, temperature?: number) => {
+    const made = temperatures.get(name);
+    if (!made) return name;
+    const at = temperature ?? temperatureOfFluid(name);
+    made.add(at);
+    return atTemperature(name, at);
+  };
+  const heatCapacity = (fluid: Prototype) => energy(fluid.heat_capacity, "J") ?? DEFAULT_HEAT_CAPACITY;
+  const variantsOf = (fluid: string) => [...(temperatures.get(fluid) ?? [])].sort((a, b) => a - b);
   const itemOrder = new Map([...items.values()].map((item) => [String(item.place_result ?? ""), String(item.order)]));
 
   const named = (prototype: Prototype, ...keys: string[]) =>
@@ -130,19 +174,82 @@ export function importDump(files: Record<string, Uint8Array>): {
   const machines = CRAFTING_MACHINES.flatMap(prototypes).sort(buildingOrder);
   const extractors = EXTRACTORS.flatMap((type) => prototypes(type).sort(buildingOrder));
   const building = (entity: Prototype, crafting: boolean): Building => {
-    const power = powerMW(entity, crafting);
-    const extra = fields(entity, crafting);
+    const consume = powerMW(entity, crafting);
+    const produce = producedMW(entity);
+    const extra = { ...fields(entity, crafting), ...burnerFields(entity) };
+    const usage = burnerOf(entity) ? burnerWatts(entity) : undefined;
+    if (usage !== undefined) extra.energy = { ...extra.energy, usage: clean(usage / 1e6) };
     return {
       id: entity.name,
       name: named(entity, `entity-name.${entity.name}`),
       ...iconFor(entity.name, entity),
       speed: speedOf(entity),
-      ...(power !== undefined && { power: { consume: power } }),
-      ...(extra && { fields: extra }),
+      ...((consume !== undefined || produce !== undefined) && {
+        power: { ...(consume !== undefined && { consume }), ...(produce !== undefined && { produce }) },
+      }),
+      ...(Object.keys(extra).length > 0 && { fields: extra }),
     };
   };
+  /** The fuels a burner takes, its default first, then by name; hidden ones (the editor's) left out. */
+  function fuelsOf(entity: Prototype): Prototype[] {
+    const categories = list(burnerOf(entity)?.fuel_categories);
+    if (categories.length === 0) return [];
+    return [...items.values()]
+      .filter((item) => item.hidden !== true && energy(item.fuel_value, "J") !== undefined)
+      .filter((item) => categories.includes(String(item.fuel_category)))
+      .sort(
+        (a, b) => Number(b.name === DEFAULT_FUEL) - Number(a.name === DEFAULT_FUEL) || a.name.localeCompare(b.name),
+      );
+  }
+  /** What the mechanics need of a burner (fuels in MJ, what they burn into) and of a reactor or fusion generator. */
+  function burnerFields(entity: Prototype): NonNullable<Building["fields"]> {
+    const result: NonNullable<Building["fields"]> = {};
+    const fuels = fuelsOf(entity);
+    if (fuels.length > 0) {
+      result.fuels = Object.fromEntries(
+        fuels.map((fuel) => [fuel.name, clean((energy(fuel.fuel_value, "J") ?? 0) / 1e6)]),
+      );
+      const burnt = fuels.flatMap((fuel) =>
+        typeof fuel.burnt_result === "string" ? [[fuel.name, fuel.burnt_result]] : [],
+      );
+      if (burnt.length > 0) result.burnt = Object.fromEntries(burnt);
+    }
+    const bonus = neighbourBonus(entity);
+    if (bonus > 0) {
+      const boosts = entity.type === "fusion-reactor" ? "temperature" : "heat";
+      result.reactor = { "neighbour-bonus": bonus, neighbours: maxNeighbours(entity), boosts };
+    }
+    if (entity.type === "fusion-generator") {
+      const fluid = fluidBox(entity.input_fluid_box).filter;
+      if (fluid) result.generator = { fluid };
+    }
+    return result;
+  }
+  /** What the building burns at full speed, in W: crafting machines' energy usage, boilers' and reactors' energy. */
+  function burnerWatts(entity: Prototype): number | undefined {
+    if (entity.type === "fusion-reactor") {
+      // Its plasma's heat above 0 °C (100 MW): fusion power cells last 400 s.
+      const plasma = fluids.get(fluidBox(entity.output_fluid_box).filter ?? "");
+      const perSecond = (number(entity.max_fluid_usage) ?? 0) * TICKS_PER_SECOND;
+      return plasma && perSecond * heatCapacity(plasma) * temperatureOfFluid(plasma.name);
+    }
+    return energy(entity.energy_usage ?? entity.energy_consumption ?? entity.consumption, "W");
+  }
+  /** What a generator makes at most, in MW. */
+  function producedMW(entity: Prototype): number | undefined {
+    if (entity.type === "fusion-generator") {
+      const megawatts = fusionGeneratorMW(entity, fluids.get(fluidBox(entity.input_fluid_box).filter ?? ""));
+      return megawatts === undefined ? undefined : clean(megawatts);
+    }
+    if (entity.type !== "generator") return undefined;
+    const fluid = fluids.get(fluidBox(entity.fluid_box).filter ?? "");
+    const hottest = number(entity.maximum_temperature);
+    return fluid && hottest !== undefined ? clean(generatorMW(entity, fluid, hottest)) : undefined;
+  }
 
-  const recipes = Object.values(dump.recipe ?? {}).flatMap((entry): Recipe[] => {
+  /** Each recipe's ingredients as the dump gives them, for their temperature limits. */
+  const limits = new Map<string, Amount[]>();
+  const crafted = Object.values(dump.recipe ?? {}).flatMap((entry): Recipe[] => {
     if (entry.parameter === true) return [];
     const categories = recipeCategories(entry);
     // Recyclers run recycling recipes, which the game hides from the crafting menu. Hidden items (the editor's
@@ -157,7 +264,9 @@ export function importDump(files: Record<string, Uint8Array>): {
       list(machine.crafting_categories).some((category) => categories.includes(category)),
     );
     const inputs = amounts(entry.ingredients, (ingredient) => ingredient.amount ?? 0);
-    const outputs = amounts(entry.results, expectedAmount);
+    const outputs = amounts(entry.results, expectedAmount, (result) =>
+      result.type === "fluid" ? fluidAt(result.name, result.temperature) : result.name,
+    );
     if (makers.length === 0 || !inputs || !outputs || Object.keys(outputs).length === 0) return [];
 
     const main = typeof entry.main_product === "string" ? entry.main_product : undefined;
@@ -180,27 +289,195 @@ export function importDump(files: Record<string, Uint8Array>): {
       ...(entry.allow_productivity === true ? ["productivity", ...ignoredByProductivity(entry)] : []),
       ...(entry.allow_quality === false ? ["no-quality"] : []),
     ];
-    return [
-      {
-        id: entry.name,
-        name,
-        buildings: makers.map((machine) => machine.name),
-        time: number(entry.energy_required) ?? DEFAULT_CRAFT_SECONDS,
-        in: inputs,
-        out: outputs,
-        ...(tags.length > 0 && { tags }),
-      },
-    ];
+    const recipe: Recipe = {
+      id: entry.name,
+      name,
+      buildings: makers.map((machine) => machine.name),
+      time: number(entry.energy_required) ?? DEFAULT_CRAFT_SECONDS,
+      in: inputs,
+      out: outputs,
+      ...(tags.length > 0 && { tags }),
+    };
+    limits.set(recipe.id, Array.isArray(entry.ingredients) ? (entry.ingredients as Amount[]) : []);
+    return [recipe];
   });
   /** Amounts by item, or undefined when the recipe deals with an item the pack leaves out. */
-  function amounts(value: unknown, amount: (entry: Amount) => number): Record<string, number> | undefined {
+  function amounts(
+    value: unknown,
+    amount: (entry: Amount) => number,
+    key: (entry: Amount) => string = (entry) => entry.name,
+  ): Record<string, number> | undefined {
     const result: Record<string, number> = {};
     for (const entry of (Array.isArray(value) ? value : []) as Amount[]) {
       if (!product(entry.name)) return undefined;
-      const total = clean((result[entry.name] ?? 0) + amount(entry));
-      if (total > 0) result[entry.name] = total;
+      const id = key(entry);
+      const total = clean((Object.hasOwn(result, id) ? (result[id] as number) : 0) + amount(entry));
+      if (total > 0) result[id] = total;
     }
     return result;
+  }
+
+  // Buildings that make steam, heat, plasma and electricity, each with one recipe a second long (one per steam
+  // temperature for steam engines and turbines).
+  const generators = GENERATORS.flatMap((type) => prototypes(type).sort(buildingOrder));
+  const powerRecipes = generators.flatMap((entity): Recipe[] => {
+    const entityName = named(entity, `entity-name.${entity.name}`);
+    const recipe = (id: string, made: string, inputs: Record<string, number>, outputs: Record<string, number>) => {
+      const mod = modOf(entity);
+      return {
+        id,
+        name: `${made} (${entityName})`,
+        buildings: [entity.name],
+        time: POWER_SECONDS,
+        in: cleaned(inputs),
+        out: cleaned(outputs),
+        tags: [...(mod === "base" ? [] : [mod]), "power", "no-quality"],
+      };
+    };
+    switch (entity.type) {
+      case "boiler": {
+        // Water in, steam out at the target temperature, conserving heat (2.0): as much water as has the steam's
+        // heat capacity.
+        const water = fluids.get(fluidBox(entity.fluid_box).filter ?? "");
+        const steam = fluids.get(fluidBox(entity.output_fluid_box).filter ?? "");
+        const target = number(entity.target_temperature);
+        const watts = energy(entity.energy_consumption, "W");
+        if (!water || !steam || target === undefined || watts === undefined) return [];
+        const made = watts / ((target - temperatureOfFluid(steam.name)) * heatCapacity(steam));
+        const heat = sourceOf(entity)?.type === "heat" ? { [HEAT]: watts / 1e6 } : {};
+        return [
+          recipe(
+            `${entity.name}-${steam.name}`,
+            itemName(steam),
+            { [water.name]: (made * heatCapacity(steam)) / heatCapacity(water), ...heat },
+            { [fluidAt(steam.name, target)]: made },
+          ),
+        ];
+      }
+      case "reactor": {
+        const watts = energy(entity.consumption, "W");
+        return watts === undefined ? [] : [recipe(`${entity.name}-heat`, "Heat", {}, { [HEAT]: watts / 1e6 })];
+      }
+      case "fusion-reactor": {
+        // Coolant in, as much plasma out at its default temperature; neighbours make it hotter (the mechanics).
+        const coolant = fluidBox(entity.input_fluid_box).filter;
+        const plasma = fluids.get(fluidBox(entity.output_fluid_box).filter ?? "");
+        const perSecond = (number(entity.max_fluid_usage) ?? 0) * TICKS_PER_SECOND;
+        if (!coolant || !plasma || perSecond === 0) return [];
+        return [
+          recipe(
+            `${entity.name}-plasma`,
+            itemName(plasma),
+            { [coolant]: perSecond },
+            { [fluidAt(plasma.name)]: perSecond },
+          ),
+        ];
+      }
+      case "generator": {
+        // Each steam temperature it takes: its usage, worth the heat above the fluid's default temperature, up to
+        // the generator's maximum (hotter steam is used up all the same).
+        const box = fluidBox(entity.fluid_box);
+        const fluid = fluids.get(box.filter ?? "");
+        const perSecond = (number(entity.fluid_usage_per_tick) ?? 0) * TICKS_PER_SECOND;
+        if (!fluid || perSecond === 0) return [];
+        return variantsOf(fluid.name)
+          .filter((temperature) => temperature >= (box.minimum_temperature ?? -Infinity))
+          .map((temperature) => {
+            const variant = atTemperature(fluid.name, temperature);
+            const megawatts = generatorMW(entity, fluid, temperature);
+            return recipe(
+              `${entity.name}-${ELECTRICITY}@${temperature}`,
+              `Electricity`,
+              { [variant]: perSecond },
+              { [ELECTRICITY]: megawatts },
+            );
+          })
+          .map((made) => ({ ...made, name: `Electricity (${entityName}, ${variantName(made.in)})` }));
+      }
+      case "fusion-generator": {
+        // Plasma at its default temperature (the mechanics take hotter plasma); as much hot coolant back.
+        const plasma = fluids.get(fluidBox(entity.input_fluid_box).filter ?? "");
+        const coolant = fluidBox(entity.output_fluid_box).filter;
+        const perSecond = (number(entity.max_fluid_usage) ?? 0) * TICKS_PER_SECOND;
+        const megawatts = fusionGeneratorMW(entity, plasma);
+        if (!plasma || !coolant || megawatts === undefined) return [];
+        return [
+          recipe(
+            `${entity.name}-${ELECTRICITY}`,
+            "Electricity",
+            { [fluidAt(plasma.name)]: perSecond },
+            { [ELECTRICITY]: megawatts, [coolant]: perSecond },
+          ),
+        ];
+      }
+      default:
+        return [];
+    }
+  });
+  /** What a steam engine or turbine makes from steam at a temperature, in MW. */
+  function generatorMW(entity: Prototype, fluid: Prototype, temperature: number): number {
+    const perSecond = (number(entity.fluid_usage_per_tick) ?? 0) * TICKS_PER_SECOND;
+    const used = Math.min(temperature, number(entity.maximum_temperature) ?? temperature);
+    const effectivity = number(entity.effectivity) ?? 1;
+    return (perSecond * (used - temperatureOfFluid(fluid.name)) * heatCapacity(fluid) * effectivity) / 1e6;
+  }
+  /** A fusion generator's output: its plasma's heat above 0 °C, at most its output limit, in MW. */
+  function fusionGeneratorMW(entity: Prototype, plasma: Prototype | undefined): number | undefined {
+    if (!plasma) return undefined;
+    const perSecond = (number(entity.max_fluid_usage) ?? 0) * TICKS_PER_SECOND;
+    const heat = perSecond * heatCapacity(plasma) * temperatureOfFluid(plasma.name);
+    const limit = energy((entity.energy_source as Prototype | undefined)?.output_flow_limit, "W") ?? Infinity;
+    return Math.min(heat, limit) / 1e6;
+  }
+  /** "Steam 165 °C", for the one variant among the amounts. */
+  function variantName(amounts: Record<string, number>): string {
+    const variant = Object.keys(amounts)
+      .map(temperatureOf)
+      .find((found) => found !== undefined);
+    if (!variant) return "";
+    const fluid = fluids.get(variant.fluid);
+    return `${fluid ? itemName(fluid) : variant.fluid} ${variant.temperature.toLocaleString("en")} °C`;
+  }
+  /** Plasma: each temperature a fusion reactor makes it at, with 0 to its most neighbours. */
+  for (const entity of prototypes("fusion-reactor")) {
+    const plasma = fluidBox(entity.output_fluid_box).filter;
+    const bonus = neighbourBonus(entity);
+    if (!plasma || !temperatures.has(plasma)) continue;
+    for (let neighbours = 0; neighbours <= maxNeighbours(entity); neighbours++) {
+      fluidAt(plasma, temperatureOfFluid(plasma) * (1 + bonus * neighbours));
+    }
+  }
+
+  // Recipes that take such a fluid without a temperature limit come once per temperature: `steam-condensation@500`.
+  const recipes = [
+    ...crafted.flatMap((recipe): Recipe[] => {
+      const heated = Object.keys(recipe.in).find((item) => temperatures.has(item));
+      if (heated === undefined) return [recipe];
+      const ingredient = limits.get(recipe.id)?.find((entry) => entry.name === heated);
+      const { [heated]: amount, ...others } = recipe.in;
+      return variantsOf(heated)
+        .filter(
+          (temperature) =>
+            temperature >= (ingredient?.minimum_temperature ?? -Infinity) &&
+            temperature <= (ingredient?.maximum_temperature ?? Infinity),
+        )
+        .map((temperature) => {
+          const variant = atTemperature(heated, temperature);
+          const inputs = { ...others, [variant]: amount as number };
+          return {
+            ...recipe,
+            id: atTemperature(recipe.id, temperature),
+            name: `${recipe.name ?? recipe.id} (${variantName(inputs)})`,
+            in: inputs,
+          };
+        });
+    }),
+    ...powerRecipes,
+  ];
+  const known = new Set<string>();
+  for (const recipe of recipes) {
+    if (known.has(recipe.id)) throw new Error(`Two recipes are called ${recipe.id}`);
+    known.add(recipe.id);
   }
 
   // Resources: what drills mine from resource patches, offshore pumps pump from tiles, agricultural towers harvest
@@ -236,31 +513,50 @@ export function importDump(files: Record<string, Uint8Array>): {
   const used = new Set([
     ...recipes.flatMap((recipe) => [...Object.keys(recipe.in), ...Object.keys(recipe.out)]),
     ...resources.map((resource) => resource.item),
+    // Every temperature of a fluid generators burn: plasma from reactors with neighbours is made by no recipe.
+    ...[...temperatures.keys()].flatMap((fluid) => variantsOf(fluid).map((at) => atTemperature(fluid, at))),
+    // The fuels burner buildings take, and what they burn into.
+    ...[...machines, ...extractors, ...generators]
+      .flatMap((entity) => {
+        const fuels = fuelsOf(entity);
+        return [
+          ...fuels,
+          ...fuels.flatMap((fuel) => (typeof fuel.burnt_result === "string" ? [fuel.burnt_result] : [])),
+        ];
+      })
+      .map((fuel) => (typeof fuel === "string" ? fuel : fuel.name)),
   ]);
   // Every solid item comes in each quality above normal, as a variant (`iron-plate@rare`) right after it.
   const qualities = prototypes("quality")
     .filter((quality) => (number(quality.level) ?? 0) > 0)
     .sort((a, b) => (number(a.level) ?? 0) - (number(b.level) ?? 0));
-  const itemList: Item[] = [...used]
-    .sort()
-    .map((id) => product(id) as Prototype)
-    .flatMap((prototype): Item[] => {
-      const item: Item = {
-        id: prototype.name,
-        name: itemName(prototype),
-        form: fluids.get(prototype.name) === prototype ? "fluid" : "solid",
-        ...iconFor(prototype.name, prototype),
-      };
-      if (item.form === "fluid") return [item];
-      return [
-        item,
-        ...qualities.map((quality) => ({
-          ...item,
-          id: `${item.id}@${quality.name}`,
-          name: `${item.name} (${named(quality, `quality-name.${quality.name}`)})`,
-        })),
-      ];
-    });
+  // Electricity and heat aren't prototypes; they flow from generators as items of their own.
+  const flows: Record<string, string> = { [ELECTRICITY]: "Electricity", [HEAT]: "Heat" };
+  const itemList: Item[] = [...used].sort().flatMap((id): Item[] => {
+    const flow = flows[id];
+    if (flow !== undefined && !product(id)) return [{ id, name: flow, form: "fluid" }];
+    const prototype = product(id) as Prototype;
+    const variant = temperatureOf(id);
+    if (variant && temperatures.has(variant.fluid)) {
+      const name = `${itemName(prototype)} (${variant.temperature.toLocaleString("en")} °C)`;
+      return [{ id, name, form: "fluid", ...iconFor(variant.fluid, prototype) }];
+    }
+    const item: Item = {
+      id: prototype.name,
+      name: itemName(prototype),
+      form: fluids.get(prototype.name) === prototype ? "fluid" : "solid",
+      ...iconFor(prototype.name, prototype),
+    };
+    if (item.form === "fluid") return [item];
+    return [
+      item,
+      ...qualities.map((quality) => ({
+        ...item,
+        id: `${item.id}@${quality.name}`,
+        name: `${item.name} (${named(quality, `quality-name.${quality.name}`)})`,
+      })),
+    ];
+  });
 
   const logistics: Logistics[] = [
     ...prototypes("transport-belt")
@@ -291,6 +587,7 @@ export function importDump(files: Record<string, Uint8Array>): {
       buildings: [
         ...machines.map((machine) => building(machine, true)),
         ...extractors.map((extractor) => building(extractor, false)),
+        ...generators.map((generator) => building(generator, false)),
       ],
       recipes: recipes.sort((a, b) => a.id.localeCompare(b.id)),
       logistics,
@@ -342,30 +639,76 @@ function fields(entity: Prototype, crafting: boolean): Building["fields"] {
   if (receiver?.base_effect && Object.keys(receiver.base_effect).length > 0) {
     result["base-effect"] = receiver.base_effect;
   }
-  const source = entity.energy_source as { type?: string; fuel_categories?: string[] } | undefined;
-  if (source?.type && source.type !== "electric") {
-    const fuel = list(source.fuel_categories);
-    result.energy = { source: source.type, ...(fuel.length > 0 && { fuel: fuel.join(",") }) };
-  }
   const drain = drainWatts(entity, crafting);
   if (drain > 0) result.energy = { drain: clean(drain / 1e6) };
+  const burner = burnerOf(entity);
+  const source = sourceOf(entity);
+  if (burner) {
+    const fuel = list(burner.fuel_categories);
+    const effectivity = number(burner.effectivity) ?? 1;
+    result.energy = {
+      ...result.energy,
+      source: "burner",
+      ...(fuel.length > 0 && { fuel: fuel.join(",") }),
+      ...(effectivity !== 1 && { effectivity }),
+    };
+  } else if (source?.type && source.type !== "electric") result.energy = { source: source.type };
   const mod = modOf(entity);
   if (mod !== "base") result.mod = { name: mod };
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
-/** What the building draws at full speed, in MW: its energy usage plus its electric drain. */
+/** What an electric building draws at full speed, in MW: its energy usage plus its drain. Burners draw none. */
 function powerMW(entity: Prototype, crafting: boolean): number | undefined {
-  const usage = watts(entity.energy_usage);
-  if (usage === undefined) return undefined;
-  return clean((usage + drainWatts(entity, crafting)) / 1e6);
+  if (sourceOf(entity)?.type !== "electric") return undefined;
+  const drain = drainWatts(entity, crafting);
+  const usage = energy(entity.energy_usage, "W");
+  if (usage === undefined && drain === 0) return undefined;
+  return clean(((usage ?? 0) + drain) / 1e6);
 }
 
-/** What an electric building draws even when idle, in W. */
+/** What an electric building draws even when idle, in W: a fusion reactor's power input is all drain. */
 function drainWatts(entity: Prototype, crafting: boolean): number {
-  const usage = watts(entity.energy_usage) ?? 0;
-  const source = entity.energy_source as { type?: string; drain?: string } | undefined;
-  return source?.type === "electric" ? (watts(source.drain) ?? (crafting ? usage * DEFAULT_DRAIN : 0)) : 0;
+  const usage = energy(entity.energy_usage, "W") ?? 0;
+  const source = sourceOf(entity);
+  if (source?.type !== "electric") return 0;
+  return energy(source.drain, "W") ?? energy(entity.power_input, "W") ?? (crafting ? usage * DEFAULT_DRAIN : 0);
+}
+
+function sourceOf(entity: Prototype): (Record<string, unknown> & { type?: string }) | undefined {
+  return entity.energy_source as (Record<string, unknown> & { type?: string }) | undefined;
+}
+
+/** The burner a building burns fuel in: its energy source, or a burner of its own beside it (fusion reactors). */
+function burnerOf(entity: Prototype): Record<string, unknown> | undefined {
+  const burner = entity.burner as Record<string, unknown> | undefined;
+  if (burner?.type === "burner") return burner;
+  const source = sourceOf(entity);
+  return source?.type === "burner" ? source : undefined;
+}
+
+/** A reactor's bonus per neighbour: 100 % unless the prototype says otherwise (the heating tower's 0). */
+function neighbourBonus(entity: Prototype): number {
+  if (entity.type !== "reactor" && entity.type !== "fusion-reactor") return 0;
+  return number(entity.neighbour_bonus) ?? 1;
+}
+
+function maxNeighbours(entity: Prototype): number {
+  return MAX_NEIGHBOURS[entity.type as string] ?? 0;
+}
+
+function fluidBox(value: unknown): Amount & { filter?: string } {
+  const box = (value ?? {}) as { filter?: unknown; minimum_temperature?: unknown; maximum_temperature?: unknown };
+  return {
+    name: "",
+    ...(typeof box.filter === "string" && { filter: box.filter }),
+    ...(typeof box.minimum_temperature === "number" && { minimum_temperature: box.minimum_temperature }),
+    ...(typeof box.maximum_temperature === "number" && { maximum_temperature: box.maximum_temperature }),
+  };
+}
+
+function cleaned(amounts: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(Object.entries(amounts).map(([id, amount]) => [id, clean(amount)]));
 }
 
 function speedOf(entity: Prototype): number {
@@ -398,10 +741,10 @@ function iconPaths(prototype: Prototype): string[] {
   );
 }
 
-/** "75kW" → 75000. Energy per tick or per second alike: the dump writes power with W. */
-function watts(value: unknown): number | undefined {
-  const match = typeof value === "string" ? /^([\d.]+(?:e[+-]?\d+)?)\s*([kMGTP]?)W$/.exec(value) : null;
-  if (!match) return undefined;
+/** "75kW" → 75000 in W, "4MJ" → 4000000 in J: the dump writes power with W and energy with J. */
+function energy(value: unknown, unit: "W" | "J"): number | undefined {
+  const match = typeof value === "string" ? /^([\d.]+(?:e[+-]?\d+)?)\s*([kMGTP]?)([WJ])$/.exec(value) : null;
+  if (!match || match[3] !== unit) return undefined;
   const prefixes: Record<string, number> = { "": 1, k: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15 };
   return Number(match[1]) * (prefixes[match[2] as string] ?? 1);
 }

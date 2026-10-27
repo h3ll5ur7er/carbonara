@@ -19,7 +19,7 @@ recipes:
     buildings: [chemical-plant, cryogenic-plant]
     time: 0.5
     in: { calcite: 1, sulfuric-acid: 100 }
-    out: { steam: 1000 }
+    out: { steam@500: 1000 }
     tags: [space-age]
   - id: active-provider-chest
     name: Active provider chest
@@ -518,6 +518,13 @@ recipes:
     in: { boiler: 1 }
     out: { stone-furnace: 0.25, pipe: 1 }
     tags: [recycler, recycling]
+  - id: boiler-steam
+    name: Steam (Boiler)
+    buildings: [boiler]
+    time: 1
+    in: { water: 6 }
+    out: { steam@165: 60 }
+    tags: [power, no-quality]
   - id: buffer-chest
     name: Buffer chest
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3]
@@ -857,11 +864,18 @@ recipes:
     in: { cluster-grenade: 1 }
     out: { grenade: 1.75, explosives: 1.25, steel-plate: 1.25 }
     tags: [recycler, recycling]
-  - id: coal-liquefaction
-    name: Coal liquefaction
+  - id: coal-liquefaction@165
+    name: Coal liquefaction (Steam 165 °C)
     buildings: [oil-refinery]
     time: 5
-    in: { coal: 10, heavy-oil: 25, steam: 50 }
+    in: { coal: 10, heavy-oil: 25, steam@165: 50 }
+    out: { heavy-oil: 90, light-oil: 20, petroleum-gas: 10 }
+    tags: [productivity, ignored-by-productivity:heavy-oil=25]
+  - id: coal-liquefaction@500
+    name: Coal liquefaction (Steam 500 °C)
+    buildings: [oil-refinery]
+    time: 5
+    in: { coal: 10, heavy-oil: 25, steam@500: 50 }
     out: { heavy-oil: 90, light-oil: 20, petroleum-gas: 10 }
     tags: [productivity, ignored-by-productivity:heavy-oil=25]
   - id: coal-recycling
@@ -1706,6 +1720,13 @@ recipes:
     in: { tungsten-plate: 100, superconductor: 100, quantum-processor: 50 }
     out: { fusion-generator: 1 }
     tags: [space-age]
+  - id: fusion-generator-electricity
+    name: Electricity (Fusion generator)
+    buildings: [fusion-generator]
+    time: 1
+    in: { fusion-plasma@1000000: 2 }
+    out: { electricity: 50, fluoroketone-hot: 2 }
+    tags: [space-age, power, no-quality]
   - id: fusion-generator-recycling
     name: Fusion generator recycling
     buildings: [recycler]
@@ -1760,6 +1781,13 @@ recipes:
       supercapacitor: 6.25
       quantum-processor: 62.5
     tags: [recycler, space-age, recycling]
+  - id: fusion-reactor-plasma
+    name: Plasma (Fusion reactor)
+    buildings: [fusion-reactor]
+    time: 1
+    in: { fluoroketone-cold: 4 }
+    out: { fusion-plasma@1000000: 4 }
+    tags: [space-age, power, no-quality]
   - id: fusion-reactor-recycling
     name: Fusion reactor recycling
     buildings: [recycler]
@@ -1832,6 +1860,13 @@ recipes:
     in: { heat-exchanger: 1 }
     out: { steel-plate: 2.5, copper-plate: 25, pipe: 2.5 }
     tags: [recycler, recycling]
+  - id: heat-exchanger-steam
+    name: Steam (Heat exchanger)
+    buildings: [heat-exchanger]
+    time: 1
+    in: { water: 10.3092783505, heat: 10 }
+    out: { steam@500: 103.092783505 }
+    tags: [power, no-quality]
   - id: heat-pipe
     name: Heat pipe
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3]
@@ -1852,6 +1887,13 @@ recipes:
     in: { boiler: 2, heat-pipe: 5, concrete: 20 }
     out: { heating-tower: 1 }
     tags: [space-age]
+  - id: heating-tower-heat
+    name: Heat (Heating tower)
+    buildings: [heating-tower]
+    time: 1
+    in: {}
+    out: { heat: 40 }
+    tags: [space-age, power, no-quality]
   - id: heating-tower-recycling
     name: Heating tower recycling
     buildings: [recycler]
@@ -2474,6 +2516,13 @@ recipes:
     time: 8
     in: { concrete: 500, steel-plate: 500, advanced-circuit: 500, copper-plate: 500 }
     out: { nuclear-reactor: 1 }
+  - id: nuclear-reactor-heat
+    name: Heat (Nuclear reactor)
+    buildings: [nuclear-reactor]
+    time: 1
+    in: {}
+    out: { heat: 40 }
+    tags: [power, no-quality]
   - id: nuclear-reactor-recycling
     name: Nuclear reactor recycling
     buildings: [recycler]
@@ -3588,11 +3637,18 @@ recipes:
     in: { stack-inserter: 1 }
     out: { bulk-inserter: 0.25, processing-unit: 0.25, carbon-fiber: 0.5, jelly: 2.5 }
     tags: [recycler, space-age, recycling]
-  - id: steam-condensation
-    name: Steam condensation
+  - id: steam-condensation@165
+    name: Steam condensation (Steam 165 °C)
     buildings: [chemical-plant, cryogenic-plant]
     time: 1
-    in: { steam: 1000 }
+    in: { steam@165: 1000 }
+    out: { water: 90 }
+    tags: [space-age, no-quality]
+  - id: steam-condensation@500
+    name: Steam condensation (Steam 500 °C)
+    buildings: [chemical-plant, cryogenic-plant]
+    time: 1
+    in: { steam@500: 1000 }
     out: { water: 90 }
     tags: [space-age, no-quality]
   - id: steam-engine
@@ -3601,6 +3657,20 @@ recipes:
     time: 0.5
     in: { iron-gear-wheel: 8, pipe: 5, iron-plate: 10 }
     out: { steam-engine: 1 }
+  - id: steam-engine-electricity@165
+    name: Electricity (Steam engine, Steam 165 °C)
+    buildings: [steam-engine]
+    time: 1
+    in: { steam@165: 30 }
+    out: { electricity: 0.9 }
+    tags: [power, no-quality]
+  - id: steam-engine-electricity@500
+    name: Electricity (Steam engine, Steam 500 °C)
+    buildings: [steam-engine]
+    time: 1
+    in: { steam@500: 30 }
+    out: { electricity: 0.9 }
+    tags: [power, no-quality]
   - id: steam-engine-recycling
     name: Steam engine recycling
     buildings: [recycler]
@@ -3614,6 +3684,20 @@ recipes:
     time: 3
     in: { iron-gear-wheel: 50, copper-plate: 50, pipe: 20 }
     out: { steam-turbine: 1 }
+  - id: steam-turbine-electricity@165
+    name: Electricity (Steam turbine, Steam 165 °C)
+    buildings: [steam-turbine]
+    time: 1
+    in: { steam@165: 60 }
+    out: { electricity: 1.8 }
+    tags: [power, no-quality]
+  - id: steam-turbine-electricity@500
+    name: Electricity (Steam turbine, Steam 500 °C)
+    buildings: [steam-turbine]
+    time: 1
+    in: { steam@500: 60 }
+    out: { electricity: 5.82 }
+    tags: [power, no-quality]
   - id: steam-turbine-recycling
     name: Steam turbine recycling
     buildings: [recycler]

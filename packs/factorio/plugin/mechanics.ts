@@ -1,9 +1,10 @@
 // Factorio's production mechanics as plugin hooks: modules and beacons in a node's machines, built-in productivity,
-// the quality a node crafts at, the Space Age setting, and power. Hides how a node's settings become its rates and
+// the quality a node crafts at, the Space Age setting, power use, the fuel burner buildings burn, and power
+// generation (the neighbour bonus of reactors, plasma temperatures). Hides how a node's settings become its rates and
 // metrics; the game's numbers are in effects.ts. Reads what the importer keeps in the pack data: building fields
-// `modules`, `base-effect`, `energy` and `mod`, and recipe tags (`productivity`, `ignored-by-productivity:<item>=<n>`,
-// `no-quality`, and the expansion mods). Tested against reference factories in
-// tools/pack-cli/factorio.mechanics.test.ts.
+// `modules`, `base-effect`, `energy`, `fuels`, `burnt`, `reactor`, `generator` and `mod`, and recipe tags
+// (`productivity`, `ignored-by-productivity:<item>=<n>`, `no-quality`, and the expansion mods). Tested against
+// reference factories in tools/pack-cli/factorio.mechanics.test.ts.
 import type { Building, PackData, Recipe } from "../../../src/contracts/pack";
 import type {
   EffectiveRecipe,
@@ -26,6 +27,7 @@ import {
   type Modules,
   type Tier,
 } from "./effects";
+import { atTemperature, ELECTRICITY, temperatureOf } from "./energy";
 
 /** Recipe tags of the expansion's mods; without Space Age, recipes carrying one aren't available. */
 const EXPANSION_TAGS = ["space-age", "quality", "recycler", "elevated-rails"];
@@ -39,8 +41,9 @@ const moduleField = (kind: ModuleKind) => `${kind}Modules`;
 const beaconField = (kind: ModuleKind) => `beacon${kind.charAt(0).toUpperCase()}${kind.slice(1)}Modules`;
 const label = (kind: ModuleKind) => `${kind.charAt(0).toUpperCase()}${kind.slice(1)} modules`;
 
-export function nodeFields(building: Building): Record<string, FieldDescriptor> {
+export function nodeFields(building: Building, { pack }: PluginContext): Record<string, FieldDescriptor> {
   const quality: Record<string, FieldDescriptor> = {
+    ...energyFields(building, pack),
     quality: { kind: "choice", label: "Quality", options: [...QUALITIES], default: "normal" },
   };
   const slots = slotsOf(building);
@@ -78,10 +81,39 @@ export function settingsFields(): Record<string, FieldDescriptor> {
   return { spaceAge: { kind: "toggle", label: "Space Age", default: true } };
 }
 
+/**
+ * What a node burns, makes and takes beyond its modules: the fuel of a burner (its first fuel, coal where it takes
+ * coal, by default), a reactor's neighbours, and the plasma temperature a fusion generator takes.
+ */
+function energyFields(building: Building, pack: PackData): Record<string, FieldDescriptor> {
+  const fields: Record<string, FieldDescriptor> = {};
+  const fuels = Object.keys(fuelsOf(building));
+  if (fuels.length > 0) fields.fuel = { kind: "choice", label: "Fuel", options: fuels, default: fuels[0] as string };
+  const reactor = reactorOf(building);
+  if (reactor) {
+    fields.neighbours = {
+      kind: "number",
+      label: "Neighbours per reactor",
+      min: 0,
+      max: reactor.neighbours,
+      // Plasma comes in whole degrees of heat per neighbour; heat adds up, so an array's average does.
+      ...(reactor.boosts === "temperature" && { step: 1 }),
+      default: 0,
+    };
+  }
+  const fluid = generatorFluidOf(building);
+  if (fluid !== undefined) {
+    const options = temperaturesOf(pack, fluid).map(String);
+    if (options.length > 0) {
+      fields.plasma = { kind: "choice", label: "Plasma temperature (°C)", options, default: options[0] as string };
+    }
+  }
+  return fields;
+}
+
 export const metrics = {
   power: { label: "Power use", unit: "MW" },
   beaconPower: { label: "Beacon power", unit: "MW" },
-  fuel: { label: "Fuel burnt", unit: "MW" },
 };
 
 /** Without Space Age, recipes from the expansion's mods aren't available. */
@@ -99,6 +131,10 @@ export function validate(node: NodeContext, { settings }: PluginContext): Plugin
   if (settings.spaceAge === false) {
     if (node.building.fields?.mod) problems.push(`${node.building.name} needs Space Age`);
     if (usesQuality) problems.push("Quality needs Space Age");
+  }
+  const neighbours = Number(node.fields.neighbours ?? 0);
+  if (reactorOf(node.building)?.boosts === "temperature" && !Number.isInteger(neighbours)) {
+    problems.push(`A fusion reactor has whole neighbours; counting ${Math.floor(neighbours)}, not ${neighbours}`);
   }
   return problems.map(warning);
 }
@@ -126,20 +162,90 @@ export function effectiveRecipe(node: NodeContext, { pack }: PluginContext): Eff
       if (share > 0) out[variant(item, at)] = (out[variant(item, at)] ?? 0) + made * share;
     });
   }
-  return { time: recipe.time / (1 + effects.speed), in: inputs, out };
+  const time = recipe.time / (1 + effects.speed);
+  boostByNeighbours(node, out);
+  takeHotterPlasma(node, inputs, out);
+  burnFuel(node, time, effects, inputs, out);
+  return { time, in: inputs, out };
+}
+
+/**
+ * A reactor makes 100 % more for each neighbour (the prototype's `neighbour_bonus`) and burns no more for it: more
+ * heat from a nuclear reactor, hotter plasma from a fusion reactor (whole neighbours only, as plasma comes in
+ * whole steps of its temperature).
+ */
+function boostByNeighbours(node: NodeContext, out: Record<string, number>): void {
+  const reactor = reactorOf(node.building);
+  if (!reactor) return;
+  const neighbours = Number(node.fields.neighbours ?? 0);
+  if (reactor.boosts === "heat") {
+    for (const item of Object.keys(out)) out[item] = (out[item] as number) * (1 + reactor.bonus * neighbours);
+    return;
+  }
+  for (const item of Object.keys(out)) {
+    const made = temperatureOf(item);
+    if (!made) continue;
+    const hotter = atTemperature(made.fluid, made.temperature * (1 + reactor.bonus * Math.floor(neighbours)));
+    const amount = out[item] as number;
+    Reflect.deleteProperty(out, item);
+    out[hotter] = amount;
+  }
+}
+
+/**
+ * A fusion generator makes as much power from hotter plasma, so it takes less of it, and gives back as much hot
+ * coolant as it takes plasma.
+ */
+function takeHotterPlasma(node: NodeContext, inputs: Record<string, number>, out: Record<string, number>): void {
+  const fluid = generatorFluidOf(node.building);
+  const chosen = Number(node.fields.plasma);
+  if (fluid === undefined || !Number.isFinite(chosen) || chosen <= 0) return;
+  for (const item of Object.keys(inputs)) {
+    const taken = temperatureOf(item);
+    if (taken?.fluid !== fluid || taken.temperature === chosen) continue;
+    const share = taken.temperature / chosen;
+    const amount = inputs[item] as number;
+    Reflect.deleteProperty(inputs, item);
+    inputs[atTemperature(fluid, chosen)] = amount * share;
+    for (const made of Object.keys(out)) if (made !== ELECTRICITY) out[made] = (out[made] as number) * share;
+  }
+}
+
+/**
+ * A burner building burns its usage, with its consumption effect, for as long as a craft takes: that much of the
+ * node's fuel (by its energy, through the burner's effectivity) goes in, and what it burns into comes out.
+ */
+function burnFuel(
+  node: NodeContext,
+  time: number,
+  effects: Effects,
+  inputs: Record<string, number>,
+  out: Record<string, number>,
+): void {
+  const { building, fields } = node;
+  const energy = building.fields?.energy;
+  const fuels = fuelsOf(building);
+  const fuel = String(fields.fuel ?? Object.keys(fuels)[0] ?? "");
+  const value = Object.hasOwn(fuels, fuel) ? Number(fuels[fuel]) : 0;
+  if (energy?.source !== "burner" || value <= 0) return;
+  const megajoules =
+    (Number(energy.usage ?? 0) * (time / building.speed) * (1 + effects.consumption)) / effectivityOf(building);
+  const burnt = megajoules / value;
+  inputs[fuel] = (Object.hasOwn(inputs, fuel) ? (inputs[fuel] as number) : 0) + burnt;
+  const ash = building.fields?.burnt?.[fuel];
+  if (typeof ash === "string") out[ash] = (Object.hasOwn(out, ash) ? (out[ash] as number) : 0) + burnt;
 }
 
 /**
  * Power in MW. Working machines draw their energy usage with the consumption effect; every machine built draws its
- * drain, idle or not, and so do the beacons around them. Burner buildings burn fuel instead.
+ * drain, idle or not, and so do the beacons around them. Buildings that draw no electricity (burners, generators)
+ * have no power metric: what burners burn is an input of their recipe.
  */
 export function derive(node: NodeContext & { machines: number }): Record<string, number> {
   const { building, machines, fields } = node;
-  const energy = building.fields?.energy;
-  const drain = Number(energy?.drain ?? 0);
-  const working = machines * ((building.power?.consume ?? 0) - drain) * (1 + effectsOf(node).consumption);
-  if (energy?.source === "burner") return { fuel: working };
-  if (energy?.source !== undefined) return {};
+  if (building.power?.consume === undefined) return {};
+  const drain = Number(building.fields?.energy?.drain ?? 0);
+  const working = machines * (building.power.consume - drain) * (1 + effectsOf(node).consumption);
   const built = Math.abs(machines - Math.round(machines)) < 1e-9 ? Math.round(machines) : Math.ceil(machines);
   const beacons = slotsOf(building) > 0 ? Number(fields.beacons ?? 0) : 0;
   const perBeacon = Number(fields.machinesPerBeacon ?? 1);
@@ -205,6 +311,46 @@ function fill(modules: Modules, slots: number, overflow: (left: number, total: n
     free -= fitted[kind];
   }
   return fitted;
+}
+
+/** The fuels a burner building takes, with their energy in MJ; the first is the default. */
+function fuelsOf(building: Building): Record<string, number | string | boolean> {
+  return building.fields?.fuels ?? {};
+}
+
+function effectivityOf(building: Building): number {
+  const effectivity = Number(building.fields?.energy?.effectivity ?? 1);
+  return effectivity > 0 ? effectivity : 1;
+}
+
+/** A reactor's neighbour bonus: per neighbour, at most how many, and whether it makes more heat or hotter plasma. */
+function reactorOf(
+  building: Building,
+): { bonus: number; neighbours: number; boosts: "heat" | "temperature" } | undefined {
+  const reactor = building.fields?.reactor;
+  const bonus = Number(reactor?.["neighbour-bonus"] ?? 0);
+  if (!reactor || !(bonus > 0)) return undefined;
+  return {
+    bonus,
+    neighbours: Number(reactor.neighbours ?? 0),
+    boosts: reactor.boosts === "temperature" ? "temperature" : "heat",
+  };
+}
+
+/** The fluid a fusion generator takes at any of its temperatures. */
+function generatorFluidOf(building: Building): string | undefined {
+  const fluid = building.fields?.generator?.fluid;
+  return typeof fluid === "string" ? fluid : undefined;
+}
+
+/** The temperatures a fluid comes at in the pack, from its variants (`fusion-plasma@2000000`), coolest first. */
+function temperaturesOf(pack: PackData, fluid: string): number[] {
+  return pack.items
+    .flatMap((item) => {
+      const variant = temperatureOf(item.id);
+      return variant?.fluid === fluid ? [variant.temperature] : [];
+    })
+    .sort((a, b) => a - b);
 }
 
 function slotsOf(building: Building): number {

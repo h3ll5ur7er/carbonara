@@ -8,7 +8,18 @@ import type { ManagerImplementation, PlanOptions, PlanTarget, Proposal } from ".
 import type { Id } from "../contracts/pack";
 import { fail, ok, type Result } from "../contracts/result";
 import { runtimeOf } from "../engines/compiler";
-import { buildSuperstructure, propose, rank, rivals, weigh } from "../engines/planning";
+import {
+  allowedRecipes,
+  buildSuperstructure,
+  probeDocument,
+  propose,
+  rank,
+  ratesOf,
+  type RecipeRates,
+  rivals,
+  runningOnce,
+  weigh,
+} from "../engines/planning";
 import { solve } from "../engines/solver";
 
 export interface PlanningDependencies {
@@ -31,10 +42,18 @@ export function createPlanningManager({ documents, packs }: PlanningDependencies
     return ok({ document: open.document, version: open.version, pack });
   }
 
+  /** The candidates as nodes run them: the plugin may add inputs and outputs (fuel) the pack's recipes don't list. */
+  async function asRun({ document, version, pack }: Context, options: PlanOptions) {
+    const candidates = allowedRecipes(pack.data, pack.plugin, document, options);
+    const probe = await runtimeOf(pack).compile(probeDocument(document, candidates));
+    return ratesOf(await probe.results(ok(runningOnce(probe.model)), version), candidates);
+  }
+
   async function plan(
     { document, version, pack }: Context,
     targets: PlanTarget[],
     options: PlanOptions,
+    rates: ReadonlyMap<Id, RecipeRates>,
     via?: Id,
   ): Promise<Result<Proposal>> {
     const built = buildSuperstructure({
@@ -45,6 +64,7 @@ export function createPlanningManager({ documents, packs }: PlanningDependencies
       targets,
       options,
       ...(via !== undefined && { via }),
+      rates,
     });
     if (!built.ok) return built;
     const compiled = await runtimeOf(pack).compile(built.value.document);
@@ -58,15 +78,16 @@ export function createPlanningManager({ documents, packs }: PlanningDependencies
     async planProduction({ documentId, targets, options }) {
       const found = await context(documentId);
       if (!found.ok) return found;
-      return plan(found.value, targets, options);
+      return plan(found.value, targets, options, await asRun(found.value, options));
     },
     async compareRecipes({ documentId, item, perSecond, options }) {
       const found = await context(documentId);
       if (!found.ok) return found;
       const { document, pack } = found.value;
       const comparisons = [];
+      const rates = await asRun(found.value, options);
       for (const recipe of rivals(pack.data, pack.plugin, document, options, item)) {
-        const planned = await plan(found.value, [{ item, perSecond }], options, recipe);
+        const planned = await plan(found.value, [{ item, perSecond }], options, rates, recipe);
         if (!planned.ok) return planned;
         comparisons.push({ recipe, summary: planned.value.summary });
       }

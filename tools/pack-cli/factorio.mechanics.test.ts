@@ -17,7 +17,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import type { Document, Node } from "../../src/contracts/document";
+import type { Document, Edge, Node } from "../../src/contracts/document";
 import { localRuntime } from "../../src/engines/compiler";
 import { readPackFiles } from "../../src/engines/packs/files";
 import { loadSolver, solve } from "../../src/engines/solver";
@@ -35,6 +35,12 @@ const pack = read.value.data;
 const runtime = localRuntime(pack, plugin);
 
 type RecipeNode = Extract<Node, { kind: "recipe" }>;
+
+function building(id: string) {
+  const found = pack.buildings.find((entry) => entry.id === id);
+  if (!found) throw new Error(id);
+  return found;
+}
 
 /** Solves a factory of recipe nodes, each pinned to a machine count; rates come back per second. */
 async function factory(nodes: Record<string, RecipeNode>, settings: Record<string, unknown> = {}) {
@@ -97,14 +103,33 @@ describe("machines without modules", () => {
     expect(run.node("gears").derived).toEqual({ power: close(0.975) });
   });
 
-  it("burn fuel in burner buildings instead of drawing power: a Stone furnace burns 90 kW", async () => {
+  it("burn fuel in burner buildings instead of drawing power: a Stone furnace burns 90 kW of coal", async () => {
     const run = await factory({ plates: recipeNode("iron-plate", "stone-furnace", {}, 2.5) });
+    // 2.5 × 90 kW = 225 kW: 0.05625 coal (4 MJ) a second.
     expect(run.node("plates")).toEqual({
       machines: close(2.5),
-      in: { "iron-ore": close(0.78125) },
+      in: { "iron-ore": close(0.78125), coal: close(0.05625) },
       out: { "iron-plate": close(0.78125) },
-      derived: { fuel: close(0.225) },
+      derived: {},
     });
+  });
+
+  it("burn the fuel a node picks: wood (2 MJ) twice as fast as coal, nutrients in a Biochamber", async () => {
+    const run = await factory({
+      plates: recipeNode("iron-plate", "stone-furnace", { fuel: "wood" }),
+      mash: recipeNode("yumako-processing", "biochamber"),
+    });
+    expect(run.node("plates").in).toEqual({ "iron-ore": close(0.3125), wood: close(0.045) });
+    // 500 kW of nutrients (2 MJ).
+    expect(run.node("mash").in).toMatchObject({ nutrients: close(0.25) });
+  });
+
+  it("burn more fuel with the consumption effects of their modules", async () => {
+    const run = await factory({
+      mash: recipeNode("yumako-processing", "biochamber", { speedModules: 4, moduleTier: "3" }),
+    });
+    // Consumption +280 %: 1.9 MW of nutrients.
+    expect(run.node("mash").in).toMatchObject({ nutrients: close(0.95) });
   });
 });
 
@@ -430,6 +455,193 @@ describe("quality", () => {
   });
 });
 
+describe("power generation", () => {
+  // Rules, from the Lua prototypes of 2.1.14 and the Factorio wiki (Boiler, Steam engine, Steam turbine, Heat
+  // exchanger, Nuclear reactor, Heating tower, Fusion reactor, Fusion generator; read 2026-10-27):
+  // - A boiler burns 1.8 MW of fuel to heat 60 steam a second to 165 °C, from 6 water; a steam engine takes 30
+  //   steam a second and makes 900 kW, a steam turbine 60 and 5.82 MW at 500 °C (1.8 MW at 165 °C).
+  // - A heat exchanger turns 10 MW of heat into 103.09 steam at 500 °C. A nuclear reactor makes 40 MW of heat from a
+  //   uranium fuel cell every 200 s, plus 100 % for each fuelled neighbour; a heating tower 40 MW from 16 MW of fuel.
+  // - A fusion reactor makes 100 MW of plasma (4 a second at 1,000,000 °C) from a fusion power cell every 400 s and
+  //   4 cold fluoroketone, drawing 10 MW; each neighbour adds 1,000,000 °C. A fusion generator makes 50 MW from 2
+  //   plasma a second at 1,000,000 °C (1 at 2,000,000 °C), giving back as much hot fluoroketone.
+
+  /** Solves a document: what's pinned is pinned, the rest follows the flows. */
+  async function plant(nodes: Record<string, Node>, edges: Record<string, Edge>) {
+    const document: Document = {
+      format: "carbonara",
+      version: 1,
+      id: "plant",
+      name: "Power plant",
+      pack: { id: "factorio", version: "1.0.0", hash: "h" },
+      graph: { nodes, edges },
+      blueprints: {},
+      layout: {},
+      settings: {},
+    };
+    const compiled = await runtime.compile(document);
+    const results = await compiled.results(await solve(compiled.model), 1);
+    const problems = results.diagnostics.filter((diagnostic) => diagnostic.kind !== "surplus");
+    expect(problems).toEqual([]);
+    return (id: string) => results.nodes[id];
+  }
+  const flow = (from: string, to: string, item: string): Edge => ({ from, to, item });
+  const source = (item: string): Node => ({ kind: "source", item });
+  const sink = (item: string, targetPerSecond?: number): Node => ({
+    kind: "sink",
+    item,
+    ...(targetPerSecond !== undefined && { targetPerSecond }),
+  });
+  const recipe = (id: string, fields: RecipeNode["fields"] = {}): RecipeNode => ({
+    kind: "recipe",
+    recipe: id,
+    fields,
+  });
+
+  it("feeds two steam engines from one boiler: 1.8 MW from 0.45 coal and 6 water a second", async () => {
+    const node = await plant(
+      {
+        water: source("water"),
+        coal: source("coal"),
+        boiler: recipe("boiler-steam"),
+        engines: recipe("steam-engine-electricity@165"),
+        grid: sink("electricity", 1.8),
+      },
+      {
+        a: flow("water", "boiler", "water"),
+        b: flow("coal", "boiler", "coal"),
+        c: flow("boiler", "engines", "steam@165"),
+        d: flow("engines", "grid", "electricity"),
+      },
+    );
+    expect(node("boiler")?.activity).toBeCloseTo(1, 9);
+    expect(node("engines")?.activity).toBeCloseTo(2, 9);
+    expect(node("boiler")?.inputs).toEqual({ water: close(6), coal: close(0.45) });
+    expect(node("boiler")?.outputs).toEqual({ "steam@165": close(60) });
+  });
+
+  it("makes 1.8 MW in a steam turbine from boiler steam, and 900 kW in an engine from hotter steam", async () => {
+    const run = await factory({
+      turbine: recipeNode("steam-turbine-electricity@165", "steam-turbine"),
+      engine: recipeNode("steam-engine-electricity@500", "steam-engine"),
+    });
+    expect(run.node("turbine")).toMatchObject({ in: { "steam@165": close(60) }, out: { electricity: close(1.8) } });
+    expect(run.node("engine")).toMatchObject({ in: { "steam@500": close(30) }, out: { electricity: close(0.9) } });
+  });
+
+  it("gets 480 MW out of a 2×2 reactor array: 48 heat exchangers and 82.5 turbines", async () => {
+    const node = await plant(
+      {
+        cells: source("uranium-fuel-cell"),
+        water: source("water"),
+        // Each reactor of a 2×2 array has two neighbours: 3 × 40 MW.
+        reactors: { ...recipe("nuclear-reactor-heat", { neighbours: 2 }), pin: machines(4) },
+        exchangers: recipe("heat-exchanger-steam"),
+        turbines: recipe("steam-turbine-electricity@500"),
+        grid: sink("electricity", 480),
+        spent: sink("depleted-uranium-fuel-cell"),
+      },
+      {
+        a: flow("cells", "reactors", "uranium-fuel-cell"),
+        b: flow("reactors", "exchangers", "heat"),
+        c: flow("water", "exchangers", "water"),
+        d: flow("exchangers", "turbines", "steam@500"),
+        e: flow("turbines", "grid", "electricity"),
+        f: flow("reactors", "spent", "depleted-uranium-fuel-cell"),
+      },
+    );
+    // The bonus is free: four cells every 200 s, whatever the neighbours.
+    expect(node("reactors")?.inputs).toEqual({ "uranium-fuel-cell": close(0.02) });
+    expect(node("reactors")?.outputs).toEqual({ heat: close(480), "depleted-uranium-fuel-cell": close(0.02) });
+    expect(node("exchangers")?.activity).toBeCloseTo(48, 6);
+    expect(node("turbines")?.activity).toBeCloseTo(480 / 5.82, 6);
+    expect(node("grid")?.inputs).toEqual({ electricity: close(480) });
+  });
+
+  it("makes 40 MW of heat in a heating tower from 4 coal a second, and gives it no neighbour bonus", async () => {
+    const run = await factory({ tower: recipeNode("heating-tower-heat", "heating-tower") });
+    expect(run.node("tower")).toMatchObject({ in: { coal: close(4) }, out: { heat: close(40) } });
+    expect(plugin.nodeFields?.(building("heating-tower"), { pack, settings: {} })).not.toHaveProperty("neighbours");
+  });
+
+  it("feeds two fusion generators from one fusion reactor: 100 MW, its coolant going round", async () => {
+    const node = await plant(
+      {
+        cells: source("fusion-power-cell"),
+        coolant: source("fluoroketone-cold"),
+        reactor: { ...recipe("fusion-reactor-plasma"), pin: machines(1) },
+        generators: recipe("fusion-generator-electricity"),
+        grid: sink("electricity"),
+        hot: sink("fluoroketone-hot"),
+      },
+      {
+        a: flow("cells", "reactor", "fusion-power-cell"),
+        b: flow("coolant", "reactor", "fluoroketone-cold"),
+        c: flow("reactor", "generators", "fusion-plasma@1000000"),
+        d: flow("generators", "grid", "electricity"),
+        e: flow("generators", "hot", "fluoroketone-hot"),
+      },
+    );
+    expect(node("reactor")?.inputs).toEqual({ "fluoroketone-cold": close(4), "fusion-power-cell": close(0.0025) });
+    expect(node("reactor")?.derived).toEqual({ power: close(10) });
+    expect(node("generators")?.activity).toBeCloseTo(2, 9);
+    expect(node("grid")?.inputs).toEqual({ electricity: close(100) });
+    expect(node("hot")?.inputs).toEqual({ "fluoroketone-hot": close(4) });
+  });
+
+  it("makes plasma twice as hot with a neighbour: two linked reactors feed eight generators, 400 MW", async () => {
+    const node = await plant(
+      {
+        cells: source("fusion-power-cell"),
+        coolant: source("fluoroketone-cold"),
+        reactors: { ...recipe("fusion-reactor-plasma", { neighbours: 1 }), pin: machines(2) },
+        generators: recipe("fusion-generator-electricity", { plasma: "2000000" }),
+        grid: sink("electricity"),
+        hot: sink("fluoroketone-hot"),
+      },
+      {
+        a: flow("cells", "reactors", "fusion-power-cell"),
+        b: flow("coolant", "reactors", "fluoroketone-cold"),
+        c: flow("reactors", "generators", "fusion-plasma@2000000"),
+        d: flow("generators", "grid", "electricity"),
+        e: flow("generators", "hot", "fluoroketone-hot"),
+      },
+    );
+    expect(node("reactors")?.outputs).toEqual({ "fusion-plasma@2000000": close(8) });
+    expect(node("generators")?.activity).toBeCloseTo(8, 9);
+    expect(node("grid")?.inputs).toEqual({ electricity: close(400) });
+    // As much coolant comes back as went in.
+    expect(node("hot")?.inputs).toEqual({ "fluoroketone-hot": close(8) });
+  });
+
+  it("offers fuels, neighbours and the plasma temperature as node fields", () => {
+    const fieldsOf = (id: string) => plugin.nodeFields?.(building(id), { pack, settings: {} }) ?? {};
+    expect(fieldsOf("nuclear-reactor")).toMatchObject({
+      fuel: { kind: "choice", label: "Fuel", options: ["uranium-fuel-cell"], default: "uranium-fuel-cell" },
+      neighbours: { kind: "number", label: "Neighbours per reactor", min: 0, max: 4, default: 0 },
+    });
+    expect(fieldsOf("fusion-reactor")).toMatchObject({
+      neighbours: { kind: "number", label: "Neighbours per reactor", min: 0, max: 8, step: 1, default: 0 },
+    });
+    expect(fieldsOf("fusion-generator")).toMatchObject({
+      plasma: {
+        kind: "choice",
+        label: "Plasma temperature (°C)",
+        options: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((millions) => `${millions}000000`),
+        default: "1000000",
+      },
+    });
+  });
+
+  it("rounds a fusion reactor's neighbours to whole ones, and says so", async () => {
+    const run = await factory({ reactor: recipeNode("fusion-reactor-plasma", "fusion-reactor", { neighbours: 1.5 }) });
+    expect(run.node("reactor").out).toEqual({ "fusion-plasma@2000000": close(4) });
+    expect(run.problems).toEqual([
+      { kind: "warning", node: "reactor", message: "A fusion reactor has whole neighbours; counting 1, not 1.5" },
+    ]);
+  });
+});
+
 describe("the Space Age setting", () => {
   it("is on by default: expansion recipes and buildings plan without warnings", async () => {
     const run = await factory({
@@ -494,7 +706,15 @@ describe("plugin description", () => {
     expect(Object.keys(fields("recycler"))).not.toContain("productivityModules");
     expect(Object.keys(fields("oil-refinery"))).not.toContain("qualityModules");
     expect(fields("assembling-machine-1")).toEqual({ quality });
-    expect(fields("stone-furnace")).toEqual({ quality });
+    expect(fields("stone-furnace")).toEqual({
+      fuel: {
+        kind: "choice",
+        label: "Fuel",
+        options: expect.arrayContaining(["coal", "wood", "solid-fuel", "rocket-fuel", "nuclear-fuel"]),
+        default: "coal",
+      },
+      quality,
+    });
   });
 
   it("offers the Space Age setting and the power metrics", () => {
@@ -504,7 +724,6 @@ describe("plugin description", () => {
     expect(plugin.metrics).toEqual({
       power: { label: "Power use", unit: "MW" },
       beaconPower: { label: "Beacon power", unit: "MW" },
-      fuel: { label: "Fuel burnt", unit: "MW" },
     });
   });
 });

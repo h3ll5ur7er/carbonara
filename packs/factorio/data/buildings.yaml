@@ -33,8 +33,28 @@ buildings:
     name: Stone furnace
     icon: icons/stone-furnace.webp
     speed: 1
-    power: { consume: 0.09 }
-    fields: { energy: { source: burner, fuel: chemical } }
+    fields:
+      energy:
+        source: burner
+        fuel: chemical
+        usage: 0.09
+      fuels:
+        coal: 4
+        biter-egg: 6
+        carbon: 2
+        jelly: 1
+        jellynut: 10
+        jellynut-seed: 4
+        nuclear-fuel: 1210
+        pentapod-egg: 5
+        rocket-fuel: 100
+        solid-fuel: 12
+        spoilage: 0.25
+        tree-seed: 0.1
+        wood: 2
+        yumako: 2
+        yumako-mash: 1
+        yumako-seed: 4
   - id: oil-refinery
     name: Oil refinery
     icon: icons/oil-refinery.webp
@@ -78,8 +98,28 @@ buildings:
     name: Steel furnace
     icon: icons/steel-furnace.webp
     speed: 2
-    power: { consume: 0.09 }
-    fields: { energy: { source: burner, fuel: chemical } }
+    fields:
+      energy:
+        source: burner
+        fuel: chemical
+        usage: 0.09
+      fuels:
+        coal: 4
+        biter-egg: 6
+        carbon: 2
+        jelly: 1
+        jellynut: 10
+        jellynut-seed: 4
+        nuclear-fuel: 1210
+        pentapod-egg: 5
+        rocket-fuel: 100
+        solid-fuel: 12
+        spoilage: 0.25
+        tree-seed: 0.1
+        wood: 2
+        yumako: 2
+        yumako-mash: 1
+        yumako-seed: 4
   - id: electric-furnace
     name: Electric furnace
     icon: icons/electric-furnace.webp
@@ -121,13 +161,11 @@ buildings:
     name: Captive biter spawner
     icon: icons/captive-biter-spawner.webp
     speed: 1
-    power: { consume: 0.1 }
-    fields: { energy: { source: burner, fuel: food }, mod: { name: space-age } }
+    fields: { energy: { source: burner, fuel: food, usage: 0.1 }, mod: { name: space-age }, fuels: { bioflux: 6 } }
   - id: biochamber
     name: Biochamber
     icon: icons/biochamber.webp
     speed: 2
-    power: { consume: 0.5 }
     fields:
       modules:
         slots: 4
@@ -137,8 +175,11 @@ buildings:
       energy:
         source: burner
         fuel: nutrients
+        usage: 0.5
       mod:
         name: space-age
+      fuels:
+        nutrients: 2
   - id: electromagnetic-plant
     name: Electromagnetic plant
     icon: icons/electromagnetic-plant.webp
@@ -186,8 +227,28 @@ buildings:
     name: Burner mining drill
     icon: icons/burner-mining-drill.webp
     speed: 0.25
-    power: { consume: 0.15 }
-    fields: { energy: { source: burner, fuel: chemical } }
+    fields:
+      energy:
+        source: burner
+        fuel: chemical
+        usage: 0.15
+      fuels:
+        coal: 4
+        biter-egg: 6
+        carbon: 2
+        jelly: 1
+        jellynut: 10
+        jellynut-seed: 4
+        nuclear-fuel: 1210
+        pentapod-egg: 5
+        rocket-fuel: 100
+        solid-fuel: 12
+        spoilage: 0.25
+        tree-seed: 0.1
+        wood: 2
+        yumako: 2
+        yumako-mash: 1
+        yumako-seed: 4
   - id: electric-mining-drill
     name: Electric mining drill
     icon: icons/electric-mining-drill.webp
@@ -215,7 +276,6 @@ buildings:
     name: Offshore pump
     icon: icons/offshore-pump.webp
     speed: 1
-    power: { consume: 0.06 }
     fields: { energy: { source: void } }
   - id: agricultural-tower
     name: Agricultural tower
@@ -228,3 +288,107 @@ buildings:
     icon: icons/asteroid-collector.webp
     speed: 1
     fields: { mod: { name: space-age } }
+  - id: boiler
+    name: Boiler
+    icon: icons/boiler.webp
+    speed: 1
+    fields:
+      energy:
+        source: burner
+        fuel: chemical
+        usage: 1.8
+      fuels:
+        coal: 4
+        biter-egg: 6
+        carbon: 2
+        jelly: 1
+        jellynut: 10
+        jellynut-seed: 4
+        nuclear-fuel: 1210
+        pentapod-egg: 5
+        rocket-fuel: 100
+        solid-fuel: 12
+        spoilage: 0.25
+        tree-seed: 0.1
+        wood: 2
+        yumako: 2
+        yumako-mash: 1
+        yumako-seed: 4
+  - id: heat-exchanger
+    name: Heat exchanger
+    icon: icons/heat-exchanger.webp
+    speed: 1
+    fields: { energy: { source: heat } }
+  - id: nuclear-reactor
+    name: Nuclear reactor
+    icon: icons/nuclear-reactor.webp
+    speed: 1
+    fields:
+      energy:
+        source: burner
+        fuel: nuclear
+        usage: 40
+      fuels:
+        uranium-fuel-cell: 8000
+      burnt:
+        uranium-fuel-cell: depleted-uranium-fuel-cell
+      reactor:
+        neighbour-bonus: 1
+        neighbours: 4
+        boosts: heat
+  - id: heating-tower
+    name: Heating tower
+    icon: icons/heating-tower.webp
+    speed: 1
+    fields:
+      energy:
+        source: burner
+        fuel: chemical
+        effectivity: 2.5
+        usage: 40
+      mod:
+        name: space-age
+      fuels:
+        coal: 4
+        biter-egg: 6
+        carbon: 2
+        jelly: 1
+        jellynut: 10
+        jellynut-seed: 4
+        nuclear-fuel: 1210
+        pentapod-egg: 5
+        rocket-fuel: 100
+        solid-fuel: 12
+        spoilage: 0.25
+        tree-seed: 0.1
+        wood: 2
+        yumako: 2
+        yumako-mash: 1
+        yumako-seed: 4
+  - id: fusion-reactor
+    name: Fusion reactor
+    icon: icons/fusion-reactor.webp
+    speed: 1
+    power: { consume: 10 }
+    fields:
+      energy:
+        drain: 10
+        source: burner
+        fuel: fusion
+        usage: 100
+      mod:
+        name: space-age
+      fuels:
+        fusion-power-cell: 40000
+      reactor:
+        neighbour-bonus: 1
+        neighbours: 8
+        boosts: temperature
+  - { id: steam-engine, name: Steam engine, icon: icons/steam-engine.webp, speed: 1, power: { produce: 0.9 } }
+  - { id: steam-turbine, name: Steam turbine, icon: icons/steam-turbine.webp, speed: 1, power: { produce: 5.82 } }
+  - id: fusion-generator
+    name: Fusion generator
+    icon: icons/fusion-generator.webp
+    speed: 1
+    power: { produce: 50 }
+    fields: { mod: { name: space-age }, generator: { fluid: fusion-plasma } }
