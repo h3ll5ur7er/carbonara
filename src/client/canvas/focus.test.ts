@@ -78,6 +78,16 @@ describe("focusNodeWhenShown", () => {
     expect((document.activeElement as HTMLElement).dataset.id).toBe("input");
   });
 
+  it("gives way to a newer request, so two never fight over the focus", () => {
+    focusNodeWhenShown();
+    focusNodeWhenShown("instance");
+    addNode("first");
+    const instance = addNode("instance");
+    nextFrame();
+    nextFrame();
+    expect(document.activeElement).toBe(instance);
+  });
+
   it("finds ids that need escaping in a selector", () => {
     const node = addNode('a"b');
     focusNodeWhenShown('a"b');

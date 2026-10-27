@@ -8,15 +8,20 @@ const MAX_FRAMES = 120;
 /** Frames the focus has to stay on the node: a closing dialog hands the focus back a moment after it closes. */
 const SETTLE_FRAMES = 2;
 
+/** The latest request: a newer one (leaving a subgraph just entered) takes over from one still waiting. */
+let latest = 0;
+
 /** Focuses the node once it's drawn (or, without an id, the first node drawn), unless the person moved on. */
 export function focusNodeWhenShown(id?: string): void {
   const selector = id === undefined ? ".react-flow__node" : `.react-flow__node[data-id="${CSS.escape(id)}"]`;
   const start = document.activeElement;
+  const request = ++latest;
   let focused: Element | undefined;
   let kept = 0;
   let frames = 0;
 
   const step = () => {
+    if (request !== latest) return;
     const active = document.activeElement;
     if (focused && active === focused) {
       if (++kept >= SETTLE_FRAMES) return;
