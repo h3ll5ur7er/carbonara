@@ -47,7 +47,10 @@ describe("readPackFiles", () => {
 
   it("requires the plugin the manifest names", () => {
     const { "plugin/index.js": _plugin, ...rest } = files;
-    expect(readPackFiles(rest)).toEqual({ ok: false, error: [{ path: ["plugin/index.js"], message: "Missing file" }] });
+    expect(readPackFiles(rest)).toMatchObject({
+      ok: false,
+      error: [{ path: ["manifest.yaml", "plugin"], message: "plugin/index.js is missing from the pack" }],
+    });
   });
 
   it("reports unreadable YAML with the file name", () => {
@@ -65,7 +68,14 @@ describe("readPackFiles", () => {
     const result = readPackFiles({ ...files, "data/c-units.yaml": text("units: { rate: per_minute }") });
     expect(result).toEqual({
       ok: false,
-      error: [{ path: ["data/c-units.yaml", "units"], message: "Units are already defined in data/a-items.yaml" }],
+      error: [
+        {
+          path: ["data/c-units.yaml", "units"],
+          message: "Units are already defined in data/a-items.yaml",
+          line: 1,
+          column: 1,
+        },
+      ],
     });
   });
 

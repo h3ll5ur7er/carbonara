@@ -49,3 +49,28 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  deploy:
+    name: Deploy the web app to GitHub Pages
+    # Only the default branch deploys, and only after the checks above pass.
+    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+    needs: [web, rust, e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Build for https://<owner>.github.io/<repo>/
+        run: pnpm exec vite build --base=/${{ github.event.repository.name }}/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -10,6 +10,8 @@ pnpm build:wasm   # the solver's WebAssembly module, needed before the first `pn
 pnpm dev          # http://127.0.0.1:5173
 ```
 
+The dev server builds every pack in `packs/` into the app, the template pack included (production builds leave the template out). Editing a pack reloads the app.
+
 Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in `crates/`.
 
 [TOC]
@@ -28,7 +30,9 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 | `pnpm e2e` | Playwright end-to-end and screenshot tests (starts the dev server itself) |
 | `pnpm format` / `pnpm format:check` | Prettier |
 | `pnpm schema` | Regenerates the JSON Schemas in `schemas/` from the zod contracts |
-| `pnpm pack:build <folder> [out]` | Bundles a pack folder's plugin and zips it into `<out>/<id>-<version>.cpack` (default `dist/packs/`) |
+| `pnpm carbonara-pack <command>` | The pack CLI: `new`, `validate`, `build`, `dev`, `import` ([[Architecture/Game-packs#Authoring]]) |
+| `pnpm pack:build <folder> [--out dist/packs]` | Bundles a pack folder's plugin and zips it into `<out>/<id>-<version>.cpack` |
+| `pnpm pack:import <pack> <file>… [--icons <folder>]…` | Regenerates a pack's data and icons with its plugin's importer |
 | `cargo test` | Rust tests (solver) |
 | `cargo clippy --all-targets -- -D warnings` / `cargo fmt --check` | Rust lint and format |
 
@@ -47,8 +51,45 @@ Run `pnpm e2e` too when you changed anything the user can see.
 ## Tests
 
 - Unit and property tests sit next to the code as `*.test.ts` (Vitest, fast-check). Rust tests live in the crates (`cargo test`, proptest).
-- End-to-end and screenshot tests live in `e2e/`. Screenshot baselines are in `e2e/__screenshots__/`. After an intentional visual change, update them with `pnpm e2e --update-snapshots` and commit the new images with the change.
+- Component tests (`*.test.tsx`) use Testing Library on jsdom. A file opts in with `// @vitest-environment jsdom` on its first line; everything else runs on Node.
+- End-to-end and screenshot tests live in `e2e/`. Screenshot baselines are in `e2e/__screenshots__/<spec file>/`.
 - Playwright uses the Chromium that is preinstalled in the cloud environment. `@playwright/test` is pinned to the matching version, so don't upgrade it on its own.
+- Parallel worktrees each pick their own port: `E2E_PORT=5174 pnpm e2e`.
+
+### Scenes
+
+A scene is a fixed state of the UI for screenshots and visual QA. In development, `?scene=<name>` renders one instead of the app (`?scene=` alone lists them all); production builds leave them out. They're registered in [[src/client/scenes/registry.ts]]:
+
+| Scene | What it shows | Screenshots |
+| --- | --- | --- |
+| `empty`, `chain`, `congested`, `subgraph`, `ghost-paste` | The canonical scenes of [[Design]] (Visual QA); placeholders mark the ones whose feature doesn't exist yet | `e2e/scenes.spec.ts` |
+| `gallery` | Every design-system primitive, with a theme and accent switch | `e2e/ui.spec.ts` |
+| `inspector` | Both side panels, the inspector with each kind of field, error toasts | `e2e/shell-panels.spec.ts` |
+| `palette` | A template-pack document, for the command palette and quick-add | `e2e/shell-palette.spec.ts` |
+
+To add a scene, export a component as the default of a module and register it. Canvas scenes live in `src/client/canvas/scenes/` and take over a placeholder's name (`chain`, `congested` …). Scenes that need the managers use `fakeConnector` ([[src/client/scenes/fake-backend.ts]]): the real RPC envelope and argument validation in front of fake manager methods.
+
+### Screenshot tests
+
+Each test emulates the colour scheme and reduced motion, waits for the scene (`[data-scene=<name>]`) and the fonts, and compares the page with its baseline. Comparisons are strict (a per-pixel threshold of 0.05 and at most 0.2% different pixels, in `playwright.config.ts`), because the dark theme is low-contrast and looser settings miss whole panels.
+
+When a change is meant to look different:
+
+1. Run `pnpm e2e --update-snapshots=all` (plain `--update-snapshots` only rewrites images that fail, so baselines can drift below the threshold).
+2. Open every changed image under `e2e/__screenshots__/` (`git status`) and look at it, dark and light. Check the scene, not only the part you changed.
+3. Commit the new images in the same commit as the change, so the history shows why they changed.
+
+When a screenshot fails unexpectedly, the HTML report (`playwright-report/`, or `test-results/` for the expected, actual and diff images) shows what moved.
+
+## Deployment
+
+Every push to the default branch that passes CI is deployed to GitHub Pages by the `deploy` job in `.github/workflows/ci.yml`: https://h3ll5ur7er.github.io/carbonara/. The build uses `vite build --base=/<repo>/` because Pages serves the app below the repository name. To try that build locally:
+
+```bash
+pnpm build:wasm && pnpm exec vite build --base=/carbonara/ && pnpm exec vite preview --base=/carbonara/
+```
+
+Share links use the URL fragment, so they work on Pages without server-side routing.
 
 ## Known gaps
 

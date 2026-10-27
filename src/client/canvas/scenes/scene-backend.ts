@@ -1,14 +1,14 @@
-// A stand-in backend for the dev scenes: the real connector and RPC dispatcher (so arguments are validated
-// against the contracts), with `editing.apply` applying commands to the scene's document in memory.
+// A stand-in backend for the canvas scenes: the scenes' fake connector (real RPC envelope and argument
+// validation) with `editing.apply` applying commands to the scene's document in memory, and the scene's pack.
 // Dev and test fixture only, until the editing manager (CARB-33) runs in the backend worker.
 import { produce, type Draft } from "immer";
 import type { Command } from "../../../contracts/commands";
 import type { Document } from "../../../contracts/document";
-import { managers, type DocumentInfo } from "../../../contracts/managers";
+import type { DocumentInfo } from "../../../contracts/managers";
+import type { PackData } from "../../../contracts/pack";
 import { ok } from "../../../contracts/result";
-import type { Request } from "../../../contracts/rpc";
-import { createDispatcher, type Transport } from "../../../utilities/rpc";
-import { createConnector, type Connector } from "../../core/connector";
+import type { Connector } from "../../core/connector";
+import { fakeConnector } from "../../scenes/fake-backend";
 
 export interface SceneBackend {
   connector: Connector;
@@ -16,14 +16,18 @@ export interface SceneBackend {
   commands: Command[];
 }
 
-export function createSceneBackend(initial: Document, onChange: (document: Document) => void): SceneBackend {
+export function createSceneBackend(
+  initial: Document,
+  pack: PackData,
+  onChange: (document: Document) => void,
+): SceneBackend {
   let document = initial;
   let version = 1;
   let nextId = 1;
   const commands: Command[] = [];
 
   const info = (): DocumentInfo => ({ id: document.id, name: document.name, packId: document.pack.id, version });
-  const dispatch = createDispatcher(managers, {
+  const connector = fakeConnector({
     editing: {
       apply: async (args) => {
         document = produce(document, (draft) => {
@@ -35,14 +39,9 @@ export function createSceneBackend(initial: Document, onChange: (document: Docum
         return ok(info());
       },
     },
+    packs: { getPackData: async () => pack },
   });
-
-  const listeners = new Set<(message: unknown) => void>();
-  const transport: Transport = {
-    send: (message) => void dispatch(message as Request).then((response) => listeners.forEach((l) => l(response))),
-    listen: (listener) => void listeners.add(listener),
-  };
-  return { connector: createConnector(transport), commands };
+  return { connector, commands };
 }
 
 function apply(draft: Draft<Document>, command: Command, newId: () => string) {

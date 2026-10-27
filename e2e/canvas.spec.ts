@@ -18,13 +18,14 @@ function appliedCommands(page: Page) {
   return page.evaluate(() => window.carbonaraScene?.commands ?? []);
 }
 
-for (const colorScheme of ["dark", "light"] as const) {
-  test(`the 20-node chain in ${colorScheme}`, async ({ page }) => {
-    await openScene(page, "chain", colorScheme);
-    await expect(page.locator(".react-flow__node")).toHaveCount(20);
-    await expect(page).toHaveScreenshot(`chain-${colorScheme}.png`, { animations: "disabled" });
-  });
+// The whole `chain` and `congested` scenes are screenshot by e2e/scenes.spec.ts; these look closer.
 
+test("the chain scene draws all of its 20 nodes", async ({ page }) => {
+  await openScene(page, "chain");
+  await expect(page.locator(".react-flow__node")).toHaveCount(20);
+});
+
+for (const colorScheme of ["dark", "light"] as const) {
   test(`node cards up close in ${colorScheme}`, async ({ page }) => {
     await openScene(page, "chain&zoom=1&focus=purify", colorScheme);
     await expect(page).toHaveScreenshot(`cards-${colorScheme}.png`, { animations: "disabled" });
@@ -54,15 +55,8 @@ test("dropping a dragged node moves it through the editing manager", async ({ pa
   expect(command).toMatchObject({ type: "moveNodes", graph: "root", positions: { purify: {} } });
 });
 
-for (const colorScheme of ["dark", "light"] as const) {
-  test(`the congested graph in ${colorScheme}`, async ({ page }) => {
-    // Particles stand still in screenshots: Playwright stops animations at their start.
-    await openScene(page, "congested", colorScheme, "no-preference");
-    await expect(page).toHaveScreenshot(`congested-${colorScheme}.png`, { animations: "disabled" });
-  });
-}
-
-test("the congested graph with the colour-blind palette", async ({ page }) => {
+test("the congested graph with particles and the colour-blind palette", async ({ page }) => {
+  // Particles stand still in screenshots: Playwright stops animations at their start.
   await openScene(page, "congested&zoom=1&focus=plate-merge", "dark", "no-preference");
   await page.evaluate(() => (document.documentElement.dataset.palette = "colorblind"));
   await expect(page).toHaveScreenshot("congested-colorblind.png", { animations: "disabled" });

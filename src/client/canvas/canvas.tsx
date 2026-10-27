@@ -6,7 +6,8 @@ import type { Document, LocalId } from "../../contracts/document";
 import type { PackData } from "../../contracts/pack";
 import type { AnalysisResults } from "../../contracts/results";
 import { useConnector } from "../core/connector";
-import type { CanvasAdapter, CanvasViewProps, Viewport } from "./adapter";
+import { usePanels } from "../shell/panels";
+import type { CanvasAdapter, CanvasViewProps, Insets, Viewport } from "./adapter";
 import "./canvas.css";
 import { createResultSlots } from "./model/result-slots";
 import { createSceneBuilder, type CanvasScene } from "./model/scene";
@@ -35,12 +36,30 @@ export function Canvas({ document, pack, results = null, graph = "root", viewpor
 }
 
 const EMPTY_SCENE: CanvasScene = { nodes: [], edges: [] };
+
+/** The side panels float `inset-3` (12 px) from the canvas edges (src/client/shell/side-panel.tsx). */
+const PANEL_MARGIN = 12;
+
+/** What the open side panels cover of the canvas. */
+function usePanelInsets(): Insets {
+  const left = usePanels((panels) => (panels.left.open ? panels.left.width + PANEL_MARGIN : 0));
+  const right = usePanels((panels) => (panels.right.open ? panels.right.width + PANEL_MARGIN : 0));
+  return useMemo(() => ({ left, right }), [left, right]);
+}
 const ignore = () => undefined;
 
 function EmptyCanvas() {
   const [results] = useState(createResultSlots);
+  const insets = usePanelInsets();
   return (
-    <Renderer scene={EMPTY_SCENE} results={results} rateUnit="per_minute" onMoveNodes={ignore} onConnect={ignore} />
+    <Renderer
+      scene={EMPTY_SCENE}
+      insets={insets}
+      results={results}
+      rateUnit="per_minute"
+      onMoveNodes={ignore}
+      onConnect={ignore}
+    />
   );
 }
 
@@ -58,6 +77,7 @@ function DocumentCanvas({
   viewport?: Viewport;
 }) {
   const connector = useConnector();
+  const insets = usePanelInsets();
   const [buildScene] = useState(createSceneBuilder);
   const shown = graph === "root" ? document.graph : document.blueprints[graph]?.graph;
   const layout = document.layout[graph];
@@ -101,6 +121,7 @@ function DocumentCanvas({
     <Renderer
       scene={scene}
       {...(viewport && { initialViewport: viewport })}
+      insets={insets}
       results={slots}
       rateUnit={document.settings.rateUnit ?? pack.units.rate}
       onMoveNodes={onMoveNodes}

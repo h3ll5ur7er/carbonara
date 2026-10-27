@@ -11,12 +11,13 @@ import {
   type Connection,
   type EdgeChange,
   type EdgeTypes,
+  type FitViewOptions,
   type NodeChange,
   type NodeTypes,
   type OnNodeDrag,
 } from "@xyflow/react";
 import { useCallback, useMemo, useState } from "react";
-import type { CanvasViewProps } from "../adapter";
+import type { CanvasViewProps, Insets } from "../adapter";
 import { connectionItem } from "../model/connect";
 import { particlesShown } from "../model/flow-style";
 import { GRID } from "../model/geometry";
@@ -53,7 +54,7 @@ export function ReactFlowCanvas(props: CanvasViewProps) {
   );
 }
 
-function FlowCanvas({ scene, initialViewport, results, rateUnit, onMoveNodes, onConnect }: CanvasViewProps) {
+function FlowCanvas({ scene, initialViewport, insets, results, rateUnit, onMoveNodes, onConnect }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
   const [shownScene, setShownScene] = useState(scene);
@@ -104,7 +105,7 @@ function FlowCanvas({ scene, initialViewport, results, rateUnit, onMoveNodes, on
         onConnect={handleConnect}
         isValidConnection={isValidConnection}
         {...(initialViewport ? { defaultViewport: initialViewport } : { fitView: true })}
-        fitViewOptions={{ padding: 0.12 }}
+        fitViewOptions={fitOptions(insets)}
         minZoom={0.05}
         maxZoom={2}
         aria-label="Factory canvas"
@@ -129,6 +130,21 @@ function FlowCanvas({ scene, initialViewport, results, rateUnit, onMoveNodes, on
       </ReactFlow>
     </CanvasContext>
   );
+}
+
+/** Room around a fitted graph, in screen pixels, on top of what the panels cover. */
+const FIT_MARGIN = 48;
+
+function fitOptions(insets: Insets): FitViewOptions {
+  return {
+    // Plain numbers would be fractions of the viewport; these are pixels.
+    padding: {
+      top: `${FIT_MARGIN}px`,
+      bottom: `${FIT_MARGIN}px`,
+      left: `${insets.left + FIT_MARGIN}px`,
+      right: `${insets.right + FIT_MARGIN}px`,
+    },
+  };
 }
 
 /** React Flow shifts dots by half a gap; this offset puts their centres on multiples of the gap instead. */

@@ -1,14 +1,13 @@
+// The real app (backend worker and all) starts into the shell; its look is covered by the `empty` scene
+// in scenes.spec.ts.
 import { expect, test } from "@playwright/test";
 
-for (const colorScheme of ["dark", "light"] as const) {
-  test(`the empty shell in ${colorScheme}`, async ({ page }) => {
-    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
-    await page.goto("/");
-    await expect(page.getByLabel("Factory canvas")).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
-    await expect(page).toHaveScreenshot(`empty-${colorScheme}.png`, { animations: "disabled" });
-  });
-}
+test("the app opens on the empty shell", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByLabel("Factory canvas")).toBeVisible();
+  await expect(page.getByText("This factory is empty")).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Inspector" })).toContainText("Nothing selected");
+});
 
 test("the theme toggle overrides the system theme", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });

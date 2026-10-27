@@ -12,6 +12,11 @@ export interface Point {
   y: number;
 }
 
+export interface Insets {
+  left: number;
+  right: number;
+}
+
 /** Pan (screen pixels) and zoom. */
 export interface Viewport {
   x: number;
@@ -23,6 +28,8 @@ export interface CanvasViewProps {
   scene: CanvasScene;
   /** Where to look first; the whole scene when left out. */
   initialViewport?: Viewport;
+  /** Screen pixels at the left and right edges that floating panels cover; fitting keeps the graph clear of them. */
+  insets: Insets;
   results: ResultSlots;
   /** The unit rates are shown in. */
   rateUnit: RateUnit;
