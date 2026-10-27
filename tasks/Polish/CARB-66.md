@@ -2,7 +2,7 @@
 id: CARB-66
 title: Audit accessibility
 type: improvement
-status: todo
+status: in-progress
 priority: medium
 labels: [a11y]
 wave: "3"
@@ -15,3 +15,6 @@ Keyboard paths, focus, ARIA, contrast, reduced motion.
 
 - [ ] axe in CI
 - [ ] Keyboard e2e
+- [ ] Reduced motion: every animation respects `prefers-reduced-motion`, with a test
+- [ ] Screen readers: results, errors and tour steps announced without spam
+- [ ] Keyboard map and guarantees in [[Design]] (Accessibility)
