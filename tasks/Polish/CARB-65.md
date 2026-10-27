@@ -24,7 +24,7 @@ Every scene in `src/client/scenes/registry.ts` and every baseline under `e2e/__s
 | Scene or state | Found | Fixed |
 | --- | --- | --- |
 | Welcome (`/`, nothing open) | Plain heading, text wrapped to a lone "too.", no brand | The mark above a larger heading, balanced muted text in a wider column; the mark is one primitive (`ui/mark.tsx`) for the top bar, welcome and game picker |
-| Game picker (`onboarding.spec.ts/game-picker-*`) | Good; hover and focus light the card in the pack accent. Text could rag | Balanced text. The busy loader didn't turn (see Motion) |
+| Game picker (`onboarding.spec.ts/game-picker-*`) | Good; hover and focus light the card in the pack accent. Text could rag. The inspector stands open beside it, asking to select a machine on a canvas that isn't there | Balanced text. The busy loader didn't turn (see Motion). The inspector: [[CARB-116]] (behaviour) |
 | Tour (`tour-add-*`) | Good. The "Waiting for you" dot didn't pulse (see Motion) | Motion tokens |
 | Canvas cards (`canvas.spec.ts/cards-*`, `scenes.spec.ts/*`) | Port names and rates at 12 px read small at zoom 1; counts like "0.63" touched the efficiency ring | Port rows at 13 px; ring 44 px, long counts closed up |
 | Instances (`subgraphs.spec.ts/instances-library-*`) | "Open" was bare 11 px text at the strip's edge | An accent pill aligned with the port chips; port rows as above |
