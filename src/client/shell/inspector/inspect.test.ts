@@ -62,6 +62,18 @@ describe("inspectNode", () => {
     expect(inspect("free")?.production).toMatchObject({ kind: "machines", value: null });
   });
 
+  it("reads the machine count the way the document's rounding setting says", () => {
+    const smelt = { activity: 4.375, inputs: { ore: 2.9 }, outputs: { plate: 1.46 } };
+    const partial = { ...results, nodes: { ...results.nodes, smelt } };
+    const even = { ...document, settings: { machineGroups: "even" as const } };
+    expect(inspectNode({ document, pack, results: partial, nodeId: "smelt" })?.subtitle).toBe(
+      "Furnace · 4 × 100% + 1 × 37.5%",
+    );
+    expect(inspectNode({ document: even, pack, results: partial, nodeId: "smelt" })?.subtitle).toBe(
+      "Furnace · 5 × 87.5%",
+    );
+  });
+
   it("shows a sink's target and a source's limit in the pack's rate unit", () => {
     expect(inspect("out")).toMatchObject({
       title: "Copper Plate",

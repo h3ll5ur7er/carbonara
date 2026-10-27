@@ -2,7 +2,7 @@
 id: CARB-84
 title: Editor quality-of-life loose ends
 type: chore
-status: todo
+status: in-progress
 priority: low
 labels: [canvas, ux]
 wave: "3"
@@ -17,5 +17,5 @@ Left over from [[CARB-49]] to [[CARB-56]].
 - [ ] Multi-select editing of plugin fields (clock, modules)
 - [ ] Collapsible frames
 - [ ] Bookmarks and custom shortcuts survive a restart (needs a preferences store)
-- [ ] Source and sink cards don't truncate long belt names
-- [ ] Balance: the inspector's subtitle follows the "even" machine-count setting; alternatives offer only recipes whose main product is the item (not "Motor Recycling" for gears)
+- [x] Source and sink cards don't truncate long belt names (a rate in belts gets a line of its own)
+- [x] Balance: the inspector's subtitle follows the "even" machine-count setting; alternatives offer only recipes whose main product is the item (not "Motor Recycling" for gears)

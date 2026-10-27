@@ -48,7 +48,8 @@ export function inspectNode({ document, pack, results, nodeId, plugin }: Inspect
       const recipe = pack.recipes.find((candidate) => candidate.id === node.recipe);
       const buildingId = node.building ?? recipe?.buildings[0];
       const building = pack.buildings.find((candidate) => candidate.id === buildingId);
-      const running = activity !== undefined && clean(activity) > 0 ? ` · ${formatMachines(activity)}` : "";
+      const groupsAs = document.settings.machineGroups ?? "fill";
+      const running = activity !== undefined && clean(activity) > 0 ? ` · ${formatMachines(activity, groupsAs)}` : "";
       const derived = Object.entries(results?.nodes[nodeId]?.derived ?? {});
       return {
         fields: (buildingId && plugin?.nodeFields[buildingId]) || {},
