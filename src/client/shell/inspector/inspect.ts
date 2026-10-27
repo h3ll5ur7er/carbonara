@@ -4,7 +4,7 @@
 import type { CommandInput } from "../../../contracts/commands";
 import type { Document, Node } from "../../../contracts/document";
 import type { PackData, RateUnit } from "../../../contracts/pack";
-import type { PluginDescription } from "../../../contracts/plugin";
+import type { FieldValue, PluginDescription } from "../../../contracts/plugin";
 import type { AnalysisResults } from "../../../contracts/results";
 import { clean, formatMachines, formatNumber } from "../../../utilities/numbers";
 import { fromPerSecond, rateSuffix, toPerSecond } from "../../../utilities/units";
@@ -97,6 +97,58 @@ export function inspectNode({ document, pack, results, nodeId, plugin }: Inspect
     default:
       return { ...base, title: KIND_TITLES[node.kind] };
   }
+}
+
+export interface InspectSelectionInput extends Omit<InspectInput, "nodeId"> {
+  /** Two or more selected nodes. */
+  nodeIds: string[];
+}
+
+/**
+ * Several selected nodes: the plugin fields every one of them has (same key, same descriptor), with the value
+ * they share, or marked mixed where they differ. Only machines have fields, so a selection with anything else
+ * has none to set.
+ */
+export function inspectSelection({ document, pack, nodeIds, plugin }: InspectSelectionInput): InspectedNode | null {
+  const nodes = nodeIds.flatMap((id) => {
+    const node = document.graph.nodes[id];
+    return node ? [node] : [];
+  });
+  if (nodes.length === 0) return null;
+  const machines = nodes.flatMap((node) => (node.kind === "recipe" ? [node] : []));
+  const allMachines = machines.length === nodes.length;
+  const buildingOf = (node: (typeof machines)[number]) =>
+    node.building ?? pack.recipes.find((recipe) => recipe.id === node.recipe)?.buildings[0] ?? "";
+
+  const counts = new Map<string, number>();
+  for (const node of machines) counts.set(buildingOf(node), (counts.get(buildingOf(node)) ?? 0) + 1);
+  const buildingName = (id: string) => pack.buildings.find((building) => building.id === id)?.name ?? id;
+  const subtitle = [...counts].map(([id, count]) => `${count} × ${buildingName(id)}`).join(" · ");
+
+  const descriptors = machines.map((node) => plugin?.nodeFields[buildingOf(node)] ?? {});
+  const [first = {}] = descriptors;
+  const fields = allMachines
+    ? Object.fromEntries(
+        Object.entries(first).filter(([key, descriptor]) =>
+          descriptors.every((own) => own[key] && JSON.stringify(own[key]) === JSON.stringify(descriptor)),
+        ),
+      )
+    : {};
+  const values: Record<string, FieldValue> = {};
+  const mixed: string[] = [];
+  for (const key of Object.keys(fields)) {
+    const seen = new Set(machines.map((node) => JSON.stringify(node.fields?.[key] ?? null)));
+    const [only] = machines.map((node) => node.fields?.[key]);
+    if (seen.size > 1) mixed.push(key);
+    else if (only !== undefined) values[key] = only;
+  }
+  return {
+    title: `${nodes.length} ${allMachines ? "machines" : "nodes"}`,
+    ...(subtitle && { subtitle }),
+    fields,
+    values,
+    mixed,
+  };
 }
 
 const KIND_TITLES: Record<Exclude<Node["kind"], "recipe" | "source" | "sink">, string> = {

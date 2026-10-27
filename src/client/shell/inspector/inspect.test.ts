@@ -3,7 +3,7 @@ import { Document } from "../../../contracts/document";
 import { PackData } from "../../../contracts/pack";
 import type { PluginDescription } from "../../../contracts/plugin";
 import type { AnalysisResults } from "../../../contracts/results";
-import { inspectNode, productionEdit } from "./inspect";
+import { inspectNode, inspectSelection, productionEdit } from "./inspect";
 
 const pack = PackData.parse({
   units: { rate: "per_minute" },
@@ -132,6 +132,52 @@ describe("inspectNode", () => {
 
   it("shows nothing for a node that isn't there", () => {
     expect(inspect("ghost")).toBeNull();
+  });
+});
+
+describe("inspectSelection", () => {
+  const clock = { kind: "number", label: "Clock speed", min: 1, max: 250, unit: "%", default: 100 } as const;
+  const somersloop = { kind: "toggle", label: "Somersloop", default: false } as const;
+  const twoBuildings = PackData.parse({
+    ...pack,
+    buildings: [
+      { id: "furnace", name: "Furnace" },
+      { id: "foundry", name: "Foundry" },
+    ],
+    recipes: [{ id: "copper-plate", buildings: ["furnace", "foundry"], time: 3, in: { ore: 2 }, out: { plate: 1 } }],
+  });
+  const plugin: PluginDescription = {
+    nodeFields: { furnace: { clock, somersloop }, foundry: { clock } },
+    settingsFields: {},
+    metrics: {},
+  };
+  const selected = structuredClone(document);
+  selected.graph.nodes.smelt = { kind: "recipe", recipe: "copper-plate", fields: { clock: 150, somersloop: true } };
+  selected.graph.nodes.free = { kind: "recipe", recipe: "copper-plate", fields: { clock: 150 } };
+  selected.graph.nodes.cast = { kind: "recipe", recipe: "copper-plate", building: "foundry", fields: { clock: 80 } };
+
+  const inspectMany = (nodeIds: string[]) =>
+    inspectSelection({ document: selected, pack: twoBuildings, results, nodeIds, plugin });
+
+  it("offers the fields every selected machine has, with the value they share", () => {
+    expect(inspectMany(["smelt", "free"])).toMatchObject({
+      title: "2 machines",
+      subtitle: "2 × Furnace",
+      fields: { clock, somersloop },
+      values: { clock: 150 },
+      mixed: ["somersloop"],
+    });
+  });
+
+  it("leaves out fields some of them don't have, and marks values that differ", () => {
+    const inspected = inspectMany(["smelt", "free", "cast"]);
+    expect(inspected).toMatchObject({ subtitle: "2 × Furnace · 1 × Foundry", fields: { clock }, mixed: ["clock"] });
+    expect(inspected?.fields).not.toHaveProperty("somersloop");
+    expect(inspected?.values).toEqual({});
+  });
+
+  it("has nothing to set when the selection holds more than machines", () => {
+    expect(inspectMany(["smelt", "ore", "out"])).toMatchObject({ title: "3 nodes", fields: {} });
   });
 });
 

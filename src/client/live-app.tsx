@@ -6,7 +6,7 @@ import { formatShortcut, platformOf } from "./core/commands-shortcuts";
 import { paletteCommandId } from "./features/command-palette/command-palette";
 import { appRegistry } from "./shell/app-commands";
 import { AppShell, EmptyState } from "./shell/app-shell";
-import { inspectNode, productionEdit } from "./shell/inspector/inspect";
+import { inspectNode, inspectSelection, productionEdit } from "./shell/inspector/inspect";
 import type { InspectorPanelProps } from "./shell/inspector/inspector-panel";
 import { usePluginDescription } from "./shell/inspector/plugin-description";
 import { useConnector } from "./core/connector";
@@ -109,7 +109,7 @@ function WelcomeCanvas({ loaded }: { loaded: boolean }) {
   );
 }
 
-/** The inspector's view of the active document: its one selected node, its save profile while none is selected. */
+/** The inspector's view of the active document: its selected nodes, its save profile while none is selected. */
 function useInspected(
   { info, document, packData, results }: ActiveDocument,
   selection: { documentId: string; nodeIds: string[] } | null,
@@ -124,7 +124,13 @@ function useInspected(
       const settings = document.settings.plugin ?? {};
       return { profile: { documentId: info.id, pack: packData, settings, plugin } };
     }
-    if (!nodeId) return null;
+    if (!nodeId) {
+      // Several nodes: the plugin fields they share, edited on all of them at once.
+      const nodeIds = selection?.nodeIds ?? [];
+      const node = inspectSelection({ document, pack: packData, results, nodeIds, plugin });
+      const [first] = nodeIds;
+      return node && first ? { target: { documentId: info.id, nodeId: first, nodeIds }, node } : null;
+    }
     const node = inspectNode({ document, pack: packData, results, nodeId, plugin });
     if (!node) return null;
     return {

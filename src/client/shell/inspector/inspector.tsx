@@ -1,6 +1,6 @@
 // The inspector: the selected node and the settings its pack's plugin declares, as field descriptors.
 // It knows nothing about documents; edits leave through `onFieldEdit` (see `applyFieldEdit` for the wiring).
-import { CircleAlert, Factory, MousePointerClick, TriangleAlert } from "lucide-react";
+import { CircleAlert, Factory, Layers, MousePointerClick, TriangleAlert } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import type { FieldDescriptor, FieldValue } from "../../../contracts/plugin";
 import { Button } from "../../ui/button";
@@ -20,6 +20,8 @@ export interface InspectedNode {
   production?: Production | undefined;
   fields: Record<string, FieldDescriptor>;
   values: Record<string, FieldValue>;
+  /** Several nodes: the fields whose values differ among them. */
+  mixed?: string[] | undefined;
   /** What the pack's plugin derived after the solve, formatted: "Power use", "13.4 MW". */
   metrics?: { label: string; value: string }[] | undefined;
   /** Warnings and errors about this node, from the compiler and the pack's plugin. */
@@ -41,7 +43,7 @@ export function Inspector({ node, onFieldEdit, onProductionEdit }: InspectorProp
     <div className="flex flex-col">
       <div className="flex items-center gap-3 px-4 py-4">
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent-fg inset-ring inset-ring-accent/20">
-          <Factory className="size-4.5" aria-hidden />
+          {node.mixed ? <Layers className="size-4.5" aria-hidden /> : <Factory className="size-4.5" aria-hidden />}
         </span>
         <div className="flex min-w-0 flex-col">
           <h3 className="truncate text-base font-semibold tracking-tight text-fg">{node.title}</h3>
@@ -57,7 +59,11 @@ export function Inspector({ node, onFieldEdit, onProductionEdit }: InspectorProp
         <h4 className="text-2xs font-medium tracking-wide text-fg-faint uppercase">Settings</h4>
         {fields.length === 0 && (
           <p className="text-sm text-fg-subtle">
-            {node.production?.kind === "machines" ? "This machine has no settings." : "Nothing else to set."}
+            {node.mixed
+              ? "They share no settings."
+              : node.production?.kind === "machines"
+                ? "This machine has no settings."
+                : "Nothing else to set."}
           </p>
         )}
         {fields.map(([key, descriptor]) => (
@@ -65,6 +71,7 @@ export function Inspector({ node, onFieldEdit, onProductionEdit }: InspectorProp
             key={key}
             descriptor={descriptor}
             value={node.values[key]}
+            mixed={node.mixed?.includes(key) ?? false}
             onEdit={(value) => onFieldEdit({ key, descriptor, value })}
           />
         ))}
@@ -78,10 +85,13 @@ export function Field({
   descriptor,
   value,
   onEdit,
+  mixed = false,
 }: {
   descriptor: FieldDescriptor;
   value: FieldValue | undefined;
   onEdit(value: FieldValue): unknown;
+  /** Several nodes whose values differ: the control shows the default, marked "Mixed", until one is set. */
+  mixed?: boolean;
 }) {
   const id = useId();
   // The value being dragged or just committed, until the edit has gone through.
@@ -101,7 +111,7 @@ export function Field({
     case "range":
       return (
         <div className="flex flex-col gap-2">
-          <Row label={descriptor.label} id={id}>
+          <Row label={descriptor.label} id={id} mixed={mixed}>
             <NumberInput
               aria-labelledby={id}
               size="sm"
@@ -127,7 +137,7 @@ export function Field({
       );
     case "select":
       return (
-        <Row label={descriptor.label} id={id}>
+        <Row label={descriptor.label} id={id} mixed={mixed}>
           <Select
             aria-labelledby={id}
             size="sm"
@@ -140,7 +150,7 @@ export function Field({
       );
     case "switch":
       return (
-        <Row label={descriptor.label} id={id}>
+        <Row label={descriptor.label} id={id} mixed={mixed}>
           <Switch aria-labelledby={id} checked={control.value} onCheckedChange={(next) => void commit(next)} />
         </Row>
       );
@@ -276,11 +286,28 @@ function FitButton({
   );
 }
 
-function Row({ label, id, children }: { label: string; id: string; children: ReactNode }) {
+function Row({
+  label,
+  id,
+  mixed = false,
+  children,
+}: {
+  label: string;
+  id: string;
+  mixed?: boolean;
+  children: ReactNode;
+}) {
   return (
     <div className="flex min-h-7 items-center justify-between gap-3">
-      <span id={id} className="truncate text-sm text-fg-muted">
-        {label}
+      <span className="flex min-w-0 items-center gap-2">
+        <span id={id} className="truncate text-sm text-fg-muted">
+          {label}
+        </span>
+        {mixed && (
+          <span className="shrink-0 rounded-sm bg-surface-3 px-1.5 py-px text-2xs font-medium text-fg-subtle">
+            Mixed
+          </span>
+        )}
       </span>
       {children}
     </div>
