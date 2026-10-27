@@ -2,7 +2,7 @@
 id: CARB-30
 title: Produce the Factorio pack data
 type: feature
-status: review
+status: done
 priority: medium
 labels: [packs, factorio]
 wave: "1"
@@ -40,3 +40,5 @@ Importer from the `--dump-data` output, icons as WebP, `CREDITS.md`. The mechani
 ## Left for CARB-44 and later
 
 The importer drops, and can be extended to keep: fluid temperatures (one `steam` item; recipe temperature limits), heat and all power generation (boilers, engines, turbines, reactors, solar, fusion; steam is a raw input for now), `ignored_by_productivity`/`maximum_productivity`, beacons and modules themselves, quality levels, surface conditions (which planet or space), spoilage, plant seeds and growth, the sulfuric acid uranium mining needs, mining rates and belt stacking. See the pack's README.
+
+Reviewed by the integrator: spot-checked steel plate and belts; `pnpm pack:build packs/factorio` validates. It ships as a built-in pack next to Satisfactory. Data is Factorio 2.1.14 (with Space Age), the newest public dump. Publishing waits on [[CARB-31]].
