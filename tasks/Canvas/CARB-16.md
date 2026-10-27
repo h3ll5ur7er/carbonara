@@ -17,7 +17,7 @@ milestone: "M1 It flows"
 - [x] Node components with item-icon ports and live rates
 - [x] Node components subscribe to their own result slot
 - [x] Screenshot tests
-- [ ] Wire `Canvas` to the read model once it exists (`src/client/core/read-model.ts`, another engineer's work): pass its document, pack data and results as props
+- Wiring `Canvas` to the read model (`src/client/core/read-model.ts`) and tabs is [[CARB-70]]: it passes the read model's document, the pack data and the results as props.
 
 ## Decisions
 

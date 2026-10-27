@@ -25,7 +25,6 @@ export function createSceneBackend(initial: Document, onChange: (document: Docum
   const info = (): DocumentInfo => ({ id: document.id, name: document.name, packId: document.pack.id, version });
   const dispatch = createDispatcher(managers, {
     editing: {
-      getDocument: async () => document,
       apply: async (args) => {
         document = produce(document, (draft) => {
           for (const command of args.commands) apply(draft, command, () => `new-${nextId++}`);
