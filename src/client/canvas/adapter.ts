@@ -51,6 +51,8 @@ export interface CanvasViewProps {
   onPortDropped(drop: PortDrop): void;
   /** The view settled; `centre` is the flow position in the middle of the visible canvas. */
   onViewCentre(centre: Point): void;
+  /** The selected nodes changed. */
+  onSelectionChange(nodeIds: LocalId[]): void;
 }
 
 /** A renderer of the factory canvas. */

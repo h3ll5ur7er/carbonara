@@ -16,6 +16,11 @@ export function fromPerSecond(perSecond: number, unit: RateUnit): number {
   return perSecond * SECONDS[unit];
 }
 
+/** `/min` */
+export function rateSuffix(unit: RateUnit): string {
+  return SUFFIX[unit];
+}
+
 /** `12.5/min` */
 export function formatRate(perSecond: number, unit: RateUnit): string {
   return `${formatNumber(fromPerSecond(perSecond, unit))}${SUFFIX[unit]}`;

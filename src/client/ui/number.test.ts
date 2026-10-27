@@ -78,6 +78,10 @@ describe("nudgeIncrement", () => {
   it("never moves less than the step", () => {
     expect(nudgeIncrement({ min: 0, max: 10, step: 0.5 })).toBe(0.5);
   });
+
+  it("moves by an explicit nudge, for open-ended fields like machine counts", () => {
+    expect(nudgeIncrement({ min: 0, max: 1e9, nudge: 1 })).toBe(1);
+  });
 });
 
 describe("stepNumber", () => {

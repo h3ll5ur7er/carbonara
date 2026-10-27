@@ -70,6 +70,7 @@ test("saves a factory file and opens it again", async ({ page }) => {
 test("says so when a file isn't a factory", async ({ page }) => {
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.keyboard.press("ControlOrMeta+O")]);
   await chooser.setFiles({ name: "notes.json", mimeType: "application/json", buffer: Buffer.from("{}") });
-  await expect(page.getByText("Couldn't open notes.json")).toBeVisible();
+  // Exact: the toast's screen-reader announcement carries the same words.
+  await expect(page.getByText("Couldn't open notes.json", { exact: true })).toBeVisible();
   await expect(tabs(page)).toHaveCount(0);
 });

@@ -77,6 +77,13 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       id: recipeId,
       pin: fc.option(fc.record({ type: fc.constant("machines" as const), count: fc.nat(10) }), { nil: null }),
     }),
+    fc.record({
+      type: fc.constant("setRate" as const),
+      graph,
+      // Sources and sinks, plus a recipe the command must refuse.
+      id: fc.constantFrom("ore", "out", ...pools.recipes),
+      perSecond: fc.option(fc.double({ min: 0, max: 100, noNaN: true }), { nil: null }),
+    }),
   );
 }
 

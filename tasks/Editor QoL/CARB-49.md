@@ -16,3 +16,4 @@ The `layout` engine (ELK layered, in the worker): left → right or top → bott
 - [ ] Layout engine with tests
 - [ ] Animated transitions
 - [ ] Locked nodes
+- [ ] New nodes from the recipe picker or quick-add avoid landing on existing ones (seen in [[CARB-74]])

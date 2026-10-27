@@ -233,6 +233,24 @@ describe("setting fields and pins", () => {
     expect(cleared.graph.nodes["smelt"]).not.toHaveProperty("pin");
   });
 
+  it("sets and clears a source's limit and a sink's target", () => {
+    const limited = edit({ type: "setRate", graph: "root", id: "ore", perSecond: 3 }).document;
+    expect(limited.graph.nodes["ore"]).toMatchObject({ kind: "source", maxPerSecond: 3 });
+    const targeted = edit({ type: "setRate", graph: "root", id: "out", perSecond: 0.5 }).document;
+    expect(targeted.graph.nodes["out"]).toMatchObject({ kind: "sink", targetPerSecond: 0.5 });
+    const cleared = edit(
+      { type: "setRate", graph: "root", id: "out", perSecond: 0.5 },
+      { type: "setRate", graph: "root", id: "out", perSecond: null },
+    ).document;
+    expect(cleared.graph.nodes["out"]).not.toHaveProperty("targetPerSecond");
+  });
+
+  it("refuses rates on nodes other than sources and sinks", () => {
+    expect(rejection({ type: "setRate", graph: "root", id: "smelt", perSecond: 1 })).toEqual([
+      { path: ["commands", 0, "id"], message: "smelt is neither a source nor a sink" },
+    ]);
+  });
+
   it.each<ResolvedCommand>([
     { type: "setNodeFields", graph: "root", id: "ore", fields: { clock: 1 } },
     { type: "setPin", graph: "root", id: "ore", pin: null },

@@ -24,6 +24,7 @@ export function NumberInput({
   min,
   max,
   step,
+  nudge,
   unit,
   size = "md",
   disabled,
@@ -31,7 +32,12 @@ export function NumberInput({
   className,
   ...aria
 }: NumberInputProps) {
-  const range: NumberRange = step === undefined ? { min, max } : { min, max, step };
+  const range: NumberRange = {
+    min,
+    max,
+    ...(step !== undefined && { step }),
+    ...(nudge !== undefined && { nudge }),
+  };
   // The text being typed; null while the field shows the value.
   const [draft, setDraft] = useState<string | null>(null);
   const shown = formatNumber(value, step);
@@ -48,7 +54,7 @@ export function NumberInput({
     else emit(next);
   }
 
-  function nudge(direction: 1 | -1, large: boolean) {
+  function stepBy(direction: 1 | -1, large: boolean) {
     const from = draft === null ? value : (commitNumber(draft, range) ?? value);
     emit(stepNumber(from, direction, range, large));
   }
@@ -57,7 +63,7 @@ export function NumberInput({
     const action = numberKeyAction(event.nativeEvent);
     if (!action) return;
     event.preventDefault();
-    if (action.type === "step") nudge(action.direction, action.large);
+    if (action.type === "step") stepBy(action.direction, action.large);
     else if (action.type === "commit") commit();
     else setDraft(null);
   }
@@ -97,10 +103,10 @@ export function NumberInput({
         </span>
       )}
       <div className="ml-1.5 flex w-5 shrink-0 flex-col border-l border-line-subtle text-fg-muted">
-        <StepButton label="Increase" disabled={disabled || value >= max} onStep={() => nudge(1, false)}>
+        <StepButton label="Increase" disabled={disabled || value >= max} onStep={() => stepBy(1, false)}>
           <ChevronUp />
         </StepButton>
-        <StepButton label="Decrease" disabled={disabled || value <= min} onStep={() => nudge(-1, false)}>
+        <StepButton label="Decrease" disabled={disabled || value <= min} onStep={() => stepBy(-1, false)}>
           <ChevronDown />
         </StepButton>
       </div>

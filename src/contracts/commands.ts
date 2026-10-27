@@ -24,6 +24,16 @@ export const Command = z.discriminatedUnion("type", [
     fields: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])),
   }),
   z.object({ type: z.literal("setPin"), graph: GraphScope, id: LocalId, pin: Pin.nullable() }),
+  z.object({
+    type: z.literal("setRate"),
+    graph: GraphScope,
+    id: LocalId,
+    perSecond: z
+      .number()
+      .nonnegative()
+      .nullable()
+      .describe("A source's supply limit or a sink's target, in items per second; null removes it."),
+  }),
 ]);
 export type Command = z.infer<typeof Command>;
 export type CommandInput = z.input<typeof Command>;

@@ -31,12 +31,28 @@ export interface CanvasProps {
   graph?: string;
   /** Where to look first; the whole graph when left out. */
   viewport?: Viewport;
+  /** The selected nodes changed. */
+  onSelectionChange?: (nodeIds: LocalId[]) => void;
 }
 
-export function Canvas({ document, pack, results = null, graph = "root", viewport }: CanvasProps) {
+export function Canvas({
+  document,
+  pack,
+  results = null,
+  graph = "root",
+  viewport,
+  onSelectionChange = ignore,
+}: CanvasProps) {
   if (!document || !pack) return <EmptyCanvas />;
   return (
-    <DocumentCanvas document={document} pack={pack} results={results} graph={graph} {...(viewport && { viewport })} />
+    <DocumentCanvas
+      document={document}
+      pack={pack}
+      results={results}
+      graph={graph}
+      {...(viewport && { viewport })}
+      onSelectionChange={onSelectionChange}
+    />
   );
 }
 
@@ -66,6 +82,7 @@ function EmptyCanvas() {
       onConnect={ignore}
       onPortDropped={ignore}
       onViewCentre={setViewportCentre}
+      onSelectionChange={ignore}
     />
   );
 }
@@ -76,12 +93,14 @@ function DocumentCanvas({
   results,
   graph,
   viewport,
+  onSelectionChange,
 }: {
   document: Document;
   pack: PackData;
   results: AnalysisResults | null;
   graph: string;
   viewport?: Viewport;
+  onSelectionChange: (nodeIds: LocalId[]) => void;
 }) {
   const connector = useConnector();
   const insets = usePanelInsets();
@@ -167,6 +186,7 @@ function DocumentCanvas({
         onConnect={onConnect}
         onPortDropped={onPortDropped}
         onViewCentre={setViewportCentre}
+        onSelectionChange={onSelectionChange}
       />
       {drop && request && (
         <RecipePicker

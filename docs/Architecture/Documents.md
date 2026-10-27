@@ -59,7 +59,7 @@ A batch is all or nothing. The engine rejects it, as a value with the path of th
 - adds a node or edge under an id that is taken;
 - adds a `port` outside a blueprint, an `instance` of an unknown blueprint, or a blueprint into itself (directly or through other blueprints);
 - connects through a port that the node doesn't have (only instances have ports: `fromPort` must be an `out` port of the blueprint, `toPort` an `in` port);
-- sets fields or a pin on anything but a recipe node.
+- sets fields or a pin on anything but a recipe node, or a rate (`setRate`: a source's limit, a sink's target) on anything but a source or sink.
 
 Removing nodes also removes their positions and every edge that touches them; removing a blueprint's port node also removes the edges that reach that port through the blueprint's instances. Property tests check that `undo(do(x)) = x` for random command sequences and that no edge or position is ever left dangling.
 

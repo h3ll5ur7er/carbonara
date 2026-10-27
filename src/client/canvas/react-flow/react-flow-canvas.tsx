@@ -76,6 +76,7 @@ function FlowCanvas({
   onConnect,
   onViewCentre,
   onPortDropped,
+  onSelectionChange,
 }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
@@ -157,7 +158,8 @@ function FlowCanvas({
 
   useEffect(() => {
     const fit = (nodes?: FlowNode[]) =>
-      void fitView({ ...fitOptions(insets), ...(nodes && { nodes }), duration: motionDuration() });
+      // The whole graph shows at most at 100%; a selection may be zoomed in on up to the canvas maximum.
+      void fitView({ ...fitOptions(insets), ...(nodes && { nodes, maxZoom: MAX_ZOOM }), duration: motionDuration() });
     setCanvasActions({
       zoomToFit: () => fit(),
       zoomToSelection: () => {
@@ -211,6 +213,12 @@ function FlowCanvas({
     [store, onMoveNodes],
   );
 
+  // React Flow wants this handler stable; it reports every selection change, including box and lasso.
+  const reportSelection = useCallback(
+    ({ nodes: selected }: { nodes: FlowNode[] }) => onSelectionChange(selected.map((node) => node.id)),
+    [onSelectionChange],
+  );
+
   return (
     <CanvasContext value={context}>
       <div className="size-full" onKeyDownCapture={onKeyDownCapture}>
@@ -235,6 +243,7 @@ function FlowCanvas({
             deleteKeyCode={null}
             onConnect={handleConnect}
             onConnectEnd={onConnectEnd}
+            onSelectionChange={reportSelection}
             onInit={reportCentre}
             onMoveEnd={reportCentre}
             // Bottom centre is the one place the floating side panels never cover.
@@ -243,7 +252,7 @@ function FlowCanvas({
             {...(initialViewport ? { defaultViewport: initialViewport } : { fitView: true })}
             fitViewOptions={fitOptions(insets)}
             minZoom={0.05}
-            maxZoom={2}
+            maxZoom={MAX_ZOOM}
             aria-label="Factory canvas"
             className={`lod-${lod} ${particles ? "" : "particles-off"}`}
             // Culling pays off while part of the graph is on screen. At chip zoom most of it is, and mounting
@@ -285,6 +294,8 @@ function motionDuration(): number {
 /** Room around a fitted graph, in screen pixels, on top of what the panels cover. */
 const FIT_MARGIN = 48;
 
+const MAX_ZOOM = 2;
+
 function fitOptions(insets: Insets): FitViewOptions {
   return {
     // Plain numbers would be fractions of the viewport; these are pixels.
@@ -294,6 +305,8 @@ function fitOptions(insets: Insets): FitViewOptions {
       left: `${insets.left + FIT_MARGIN}px`,
       right: `${insets.right + FIT_MARGIN}px`,
     },
+    // A small factory shows at its real size instead of blown up to fill the screen.
+    maxZoom: 1,
   };
 }
 

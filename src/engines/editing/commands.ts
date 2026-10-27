@@ -50,6 +50,7 @@ const LABELS: Record<Command["type"], string> = {
   moveNodes: "Move nodes",
   setNodeFields: "Change fields",
   setPin: "Change pin",
+  setRate: "Change rate",
 };
 
 /** A name for the history when the caller gives none. */
@@ -119,6 +120,17 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
       if (command.type === "setNodeFields") Object.assign((node.fields ??= {}), command.fields);
       else if (command.pin === null) delete node.pin;
       else node.pin = structuredClone(command.pin);
+      return;
+    }
+    case "setRate": {
+      const node = graph.nodes[command.id];
+      if (!node) return issue(["id"], `Unknown node ${command.id}`);
+      if (node.kind !== "source" && node.kind !== "sink") {
+        return issue(["id"], `${command.id} is neither a source nor a sink`);
+      }
+      const key = node.kind === "source" ? "maxPerSecond" : "targetPerSecond";
+      if (command.perSecond === null) Reflect.deleteProperty(node, key);
+      else Object.assign(node, { [key]: command.perSecond });
       return;
     }
   }

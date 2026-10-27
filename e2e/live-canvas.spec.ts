@@ -46,3 +46,45 @@ test("builds a factory from the palette and the ports", async ({ page }) => {
   await expect(page.locator(".react-flow__node")).toHaveCount(2);
   await expect(page.locator(".react-flow__edge")).toHaveCount(1);
 });
+
+test("it flows: set a target and see the factory solve", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await newFactory(page, "Copper");
+  await page.keyboard.press("ControlOrMeta+K");
+  await page.keyboard.type("copper plate");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".react-flow__node")).toHaveCount(1);
+
+  await dragFromPort(page, "in:cuprite-ore", { x: -220, y: 40 });
+  await page
+    .getByRole("dialog", { name: "Connect a producer" })
+    .getByRole("option", { name: /source/ })
+    .click();
+  await dragFromPort(page, "out:copper-plate", { x: 160, y: 200 });
+  const consumers = page.getByRole("dialog", { name: "Connect a consumer" });
+  await consumers.getByRole("option", { name: /Copper Plate output/ }).click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(3);
+  // Zoom to fit: the whole factory, clear of the side panels.
+  await page.keyboard.press("f");
+
+  // Select the output and ask for one plate a second (Template Works counts per second).
+  const output = page.locator('.react-flow__node[data-id^="sink-"]');
+  await output.click();
+  const inspector = page.getByRole("complementary", { name: "Inspector" });
+  await expect(inspector).toContainText("Copper Plate");
+  const target = inspector.getByLabel("Target");
+  await target.fill("1");
+  await target.press("Enter");
+
+  // 3 s per plate: one a second takes 3 furnaces and 2 ore a second.
+  await expect(output).toContainText("100% of 1/s");
+  const furnace = page.locator(".react-flow__node").filter({ hasText: "Furnace" });
+  await expect(furnace.getByRole("listitem").filter({ hasText: "Cuprite Ore" })).toContainText("2/s");
+  await expect(furnace).toContainText("3 × 100%");
+  await expect(inspector).toContainText("Set by you");
+
+  // Undo history holds the edit: the target can be removed again.
+  await inspector.getByRole("button", { name: "Remove target" }).click();
+  await expect(inspector).toContainText("No target");
+});

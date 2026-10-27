@@ -1,11 +1,13 @@
 // The app as people use it: the shell around the open documents, kept in sync with the backend.
 // (Scenes render `AppShell` with fixed data instead.)
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas } from "./canvas/canvas";
 import { formatShortcut, platformOf } from "./core/commands-shortcuts";
 import { paletteCommandId } from "./features/command-palette/command-palette";
 import { appRegistry } from "./shell/app-commands";
 import { AppShell, EmptyState } from "./shell/app-shell";
+import { inspectNode, productionEdit } from "./shell/inspector/inspect";
+import type { InspectorPanelProps } from "./shell/inspector/inspector-panel";
 import { useConnector } from "./core/connector";
 import { useActiveDocument, useModels, useWorkspace, type ActiveDocument } from "./core/models";
 import { createDocumentActions, setDocumentActions } from "./features/documents/actions";
@@ -29,13 +31,26 @@ export function LiveApp() {
 
   useOpenSharedDocument();
   useReportRestoreProblems();
+  const [selection, setSelection] = useState<{ documentId: string; nodeIds: string[] } | null>(null);
+  const onSelectionChange = useCallback(
+    (nodeIds: string[]) => setSelection(info ? { documentId: info.id, nodeIds } : null),
+    [info],
+  );
+  const inspected = useInspected(active, selection);
 
   return (
     <>
       <AppShell
         document={info}
         tabs={<DocumentTabs />}
-        canvas={info ? <DocumentCanvas {...active} /> : <WelcomeCanvas loaded={loaded} />}
+        canvas={
+          info ? (
+            <DocumentCanvas {...active} onSelectionChange={onSelectionChange} />
+          ) : (
+            <WelcomeCanvas loaded={loaded} />
+          )
+        }
+        selection={inspected}
       />
       <NewDocumentDialog />
     </>
@@ -43,12 +58,22 @@ export function LiveApp() {
 }
 
 /** The active document on the canvas, with its live results; a hint how to start while it's empty. */
-function DocumentCanvas({ document, packData, results }: ActiveDocument) {
+function DocumentCanvas({
+  document,
+  packData,
+  results,
+  onSelectionChange,
+}: ActiveDocument & { onSelectionChange(nodeIds: string[]): void }) {
   const empty = !document || Object.keys(document.graph.nodes).length === 0;
   return (
     <>
       <div className="canvas-backdrop absolute inset-0">
-        <Canvas {...(document && { document })} {...(packData && { pack: packData })} results={results ?? null} />
+        <Canvas
+          {...(document && { document })}
+          {...(packData && { pack: packData })}
+          results={results ?? null}
+          onSelectionChange={onSelectionChange}
+        />
       </div>
       {empty && (
         <EmptyState hint={`Search for a recipe with ${shortcutOf(paletteCommandId)}, then build from its ports.`} />
@@ -72,6 +97,25 @@ function WelcomeCanvas({ loaded }: { loaded: boolean }) {
       {loaded && <Welcome />}
     </>
   );
+}
+
+/** The inspector's view of the one selected node of the active document; nothing for none or several. */
+function useInspected(
+  { info, document, packData, results }: ActiveDocument,
+  selection: { documentId: string; nodeIds: string[] } | null,
+): InspectorPanelProps["selection"] {
+  return useMemo(() => {
+    const nodeId =
+      selection?.documentId === info?.id && selection?.nodeIds.length === 1 ? selection.nodeIds[0] : undefined;
+    if (!nodeId || !info || !document || !packData) return null;
+    const node = inspectNode({ document, pack: packData, results, nodeId });
+    if (!node) return null;
+    return {
+      target: { documentId: info.id, nodeId },
+      node,
+      productionEdit: (value) => productionEdit(document, packData, nodeId, value),
+    };
+  }, [selection, info, document, packData, results]);
 }
 
 /** Opens the document of a share link the page was opened with, then removes it from the address bar. */

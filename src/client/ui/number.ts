@@ -5,6 +5,8 @@ export interface NumberRange {
   min: number;
   max: number;
   step?: number;
+  /** How far an arrow-key press moves, for fields whose range is open-ended; derived from the range otherwise. */
+  nudge?: number;
 }
 
 const anyStep = 0.0001;
@@ -31,7 +33,8 @@ export function parseNumber(text: string): number | null {
 }
 
 /** How far one arrow-key press moves: about a hundredth of the range, a power of ten, and at least the step. */
-export function nudgeIncrement({ min, max, step = anyStep }: NumberRange): number {
+export function nudgeIncrement({ min, max, step = anyStep, nudge }: NumberRange): number {
+  if (nudge !== undefined) return Math.max(step, nudge);
   const span = max - min;
   return span > 0 ? Math.max(step, 10 ** Math.floor(Math.log10(span / 100))) : step;
 }
