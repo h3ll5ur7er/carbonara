@@ -6,6 +6,8 @@ import {
   Background,
   BackgroundVariant,
   ReactFlow,
+  ReactFlowProvider,
+  useStore,
   type Connection,
   type EdgeChange,
   type EdgeTypes,
@@ -16,6 +18,7 @@ import {
 import { useCallback, useMemo, useState } from "react";
 import type { CanvasViewProps } from "../adapter";
 import { connectionItem } from "../model/connect";
+import { particlesShown } from "../model/flow-style";
 import { GRID } from "../model/geometry";
 import type { CanvasScene, EdgeView, NodeView } from "../model/scene";
 import { FrameNode, JunctionNode, NoteNode, PlaceholderNode } from "./annotation-nodes";
@@ -42,14 +45,15 @@ const MAJOR_GRID_EVERY = 4;
 const DOT_SIZE = 1.5;
 const MAJOR_DOT_SIZE = 2;
 
-export function ReactFlowCanvas({
-  scene,
-  initialViewport,
-  results,
-  rateUnit,
-  onMoveNodes,
-  onConnect,
-}: CanvasViewProps) {
+export function ReactFlowCanvas(props: CanvasViewProps) {
+  return (
+    <ReactFlowProvider>
+      <FlowCanvas {...props} />
+    </ReactFlowProvider>
+  );
+}
+
+function FlowCanvas({ scene, initialViewport, results, rateUnit, onMoveNodes, onConnect }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
   const [shownScene, setShownScene] = useState(scene);
@@ -61,6 +65,7 @@ export function ReactFlowCanvas({
   }
 
   const context = useMemo(() => ({ results, rateUnit }), [results, rateUnit]);
+  const particles = useStore((state) => particlesShown(state.transform[2]));
 
   const onNodesChange = useCallback(
     (changes: NodeChange<FlowNode>[]) => setNodes((current) => applyNodeChanges(changes, current)),
@@ -103,6 +108,7 @@ export function ReactFlowCanvas({
         minZoom={0.05}
         maxZoom={2}
         aria-label="Factory canvas"
+        {...(!particles && { className: "particles-off" })}
       >
         <Background
           id="minor"

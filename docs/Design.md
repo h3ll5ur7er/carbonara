@@ -37,6 +37,18 @@ The tokens live in `src/client/ui/tokens.css` and reach components as Tailwind u
 - Saturation colours: teal means healthy, amber means more than 90% of belt capacity, red means over capacity or a deficit. A colour-blind-safe palette is available as an option.
 - An optional **bottleneck heatmap** overlay and a **Sankey** overview mode give a whole-factory view.
 
+How the canvas does it ([[src/client/canvas/model/flow-style.ts]], styles in `src/client/canvas/canvas.css`):
+
+| Aspect | Rule |
+| --- | --- |
+| Width | 1.5 flow units plus 3 per tenfold rate, counted from 0.1 items/s, capped at 14: a trickle stays a visible hairline, a main bus is fat but never swallows its cards |
+| Colour | Healthy up to 90% of the edge's capacity, near capacity above, over capacity above 100% (with a little tolerance for float noise) or when the solver reports an overflow. Edges without a belt or pipe are healthy; edges without a result are drawn in `line-strong` |
+| Emphasis | The line is the saturation colour at 72%; hover and selection make it solid. Near and over capacity add a soft halo, so trouble catches the eye at any zoom |
+| Particles | Round dots made from a dash pattern (`0 <spacing>`, round caps), moved by animating `stroke-dashoffset`: one cheap path per edge, no per-particle elements. Speed is 40 flow units/s plus 30 per tenfold rate (at most 240); spacing shrinks from 64 to at least 18 as the rate grows. They are lighter tints of the flow colour |
+| Motion cut-offs | Particles are hidden below zoom 0.45 (a class on the canvas, set when the zoom crosses the threshold) and entirely with `prefers-reduced-motion` |
+
+The flow colours come from the runtime `--flow-*` inputs, so `data-palette="colorblind"` swaps them everywhere, the halo and particles included.
+
 ## Nodes
 
 - Each card shows the building icon and the recipe, with input and output ports that carry the item icon and the live rate. The machine count reads "4 × 100% + 1 × 37.5%", with an efficiency ring and an inline clock scrubber.
