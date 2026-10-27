@@ -2,7 +2,7 @@
 id: CARB-68
 title: Release the web app and installers
 type: chore
-status: backlog
+status: in-progress
 priority: high
 labels: [release]
 wave: "3"

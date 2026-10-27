@@ -100,7 +100,7 @@ On macOS the menu bar is built from the command registry ([[src/shells/tauri/men
 
 The updater plugin ([[src/shells/tauri/src-tauri/src/updater.rs]]) checks `latest.json` of the latest GitHub release when the app starts and asks before it installs and restarts. Only builds from the release workflow carry the updater's configuration: the workflow writes `tauri.release.conf.json` with the version from the tag, the updater's public key and endpoint, and `createUpdaterArtifacts`. Local and CI builds have no updater and never check.
 
-`.github/workflows/release.yml` runs on tags `v*`: a matrix of Linux (Ubuntu 22.04, for an older glibc), Windows and macOS (universal) builds the installers with `tauri-action` and attaches them, the signed update archives and `latest.json` to a **draft** release. Publishing the draft releases it to installed apps. On Linux only the AppImage updates itself; the `.deb` and `.rpm` update through the package manager.
+`.github/workflows/release.yml` runs on tags `v*`, or by hand (*Run workflow* on the Actions tab, with the version as `v1.2.3`; it releases the commit of the branch it runs on, and the tag is created when the draft is published): a matrix of Linux (Ubuntu 22.04, for an older glibc), Windows and macOS (universal) builds the installers with `tauri-action` and attaches them, the signed update archives and `latest.json` to a **draft** release. Publishing the draft releases it to installed apps. On Linux only the AppImage updates itself; the `.deb` and `.rpm` update through the package manager.
 
 ### Setup the repository owner does once
 
@@ -116,7 +116,7 @@ The updater plugin ([[src/shells/tauri/src-tauri/src/updater.rs]]) checks `lates
 
 ### Releasing
 
-1. Tag the commit with a version of three numbers (`v0.2.0`; the Windows installer refuses pre-release suffixes such as `-beta`) and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
+1. Tag the commit with a version of three numbers (`v0.2.0`; the Windows installer refuses pre-release suffixes such as `-beta`) and push the tag: `git tag v0.2.0 && git push origin v0.2.0`. Or run the *Release* workflow by hand on the branch with `v0.2.0` as its version.
 2. Wait for the *Release* workflow; it creates the draft release *Carbonara v0.2.0* with all installers.
 3. Check the draft, then **Publish release**. Installed apps offer the update on their next start.
 
@@ -143,7 +143,7 @@ See [[Development#Desktop]] for the commands. What runs where:
 | TS platform implementations, the proxy, opened files, the menu mapping, the desktop backend | `pnpm test` |
 | The Rust store, opened-file handling, updater configuration, starting the MCP server | `cargo test -p carbonara-desktop` |
 | The app builds and bundles on Linux | CI job *Desktop app (Linux)* on every push |
-| Installers for all three systems | `release.yml`, on tags |
+| Installers for all three systems | `release.yml`, on tags or by hand |
 
 Dialogs, file associations, the single-instance hand-over, the macOS menu bar and the updater's check need a desktop session to try by hand.
 

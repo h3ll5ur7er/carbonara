@@ -1,15 +1,25 @@
 name: Release
 
-# A tag `v1.2.3` builds the desktop installers for Linux, Windows and macOS and attaches them, with the signed
-# updates and `latest.json`, to a draft GitHub release named after the tag. Publishing the draft is what makes
-# installed apps update to it. The setup this needs is in docs/Architecture/Desktop.md (Releases).
+# A tag `v1.2.3`, or running this workflow by hand with that version, builds the desktop installers for Linux,
+# Windows and macOS and attaches them, with the signed updates and `latest.json`, to a draft GitHub release named
+# after the tag. Publishing the draft (which creates the tag when it was run by hand) is what makes installed apps
+# update to it. The setup this needs is in docs/Architecture/Desktop.md (Releases).
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version to release, as a tag: v1.2.3 (three numbers; the Windows installer refuses suffixes)"
+        required: true
 
 permissions:
   contents: write
+
+env:
+  # The tag that was pushed, or the version asked for by hand; the release is cut from the commit the run is on.
+  TAG: ${{ inputs.version || github.ref_name }}
 
 jobs:
   desktop:
@@ -48,13 +58,17 @@ jobs:
         env:
           PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
         run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$TAG isn't a version tag like v1.2.3"
+            exit 1
+          fi
           if [ -z "$PUBKEY" ]; then
             echo "::error::Set the repository variable TAURI_UPDATER_PUBKEY (docs/Architecture/Desktop.md, Releases)"
             exit 1
           fi
           cat > src/shells/tauri/src-tauri/tauri.release.conf.json <<EOF
           {
-            "version": "${GITHUB_REF_NAME#v}",
+            "version": "${TAG#v}",
             "bundle": { "createUpdaterArtifacts": true },
             "plugins": {
               "updater": {
@@ -74,8 +88,9 @@ jobs:
           projectPath: src/shells/tauri
           tauriScript: pnpm tauri
           args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json
-          tagName: ${{ github.ref_name }}
-          releaseName: Carbonara ${{ github.ref_name }}
+          tagName: ${{ env.TAG }}
+          releaseName: Carbonara ${{ env.TAG }}
+          releaseCommitish: ${{ github.sha }}
           releaseBody: Desktop installers for Linux (AppImage, .deb, .rpm), Windows (.msi, .exe) and macOS (.dmg).
           releaseDraft: true
           includeUpdaterJson: true
