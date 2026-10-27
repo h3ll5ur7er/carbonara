@@ -19,6 +19,7 @@ tester.run("layers", layers, {
     at("engines/solver/model.ts", `import { x } from "./math";`),
     at("managers/analysis.ts", `import { x } from "../engines/compiler";`),
     at("managers/analysis.ts", `import { x } from "../access/documents";`),
+    at("managers/editing.test.ts", `import { x } from "./editing";`),
     at("access/documents/index.ts", `import { x } from "../../contracts/platform";`),
     at("platforms/web/storage.ts", `import { x } from "../../contracts/platform";`),
     at("client/app.tsx", `import { x } from "./canvas/adapter"; import React from "react";`),
