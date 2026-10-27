@@ -7,7 +7,11 @@ graph:
     ore: { kind: source, item: cuprite-ore }
     plates: { kind: recipe, recipe: copper-plate }
     slag: { kind: sink, item: slag }
-    hint: { kind: note, text: "Add Copper Wire here, then connect it between the plates and the output." }
+    hint:
+      {
+        kind: note,
+        text: "Next: Copper Wire, between the plates and the output. Add it from the palette and connect both sides.",
+      }
     wire: { kind: sink, item: copper-wire }
   edges:
     ore-plates: { from: ore, to: plates, item: cuprite-ore }
@@ -16,6 +20,6 @@ layout:
   root:
     ore: { x: 0, y: 0 }
     plates: { x: 320, y: 0 }
-    slag: { x: 640, y: 240 }
-    hint: { x: 640, y: -24 }
-    wire: { x: 1000, y: 0 }
+    slag: { x: 820, y: 230 }
+    hint: { x: 780, y: -170 }
+    wire: { x: 1200, y: 0 }

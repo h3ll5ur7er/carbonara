@@ -6,7 +6,11 @@ graph:
   nodes:
     ore: { kind: source, item: iron-ore }
     plates: { kind: recipe, recipe: iron-plate }
-    hint: { kind: note, text: "Add Iron gear wheel here, then connect it between the plates and the output." }
+    hint:
+      {
+        kind: note,
+        text: "Next: Iron gear wheel, between the plates and the output. Add it from the palette and connect both sides.",
+      }
     gears: { kind: sink, item: iron-gear-wheel }
   edges:
     ore-plates: { from: ore, to: plates, item: iron-ore }
@@ -14,5 +18,5 @@ layout:
   root:
     ore: { x: 0, y: 0 }
     plates: { x: 320, y: 0 }
-    hint: { x: 640, y: -24 }
-    gears: { x: 1000, y: 0 }
+    hint: { x: 780, y: -170 }
+    gears: { x: 1200, y: 0 }

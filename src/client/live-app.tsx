@@ -19,6 +19,8 @@ import { useFactoryOverlays } from "./features/planner/factory-overlays";
 import { CheatSheet } from "./features/shortcuts/cheat-sheet";
 import { Welcome } from "./features/documents/welcome";
 import { McpHost } from "./features/mcp/host";
+import { TourCard } from "./features/onboarding/tour-card";
+import { useOnboarding } from "./features/onboarding/use-onboarding";
 import { errorMessage, toast } from "./shell/toasts";
 
 export function LiveApp() {
@@ -35,6 +37,7 @@ export function LiveApp() {
 
   useOpenSharedDocument();
   useReportRestoreProblems();
+  useOnboarding(active);
   const [selection, setSelection] = useState<{ documentId: string; nodeIds: string[] } | null>(null);
   const onSelectionChange = useCallback(
     (nodeIds: string[]) => setSelection(info ? { documentId: info.id, nodeIds } : null),
@@ -59,6 +62,7 @@ export function LiveApp() {
       <NewDocumentDialog />
       <McpHost />
       <CheatSheet />
+      {info && <TourCard />}
     </>
   );
 }

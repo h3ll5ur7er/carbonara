@@ -20,6 +20,7 @@ import { plannerCommands } from "../features/planner/commands";
 import { totalsCommands } from "../features/totals/commands";
 import { sankeyCommands } from "../features/sankey/commands";
 import { heatmapCommands } from "../features/heatmap/commands";
+import { onboardingCommands } from "../features/onboarding/commands";
 import { customisableRegistry, setCheatSheetOpen, useShortcuts } from "../features/shortcuts/store";
 import { paletteCommandId } from "../features/command-palette/command-palette";
 import { documentActions } from "../features/documents/actions";
@@ -143,6 +144,7 @@ export const appCommands: CommandDefinition[] = [
     icon: Keyboard,
     run: () => setCheatSheetOpen(!useShortcuts.getState().cheatSheetOpen),
   },
+  ...onboardingCommands,
 ];
 
 /** The registry the app uses: the commands above, with the shortcuts the person chose. */
