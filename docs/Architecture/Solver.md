@@ -8,17 +8,18 @@ What it hides: the LP formulation, the LP backend, decomposition and caching, an
 
 ## Input: the solver IR
 
-The `compiler` engine builds the IR from the document, the pack and the pack's plugin hooks. The IR is defined once in Rust ([[crates/solver/src/ir.rs]]); `cargo test` writes its TypeScript twin to `src/contracts/ir/` (ts-rs), re-exported by [[src/contracts/solver.ts]], and CI fails when the two drift. Values cross the WebAssembly boundary as plain JS objects (`serde-wasm-bindgen`). A binary encoding is only worth it if the benchmarks say so.
+The `compiler` engine builds the IR from the document, the pack and the pack's plugin hooks. The IR is defined once in Rust ([[crates/solver/src/ir.rs]]); `cargo test` writes its TypeScript twin to `src/contracts/ir/` (ts-rs), re-exported by [[src/contracts/solver.ts]], and CI fails when the two drift. Models and solutions cross the WebAssembly boundary as JSON text (`JSON.stringify`, `serde_json` with exact float round-trips): for a 10k-node model that takes about 18 ms where building and walking JS objects field by field (`serde-wasm-bindgen`) took about 33 ms. A binary encoding is only worth it if the benchmarks say so.
 
 The solver knows nothing about recipes, sources or sinks. It only sees:
 
 - **Nodes** with an activity `x ≥ 0` and a list of `rates` (items per second per unit of activity; positive out, negative in). A recipe node's activity is its machine count; a source or sink is a node with one rate of ±1, so its activity is items per second. A **junction** has no rates and passes every item through. Nodes may have an upper bound `max`, a `pin` (the activity the user asked for) and a `cost`.
 - **Edges** carrying one item from one node to another, with an optional `capacity` and a fixed `ratio`.
 - **Constraints** from plugins: `Σ coefficient · activity ≤ / = / ≥ rhs`.
+- **Blueprints** (`model.blueprints`): subgraphs with ports, placed by **instance** nodes; edges reach an instance through a port (`fromPort`, `toPort`). How they are summarised, and what an instance means, is in [[Architecture/Subgraphs]]. A **balanced** node is a process whose ports with edges carry exactly its rates (no surplus or deficit there); the solver uses it for the insides of inlined blueprints.
 
-Items, nodes and edges are indices into flat arrays, and every rate is in items per second. `validate` rejects inconsistent models (indices out of range, non-finite numbers); an invalid model is a compiler bug, so the solver facade throws.
+Items, nodes and edges are indices into flat arrays, and every rate is in items per second. `validate` rejects inconsistent models (indices out of range, non-finite numbers, ports that don't match, blueprints that place themselves); an invalid model is a compiler bug, so the solver facade throws. The IR version is 2.
 
-The **solution** has the activity per node, the flow per edge, and the slacks that explain everything that couldn't be met: `surplus` and `deficit` per (node, item), `overflow` per edge, and `pinMisses` per node.
+The **solution** has the activity per node, the flow per edge, and the slacks that explain everything that couldn't be met: `surplus` and `deficit` per (node, item), `overflow` per edge, and `pinMisses` per node. For instances it adds what each one does (`instances`: port flows, the activity of every node inside, nested instances) and which blueprints had to be inlined (`inlined`).
 
 ## From documents to the IR
 
@@ -33,7 +34,7 @@ The `compiler` engine ([[src/engines/compiler/compile.ts]]) builds the model; `t
 | Machine pin / rate pin | `pin` = count / (rate ÷ the recipe's net rate of the item); misses are reported back in the pin's own unit |
 | Edge `logistics` | `capacity`, converted from the pack's `units.rate` to items per second |
 | Plugin `constraints` | `constraints`, over recipe nodes' activities (see [[Architecture/Plugins]], The hook pipeline) |
-| `instance`, `port` | Not compiled yet (subgraphs, Wave 2): an `error` diagnostic |
+| `instance`, `port` | Instance nodes and blueprint ports ([[Architecture/Subgraphs]]); every blueprint compiles like the root graph, with one numbering of items for all |
 | `note`, `frame` | Left out |
 
 - **Deterministic:** node and edge ids are sorted, items are numbered in pack order, so the same document gives byte-identical IR whatever order its maps were built in (property-tested).
@@ -70,13 +71,15 @@ Constraints:
 4. Cost `Σ cost · x`
 5. Surplus. Last, so that choices left free (an unpinned sink after a pinned machine) take what is made instead of wasting it. Without it such flows would be arbitrary
 
-After a slack tier is solved, **each of its slacks is held**: a zero slack at exactly zero (it sits on its bound, so that stays feasible, and met pins stay exact), a positive one at its value ± 1e-8 relative. The cost tier holds only its total (± 1e-8 relative). Holding only a slack tier's total let later tiers shift a tiny amount of shortage to another port, which showed up as spurious diagnostics. The tolerance exists because microlp's values are accurate to about 1e-8; holding positive values exactly made feasible models infeasible. So non-zero slacks, and the values around them, may be off by about 1e-8 relative; the readable-number formatting hides that. A slack is reported only when it's larger than 1e-7 of the quantity it qualifies (the port's throughput, the edge's flow, the pin).
+After a slack tier is solved, it is **held**: its slacks at zero stay at exactly zero (they sit on their bound, so that stays feasible, and met pins stay exact), and the others keep their total (± 1e-8 relative). The cost tier holds its total the same way. Letting a held tier move a tiny amount of shortage to a port that had none showed up as spurious diagnostics, which is what holding the zeros prevents; among ports that already have a shortage, later tiers may choose any distribution with the same total. The tolerance exists because microlp's values are accurate to about 1e-8. So non-zero slacks, and the values around them, may be off by about 1e-8 relative; the readable-number formatting hides that. A slack is reported only when it's larger than 1e-7 of the quantity it qualifies (the port's throughput, the edge's flow, the pin).
+
+All tiers are minimised in **one warm LP** ([[crates/solver/src/program.rs]]): each tier's total `t ≥ Σ terms` joins the objective `Σ t` when its turn comes, and holding a tier fixes its total (and adds `Σ zero slacks ≤ 0`). microlp re-optimises each step from the last optimal basis (dual simplex) instead of solving from scratch. As before, the leading slack tiers (pins, deficits, overflow) are tried together first; if they can't all be zero, they run one by one. Tiers with negative terms (negative costs) fall back to one fresh LP per tier, as does any step microlp fails.
 
 Propagate mode is simply the case where most variables are pinned.
 
 The LP handles **cycles** (recycling loops, water loops, Factorio quality recycling) natively. Probabilistic outputs are modelled as expected values, so they stay linear.
 
-The LP library sits behind the `Backend` trait ([[crates/solver/src/program.rs]]): the formulation builds a backend-neutral `Program`, and `MicroLp` minimises it with `good_lp` + `microlp`. A second backend (clarabel) only has to implement `minimise`.
+The LP library sits behind the `Backend` trait ([[crates/solver/src/program.rs]]): the formulation builds a backend-neutral `Program`, and `MicroLp` minimises it with `microlp`, driven directly (good_lp hid the warm restarts). A second backend (clarabel) only has to implement `minimise`; the trait's default `minimise_in_order` then solves one fresh LP per tier.
 
 ## Readable results
 
@@ -86,27 +89,35 @@ The LP library sits behind the `Backend` trait ([[crates/solver/src/program.rs]]
 
 ## Performance
 
-1. **Off the UI thread:** the solver runs in the backend worker. The `analysis` manager ([[src/managers/analysis.ts]]) solves when `documentChanged` arrives, runs one analysis at a time per document, and collapses edits that arrive meanwhile into one more round. A result whose document version is no longer current is dropped, so `resultsChanged` only ever carries the latest version. A bug in an engine or plugin shows up as an `error` diagnostic on the document instead of leaving old numbers up.
+1. **Off the UI thread:** the solver runs in the backend worker. The `analysis` manager ([[src/managers/analysis.ts]]) solves when `documentChanged` arrives, runs one analysis at a time per document, and collapses edits that arrive meanwhile into one more round. A result whose document version is no longer current is dropped, so `resultsChanged` only ever carries the latest version. A bug in an engine or plugin shows up as an `error` diagnostic on the document instead of leaving old numbers up. Blueprint graphs are solved only when asked for or watched ([[Architecture/Subgraphs]]).
 2. **Incremental:** the graph is split into weakly connected components ([[crates/solver/src/decompose.rs]]); edges and plugin constraints both join nodes. Each component becomes a model of its own, renumbered (nodes, edges and items dense and in their original order) so an unchanged component gives the same model wherever it sits. A `Solver` ([[crates/solver/src/incremental.rs]]) caches each component's solution by a hash of its model, checks the model for equality on a hit, and keeps only what the last solve used: one `Solver` per document, so the next edit hits and nothing older lingers. `solve` without a `Solver` still goes component by component; `solve_whole` solves one big LP (tests use it to check that both reach the same optimum).
-3. **Hierarchy:** subgraphs compile to macro recipes; see [[Architecture/Subgraphs]].
+3. **Hierarchy:** before decomposing, instances are replaced by their blueprints' summaries (macro recipes, or modes) or inlined, which flattens the model; summaries are cached per blueprint in the same `Solver`. See [[Architecture/Subgraphs]].
 4. **Results bypass React state:** results land in the client's result store, and each node component subscribes to its own slot, so a solve re-renders only the nodes whose numbers changed. For now they travel as the plain `AnalysisResults` records from [[src/contracts/results.ts]]; typed arrays only if the benchmarks show the transfer matters.
 5. **Backend trait:** `microlp` first, `clarabel` behind the same trait for very large models.
 
 **Budgets** (checked in CI by `bench/`, see [[Development]]). The 500-node budget was 16 ms (one frame) and was relaxed to 100 ms by the project owner: a plan that recomputes while you edit still feels instant at 100 ms, and the canvas never waits for the solver anyway.
 
-| Scenario | Edit → numbers on screen | Measured (Oct 2026) |
-| --- | --- | --- |
-| 500-node component | < 100 ms | 155 ms median, 228 ms p95 |
-| 10k-node flat graph | < 150 ms | 300 ms median (20 components of 500 nodes) |
-| 50k-node factory built from subgraphs | < 50 ms | Not measurable before subgraphs (Wave 2); a flat 50k graph of 100 components takes 1.15 s |
+| Scenario | Edit → numbers on screen | Measured (27 Oct 2026, median) | Before (Oct 2026) |
+| --- | --- | --- | --- |
+| 500-node component | < 100 ms | **69 ms** (p95 133 ms): compile 5, solve 63, map 1 | 155 ms |
+| 10k-node flat graph | < 150 ms | 201 ms (p95 260 ms): compile 86, solve 93, map 23 | 300 ms |
+| 50k-node factory built from subgraphs | < 50 ms | 199 ms (p95 360 ms): compile 89, solve 52, map 55 | — |
 
 > [!WARNING]
-> The budgets aren't met yet. The CI job `Performance budgets` reports the numbers and fails without blocking (`continue-on-error`) until they are.
+> The 500-node budget is met; the other two aren't. The CI job `Performance budgets` reports the numbers and fails without blocking (`continue-on-error`) until they are.
 
-`bench/factories.ts` generates production lines of motor cells from the template pack (water loop, slag byproduct, belt capacities, one machine pin per cell); `bench/run.ts` times edit → results: compile the whole document, solve incrementally (one component re-solved), map back. Release WebAssembly in Node 22 on the cloud CI machine; the numbers above are medians of 10–30 edits.
+`bench/factories.ts` generates production lines of motor cells from the template pack (water loop, slag byproduct, belt capacities, one machine pin per cell); `bench/run.ts` times edit → results: compile the whole document, solve incrementally (one component re-solved), map back, and prints each phase and the CPU time beside the wall time. The subgraph factory places one motor-cell blueprint 26 times per line on 100 lines (about 50k nodes once expanded); its edit changes one cell's target. A second scenario edits the blueprint itself, which changes every line: 849 ms, measured but not budgeted. Release WebAssembly in Node 22 on a shared cloud machine; the numbers are medians of 5–30 edits, from a run whose CPU time matched its wall time (on this machine, load from other work can double wall times).
 
-Where the time goes, and what would help:
+`cargo run --release --example profile -p carbonara-solver -- model.json [rounds]` times a model the compiler built (as JSON) natively: warm against cold tiers, validation, and a re-solve with every component cached.
 
-- **The LP solve is most of it.** One 500-node component is an LP of about 2,600 variables and 1,800 rows, and each tier is a cold microlp simplex: about 30–40 ms natively, about twice that in WebAssembly. clarabel (interior point, through the same good_lp layer) measured the same. A plan without shortages needs three LPs (pins, deficits and overflow settle in one when they can all be zero, an exact shortcut); one with shortages needs six.
-- Ideas, in order of expected gain: warm-starting each tier (and each edit) from the previous basis, which means driving microlp directly instead of through good_lp; presolving the program (fixed slacks, ports with a single edge); a network-simplex special case for components without plugin constraints.
-- **Compile and map-back are O(document)** per edit: about 60 ms and 30–60 ms for 10k nodes. Compiling only the changed component would take most of that off the 10k case.
+What changed ([[CARB-73]]), and what each bought, natively on the 500-node component:
+
+- **One warm LP for all tiers** (see LP formulation): 45–50 ms instead of 115 ms for the three cold LPs a plan without shortages needed. Holding a tier's slacks by their total instead of one by one is what makes it warm-startable; one by one, the holds alone cost 150 ms.
+- **Lazy validation:** checking a 10k-node model took 18 ms because every check formatted its path; now 0.3 ms. A re-solve with every component cached went from about 30 ms to 3 ms.
+- **JSON at the WebAssembly boundary:** a 10k-node model goes in in about 18 ms instead of 33 ms.
+
+Where the time goes now, and what would help:
+
+- **The LP is still most of a 500-node edit** (about 2,600 variables and 1,800 rows): 45–50 ms natively, 55–60 ms in WebAssembly. Next: warm-starting each edit from the component's previous basis (microlp can't load a basis through its public API), presolving the program (fixed slacks, ports with a single edge), a network-simplex special case for components without plugin constraints.
+- **Compile and map-back are O(document)** per edit: 86 ms and 23 ms for 10k nodes, 89 ms and 55 ms for the subgraph factory. Compiling and mapping back only the changed component would take most of that off; it waits for the compiler's plugin hooks to settle (another engineer reworks them in parallel).
+- **The whole model crosses into WebAssembly on every edit,** and the whole solution back (for the subgraph factory, what 2,600 instances do inside). Keeping the model in the `Solver` and sending only the changed components would make the solve phase depend on the edit, not on the document.

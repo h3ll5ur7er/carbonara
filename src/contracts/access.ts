@@ -54,6 +54,10 @@ export interface CompiledModel {
   model: Model;
   /** Maps the solver's answer back to the document, with the plugin's derived metrics. */
   results(outcome: Result<Solution, Unsolvable>, version: number): Promise<AnalysisResults>;
+  /** The blueprint graphs that can be expanded: their index in `model.blueprints`, by blueprint id. */
+  blueprints: Record<string, number>;
+  /** Maps the solve of a blueprint's inside (`IncrementalSolver.expand`) back to that blueprint's graph. */
+  blueprintResults(graph: string, outcome: Result<Solution, Unsolvable>, version: number): Promise<AnalysisResults>;
 }
 
 /** Built-in and installed packs (packs access). Installing and removing come with CARB-25 and CARB-27. */

@@ -5,7 +5,7 @@ import type { DocumentStore, LoadedPack, OpenDocument, PackStore } from "../cont
 import type { Document } from "../contracts/document";
 import type { Events } from "../contracts/managers";
 import type { AnalysisResults } from "../contracts/results";
-import { templatePack, waterLoop } from "../engines/compiler/template.fixture";
+import { platesModule, templatePack, waterLoop } from "../engines/compiler/template.fixture";
 import { loadSolver } from "../engines/solver";
 import { createEventBus } from "../utilities/events";
 import { createAnalysisManager } from "./analysis";
@@ -181,11 +181,48 @@ describe("the analysis manager", () => {
     expect(results.diagnostics).toEqual([{ kind: "error", message: "Internal error while solving: no clock field" }]);
   });
 
-  it("has no results for unknown documents and for blueprints", async () => {
+  it("has no results for unknown documents and graphs", async () => {
     const { documents, analysis } = setUp();
     documents.put(waterLoop());
     expect(await analysis.getResults({ documentId: "nope", graph: "root" })).toBeNull();
     expect(await analysis.getResults({ documentId: "doc-water", graph: "rods" })).toBeNull();
+  });
+
+  it("solves a blueprint's inside only when asked, for the boundary flows of its instances", async () => {
+    const { edit, nextResults, published, analysis } = setUp();
+    const solved = nextResults();
+    edit(platesModule(3));
+    const root = await solved;
+    expect(root.nodes.module?.activity).toBeCloseTo(3, 9);
+    expect(published.map((results) => results.graph)).toEqual(["root"]);
+    const inside = await analysis.getResults({ documentId: "doc-plates", graph: "plates" });
+    expect(inside?.graph).toBe("plates");
+    expect(inside?.version).toBe(1);
+    expect(inside?.nodes.smelt?.activity).toBeCloseTo(9, 9);
+    expect(await analysis.getResults({ documentId: "doc-plates", graph: "plates" })).toBe(inside);
+    expect(published.map((results) => results.graph)).toEqual(["root"]);
+  });
+
+  it("publishes a watched blueprint's results with every solve until it is unwatched", async () => {
+    const { edit, published, analysis } = setUp();
+    edit(platesModule(1));
+    await analysis.getResults({ documentId: "doc-plates", graph: "root" });
+    await analysis.watchResults({ documentId: "doc-plates", graph: "plates" });
+    await analysis.watchResults({ documentId: "doc-plates", graph: "plates" });
+    edit(platesModule(2));
+    await analysis.getResults({ documentId: "doc-plates", graph: "root" });
+    // Two watches, one unwatch: still watched.
+    await analysis.unwatchResults({ documentId: "doc-plates", graph: "plates" });
+    edit(platesModule(3));
+    await analysis.getResults({ documentId: "doc-plates", graph: "root" });
+    await analysis.unwatchResults({ documentId: "doc-plates", graph: "plates" });
+    edit(platesModule(4));
+    await analysis.getResults({ documentId: "doc-plates", graph: "root" });
+    const watched = published.filter((results) => results.graph === "plates");
+    expect(watched.map((results) => [results.version, results.nodes.smelt?.activity])).toEqual([
+      [2, expect.closeTo(6, 9)],
+      [3, expect.closeTo(9, 9)],
+    ]);
   });
 
   it("forgets closed documents", async () => {

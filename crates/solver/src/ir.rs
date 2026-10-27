@@ -5,18 +5,37 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-/// A solvable factory: one component of a document, or a blueprint.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+/// A solvable factory: a document's graph, with the blueprints its instances place.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Model {
-    /// Number of distinct items; item indices are `0..items`.
+    /// Number of distinct items; item indices are `0..items`, in the blueprints too.
     pub items: u32,
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
     /// Extra linear constraints over node activities, from pack plugins.
     #[serde(default)]
     pub constraints: Vec<Constraint>,
+    /// Subgraphs that instance nodes place, here or inside other blueprints, by index.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blueprints: Vec<Blueprint>,
+}
+
+/// A reusable subgraph (docs/Architecture/Subgraphs.md). Its ports are process nodes with one rate of
+/// +1 (an `in` port: the item enters here) or −1 (an `out` port: the item leaves here). Item and
+/// blueprint indices are the model's. Pins inside a blueprint set its design: an instance at scale `t`
+/// runs the blueprint with every pin multiplied by `t`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Blueprint {
+    pub nodes: Vec<Node>,
+    pub edges: Vec<Edge>,
+    #[serde(default)]
+    pub constraints: Vec<Constraint>,
+    /// The port nodes, by port index.
+    pub ports: Vec<u32>,
 }
 
 /// Something with an activity level `x ≥ 0`: machines of a recipe (x = machine count), a source or sink
@@ -40,6 +59,10 @@ pub struct Node {
     /// Cost per unit of activity, minimised after pins and flows are satisfied.
     #[serde(default)]
     pub cost: f64,
+    /// Instance nodes: the blueprint they place.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub blueprint: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
@@ -50,6 +73,12 @@ pub enum NodeKind {
     Process,
     /// Passes every item through: what flows in flows out.
     Junction,
+    /// A process whose ports balance exactly: an item an edge can carry is all carried, never left as
+    /// surplus or deficit. The solver makes the insides of instances balanced (subgraphs).
+    Balanced,
+    /// A placed blueprint, reached through its ports. Its activity is its scale: how many times it runs
+    /// the blueprint as designed (0 for a blueprint without pins, which has no design scale).
+    Instance,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
@@ -76,6 +105,14 @@ pub struct Edge {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub ratio: Option<f64>,
+    /// When `from` is an instance: the `out` port of its blueprint the edge leaves through.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub from_port: Option<u32>,
+    /// When `to` is an instance: the `in` port of its blueprint the edge enters through.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub to_port: Option<u32>,
 }
 
 /// `Σ coefficient · activity(node)  op  rhs`
@@ -106,7 +143,7 @@ pub enum Comparison {
 }
 
 /// The solver's answer. Slacks explain every place where the model couldn't be met.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Solution {
@@ -122,6 +159,39 @@ pub struct Solution {
     pub overflow: Vec<EdgeSlack>,
     /// How far a node's activity is from its pin.
     pub pin_misses: Vec<NodeSlack>,
+    /// What each instance node does, in node order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub instances: Vec<InstanceSolution>,
+    /// Blueprints solved inline (flattened into the LP around them) because they can run in too many
+    /// independent ways to be summarised.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub inlined: Vec<Inlined>,
+}
+
+/// What an instance does: its boundary flows and, from its blueprint's summary, its inside. Expanding the
+/// blueprint solves the inside exactly for given boundary flows.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct InstanceSolution {
+    /// The instance node, in the graph that places it.
+    pub node: u32,
+    /// Items per second through each port of the blueprint, by port index.
+    pub ports: Vec<f64>,
+    /// Activity of each node of the blueprint (instances inside it: their scale).
+    pub activity: Vec<f64>,
+    /// The instances inside the blueprint.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub instances: Vec<InstanceSolution>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Inlined {
+    pub blueprint: u32,
+    /// Independent ways the blueprint can run: the dimension of its boundary flows.
+    pub freedom: u32,
 }
 
 /// Why a valid model has no solution. Only hard constraints from plugins (or negative costs) cause these;

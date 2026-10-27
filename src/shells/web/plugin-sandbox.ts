@@ -64,6 +64,11 @@ export async function isolatePlugin(
           })) as AnalysisResults;
           return { ...results, documentId: document.id, version, graph: "root" };
         },
+        // Blueprints' insides aren't expanded for sandboxed packs yet (CARB-39): their instances still solve.
+        blueprints: {},
+        blueprintResults: async (graph) => {
+          throw new Error(`Blueprint ${graph} can't be expanded in the plugin sandbox yet`);
+        },
       };
     },
     async describe(settings) {

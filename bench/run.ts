@@ -7,65 +7,134 @@ import type { Document } from "../src/contracts/document";
 import { compile, toResults } from "../src/engines/compiler";
 import { templatePack } from "../src/engines/compiler/template.fixture";
 import { createSolver, loadSolver, type IncrementalSolver } from "../src/engines/solver";
-import { cellsFor, editMotor, generateFactory } from "./factories";
+import {
+  cellsFor,
+  editBlueprint,
+  editMotor,
+  editTarget,
+  expandedNodes,
+  generateFactory,
+  generateSubgraphFactory,
+} from "./factories";
 
 interface Scenario {
   name: string;
-  lines: number;
-  nodesPerLine: number;
+  factory: Document;
+  /** The document after the nth edit. */
+  edit: (edit: number) => Document;
+  /** Components each edit re-solves. */
+  resolves: number;
   /** Median edit → results, in milliseconds. */
   budget?: number;
   edits: number;
 }
 
+/** A flat factory of production lines of about `nodesPerLine` nodes; the edit changes one motor's pin. */
+function flat(name: string, lines: number, nodesPerLine: number, edits: number, budget?: number): Scenario {
+  const cells = cellsFor(nodesPerLine);
+  const factory = generateFactory({ lines, cellsPerLine: cells });
+  const [line, cell] = [Math.floor(lines / 2), Math.floor(cells / 2)];
+  return {
+    name,
+    factory,
+    edit: (edit) => editMotor(factory, line, cell, edit),
+    resolves: 1,
+    edits,
+    ...(budget !== undefined && { budget }),
+  };
+}
+
+/** Lines of motor cells placed from one blueprint (about 19 nodes per cell once expanded). */
+function subgraphs(name: string, lines: number, cells: number, edits: number, budget?: number): Scenario {
+  const factory = generateSubgraphFactory({ lines, cellsPerLine: cells });
+  const [line, cell] = [Math.floor(lines / 2), Math.floor(cells / 2)];
+  return {
+    name,
+    factory,
+    edit: (edit) => editTarget(factory, line, cell, edit),
+    resolves: 1,
+    edits,
+    ...(budget !== undefined && { budget }),
+  };
+}
+
+const builtFromSubgraphs = subgraphs("50k-node factory built from subgraphs, 100 lines", 100, 26, 20, 50);
+
 const SCENARIOS: Scenario[] = [
-  { name: "500-node component", lines: 1, nodesPerLine: 500, budget: 100, edits: 30 },
-  { name: "1k-node factory, 2 components", lines: 2, nodesPerLine: 500, edits: 30 },
-  { name: "10k-node flat graph, 20 components", lines: 20, nodesPerLine: 500, budget: 150, edits: 20 },
-  // The 50k budget is for factories built from subgraphs (Wave 2); a flat one is measured for reference.
-  { name: "50k-node flat graph, 100 components", lines: 100, nodesPerLine: 500, edits: 10 },
+  flat("500-node component", 1, 500, 30, 100),
+  flat("1k-node factory, 2 components", 2, 500, 30),
+  flat("10k-node flat graph, 20 components", 20, 500, 20, 150),
+  flat("50k-node flat graph, 100 components", 100, 500, 10),
+  builtFromSubgraphs,
+  {
+    // Every instance's summary changes, so every line re-solves: measured, not budgeted.
+    factory: builtFromSubgraphs.factory,
+    name: "the same, editing the blueprint",
+    edit: (edit) => editBlueprint(builtFromSubgraphs.factory, edit),
+    resolves: 100,
+    edits: 5,
+  },
 ];
 
 const pack = templatePack();
 const plugin = templatePlugin;
 
-function analyse(document: Document, solver: IncrementalSolver, version: number) {
+/** Edit → results, timed in its three phases (milliseconds). */
+interface Timing {
+  compile: number;
+  /** The WebAssembly call: the model in, the incremental solve, the solution out. */
+  solve: number;
+  map: number;
+  total: number;
+  /** CPU time of the whole edit: less sensitive than wall time to other work on a shared machine. */
+  cpu: number;
+}
+
+function analyse(document: Document, solver: IncrementalSolver, version: number): Timing {
+  const start = performance.now();
+  const cpuAtStart = process.cpuUsage();
   const compiled = compile({ document, pack, plugin });
   if (compiled.diagnostics.length > 0) {
     throw new Error(`The generated factory doesn't compile: ${JSON.stringify(compiled.diagnostics[0])}`);
   }
+  const compiledAt = performance.now();
   const outcome = solver.solve(compiled.model);
   if (!outcome.ok) throw new Error(`The generated factory is ${outcome.error}`);
-  return toResults(compiled, outcome, plugin, version);
+  const solvedAt = performance.now();
+  toResults(compiled, outcome, plugin, version);
+  const end = performance.now();
+  const { user, system } = process.cpuUsage(cpuAtStart);
+  const cpu = (user + system) / 1000;
+  return { compile: compiledAt - start, solve: solvedAt - compiledAt, map: end - solvedAt, total: end - start, cpu };
 }
 
-function time(run: () => void): number {
-  const start = performance.now();
-  run();
-  return performance.now() - start;
-}
-
-const percentile = (sorted: number[], p: number) =>
-  sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0;
+const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0;
+const percentile = (values: number[], p: number) => {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0;
+};
 const ms = (value: number) => `${value.toFixed(1)} ms`;
 
 async function measure(scenario: Scenario) {
-  const cells = cellsFor(scenario.nodesPerLine);
-  const document = generateFactory({ lines: scenario.lines, cellsPerLine: cells });
-  const nodes = Object.keys(document.graph.nodes).length;
   const solver = await createSolver();
   try {
-    const cold = time(() => analyse(document, solver, 1));
-    const line = Math.floor(scenario.lines / 2);
-    const cell = Math.floor(cells / 2);
-    const times: number[] = [];
+    const cold = analyse(scenario.factory, solver, 1).total;
+    const timings: Timing[] = [];
     for (let edit = 1; edit <= scenario.edits; edit++) {
-      const edited = editMotor(document, line, cell, edit);
-      times.push(time(() => analyse(edited, solver, edit + 1)));
-      if (solver.lastSolved() !== 1) throw new Error(`An edit re-solved ${solver.lastSolved()} components, not 1`);
+      timings.push(analyse(scenario.edit(edit), solver, edit + 1));
+      if (solver.lastSolved() !== scenario.resolves) {
+        throw new Error(`An edit re-solved ${solver.lastSolved()} components, not ${scenario.resolves}`);
+      }
     }
-    times.sort((a, b) => a - b);
-    return { nodes, cold, median: percentile(times, 0.5), p95: percentile(times, 0.95) };
+    const phase = (name: keyof Timing) => median(timings.map((timing) => timing[name]));
+    const totals = timings.map((timing) => timing.total);
+    return {
+      cold,
+      median: median(totals),
+      cpu: median(timings.map((timing) => timing.cpu)),
+      p95: percentile(totals, 0.95),
+      phases: `${ms(phase("compile"))} / ${ms(phase("solve"))} / ${ms(phase("map"))}`,
+    };
   } finally {
     solver.dispose();
   }
@@ -74,12 +143,16 @@ async function measure(scenario: Scenario) {
 await loadSolver(readFileSync(new URL("../src/engines/solver/wasm/solver_bg.wasm", import.meta.url)));
 
 let exceeded = false;
-console.log("scenario | nodes | first solve | edit → results median | p95 | budget");
+console.log(
+  "scenario | nodes | first solve | edit → results median | p95 | CPU median | compile / solve / map | budget",
+);
 for (const scenario of SCENARIOS) {
   const result = await measure(scenario);
   const over = scenario.budget !== undefined && result.median > scenario.budget;
   exceeded ||= over;
   const budget = scenario.budget === undefined ? "—" : `${ms(scenario.budget)} ${over ? "EXCEEDED" : "ok"}`;
-  console.log([scenario.name, result.nodes, ms(result.cold), ms(result.median), ms(result.p95), budget].join(" | "));
+  const nodes = expandedNodes(scenario.factory);
+  const columns = [nodes, ms(result.cold), ms(result.median), ms(result.p95), ms(result.cpu), result.phases, budget];
+  console.log([scenario.name, ...columns].join(" | "));
 }
 process.exitCode = exceeded ? 1 : 0;

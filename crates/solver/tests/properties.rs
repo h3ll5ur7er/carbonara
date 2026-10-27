@@ -2,7 +2,8 @@
 mod common;
 
 use carbonara_solver::ir::*;
-use carbonara_solver::solve;
+use carbonara_solver::program::{Backend, BackendError, MicroLp, Program, Var};
+use carbonara_solver::{solve, solve_whole};
 use common::*;
 use proptest::prelude::*;
 
@@ -87,13 +88,14 @@ proptest! {
                 let into = flows(&model, &solution, false, n, item);
                 match node.kind {
                     NodeKind::Junction => prop_assert!(close(out, into), "junction {n} item {item}: {into} in, {out} out"),
-                    NodeKind::Process => {
+                    NodeKind::Process | NodeKind::Balanced => {
                         let rate = net_rate(node, item);
                         let made = rate.max(0.0) * solution.activity[n];
                         let used = (-rate).max(0.0) * solution.activity[n];
                         prop_assert!(close(out + slack(&solution.surplus, n, item), made), "node {n} item {item}: makes {made}, {out} leaves");
                         prop_assert!(close(into + slack(&solution.deficit, n, item), used), "node {n} item {item}: uses {used}, {into} arrives");
                     }
+                    NodeKind::Instance => unreachable!("random factories place no blueprints"),
                 }
             }
         }
@@ -145,5 +147,39 @@ proptest! {
     #[test]
     fn solving_is_deterministic(model in factory()) {
         prop_assert_eq!(solved(&model), solved(&model));
+    }
+
+    #[test]
+    fn one_warm_lp_for_all_tiers_scores_like_a_fresh_lp_per_tier(model in factory()) {
+        let warm = objectives(&model, &solved(&model));
+        let cold = match solve_whole(&model, &Cold) {
+            Ok(solution) => objectives(&model, &solution),
+            Err(error) => panic!("expected a solution, got {error:?}"),
+        };
+        let mut tiers = vec![
+            ("pin misses", warm.pin_misses, cold.pin_misses),
+            ("shortfall", warm.shortfall, cold.shortfall),
+        ];
+        // A shortage that can sit at several ports ties, and holding the ports without one decides the
+        // tie; the tiers after it then score whatever that leaves. Without shortages, nothing ties.
+        if cold.shortfall == 0.0 {
+            tiers.extend([("cost", warm.cost, cold.cost), ("surplus", warm.surplus, cold.surplus)]);
+        }
+        for (name, a, b) in tiers {
+            prop_assert!((a - b).abs() <= 1e-6 * (1.0 + b.abs()), "{name}: {a} warm, {b} cold");
+        }
+    }
+}
+
+/// microlp with a fresh LP per tier: the backend trait's own lexicographic minimisation.
+struct Cold;
+
+impl Backend for Cold {
+    fn minimise(
+        &self,
+        program: &Program,
+        objective: &[(Var, f64)],
+    ) -> Result<Vec<f64>, BackendError> {
+        MicroLp.minimise(program, objective)
     }
 }

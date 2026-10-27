@@ -7,6 +7,7 @@ import type { AnalysisResults, Diagnostic, EdgeResult, NodeResult } from "../../
 import type { Solution, Unsolvable } from "../../contracts/solver";
 import { clean } from "../../utilities/numbers";
 import type { Compiled } from "./compile";
+import { addBoundaryFlows, addInsideTotals, inlineHints } from "./instances";
 
 const UNSOLVABLE: Record<Unsolvable, string> = {
   infeasible: "The pack's constraints contradict each other; nothing could be solved",
@@ -42,6 +43,7 @@ export function toResults(
     outgoing[edge.from]?.push(e);
   });
 
+  const instances = new Map((solution.instances ?? []).map((inside) => [inside.node, inside]));
   const nodes: Record<string, NodeResult> = {};
   model.nodes.forEach((modelNode, index) => {
     const activity = solution.activity[index] ?? 0;
@@ -56,6 +58,8 @@ export function toResults(
       for (const e of incoming[index] ?? []) add(inputs, item(model.edges[e]?.item ?? 0), solution.flow[e] ?? 0);
       for (const e of outgoing[index] ?? []) add(outputs, item(model.edges[e]?.item ?? 0), solution.flow[e] ?? 0);
     }
+    const inside = instances.get(index);
+    if (inside) addBoundaryFlows(compiled.info[index] ?? { kind: "instance" }, inside, inputs, outputs);
     const context = compiled.info[index]?.context;
     const derived = context && plugin.derive?.({ ...context, machines: activity }, compiled.context);
     nodes[node(index)] = { activity, inputs, outputs, ...(derived && { derived }) };
@@ -94,6 +98,7 @@ export function toResults(
       node: node(miss.node),
       difference: miss.difference * (compiled.info[miss.node]?.pinRate ?? 1),
     })),
+    ...inlineHints(compiled, solution),
   ];
 
   const raw: Record<Id, number> = {};
@@ -113,6 +118,7 @@ export function toResults(
       buildings[building] = counted + Math.ceil(clean(activity));
     }
   });
+  addInsideTotals(compiled, solution, raw, buildings);
 
   return { ...base, nodes, edges, diagnostics, totals: { raw, buildings } };
 }

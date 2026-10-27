@@ -35,8 +35,8 @@ beforeAll(async () => {
 });
 
 describe("the solver's WebAssembly boundary", () => {
-  it("speaks IR version 1", async () => {
-    expect(await solverIrVersion()).toBe(1);
+  it("speaks IR version 2", async () => {
+    expect(await solverIrVersion()).toBe(2);
   });
 
   it("accepts a model built from the TS types", async () => {
@@ -50,11 +50,13 @@ describe("the solver's WebAssembly boundary", () => {
 
   it("solves a model built from the TS types", async () => {
     const result = await solve(chain);
+    // Values are exact to about 1e-8 (docs/Architecture/Solver.md, LP formulation).
+    const about = (value: number) => expect.closeTo(value, 9);
     expect(result).toEqual({
       ok: true,
       value: {
-        activity: [1, 2, 1],
-        flow: [1, 1],
+        activity: [about(1), about(2), about(1)],
+        flow: [about(1), about(1)],
         surplus: [],
         deficit: [],
         overflow: [],
@@ -102,6 +104,53 @@ describe("the solver's WebAssembly boundary", () => {
       const result = solver.solve(edited);
       expect(solver.lastSolved()).toBe(1);
       expect(result).toEqual(await solve(edited));
+    } finally {
+      solver.dispose();
+    }
+  });
+
+  it("solves instances of blueprints and expands their insides", async () => {
+    // The chain's smelter as a blueprint (ore port → smelter pinned to 2 machines → ingot port), placed once.
+    const placed: Model = {
+      items: 2,
+      nodes: [
+        { kind: "process", rates: [{ item: 0, perSecond: 1 }], cost: 1 },
+        { kind: "instance", rates: [], cost: 0, blueprint: 0 },
+        { kind: "process", rates: [{ item: 1, perSecond: -1 }], pin: 3, cost: 0 },
+      ],
+      edges: [
+        { from: 0, to: 1, item: 0, toPort: 0 },
+        { from: 1, to: 2, item: 1, fromPort: 1 },
+      ],
+      constraints: [],
+      blueprints: [
+        {
+          nodes: [
+            { kind: "process", rates: [{ item: 0, perSecond: 1 }], cost: 0 },
+            { kind: "process", rates: chain.nodes[1]?.rates ?? [], pin: 2, cost: 0 },
+            { kind: "process", rates: [{ item: 1, perSecond: -1 }], cost: 0 },
+          ],
+          edges: [
+            { from: 0, to: 1, item: 0 },
+            { from: 1, to: 2, item: 1 },
+          ],
+          constraints: [],
+          ports: [0, 2],
+        },
+      ],
+    };
+    const rounded = (values: number[] | undefined) => values?.map((value) => Number(value.toFixed(9)));
+    const solver = await createSolver();
+    try {
+      const around = solver.solve(placed);
+      if (!around.ok) throw new Error("expected a solution");
+      // Designed for 2 smelters (1 ingot/s), the instance runs 3 times.
+      expect(around.value.activity[1]).toBeCloseTo(3, 9);
+      expect(rounded(around.value.instances?.[0]?.ports)).toEqual([3, 3]);
+      expect(solver.lastSummarised()).toBe(1);
+      const inside = solver.expand(placed, 0);
+      if (!inside.ok) throw new Error("expected a solution");
+      expect(rounded(inside.value.activity)).toEqual([3, 6, 3]);
     } finally {
       solver.dispose();
     }

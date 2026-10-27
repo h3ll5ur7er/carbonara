@@ -176,6 +176,10 @@ export const managers = {
     arrange: method<Result<DocumentInfo>>()(documentRef.extend({ graph: GraphScope, ...ArrangeOptions.shape })),
   },
   analysis: {
+    /**
+     * The latest results of a graph: `root`, or a blueprint id for the inside of all its instances together
+     * (the blueprint as designed when it has none). Blueprints are solved only when asked for.
+     */
     getResults: method<AnalysisResults | null>()(documentRef.extend({ graph: z.string().default("root") }), [
       {
         tool: "get_totals",
@@ -194,6 +198,12 @@ export const managers = {
           "pins and errors, with rates in items per second. An empty list means the factory runs as planned.",
       },
     ]),
+    /**
+     * While a blueprint graph is watched, every solve of its document publishes its results with
+     * `resultsChanged` too (the root graph's always are). Watches count: each needs its `unwatchResults`.
+     */
+    watchResults: method<undefined>()(documentRef.extend({ graph: z.string().min(1) })),
+    unwatchResults: method<undefined>()(documentRef.extend({ graph: z.string().min(1) })),
   },
   planning: {
     planProduction: method<Result<Proposal>>()(planRequest.extend({ targets: z.array(PlanTarget).min(1) }), {

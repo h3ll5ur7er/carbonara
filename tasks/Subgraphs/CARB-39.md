@@ -16,3 +16,4 @@ milestone: "M3 Megafactory"
 - [ ] Editing engine: collapse/expand commands
 - [ ] Zoom transition + breadcrumbs
 - [ ] e2e test
+- [ ] Expand blueprints of sandboxed (third-party) packs: the plugin sandbox answers `blueprints: {}` for now, so their blueprint graphs show no results ([[src/shells/web/plugin-sandbox.ts]])

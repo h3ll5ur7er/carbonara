@@ -16,6 +16,13 @@ unsafe_code = "forbid"
 [workspace.lints.clippy]
 unwrap_used = "deny"
 
+# The LP library does the heavy lifting in tests; optimise it in debug builds too.
+[profile.dev.package.microlp]
+opt-level = 3
+
+[profile.dev.package.sprs]
+opt-level = 3
+
 [profile.release]
 opt-level = 3
 lto = true

@@ -3,7 +3,10 @@ import type { LocalId } from "./document";
 import type { Id } from "./pack";
 
 export interface NodeResult {
-  /** Machine count for recipe nodes, items per second for sources and sinks. */
+  /**
+   * Machine count for recipe nodes, items per second for sources and sinks; for instances, how many times
+   * they run their blueprint as designed (by its pins; 0 for a blueprint without pins).
+   */
   activity: number;
   inputs: Record<Id, number>;
   outputs: Record<Id, number>;
@@ -22,7 +25,9 @@ export type Diagnostic =
   | { kind: "overflow"; edge: LocalId; perSecond: number }
   | { kind: "pinMiss"; node: LocalId; difference: number }
   /** Errors leave something out of the solve; warnings (e.g. from the pack's plugin) don't. */
-  | { kind: "error" | "warning"; message: string; node?: LocalId };
+  | { kind: "error" | "warning"; message: string; node?: LocalId }
+  /** Not a problem with the plan: advice, such as how to make a blueprint solve faster. */
+  | { kind: "hint"; message: string; node?: LocalId };
 
 export interface Totals {
   /** Net raw inputs taken from sources, by item. */

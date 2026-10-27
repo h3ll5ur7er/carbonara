@@ -5,6 +5,7 @@ import type { PackData } from "../../contracts/pack";
 import type { Plugin } from "../../contracts/plugin";
 import { compile } from "./compile";
 import { describePlugin } from "./hooks";
+import { findBlueprint } from "./instances";
 import { toResults } from "./results";
 
 export function localRuntime(pack: PackData, plugin: Plugin): PluginRuntime {
@@ -14,6 +15,12 @@ export function localRuntime(pack: PackData, plugin: Plugin): PluginRuntime {
       return {
         model: compiled.model,
         results: async (outcome, version) => toResults(compiled, outcome, plugin, version),
+        blueprints: Object.fromEntries((compiled.blueprints ?? []).map(({ graph }, index) => [graph, index])),
+        async blueprintResults(graph, outcome, version) {
+          const blueprint = findBlueprint(compiled, graph);
+          if (!blueprint) throw new Error(`Unknown blueprint ${graph}`);
+          return toResults(blueprint.compiled, outcome, plugin, version);
+        },
       };
     },
     describe: async (settings) => describePlugin(pack, plugin, settings),

@@ -11,4 +11,12 @@ capacity?: number,
 /**
  * Fixed share (0..=1) of the source node's output of this item.
  */
-ratio?: number, };
+ratio?: number, 
+/**
+ * When `from` is an instance: the `out` port of its blueprint the edge leaves through.
+ */
+fromPort?: number, 
+/**
+ * When `to` is an instance: the `in` port of its blueprint the edge enters through.
+ */
+toPort?: number, };

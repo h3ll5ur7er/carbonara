@@ -151,8 +151,8 @@ The project is one package. Separate workspace packages would only pay off once 
 | Read model | Zustand, fed by manager events | Components subscribe to exactly what they show |
 | Document changes | Immer patches | Drive undo/redo, events to the client, and incremental re-solves |
 | RPC | Comlink-style envelope over `postMessage`, transferable `ArrayBuffer`s | Zero-copy results |
-| Solver | Rust: `good_lp` → `microlp` (pure Rust), `clarabel` as a second backend | No C toolchain in the WASM build |
-| WASM | `wasm-bindgen` + `wasm-pack`, `postcard` for the IR | Small binary, compact IR |
+| Solver | Rust: `microlp` (pure Rust), driven directly behind a `Backend` trait; `clarabel` as a possible second backend | No C toolchain in the WASM build; warm restarts between objective tiers |
+| WASM | `wasm-bindgen` + `wasm-pack`; models and solutions cross as JSON text | Small binary; JSON parses faster than object-by-object conversion |
 | Packs | zip via `fflate`; plugin bundling via `esbuild` in the CLI | One file per game; unzipping never blocks the UI |
 | Schemas | zod for packs and documents (JSON Schema generated); IR defined in Rust with TS types generated | One source of truth per contract |
 | Layout | ELK.js (layered) | Good automatic layout for left-to-right chains |
