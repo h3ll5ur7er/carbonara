@@ -17,14 +17,26 @@ The MCP server is a **client** in the [[Architecture]] sense: it calls the same 
 
 ## Tools
 
-| Group | Tools |
-| --- | --- |
-| Read | `list_packs`, `search_catalog` (items/recipes/buildings), `get_recipe`, `list_documents`, `get_graph` (document, subgraph or selection; summarised for large graphs), `get_totals`, `get_diagnostics` (deficits, overloaded belts, byproducts), `explain_node` |
-| Plan | `convert_rate` ("2 full yellow belts" → items/min, using the pack's logistics data and aliases), `plan_production(targets, options)` → proposal, `compare_recipes(item, rate)` |
-| Edit | `add_nodes`, `connect`, `set_node_fields`, `replace_recipe`, `create_subgraph`, `auto_arrange`, `apply_proposal`, `undo` |
-| Pack authoring | `get_pack_schema`, `get_plugin_api_docs`, `scaffold_pack`, `read_pack_file` / `write_pack_file` (only inside a dev pack folder), `validate_pack`, `reload_dev_pack`, `build_cpack` |
+A tool is a manager method with `mcp` metadata in [[src/contracts/managers.ts]]: its tool name, permission group, description and, optionally, a **view**. `pnpm mcp:tools` ([[tools/mcp-tools.ts]]) turns every such method into an entry of [[crates/mcp/manifest.json]], with the JSON Schema of the method's zod arguments as the tool's input schema, and the Rust server embeds that file. A new manager method becomes a tool by adding the metadata and running `pnpm mcp:tools`; `pnpm check` fails while the committed manifest is out of date.
 
-**Resources:** the JSON Schemas, the plugin API reference, and a summary of the active document. **Prompts:** "Design a production line" and "Create a pack for <game>".
+A view ([[src/client/features/mcp/views.ts]]) is the part of the method's value the tool answers with, so one method can back several focused tools and large answers stay small enough for a model: `get_totals` and `get_diagnostics` both call `analysis.getResults`. Every tool that takes a `documentId` also accepts `"active"`, the document on screen.
+
+| Group | Tool | Calls | |
+| --- | --- | --- | --- |
+| Read | `list_documents` | `workspace.listDocuments` | |
+| Read | `get_graph` | `editing.getDocument`, view `graph` | Every node, edge and position; graphs over 200 nodes come back as counts per kind, recipe and item |
+| Read | `get_totals` | `analysis.getResults`, view `totals` | Raw inputs and buildings |
+| Read | `get_diagnostics` | `analysis.getResults`, view `diagnostics` | Deficits, surpluses, overflows, missed pins, errors |
+| Read | `list_packs` | `packs.listPacks` | |
+| Read | `get_pack_data` | `packs.getPackData` | Items, recipes, buildings, logistics, resources: the ids `edit_graph` needs |
+| Edit | `edit_graph` | `editing.apply` | Any batch of [[src/contracts/commands.ts]] commands, as one undo step |
+| Edit | `undo` | `editing.undo` | |
+
+Still to come, each with the manager method it needs: `search_catalog` and `get_recipe` (a catalog query on the packs manager, for packs too large for `get_pack_data`), `explain_node` (analysis), `convert_rate`, `plan_production` and `compare_recipes` (planning, [[CARB-45]]), `apply_proposal` ([[CARB-46]]), `auto_arrange` ([[CARB-49]]), `replace_recipe` ([[CARB-53]]), `create_subgraph` ([[CARB-39]]), and the pack authoring tools `scaffold_pack`, `read_pack_file` / `write_pack_file` (only inside a dev pack folder), `validate_pack`, `reload_dev_pack` and `build_cpack` ([[CARB-72]]). `get_pack_schema` and `get_plugin_api_docs` became resources.
+
+**One edit tool, not one per command.** `edit_graph` takes any batch of commands rather than separate `add_nodes`, `connect` and `set_node_fields` tools: the command union is the single source of truth for edits, so new commands reach MCP clients without touching the generator; a production line (nodes plus the edges between them) stays one undo step, as each tool call should be; and the JSON Schema of the union documents every command for the model. The cost is one large input schema.
+
+**Resources** (in the manifest): the JSON Schemas of pack manifests, pack data and documents; the plugin API (the text of [[src/contracts/plugin.ts]]); and `carbonara://documents/active`, which the server answers by calling `get_graph` for the active document. **Prompts:** `design_production_line(item, rate)` and `create_pack(game)`.
 
 ## Example
 
