@@ -1,6 +1,7 @@
 // The app's top bar: the app menu behind the wordmark, open documents, the command palette's search field,
 // panel toggles and the theme. Titles and shortcuts come from the command registry.
 import { ChevronDown, Search } from "lucide-react";
+import type { ReactNode } from "react";
 import type { CommandRegistry } from "./core/commands";
 import { formatShortcut, type Platform } from "./core/commands-shortcuts";
 import { Packs } from "./features/packs/packs";
@@ -14,11 +15,13 @@ import { Toggle } from "./ui/toggle";
 
 export interface TopBarProps {
   documentName: string;
+  /** The open documents' tabs; a single static tab named `documentName` when left out (scenes). */
+  tabs?: ReactNode;
   registry: CommandRegistry;
   platform: Platform;
 }
 
-export function TopBar({ documentName, registry, platform }: TopBarProps) {
+export function TopBar({ documentName, tabs, registry, platform }: TopBarProps) {
   const leftOpen = usePanels((panels) => panels.left.open);
   const rightOpen = usePanels((panels) => panels.right.open);
   const keys = (id: string) => {
@@ -44,13 +47,14 @@ export function TopBar({ documentName, registry, platform }: TopBarProps) {
     <header className="relative flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface-1 px-3">
       <AppMenu registry={registry} platform={platform} />
       <div className="h-5 w-px bg-line" aria-hidden />
-      {/* Placeholder until documents and tabs exist. */}
-      <nav aria-label="Documents" className="flex min-w-0 items-center">
-        <span className="flex h-8 items-center gap-2 rounded-md bg-surface-3 px-3 text-sm font-medium text-fg shadow-sm">
-          <span className="size-1.5 rounded-full bg-accent" aria-hidden />
-          <span className="truncate">{documentName}</span>
-        </span>
-      </nav>
+      {tabs ?? (
+        <nav aria-label="Documents" className="flex min-w-0 items-center">
+          <span className="flex h-8 items-center gap-2 rounded-md bg-surface-3 px-3 text-sm font-medium text-fg shadow-sm">
+            <span className="size-1.5 rounded-full bg-accent" aria-hidden />
+            <span className="truncate">{documentName}</span>
+          </span>
+        </nav>
+      )}
       <button
         type="button"
         onClick={() => setPaletteOpen(true)}

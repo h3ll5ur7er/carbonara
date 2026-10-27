@@ -1,7 +1,7 @@
 // Scene `palette`: a document of the template pack is open, so the command palette offers quick-add.
 import { useMemo } from "react";
 import { ok } from "../../contracts/result";
-import { AppShell } from "../app";
+import { AppShell } from "../shell/app-shell";
 import { ConnectorProvider } from "../core/connector";
 import { fakeConnector } from "./fake-backend";
 import { templatePack } from "./template-pack";

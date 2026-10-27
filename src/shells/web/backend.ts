@@ -3,6 +3,7 @@
 import builtInPacks from "virtual:built-in-packs";
 import { createAutosavedDocumentStore } from "../../access/documents/autosave";
 import { createPackLibrary } from "../../access/packs/library";
+import type { Issue } from "../../contracts/issues";
 import { managers, type Events } from "../../contracts/managers";
 import type { EventMessage, Request } from "../../contracts/rpc";
 import { createAnalysisManager } from "../../managers/analysis";
@@ -20,8 +21,14 @@ export function startBackend(transport: Transport): void {
 
   const documents = createAutosavedDocumentStore(createIndexedDbStorage("carbonara-documents"));
   // Reopen last session's documents before answering. Without IndexedDB (private windows) we start empty;
-  // documents that can't be loaded stay saved, and reporting them waits for a UI.
-  const restored = documents.restore().catch(() => []);
+  // documents that can't be loaded stay saved, and `workspace.getRestoreProblems` reports them.
+  let restoreProblems: Issue[] = [];
+  const restored = documents
+    .restore()
+    .then((problems) => {
+      restoreProblems = problems;
+    })
+    .catch(() => undefined);
   const newId = () => crypto.randomUUID();
   // Built-in packs and the packs installed in IndexedDB; the workspace and packs managers share the one library.
   const packs = createPackLibrary({
@@ -31,7 +38,7 @@ export function startBackend(transport: Transport): void {
   });
 
   const dispatch = createDispatcher(managers, {
-    workspace: createWorkspaceManager({ documents, packs, events: bus, newId }),
+    workspace: createWorkspaceManager({ documents, packs, events: bus, newId, restoreProblems: () => restoreProblems }),
     editing: createEditingManager({ documents, events: bus, newId }),
     packs: createPacksManager({ library: packs, bus }),
     analysis: createAnalysisManager({ bus, documents, packs }),

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { FieldDescriptor, FieldValue } from "../../contracts/plugin";
 import { fail, ok } from "../../contracts/result";
-import { AppShell } from "../app";
+import { AppShell } from "../shell/app-shell";
 import { ConnectorProvider } from "../core/connector";
 import { panelWidths } from "../shell/panel-layout";
 import { usePanels } from "../shell/panels";

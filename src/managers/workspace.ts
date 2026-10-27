@@ -4,6 +4,7 @@ import { documentInfo, type DocumentStore, type PackStore } from "../contracts/a
 import { readDocumentFile, writeDocumentFile } from "../access/documents/files";
 import { readShareLink, writeShareLink } from "../access/documents/share-links";
 import { CURRENT_DOCUMENT_VERSION, type Document } from "../contracts/document";
+import type { Issue } from "../contracts/issues";
 import type { DocumentInfo, Events, ManagerImplementation } from "../contracts/managers";
 import { ok, type Result } from "../contracts/result";
 import type { EventBus } from "../utilities/events";
@@ -14,6 +15,8 @@ export interface WorkspaceDependencies {
   events: EventBus<Events>;
   /** Ids for new documents, and for copies of documents that are open already. */
   newId: () => string;
+  /** What went wrong restoring last session's documents; none by default. */
+  restoreProblems?: () => Issue[];
 }
 
 export function createWorkspaceManager({
@@ -21,6 +24,7 @@ export function createWorkspaceManager({
   packs,
   events,
   newId,
+  restoreProblems = () => [],
 }: WorkspaceDependencies): ManagerImplementation<"workspace"> {
   function announce(): void {
     events.publish("documentsChanged", { documents: documents.list() });
@@ -71,5 +75,6 @@ export function createWorkspaceManager({
     },
     createShareLink: async ({ documentId }) => writeShareLink(documentOf(documentId)),
     openShareLink: async ({ fragment }) => openResult(readShareLink(fragment)),
+    getRestoreProblems: async () => restoreProblems(),
   };
 }

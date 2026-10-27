@@ -2,7 +2,7 @@
 // which scene belongs here and which task builds it. Replace the registry entry when the real scene exists.
 import { Construction } from "lucide-react";
 import type { ComponentType } from "react";
-import { AppShell } from "../app";
+import { AppShell } from "../shell/app-shell";
 import { Canvas } from "../canvas/canvas";
 import { ConnectorProvider } from "../core/connector";
 import { fakeConnector } from "./fake-backend";

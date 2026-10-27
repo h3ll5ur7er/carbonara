@@ -100,7 +100,15 @@ The `workspace` manager ([[src/managers/workspace.ts]]) owns the set of open doc
 | `createShareLink({ documentId })` | The URL fragment (without `#`) that opens a copy of the document |
 | `openShareLink({ fragment })` | Opens the document in a fragment; a `Result` |
 
+| `getRestoreProblems()` | What went wrong restoring last session's documents (they stay saved); the client shows it once as a toast |
+
 Every change to the set publishes `documentsChanged` with the new list. A document opened while one with the same id is open (the same file twice, your own share link) becomes a copy under a new id, so the two edit separately. Until the packs access component exists ([[CARB-25]]) the web backend knows no packs, so `createDocument` refuses every pack there; importing works.
+
+## In the client
+
+The client mirrors the workspace in a small **workspace model** ([[src/client/core/workspace-model.ts]]): the open documents (the tabs, following `documentsChanged`) and the active one, which is client state. Closing the active tab activates the tab that takes its place, or the new last one. [[src/client/core/models.tsx]] provides the workspace model and the read model to React (`useWorkspace`, `useActiveDocument`).
+
+The File commands (new, open, save, copy share link, close) are in the command registry, so the palette, the app menu and the keyboard reach them. A share link in the address bar is `#doc=<fragment>`; opening the app with one opens a copy of the document and removes the fragment from the address bar.
 
 ## Versions and migrations
 

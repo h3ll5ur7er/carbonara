@@ -103,12 +103,18 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
   const menu = page.getByRole("menu");
   await expect(menu.getByRole("menuitem")).toHaveText([
     /Command palette\s*Ctrl\s*K/,
+    /New factory…\s*Ctrl\s*Shift\s*F/,
+    /Open factory file…\s*Ctrl\s*O/,
+    /Save factory file\s*Ctrl\s*S/,
+    /Copy share link\s*Ctrl\s*Shift\s*E/,
+    /Close factory\s*Ctrl\s*Shift\s*X/,
     /Toggle library\s*Ctrl\s*B/,
     /Toggle inspector\s*Ctrl\s*I/,
     /Switch light and dark theme\s*Ctrl\s*Shift\s*L/,
   ]);
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("ArrowDown");
+  // "Toggle inspector" is second to last.
+  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowUp");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("complementary", { name: "Inspector" })).toBeHidden();
 });

@@ -68,6 +68,8 @@ export const managers = {
     /** The document as a `.carbonara` file: gzipped JSON. */
     exportDocument: method<Uint8Array<ArrayBuffer>>()(documentRef),
     closeDocument: method<undefined>()(documentRef),
+    /** Problems restoring last session's documents (e.g. made with a newer Carbonara); they stay saved. */
+    getRestoreProblems: method<Issue[]>()(none),
     /** The URL fragment (without `#`) that opens a copy of the document: the compressed document itself. */
     createShareLink: method<string>()(documentRef),
     openShareLink: method<Result<DocumentInfo>>()(z.object({ fragment: z.string() })),

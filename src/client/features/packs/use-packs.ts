@@ -9,7 +9,10 @@ export function usePacks(): PackInfo[] | undefined {
   useEffect(() => {
     let current = true;
     const stop = connector.on("packsChanged", (event) => setPacks(event.packs));
-    void connector.packs.listPacks({}).then((list) => current && setPacks(list));
+    connector.packs
+      .listPacks({})
+      .then((list) => current && setPacks(list))
+      .catch(() => current && setPacks([]));
     return () => {
       current = false;
       stop();

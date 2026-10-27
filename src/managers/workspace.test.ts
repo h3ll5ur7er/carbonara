@@ -36,6 +36,22 @@ const json = (document: unknown) => strToU8(JSON.stringify(document));
 const iron = Document.parse(exampleDocument);
 
 describe("the workspace manager", () => {
+  it("reports no restore problems unless the composition root passes some", async () => {
+    await expect(setup().workspace.getRestoreProblems({})).resolves.toEqual([]);
+  });
+
+  it("reports the problems of restoring last session's documents", async () => {
+    const problems = [{ path: ["doc-9"], message: "Made with a newer Carbonara (document version 99)" }];
+    const workspace = createWorkspaceManager({
+      documents: createMemoryDocumentStore(),
+      packs: { list: async () => [], get: async () => undefined },
+      events: createEventBus<Events>(),
+      newId: () => "x",
+      restoreProblems: () => problems,
+    });
+    await expect(workspace.getRestoreProblems({})).resolves.toEqual(problems);
+  });
+
   it("answers pings", async () => {
     await expect(setup().workspace.ping({})).resolves.toBe("pong");
   });
