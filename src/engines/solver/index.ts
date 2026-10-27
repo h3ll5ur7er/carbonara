@@ -35,13 +35,18 @@ export async function solve(model: Model): Promise<SolveResult> {
   return solveModel(model) as SolveResult;
 }
 
-/** Solves one document's models one after another, re-solving only the components that changed. */
+/**
+ * Solves one document's models one after another, re-solving only the components that changed and
+ * re-summarising only the blueprints that changed (docs/Architecture/Subgraphs.md).
+ */
 export interface IncrementalSolver {
   /** Throws on inconsistent models, which are compiler bugs. */
   solve(model: Model): SolveResult;
   /** Components the last solve had to solve; the others came from the cache. */
   lastSolved(): number;
-  /** Frees the cache held in WebAssembly memory. */
+  /** Blueprint summaries the last solve had to compute; the others came from the cache. */
+  lastSummarised(): number;
+  /** Frees the caches held in WebAssembly memory. */
   dispose(): void;
 }
 
@@ -51,6 +56,7 @@ export async function createSolver(): Promise<IncrementalSolver> {
   return {
     solve: (model) => solver.solve(model) as SolveResult,
     lastSolved: () => solver.lastSolved(),
+    lastSummarised: () => solver.lastSummarised(),
     dispose: () => solver.free(),
   };
 }

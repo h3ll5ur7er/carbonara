@@ -15,10 +15,11 @@ The solver knows nothing about recipes, sources or sinks. It only sees:
 - **Nodes** with an activity `x ≥ 0` and a list of `rates` (items per second per unit of activity; positive out, negative in). A recipe node's activity is its machine count; a source or sink is a node with one rate of ±1, so its activity is items per second. A **junction** has no rates and passes every item through. Nodes may have an upper bound `max`, a `pin` (the activity the user asked for) and a `cost`.
 - **Edges** carrying one item from one node to another, with an optional `capacity` and a fixed `ratio`.
 - **Constraints** from plugins: `Σ coefficient · activity ≤ / = / ≥ rhs`.
+- **Blueprints** (`model.blueprints`): subgraphs with ports, placed by **instance** nodes; edges reach an instance through a port (`fromPort`, `toPort`). How they are summarised, and what an instance means, is in [[Architecture/Subgraphs]]. A **balanced** node is a process whose ports with edges carry exactly its rates (no surplus or deficit there); the solver uses it for the insides of inlined blueprints.
 
-Items, nodes and edges are indices into flat arrays, and every rate is in items per second. `validate` rejects inconsistent models (indices out of range, non-finite numbers); an invalid model is a compiler bug, so the solver facade throws.
+Items, nodes and edges are indices into flat arrays, and every rate is in items per second. `validate` rejects inconsistent models (indices out of range, non-finite numbers, ports that don't match, blueprints that place themselves); an invalid model is a compiler bug, so the solver facade throws. The IR version is 2.
 
-The **solution** has the activity per node, the flow per edge, and the slacks that explain everything that couldn't be met: `surplus` and `deficit` per (node, item), `overflow` per edge, and `pinMisses` per node.
+The **solution** has the activity per node, the flow per edge, and the slacks that explain everything that couldn't be met: `surplus` and `deficit` per (node, item), `overflow` per edge, and `pinMisses` per node. For instances it adds what each one does (`instances`: port flows, the activity of every node inside, nested instances) and which blueprints had to be inlined (`inlined`).
 
 ## From documents to the IR
 
@@ -32,7 +33,7 @@ The `compiler` engine ([[src/engines/compiler/compile.ts]]) builds the model; `t
 | `junction` | Junction |
 | Machine pin / rate pin | `pin` = count / (rate ÷ the recipe's net rate of the item); misses are reported back in the pin's own unit |
 | Edge `logistics` | `capacity`, converted from the pack's `units.rate` to items per second |
-| `instance`, `port` | Not compiled yet (subgraphs, Wave 2): an `error` diagnostic |
+| `instance`, `port` | Instance nodes and blueprint ports ([[Architecture/Subgraphs]]); every blueprint compiles like the root graph, with one numbering of items for all |
 | `note`, `frame` | Left out |
 
 - **Deterministic:** node and edge ids are sorted, items are numbered in pack order, so the same document gives byte-identical IR whatever order its maps were built in (property-tested).
@@ -87,7 +88,7 @@ The LP library sits behind the `Backend` trait ([[crates/solver/src/program.rs]]
 
 1. **Off the UI thread:** the solver runs in the backend worker. The `analysis` manager ([[src/managers/analysis.ts]]) solves when `documentChanged` arrives, runs one analysis at a time per document, and collapses edits that arrive meanwhile into one more round. A result whose document version is no longer current is dropped, so `resultsChanged` only ever carries the latest version. A bug in an engine or plugin shows up as an `error` diagnostic on the document instead of leaving old numbers up.
 2. **Incremental:** the graph is split into weakly connected components ([[crates/solver/src/decompose.rs]]); edges and plugin constraints both join nodes. Each component becomes a model of its own, renumbered (nodes, edges and items dense and in their original order) so an unchanged component gives the same model wherever it sits. A `Solver` ([[crates/solver/src/incremental.rs]]) caches each component's solution by a hash of its model, checks the model for equality on a hit, and keeps only what the last solve used: one `Solver` per document, so the next edit hits and nothing older lingers. `solve` without a `Solver` still goes component by component; `solve_whole` solves one big LP (tests use it to check that both reach the same optimum).
-3. **Hierarchy:** subgraphs compile to macro recipes; see [[Architecture/Subgraphs]].
+3. **Hierarchy:** before decomposing, instances are replaced by their blueprints' summaries (macro recipes, or modes) or inlined, which flattens the model; summaries are cached per blueprint in the same `Solver`. See [[Architecture/Subgraphs]].
 4. **Results bypass React state:** results land in the client's result store, and each node component subscribes to its own slot, so a solve re-renders only the nodes whose numbers changed. For now they travel as the plain `AnalysisResults` records from [[src/contracts/results.ts]]; typed arrays only if the benchmarks show the transfer matters.
 5. **Backend trait:** `microlp` first, `clarabel` behind the same trait for very large models.
 

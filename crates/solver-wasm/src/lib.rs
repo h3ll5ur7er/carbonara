@@ -53,6 +53,12 @@ impl Solver {
     pub fn last_solved(&self) -> usize {
         self.0.last_solved()
     }
+
+    /// Blueprint summaries the last solve had to compute (the others came from the cache).
+    #[wasm_bindgen(js_name = lastSummarised)]
+    pub fn last_summarised(&self) -> usize {
+        self.0.last_summarised()
+    }
 }
 
 #[derive(Serialize)]

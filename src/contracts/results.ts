@@ -3,7 +3,10 @@ import type { LocalId } from "./document";
 import type { Id } from "./pack";
 
 export interface NodeResult {
-  /** Machine count for recipe nodes, items per second for sources and sinks. */
+  /**
+   * Machine count for recipe nodes, items per second for sources and sinks; for instances, how many times
+   * they run their blueprint as designed (by its pins; 0 for a blueprint without pins).
+   */
   activity: number;
   inputs: Record<Id, number>;
   outputs: Record<Id, number>;

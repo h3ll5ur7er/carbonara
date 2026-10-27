@@ -22,10 +22,10 @@ pub enum Hold {
 }
 
 /// A slack variable at a node's port, with the port's rate per unit of activity.
-struct PortVar {
-    node: u32,
-    item: u32,
-    var: Var,
+pub(crate) struct PortVar {
+    pub node: u32,
+    pub item: u32,
+    pub var: Var,
     rate: f64,
 }
 
@@ -33,10 +33,11 @@ pub struct Formulation {
     pub program: Program,
     /// In order of priority.
     pub tiers: Vec<Tier>,
-    activity: Vec<Var>,
-    flow: Vec<Var>,
-    surplus: Vec<PortVar>,
-    deficit: Vec<PortVar>,
+    /// By node and by edge: subgraph summaries read these.
+    pub(crate) activity: Vec<Var>,
+    pub(crate) flow: Vec<Var>,
+    pub(crate) surplus: Vec<PortVar>,
+    pub(crate) deficit: Vec<PortVar>,
     overflow: Vec<(u32, Var)>,
     pins: Vec<(u32, f64)>,
 }
@@ -66,7 +67,7 @@ pub fn formulate(model: &Model) -> Formulation {
         let found = rates.binary_search_by_key(&item, |&(item, _)| item).ok()?;
         Some(rates[found].1)
     };
-    let is_process = |node: u32| model.nodes[node as usize].kind == NodeKind::Process;
+    let is_process = |node: u32| model.nodes[node as usize].kind != NodeKind::Junction;
 
     // An edge only carries what its ends trade: a process must make the item to send it and use it to take it.
     for (e, edge) in model.edges.iter().enumerate() {
@@ -87,7 +88,8 @@ pub fn formulate(model: &Model) -> Formulation {
     let (mut surplus, mut deficit) = (Vec::new(), Vec::new());
     for (n, node) in model.nodes.iter().enumerate() {
         match node.kind {
-            NodeKind::Process => {
+            // Flat models have no instances (see `subgraphs`); one would be a process without rates.
+            NodeKind::Process | NodeKind::Balanced | NodeKind::Instance => {
                 for &(item, rate) in &rates[n] {
                     // Σ flows + slack = |rate| · activity
                     let (edges, slacks) = if rate > 0.0 {
@@ -95,14 +97,16 @@ pub fn formulate(model: &Model) -> Formulation {
                     } else {
                         (&incoming[n], &mut deficit)
                     };
-                    let slack = program.variable(f64::INFINITY);
+                    let mut terms = edge_flows(edges, item);
+                    let carried = terms.iter().any(|&(flow, _)| program.bounds[flow].1 > 0.0);
+                    let balanced = node.kind == NodeKind::Balanced && carried;
+                    let slack = program.variable(if balanced { 0.0 } else { f64::INFINITY });
                     slacks.push(PortVar {
                         node: n as u32,
                         item,
                         var: slack,
                         rate: rate.abs(),
                     });
-                    let mut terms = edge_flows(edges, item);
                     terms.extend([(slack, 1.0), (activity[n], -rate.abs())]);
                     program.row(terms, Comparison::Equal, 0.0);
                 }
@@ -138,7 +142,7 @@ pub fn formulate(model: &Model) -> Formulation {
             // flow = ratio · what the source node puts out of this item
             let mut terms = vec![(flow[e], 1.0)];
             match model.nodes[edge.from as usize].kind {
-                NodeKind::Process => {
+                NodeKind::Process | NodeKind::Balanced | NodeKind::Instance => {
                     if let Some(rate) = rate(edge.from, edge.item).filter(|&r| r > 0.0) {
                         terms.push((activity[edge.from as usize], -ratio * rate));
                     }
@@ -265,6 +269,7 @@ impl Formulation {
                 .collect(),
             activity,
             flow,
+            ..Solution::default()
         }
     }
 }

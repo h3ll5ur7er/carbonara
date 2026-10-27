@@ -1,0 +1,352 @@
+//! Blueprints placed as instances: summarised bottom-up, combined by the LP around them, expanded
+//! top-down (docs/Architecture/Subgraphs.md).
+mod common;
+
+use carbonara_solver::ir::*;
+use carbonara_solver::program::MicroLp;
+use carbonara_solver::{Solver, solve, solve_inline};
+use common::*;
+use proptest::prelude::*;
+
+const ORE: u32 = 0;
+const INGOT: u32 = 1;
+const SLAG: u32 = 2;
+const COAL: u32 = 3;
+
+fn solved(model: &Model) -> Solution {
+    match solve(model) {
+        Ok(solution) => solution,
+        Err(error) => panic!("expected a solution, got {error:?}"),
+    }
+}
+
+fn inlined(model: &Model) -> Solution {
+    match solve_inline(model) {
+        Ok(solution) => solution,
+        Err(error) => panic!("expected a solution, got {error:?}"),
+    }
+}
+
+/// ore port → smelter (0.5 ore/s → 0.5 ingot/s per machine) → ingot port
+fn smelting() -> Blueprint {
+    Blueprint {
+        nodes: vec![
+            port_in(ORE),
+            process(&[(ORE, -0.5), (INGOT, 0.5)]),
+            port_out(INGOT),
+        ],
+        edges: vec![edge(0, 1, ORE), edge(1, 2, INGOT)],
+        constraints: vec![],
+        ports: vec![0, 2],
+    }
+}
+
+/// ore source → the blueprint (ore port 0, ingot port 1) → ingot sink pinned to `target`
+fn placing(blueprint: Blueprint, target: f64) -> Model {
+    Model {
+        blueprints: vec![blueprint],
+        ..model(
+            4,
+            vec![source(ORE), instance(0), pinned(sink(INGOT), target)],
+            vec![into_port(0, 1, ORE, 0), out_of_port(1, 2, INGOT, 1)],
+        )
+    }
+}
+
+/// `smelting` with its smelter pinned: the blueprint as designed makes `machines / 2` ingots per second.
+fn designed(machines: f64) -> Blueprint {
+    let mut blueprint = smelting();
+    blueprint.nodes[1].pin = Some(machines);
+    blueprint
+}
+
+/// What each objective tier scores: pin misses, deficits, cost (inside instances too) and surplus.
+fn scores(model: &Model, solution: &Solution) -> [f64; 4] {
+    fn inside_cost(model: &Model, blueprint: u32, instance: &InstanceSolution) -> f64 {
+        let body = &model.blueprints[blueprint as usize];
+        let own: f64 = body
+            .nodes
+            .iter()
+            .zip(&instance.activity)
+            .map(|(node, activity)| node.cost * activity)
+            .sum();
+        let nested: f64 = instance
+            .instances
+            .iter()
+            .filter_map(|inner| {
+                let placed = body.nodes[inner.node as usize].blueprint?;
+                Some(inside_cost(model, placed, inner))
+            })
+            .sum();
+        own + nested
+    }
+    let own: f64 = model
+        .nodes
+        .iter()
+        .zip(&solution.activity)
+        .map(|(node, activity)| node.cost * activity)
+        .sum();
+    let inside: f64 = solution
+        .instances
+        .iter()
+        .filter_map(|instance| {
+            let placed = model.nodes[instance.node as usize].blueprint?;
+            Some(inside_cost(model, placed, instance))
+        })
+        .sum();
+    [
+        solution
+            .pin_misses
+            .iter()
+            .map(|miss| miss.difference.abs())
+            .sum(),
+        total(&solution.deficit),
+        own + inside,
+        total(&solution.surplus),
+    ]
+}
+
+mod one_way_of_running {
+    use super::*;
+
+    #[test]
+    fn an_instance_works_like_its_blueprint() {
+        let solution = solved(&placing(smelting(), 1.0));
+        assert_all_close(&solution.flow, &[1.0, 1.0]);
+        // Without pins the blueprint has no design scale.
+        assert_all_close(&solution.activity, &[1.0, 0.0, 1.0]);
+        assert_eq!(solution.instances.len(), 1);
+        assert_eq!(solution.instances[0].node, 1);
+        assert_all_close(&solution.instances[0].ports, &[1.0, 1.0]);
+        assert_all_close(&solution.instances[0].activity, &[1.0, 2.0, 1.0]);
+        assert!(solution.deficit.is_empty() && solution.surplus.is_empty());
+        assert!(solution.inlined.is_empty());
+    }
+
+    #[test]
+    fn a_blueprints_pins_are_its_design_and_an_instance_runs_it_several_times() {
+        // Designed for 2 smelters (1 ingot/s); the sink wants 3 ingots/s.
+        let solution = solved(&placing(designed(2.0), 3.0));
+        assert_close(solution.activity[1], 3.0);
+        assert_all_close(&solution.instances[0].activity, &[3.0, 6.0, 3.0]);
+        assert!(solution.pin_misses.is_empty());
+    }
+
+    #[test]
+    fn a_limit_inside_caps_the_instance() {
+        // ore + coal → ingot, with the coal from a source inside that gives 1/s.
+        let blueprint = Blueprint {
+            nodes: vec![
+                port_in(ORE),
+                limited(source(COAL), 1.0),
+                process(&[(ORE, -1.0), (COAL, -1.0), (INGOT, 1.0)]),
+                port_out(INGOT),
+            ],
+            edges: vec![edge(0, 2, ORE), edge(1, 2, COAL), edge(2, 3, INGOT)],
+            constraints: vec![],
+            ports: vec![0, 3],
+        };
+        let solution = solved(&placing(blueprint, 3.0));
+        // The instance makes all it can; the sink explains the rest.
+        assert_all_close(&solution.flow, &[1.0, 1.0]);
+        assert_eq!(solution.deficit.len(), 1);
+        assert_eq!(
+            (solution.deficit[0].node, solution.deficit[0].item),
+            (2, INGOT)
+        );
+        assert_close(solution.deficit[0].per_second, 2.0);
+    }
+
+    #[test]
+    fn a_byproduct_dumped_inside_is_the_instances_surplus() {
+        let mut blueprint = smelting();
+        blueprint.nodes[1].rates.push(Rate {
+            item: SLAG,
+            per_second: 0.25,
+        });
+        let solution = solved(&placing(blueprint, 1.0));
+        assert_eq!(solution.surplus.len(), 1);
+        assert_eq!(
+            (solution.surplus[0].node, solution.surplus[0].item),
+            (1, SLAG)
+        );
+        assert_close(solution.surplus[0].per_second, 0.5);
+    }
+
+    #[test]
+    fn an_input_nothing_feeds_inside_is_the_instances_deficit() {
+        let mut blueprint = smelting();
+        blueprint.nodes[1].rates.push(Rate {
+            item: COAL,
+            per_second: -0.25,
+        });
+        let solution = solved(&placing(blueprint, 1.0));
+        assert_all_close(&solution.flow, &[1.0, 1.0]);
+        assert_eq!(solution.deficit.len(), 1);
+        assert_eq!(
+            (solution.deficit[0].node, solution.deficit[0].item),
+            (1, COAL)
+        );
+        assert_close(solution.deficit[0].per_second, 0.5);
+    }
+
+    #[test]
+    fn a_blueprint_inside_a_blueprint_is_summarised_first() {
+        // Outer: ore port → inner smelting instance → ingot port, with its own smelter pinned too.
+        let outer = Blueprint {
+            nodes: vec![port_in(ORE), instance(1), port_out(INGOT)],
+            edges: vec![into_port(0, 1, ORE, 0), out_of_port(1, 2, INGOT, 1)],
+            constraints: vec![],
+            ports: vec![0, 2],
+        };
+        let mut model = placing(outer, 2.0);
+        model.blueprints.push(designed(1.0));
+        let solution = solved(&model);
+        assert_all_close(&solution.flow, &[2.0, 2.0]);
+        let inner = &solution.instances[0].instances[0];
+        assert_eq!(inner.node, 1);
+        // The inner design makes 0.5 ingot/s, so it runs 4 times.
+        assert_close(solution.instances[0].activity[1], 4.0);
+        assert_all_close(&inner.activity, &[2.0, 4.0, 2.0]);
+    }
+}
+
+mod caching {
+    use super::*;
+
+    /// Two instances of one blueprint, each feeding a sink of its own.
+    fn twice(blueprint: Blueprint, targets: [f64; 2]) -> Model {
+        Model {
+            blueprints: vec![blueprint],
+            ..model(
+                4,
+                vec![
+                    source(ORE),
+                    instance(0),
+                    instance(0),
+                    pinned(sink(INGOT), targets[0]),
+                    pinned(sink(INGOT), targets[1]),
+                ],
+                vec![
+                    into_port(0, 1, ORE, 0),
+                    into_port(0, 2, ORE, 0),
+                    out_of_port(1, 3, INGOT, 1),
+                    out_of_port(2, 4, INGOT, 1),
+                ],
+            )
+        }
+    }
+
+    fn solve_with(solver: &mut Solver, model: &Model) -> Solution {
+        match solver.solve(model) {
+            Ok(solution) => solution,
+            Err(error) => panic!("expected a solution, got {error:?}"),
+        }
+    }
+
+    #[test]
+    fn instances_of_a_blueprint_share_one_summary() {
+        let mut solver = Solver::new(MicroLp);
+        let solution = solve_with(&mut solver, &twice(designed(2.0), [1.0, 2.0]));
+        assert_eq!(solver.last_summarised(), 1);
+        assert_all_close(&[solution.activity[1], solution.activity[2]], &[1.0, 2.0]);
+    }
+
+    #[test]
+    fn an_edit_around_instances_reuses_their_summary() {
+        let mut solver = Solver::new(MicroLp);
+        solve_with(&mut solver, &twice(designed(2.0), [1.0, 2.0]));
+        solve_with(&mut solver, &twice(designed(2.0), [1.0, 3.0]));
+        assert_eq!(solver.last_summarised(), 0);
+    }
+
+    #[test]
+    fn editing_one_blueprint_recomputes_only_its_summary() {
+        let mut model = twice(designed(2.0), [1.0, 2.0]);
+        // The second instance places a blueprint of its own.
+        model.blueprints.push(designed(4.0));
+        model.nodes[2].blueprint = Some(1);
+        let mut solver = Solver::new(MicroLp);
+        solve_with(&mut solver, &model);
+        assert_eq!(solver.last_summarised(), 2);
+        model.blueprints[1].nodes[1].pin = Some(6.0);
+        let solution = solve_with(&mut solver, &model);
+        assert_eq!(solver.last_summarised(), 1);
+        assert_eq!(solver.cached_summaries(), 2);
+        // 2 ingots/s from a design of 3 ingots/s.
+        assert_close(solution.activity[2], 2.0 / 3.0);
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        max_global_rejects: 1_000_000,
+        ..ProptestConfig::with_cases(128)
+    })]
+
+    #[test]
+    fn summarised_and_inlined_blueprints_plan_equally_well(blueprint in blueprint(), targets in targets()) {
+        let model = placed(&blueprint, &targets);
+        let summarised = solved(&model);
+        let reference = inlined(&model);
+        // A shortage can be explained in several places at the same cost (inside or around the
+        // instance, as in a flat graph); the plans agree when there is none. Plans that tie may still
+        // route differently, so they are compared by what each tier of the objective scores.
+        prop_assume!(reference.deficit.is_empty());
+        let (a, b) = (scores(&model, &summarised), scores(&model, &reference));
+        for (tier, (a, b)) in ["pin misses", "deficit", "cost", "surplus"].iter().zip(a.iter().zip(&b)) {
+            prop_assert!((a - b).abs() <= 1e-5 * (1.0 + b.abs()), "{tier}: {a} summarised, {b} inlined\n{summarised:?}\n{reference:?}");
+        }
+    }
+
+    #[test]
+    fn a_blueprint_placed_inside_another_plans_as_well_as_inlined(blueprint in blueprint(), targets in targets()) {
+        // An outer blueprint whose ports lead straight to and from an instance of the random one.
+        let mut outer = Blueprint { nodes: vec![instance(1)], edges: vec![], constraints: vec![], ports: vec![] };
+        for (port, &node) in blueprint.ports.iter().enumerate() {
+            let rate = blueprint.nodes[node as usize].rates[0];
+            let at = outer.nodes.len() as u32;
+            outer.ports.push(at);
+            if rate.per_second > 0.0 {
+                outer.nodes.push(port_in(rate.item));
+                outer.edges.push(into_port(at, 0, rate.item, port as u32));
+            } else {
+                outer.nodes.push(port_out(rate.item));
+                outer.edges.push(out_of_port(0, at, rate.item, port as u32));
+            }
+        }
+        let mut model = placed(&outer, &targets);
+        model.blueprints.push(blueprint);
+        let summarised = solved(&model);
+        let reference = inlined(&model);
+        prop_assume!(reference.deficit.is_empty());
+        let (a, b) = (scores(&model, &summarised), scores(&model, &reference));
+        for (tier, (a, b)) in ["pin misses", "deficit", "cost", "surplus"].iter().zip(a.iter().zip(&b)) {
+            prop_assert!((a - b).abs() <= 1e-5 * (1.0 + b.abs()), "{tier}: {a} summarised, {b} inlined");
+        }
+    }
+
+    #[test]
+    fn scaling_a_blueprints_design_and_its_targets_scales_its_plan_not_its_scale(
+        blueprint in blueprint(),
+        targets in targets(),
+        factor in prop::sample::select(vec![0.5, 3.0, 100.0]),
+    ) {
+        let mut scaled = blueprint.clone();
+        for node in &mut scaled.nodes {
+            node.pin = node.pin.map(|pin| pin * factor);
+            node.max = node.max.map(|max| max * factor);
+        }
+        let scaled_targets: Vec<Option<f64>> = targets.iter().map(|t| t.map(|t| t * factor)).collect();
+        let (model, bigger_model) = (placed(&blueprint, &targets), placed(&scaled, &scaled_targets));
+        let original = solved(&model);
+        let bigger = solved(&bigger_model);
+        // Shortages can tie, and ties go either way; so can routes, so plans are compared by score.
+        prop_assume!(original.deficit.is_empty() && bigger.deficit.is_empty());
+        prop_assert!(close(bigger.activity[0], original.activity[0]), "scale {} became {}", original.activity[0], bigger.activity[0]);
+        let (a, b) = (scores(&model, &original), scores(&bigger_model, &bigger));
+        for (tier, (a, b)) in ["pin misses", "deficit", "cost", "surplus"].iter().zip(a.iter().zip(&b)) {
+            prop_assert!((a * factor - b).abs() <= 1e-5 * (1.0 + b.abs()), "{tier}: {a} × {factor} ≠ {b}");
+        }
+    }
+}

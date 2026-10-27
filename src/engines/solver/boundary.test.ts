@@ -35,8 +35,8 @@ beforeAll(async () => {
 });
 
 describe("the solver's WebAssembly boundary", () => {
-  it("speaks IR version 1", async () => {
-    expect(await solverIrVersion()).toBe(1);
+  it("speaks IR version 2", async () => {
+    expect(await solverIrVersion()).toBe(2);
   });
 
   it("accepts a model built from the TS types", async () => {
@@ -102,6 +102,50 @@ describe("the solver's WebAssembly boundary", () => {
       const result = solver.solve(edited);
       expect(solver.lastSolved()).toBe(1);
       expect(result).toEqual(await solve(edited));
+    } finally {
+      solver.dispose();
+    }
+  });
+
+  it("solves instances of blueprints", async () => {
+    // The chain's smelter as a blueprint (ore port → smelter pinned to 2 machines → ingot port), placed once.
+    const placed: Model = {
+      items: 2,
+      nodes: [
+        { kind: "process", rates: [{ item: 0, perSecond: 1 }], cost: 1 },
+        { kind: "instance", rates: [], cost: 0, blueprint: 0 },
+        { kind: "process", rates: [{ item: 1, perSecond: -1 }], pin: 3, cost: 0 },
+      ],
+      edges: [
+        { from: 0, to: 1, item: 0, toPort: 0 },
+        { from: 1, to: 2, item: 1, fromPort: 1 },
+      ],
+      constraints: [],
+      blueprints: [
+        {
+          nodes: [
+            { kind: "process", rates: [{ item: 0, perSecond: 1 }], cost: 0 },
+            { kind: "process", rates: chain.nodes[1]?.rates ?? [], pin: 2, cost: 0 },
+            { kind: "process", rates: [{ item: 1, perSecond: -1 }], cost: 0 },
+          ],
+          edges: [
+            { from: 0, to: 1, item: 0 },
+            { from: 1, to: 2, item: 1 },
+          ],
+          constraints: [],
+          ports: [0, 2],
+        },
+      ],
+    };
+    const rounded = (values: number[] | undefined) => values?.map((value) => Number(value.toFixed(9)));
+    const solver = await createSolver();
+    try {
+      const around = solver.solve(placed);
+      if (!around.ok) throw new Error("expected a solution");
+      // Designed for 2 smelters (1 ingot/s), the instance runs 3 times.
+      expect(around.value.activity[1]).toBeCloseTo(3, 9);
+      expect(rounded(around.value.instances?.[0]?.ports)).toEqual([3, 3]);
+      expect(solver.lastSummarised()).toBe(1);
     } finally {
       solver.dispose();
     }

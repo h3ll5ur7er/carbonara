@@ -1,15 +1,18 @@
 //! The solver engine: turns the solver IR into machine counts and flows.
-//! It hides the LP formulation, the LP backend, decomposition and caching
-//! (see docs/Architecture/Solver.md).
+//! It hides the LP formulation, the LP backend, decomposition, caching and how subgraphs are summarised
+//! (see docs/Architecture/Solver.md and docs/Architecture/Subgraphs.md).
 
 /// Version of the solver IR this crate understands.
-pub const IR_VERSION: u32 = 1;
+pub const IR_VERSION: u32 = 2;
 
 mod decompose;
+mod fingerprint;
 mod formulation;
+mod graph;
 mod incremental;
 pub mod ir;
 pub mod program;
+mod subgraphs;
 pub mod validate;
 
 pub use decompose::{Component, components};
@@ -66,6 +69,24 @@ pub fn solve(model: &Model) -> Result<Solution, SolveError> {
 /// Solves a model as one LP, however many components it has.
 pub fn solve_whole(model: &Model, backend: &impl Backend) -> Result<Solution, SolveError> {
     validate(model)?;
+    if model.blueprints.is_empty() {
+        return solve_flat(model, backend);
+    }
+    let mut summaries = subgraphs::Summaries::default();
+    let flat = subgraphs::flatten(model, model.graph(), &mut summaries.context(backend))?;
+    Ok(flat.solution(&solve_flat(&flat.model, backend)?))
+}
+
+/// Solves a model with every instance inlined (flattened into the LP around it) instead of summarised:
+/// the reference that summaries must agree with.
+pub fn solve_inline(model: &Model) -> Result<Solution, SolveError> {
+    validate(model)?;
+    let flat = subgraphs::flatten(model, model.graph(), &mut subgraphs::InlineAll)?;
+    Ok(flat.solution(&solve_flat(&flat.model, &MicroLp)?))
+}
+
+/// One LP for a model without instances.
+fn solve_flat(model: &Model, backend: &impl Backend) -> Result<Solution, SolveError> {
     let mut formulation = formulation::formulate(model);
     let values = minimise_in_order(&mut formulation.program, &formulation.tiers, backend)?;
     Ok(formulation.read(&values))
@@ -79,7 +100,7 @@ const HOLD_TOLERANCE: f64 = 1e-8;
 const ZERO: f64 = 1e-10;
 
 /// Lexicographic minimisation: each tier is minimised, then held at its optimum for the tiers after it.
-fn minimise_in_order(
+pub(crate) fn minimise_in_order(
     program: &mut Program,
     tiers: &[Tier],
     backend: &impl Backend,

@@ -43,12 +43,7 @@ pub fn components(model: &Model) -> Vec<Component> {
                 edges: vec![],
                 constraints: vec![],
                 items: vec![],
-                model: Model {
-                    items: 0,
-                    nodes: vec![],
-                    edges: vec![],
-                    constraints: vec![],
-                },
+                model: Model::default(),
             });
             found.len() - 1
         })
@@ -147,6 +142,8 @@ fn local_model(model: &Model, component: &Component) -> Model {
                 }
             })
             .collect(),
+        // Components are taken from flat models, whose instances are already summarised or inlined.
+        blueprints: vec![],
     }
 }
 
@@ -160,10 +157,7 @@ pub fn merge(model: &Model, parts: &[(&Component, &Solution)]) -> Solution {
     let mut whole = Solution {
         activity: vec![0.0; model.nodes.len()],
         flow: vec![0.0; model.edges.len()],
-        surplus: vec![],
-        deficit: vec![],
-        overflow: vec![],
-        pin_misses: vec![],
+        ..Solution::default()
     };
     for &(component, solution) in parts {
         for (local, &global) in component.nodes.iter().enumerate() {

@@ -7,6 +7,14 @@ import type { FieldValue, NodeContext, Plugin, PluginContext } from "../../contr
 import type { Diagnostic } from "../../contracts/results";
 import type { Model, ModelEdge, ModelNode } from "../../contracts/solver";
 import { toPerSecond } from "../../utilities/units";
+import {
+  compileInstance,
+  compilePort,
+  compileWithBlueprints,
+  connectPorts,
+  type GraphScope,
+  type Port,
+} from "./instances";
 
 export interface CompileInput {
   document: Document;
@@ -16,17 +24,21 @@ export interface CompileInput {
 
 /** What `toResults` needs to know about a model node besides its index. */
 export interface NodeInfo {
-  kind: "recipe" | "source" | "sink" | "junction";
+  kind: "recipe" | "source" | "sink" | "junction" | "instance" | "port";
   /** Recipe nodes: what the plugin's `derive` hook gets. */
   context?: NodeContext;
   /** Rate-pinned recipes: the pinned item per machine and second, to report misses in items per second. */
   pinRate?: number;
+  /** Instance nodes: their blueprint's index in `Compiled.blueprints`, and its ports by index. */
+  blueprint?: number;
+  ports?: Port[];
 }
 
 export interface Compiled {
   documentId: string;
-  /** `root`; blueprints compile with subgraphs (Wave 2). */
+  /** `root` or a blueprint id. */
   graph: string;
+  /** The root graph's model holds the blueprints' models too (`model.blueprints`). */
   model: Model;
   /** Document ids of the model's nodes, edges and items, by index. */
   nodes: LocalId[];
@@ -36,30 +48,41 @@ export interface Compiled {
   context: PluginContext;
   /** What couldn't be compiled; those parts are left out of the model. */
   diagnostics: Diagnostic[];
+  /** Blueprint graphs: the blueprint's name and its port nodes (indices into `nodes`), by port index. */
+  name?: string;
+  ports?: number[];
+  /** The root graph of a document with blueprints: each blueprint compiled, by index in `model.blueprints`. */
+  blueprints?: Compiled[];
 }
 
 /** A model node whose rates still name items by id. */
-interface Draft {
+export interface Draft {
   id: LocalId;
   kind: ModelNode["kind"];
   rates: { item: Id; perSecond: number }[];
   max?: number;
   pin?: number;
   cost: number;
+  blueprint?: number;
   info: NodeInfo;
 }
 
-type Compiling = { ok: true; draft: Draft; problem?: string } | { ok: false; problem: string };
+export type Compiling = { ok: true; draft: Draft; problem?: string } | { ok: false; problem: string };
 
 const byId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-export function compile({ document, pack, plugin }: CompileInput): Compiled {
+/** Compiles a document's root graph, with the blueprints its instances place. */
+export function compile(input: CompileInput): Compiled {
+  return compileWithBlueprints(input, compileGraph);
+}
+
+function compileGraph({ document, pack, plugin }: CompileInput, scope: GraphScope): Compiled {
   const context: PluginContext = { pack, settings: document.settings.plugin ?? {} };
   const items = new Map(pack.items.map((item, index) => [item.id, index]));
   const recipes = new Map(pack.recipes.map((recipe) => [recipe.id, recipe]));
   const buildings = new Map(pack.buildings.map((building) => [building.id, building]));
   const logistics = new Map(pack.logistics.map((entry) => [entry.id, entry]));
-  const { nodes, edges } = document.graph;
+  const { nodes, edges } = scope.graph;
 
   const nodeDiagnostics: Diagnostic[] = [];
   const drafts = new Map<LocalId, Draft>();
@@ -106,9 +129,9 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
       case "junction":
         return { ok: true, draft: { id, kind: "junction", rates: [], cost: 0, info: { kind: "junction" } } };
       case "instance":
-        return { ok: false, problem: "Blueprint instances aren't solved yet" };
+        return compileInstance(id, node, scope);
       case "port":
-        return { ok: false, problem: "Ports belong inside blueprints" };
+        return compilePort(id, node, scope, items);
       case "note":
       case "frame":
         return undefined;
@@ -163,7 +186,16 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
   }
 
   const edgeDiagnostics: Diagnostic[] = [];
-  const kept: { id: LocalId; from: Draft; to: Draft; item: Id; capacity?: number; ratio?: number }[] = [];
+  const kept: {
+    id: LocalId;
+    from: Draft;
+    to: Draft;
+    item: Id;
+    capacity?: number;
+    ratio?: number;
+    fromPort?: number;
+    toPort?: number;
+  }[] = [];
   for (const id of Object.keys(edges).sort(byId)) {
     const edge = edges[id] as (typeof edges)[string];
     const problem = (message: string, node?: LocalId) =>
@@ -186,6 +218,11 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
       problem(`carries unknown item "${edge.item}"`);
       continue;
     }
+    const ports = connectPorts(edge, from, to);
+    if (typeof ports === "string") {
+      problem(ports);
+      continue;
+    }
     let capacity: number | undefined;
     if (edge.logistics !== undefined) {
       const belt = logistics.get(edge.logistics);
@@ -205,6 +242,7 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
       item: edge.item,
       ...(capacity !== undefined && { capacity }),
       ...(edge.ratio !== undefined && { ratio: edge.ratio }),
+      ...ports,
     });
   }
 
@@ -219,7 +257,7 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
 
   return {
     documentId: document.id,
-    graph: "root",
+    graph: scope.name,
     model: {
       items: itemIds.length,
       nodes: draftList.map((draft): ModelNode => ({
@@ -228,6 +266,7 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
         ...(draft.max !== undefined && { max: draft.max }),
         ...(draft.pin !== undefined && { pin: draft.pin }),
         cost: draft.cost,
+        ...(draft.blueprint !== undefined && { blueprint: draft.blueprint }),
       })),
       edges: kept.map((edge): ModelEdge => ({
         from: nodeIndex.get(edge.from.id) as number,
@@ -235,6 +274,8 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
         item: index(edge.item),
         ...(edge.capacity !== undefined && { capacity: edge.capacity }),
         ...(edge.ratio !== undefined && { ratio: edge.ratio }),
+        ...(edge.fromPort !== undefined && { fromPort: edge.fromPort }),
+        ...(edge.toPort !== undefined && { toPort: edge.toPort }),
       })),
       constraints: [],
     },

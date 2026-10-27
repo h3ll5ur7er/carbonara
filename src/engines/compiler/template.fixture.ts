@@ -58,3 +58,46 @@ export function waterLoop(): Document {
     settings: {},
   };
 }
+
+/**
+ * Iron plates from clean ferrite in a blueprint designed for 3 furnaces (1 plate/s), placed once and asked
+ * for `target` plates per second.
+ */
+export function platesModule(target = 2): Document {
+  return {
+    format: "carbonara",
+    version: 1,
+    id: "doc-plates",
+    name: "Plates module",
+    pack: { id: "template", version: "1.0.0", hash: "sha256-template" },
+    graph: {
+      nodes: {
+        ferrite: { kind: "source", item: "clean-ferrite" },
+        module: { kind: "instance", blueprint: "plates" },
+        out: { kind: "sink", item: "iron-plate", targetPerSecond: target },
+      },
+      edges: {
+        "ferrite-module": { from: "ferrite", to: "module", toPort: "in", item: "clean-ferrite" },
+        "module-out": { from: "module", fromPort: "out", to: "out", item: "iron-plate" },
+      },
+    },
+    blueprints: {
+      plates: {
+        name: "Plates",
+        graph: {
+          nodes: {
+            in: { kind: "port", direction: "in", item: "clean-ferrite" },
+            smelt: { kind: "recipe", recipe: "iron-plate", pin: { type: "machines", count: 3 } },
+            out: { kind: "port", direction: "out", item: "iron-plate" },
+          },
+          edges: {
+            "in-smelt": { from: "in", to: "smelt", item: "clean-ferrite", logistics: "conveyor-1" },
+            "smelt-out": { from: "smelt", to: "out", item: "iron-plate" },
+          },
+        },
+      },
+    },
+    layout: {},
+    settings: {},
+  };
+}

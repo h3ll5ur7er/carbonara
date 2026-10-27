@@ -22,4 +22,8 @@ pin?: number,
 /**
  * Cost per unit of activity, minimised after pins and flows are satisfied.
  */
-cost: number, };
+cost: number, 
+/**
+ * Instance nodes: the blueprint they place.
+ */
+blueprint?: number, };

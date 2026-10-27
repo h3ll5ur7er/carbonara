@@ -87,13 +87,14 @@ proptest! {
                 let into = flows(&model, &solution, false, n, item);
                 match node.kind {
                     NodeKind::Junction => prop_assert!(close(out, into), "junction {n} item {item}: {into} in, {out} out"),
-                    NodeKind::Process => {
+                    NodeKind::Process | NodeKind::Balanced => {
                         let rate = net_rate(node, item);
                         let made = rate.max(0.0) * solution.activity[n];
                         let used = (-rate).max(0.0) * solution.activity[n];
                         prop_assert!(close(out + slack(&solution.surplus, n, item), made), "node {n} item {item}: makes {made}, {out} leaves");
                         prop_assert!(close(into + slack(&solution.deficit, n, item), used), "node {n} item {item}: uses {used}, {into} arrives");
                     }
+                    NodeKind::Instance => unreachable!("random factories place no blueprints"),
                 }
             }
         }

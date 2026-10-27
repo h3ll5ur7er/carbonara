@@ -146,7 +146,7 @@ describe("compiling a document into the solver IR", () => {
     });
     expect(compiled.diagnostics).toEqual([
       { kind: "error", node: "missed", message: 'The pin is ignored: the recipe neither makes nor uses "coal"' },
-      { kind: "error", node: "nested", message: "Blueprint instances aren't solved yet" },
+      { kind: "error", node: "nested", message: 'Unknown blueprint "rods"' },
       { kind: "error", node: "odd", message: 'Unknown item "nothing"' },
       { kind: "error", node: "unknown", message: 'Unknown recipe "unobtainium"' },
       { kind: "error", node: "wrong", message: 'Recipe "iron-plate" can\'t run in "mixer"' },
