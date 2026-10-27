@@ -12,6 +12,7 @@ import "./canvas.css";
 import { createResultSlots } from "./model/result-slots";
 import { createSceneBuilder, type CanvasScene } from "./model/scene";
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
+import { setViewportCentre } from "./viewport";
 
 /** The renderer in use; the only place that names it. */
 const Renderer: CanvasAdapter = ReactFlowCanvas;
@@ -59,6 +60,7 @@ function EmptyCanvas() {
       rateUnit="per_minute"
       onMoveNodes={ignore}
       onConnect={ignore}
+      onViewCentre={setViewportCentre}
     />
   );
 }
@@ -126,6 +128,7 @@ function DocumentCanvas({
       rateUnit={document.settings.rateUnit ?? pack.units.rate}
       onMoveNodes={onMoveNodes}
       onConnect={onConnect}
+      onViewCentre={setViewportCentre}
     />
   );
 }

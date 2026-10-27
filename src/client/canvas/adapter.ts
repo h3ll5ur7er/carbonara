@@ -37,6 +37,8 @@ export interface CanvasViewProps {
   onMoveNodes(positions: Record<LocalId, Point>): void;
   /** The user connected two ports. */
   onConnect(edge: { from: LocalId; to: LocalId; item: Id }): void;
+  /** The view settled; `centre` is the flow position in the middle of the visible canvas. */
+  onViewCentre(centre: Point): void;
 }
 
 /** A renderer of the factory canvas. */

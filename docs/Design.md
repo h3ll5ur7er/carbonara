@@ -116,6 +116,8 @@ The flow colours come from the runtime `--flow-*` inputs, so `data-palette="colo
 
 Results bypass React state: they go into per-node and per-edge slots ([[src/client/canvas/model/result-slots.ts]]), each node and edge subscribes only to its own slot, and a new solve notifies only the slots whose values changed.
 
+The side panels float over the canvas, so the canvas reads which are open and treats them as **insets**: fitting the graph keeps it in the area they leave visible, and `viewportCentre()` ([[src/client/canvas/viewport.ts]]) gives the flow position in the middle of that area, for features outside the canvas such as quick-add. React Flow's credit sits at the bottom centre, the one place the panels never cover (we keep the credit rather than hiding it).
+
 ## Core interactions
 
 - Dragging from a port into empty space opens a **recipe picker filtered by that item**, showing producers or consumers depending on the port direction. It's ranked by how often you use each recipe and previews alternates side by side.

@@ -8,6 +8,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useStore,
+  useStoreApi,
   type Connection,
   type EdgeChange,
   type EdgeTypes,
@@ -16,12 +17,13 @@ import {
   type NodeTypes,
   type OnNodeDrag,
 } from "@xyflow/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CanvasViewProps, Insets } from "../adapter";
 import { connectionItem } from "../model/connect";
 import { particlesShown } from "../model/flow-style";
 import { GRID } from "../model/geometry";
 import type { CanvasScene, EdgeView, NodeView } from "../model/scene";
+import { visibleCentre } from "../model/view";
 import { FrameNode, JunctionNode, NoteNode, PlaceholderNode } from "./annotation-nodes";
 import { CanvasContext } from "./context";
 import { FlowEdge } from "./flow-edge";
@@ -54,7 +56,16 @@ export function ReactFlowCanvas(props: CanvasViewProps) {
   );
 }
 
-function FlowCanvas({ scene, initialViewport, insets, results, rateUnit, onMoveNodes, onConnect }: CanvasViewProps) {
+function FlowCanvas({
+  scene,
+  initialViewport,
+  insets,
+  results,
+  rateUnit,
+  onMoveNodes,
+  onConnect,
+  onViewCentre,
+}: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
   const [shownScene, setShownScene] = useState(scene);
@@ -92,6 +103,14 @@ function FlowCanvas({ scene, initialViewport, insets, results, rateUnit, onMoveN
     [onConnect],
   );
 
+  const store = useStoreApi<FlowNode, FlowEdgeType>();
+  const reportCentre = useCallback(() => {
+    const { transform, width, height } = store.getState();
+    const [x, y, zoom] = transform;
+    if (width > 0) onViewCentre(visibleCentre({ x, y, zoom }, { width, height }, insets));
+  }, [store, insets, onViewCentre]);
+  useEffect(reportCentre, [reportCentre]);
+
   return (
     <CanvasContext value={context}>
       <ReactFlow<FlowNode, FlowEdgeType>
@@ -103,6 +122,10 @@ function FlowCanvas({ scene, initialViewport, insets, results, rateUnit, onMoveN
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
         onConnect={handleConnect}
+        onInit={reportCentre}
+        onMoveEnd={reportCentre}
+        // Bottom centre is the one place the floating side panels never cover.
+        attributionPosition="bottom-center"
         isValidConnection={isValidConnection}
         {...(initialViewport ? { defaultViewport: initialViewport } : { fitView: true })}
         fitViewOptions={fitOptions(insets)}
