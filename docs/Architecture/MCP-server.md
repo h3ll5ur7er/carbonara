@@ -8,8 +8,74 @@ The MCP server is a **client** in the [[Architecture]] sense: it calls the same 
 
 ## How it's built
 
-- The server is part of the Tauri shell (Rust, `rmcp`). It serves Streamable HTTP on `127.0.0.1` with a per-install token. `carbonara mcp` is a stdio bridge in the same binary for clients that only launch stdio servers. A settings panel offers one-click "copy config" snippets for common clients.
+- The server is the crate [[crates/mcp]] (Rust, `rmcp` 3.8), which the Tauri shell runs. It serves Streamable HTTP on `127.0.0.1` with a per-install token. `carbonara mcp` is a stdio bridge in the same binary for clients that only launch stdio servers. A settings panel offers one-click "copy config" snippets for common clients.
 - Each tool call is forwarded to the client's connector and from there, as an ordinary RPC call, to the managers in the backend worker. If the app isn't running, tools return a clear error.
+
+```mermaid
+sequenceDiagram
+  participant C as MCP client
+  participant S as stdio bridge (carbonara mcp)
+  participant H as HTTP server (crates/mcp, in the Tauri shell)
+  participant W as Webview: MCP bridge (src/client/features/mcp)
+  participant M as Managers (backend worker)
+  C->>S: tools/call (stdio clients only)
+  S->>H: tools/call + Bearer token
+  C->>H: tools/call + Bearer token (HTTP clients)
+  H->>W: {id, tool, manager, method, args} (MessageBridge)
+  W->>W: permission check, "active" → tab on screen, "AI: " label
+  W->>M: RPC {manager, method, args} through the connector
+  M-->>W: value
+  W-->>H: {id, ok, value: the tool's view} or {id, ok: false, error}
+  H-->>C: tool result (an error result when refused or failed)
+```
+
+### The crate
+
+| Piece | What it does |
+| --- | --- |
+| `Manifest` | The tools, resources and prompts of [[crates/mcp/manifest.json]], embedded at build time |
+| `CarbonaraServer<B: Bridge>` | The MCP handler: lists tools, resources and prompts; forwards tool calls and tool-backed resources through the bridge. Failures come back as tool results with `isError`, so the model reads why |
+| `Bridge`, `BridgeCall` | `call({tool, manager, method, args}) → Result<Value, BridgeError>`; `Unavailable` when nothing answers, `Failed` when the app refused or a manager failed |
+| `MessageBridge` | A `Bridge` over a message pipe: sends `{id, tool, manager, method, args}` and resolves the call when `answer({id, ok, value \| error})` arrives; gives up after 120 s |
+| `serve_http` | Binds `127.0.0.1:<port>` (0 = any free port) and serves `/mcp`. Requests need `Authorization: Bearer <token>` (401 otherwise); the `Host` must be loopback (no DNS rebinding) and a request with an `Origin` header is refused (no web pages) |
+| `Token` | 256 random bits, created once per install and stored readable by the user only |
+| `Connection` | `{url, token}` in a file the app writes when the server starts, so the stdio bridge finds it |
+| `run_stdio` | The stdio bridge: an MCP server on stdin/stdout that forwards every request to the HTTP server named in the connection file, connecting lazily and again after the app restarts. `carbonara-mcp-stdio <connection file>` runs it alone, for development and tests |
+
+### Plugging it into the desktop shell
+
+The desktop shell (`src/shells/tauri/`) wires both ends. In Rust, at startup:
+
+```rust
+let config = app.path().app_config_dir()?;
+let token = carbonara_mcp::Token::load_or_create(&config.join("mcp-token"))?;
+let bridge = Arc::new(carbonara_mcp::MessageBridge::new({
+    let app = app.handle().clone();
+    move |call| app.emit("mcp-call", call).map_err(|error| error.to_string())
+}));
+let manifest = Arc::new(carbonara_mcp::Manifest::bundled()?);
+let server = carbonara_mcp::serve_http(manifest, bridge.clone(), 41736, token.clone()).await?;
+carbonara_mcp::Connection { url: server.url(), token: token.as_str().into() }
+    .write(&config.join("mcp.json"))?;
+// A command the webview calls with each answer:
+#[tauri::command] fn mcp_answer(bridge: State<Arc<MessageBridge>>, answer: serde_json::Value) { bridge.answer(answer); }
+```
+
+`carbonara mcp` (the subcommand) calls `carbonara_mcp::run_stdio(config.join("mcp.json"))` and nothing else: it must not open a window.
+
+In the webview, once, after creating the connector and before rendering:
+
+```ts
+attachMcpShell({
+  connector,
+  transport: {
+    send: (answer) => void invoke("mcp_answer", { answer }),
+    listen: (listener) => void listen("mcp-call", (event) => listener(event.payload)),
+  },
+});
+```
+
+`attachMcpShell` ([[src/client/features/mcp/host.tsx]]) starts the bridge ([[src/client/features/mcp/bridge.ts]]); `McpHost`, which the live app renders, tells it which tab is on screen. The web app never calls it, so it has no MCP.
 - **Tools are generated from the manager contracts** (DRY): each MCP-exposed manager method carries a description, its zod schema becomes the tool's input schema, and it belongs to a permission group.
 - **Edits go through the normal command pipeline:** each tool call becomes one undo step, labelled "AI: …" in the history panel.
 - **Proposals instead of surprises:** generative tools don't change the document directly by default. They create a proposal, shown as a ghost overlay with a summary card (machines, raw inputs, power) and *Accept*, *Adjust* and *Discard* buttons. A setting allows edits to be applied directly instead.
