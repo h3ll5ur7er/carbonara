@@ -6,41 +6,35 @@ Plugins are how games differ without the core changing (open/closed principle). 
 
 [TOC]
 
-## Declarative parts
+## The API
 
-Node fields such as `clock`, `modules` or `somersloops` are declared with descriptors. The inspector renders them automatically (slider, stepper, enum, item-slot picker), so most packs need no UI code.
+The plugin contract is [[src/contracts/plugin.ts]]. Every hook is optional and pure: it gets the pack data and the document's plugin settings (`settings.plugin`, e.g. a save profile) and returns values; it never touches the document, storage or the DOM.
 
-## Hooks
+| Hook | When | Returns |
+| --- | --- | --- |
+| `nodeFields(building)` | Building the inspector, validating node fields | Field descriptors (`number`, `choice`, `toggle`), rendered without plugin UI code |
+| `recipeAvailable(recipe)` | Recipe pickers, the planner | Whether the recipe may be used (alternate unlocks, tech tree) |
+| `effectiveRecipe(node)` | Compiling, before the solve | The recipe as this node runs it, all modifiers applied. It must stay linear in the machine count |
+| `derive(node)` | After the solve | Metrics such as power in MW; non-linear is fine here |
+| `importer` | `carbonara-pack import` (maintainers) | Pack data and icons generated from the game's own files |
 
 ```ts
 export default definePlugin({
-  id: 'satisfactory-core',
-  nodeFields: {
-    clock:       { kind: 'number', min: 1, max: 250, step: 0.0001, unit: '%', default: 100 },
-    somersloops: { kind: 'int', min: 0, max: (b) => b.slots.amplifier ?? 0 },
-  },
-  // pre-solve: linear transform of the recipe for this node (keeps the LP linear)
-  effectiveRecipe(node, recipe, ctx) {
-    const clock = node.fields.clock / 100;
-    const amp = 1 + node.fields.somersloops / node.building.slots.amplifier;
-    return recipe.scaleRates(clock).scaleOutputs(amp);
-  },
-  // global linear constraints / variables (somersloop budget, power grid balance)
-  constraints(ir, ctx) { ir.addConstraint(sum(ir.nodes, n => n.fields.somersloops), '<=', ctx.save.somersloops); },
-  // which recipes are available (alternate unlocks, tech tree)
-  recipeAvailable(recipe, ctx) { return !recipe.tags.includes('alternate') || ctx.save.unlocked.has(recipe.id); },
-  // post-solve derived metrics (non-linear allowed here)
-  derive(node, sol) { return { powerMW: node.building.power.consume * (node.fields.clock / 100) ** 1.321928 * sol.machines }; },
-  // validators → badges and warnings on nodes
-  validate(node, sol) { /* … */ },
-  // UI contributions (declarative): panels, commands, node badges, custom node kinds
-  contributes: { commands: [...], panels: [...], nodeKinds: [...] },
-  // maintainer tooling: regenerate data/ from the game's own data files
-  importer: { accepts: ['Docs.json', 'en-US.json'], run(files, ctx) { /* → { data, icons } */ } },
+  id: "satisfactory-core",
+  nodeFields: (building) =>
+    building.fields?.clock
+      ? { clock: { kind: "number", label: "Clock", min: 1, max: 250, step: 0.0001, unit: "%", default: 100 } }
+      : {},
+  recipeAvailable: (recipe, { settings }) =>
+    !recipe.tags?.includes("alternate") || (settings.unlocked as string[] | undefined)?.includes(recipe.id) === true,
+  effectiveRecipe: ({ recipe, fields }) => ({ ...recipe, time: recipe.time / ((fields.clock as number) / 100) }),
+  derive: ({ building, fields, machines }) => ({
+    powerMW: (building.power?.consume ?? 0) * ((fields.clock as number) / 100) ** 1.321928 * machines,
+  }),
 });
 ```
 
-Hooks are added to the API only when a pack needs them (YAGNI). Every hook is optional.
+Hooks join the API when a pack needs them (YAGNI). Global constraints (somersloop budgets, power balance), validators and UI contributions come with the Satisfactory and Factorio plugins ([[CARB-43]], [[CARB-44]]); the solver IR already accepts plugin constraints.
 
 ## How mechanics map onto hooks
 

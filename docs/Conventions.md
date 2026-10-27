@@ -47,7 +47,7 @@ How we write Carbonara. These rules apply to people and agents alike. When a rul
 - **Open/closed:** new games and mechanics arrive as packs and plugins, never as `if (game === …)` in the core.
 - **Liskov substitution:** every implementation of an access or platform port passes the same contract test suite.
 - **Interface segregation:** small manager contracts per area; plugins implement only the hooks they need; components get only the props they use.
-- **Dependency inversion:** managers depend on access *contracts*. Platforms are wired in at the composition root (`src/managers/backend.ts`) and in tests.
+- **Dependency inversion:** managers depend on access *contracts*. Platforms are wired in at the composition root (`src/shells/web/backend.ts`) and in tests.
 
 ## YAGNI
 

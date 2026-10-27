@@ -84,6 +84,14 @@ export const Document = z.object({
   graph: Graph,
   blueprints: z.record(LocalId, Blueprint).default({}),
   layout: Layout.default({}),
-  settings: z.object({ rateUnit: RateUnit.optional() }).default({}),
+  settings: z
+    .object({
+      rateUnit: RateUnit.optional(),
+      plugin: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe("Settings of the pack's plugin, e.g. a save profile."),
+    })
+    .default({}),
 });
 export type Document = z.infer<typeof Document>;

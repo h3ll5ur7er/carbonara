@@ -73,7 +73,17 @@ flowchart TB
 | `planning` | Goals → proposals; compare recipes |
 | `packs` | List, install, trust and remove packs; validate; load a dev folder and reload it on change; import game data; build a `.cpack` |
 
-Every manager method is in `src/contracts/managers.ts`, with zod-validated arguments. Each method is also checked again inside the manager, so managers can sit directly behind RPC or MCP. MCP tools are derived from these contracts (see [[Architecture/MCP server]]), so they don't duplicate them.
+Every manager method is declared once in [[src/contracts/managers.ts]]: its zod argument schema, the type it resolves to, and, if it's exposed to MCP, its tool name, permission group and description. Everything else is derived from that table:
+
+- the **dispatcher** in front of the managers ([[src/utilities/rpc.ts]] `createDispatcher`) validates arguments and turns unknown methods and exceptions into error responses, so managers can sit directly behind RPC or MCP;
+- the **client connector** (`connect`, wrapped by [[src/client/core/connector.tsx]]) is a typed proxy with the same method names;
+- the **MCP tools** ([[Architecture/MCP server]]).
+
+Managers implement `ManagerImplementation<"name">` and receive validated arguments with defaults filled in. Methods return `Result` for expected failures (an invalid file, a broken pack) and throw only on bugs. Add a method to the contract when a use case needs it, not before.
+
+The **composition root** is [[src/shells/web/backend.ts]]: it creates the managers with their access components and platform, and serves them on the backend worker's port ([[src/shells/web/backend.worker.ts]]).
+
+**Events** (`Events` in the same file) flow from the backend to every client: `documentChanged` (Immer patches and the new version), `documentsChanged`, `resultsChanged` and `packsChanged`. Edits are sent as `Command`s ([[src/contracts/commands.ts]]) to `editing.apply`; a batch is one undo step.
 
 ## Threads and processes
 
@@ -100,7 +110,7 @@ flowchart LR
 ```
 
 - **UI thread:** the client keeps a *read model*: a mirror of the open documents plus the latest results. It's updated from manager events (Immer patches and typed-array result deltas). While you drag something, the client moves it locally and sends one `editing.moveNodes` command when you drop it.
-- **Backend worker:** managers, engines, access and the solver's WASM module. Calls use the RPC envelope `{ manager, method, args }` → `{ ok: true, value } | { ok: false, error }`.
+- **Backend worker:** managers, engines, access and the solver's WASM module. Calls use the RPC envelope from [[src/contracts/rpc.ts]]: `{ id, manager, method, args }` → `{ id, ok: true, value } | { id, ok: false, error }`, plus `{ event, payload }` messages.
 - **Plugin worker:** built-in packs run their plugin inside the backend worker. Third-party pack code runs in a separate worker with an opaque origin, so it can't reach our storage; the compiler engine runs there for those packs (see [[Architecture/Plugins]]).
 - **Tauri:** platform calls that need the main thread (dialogs, Tauri commands) are proxied through the client's connector. The MCP server is part of the Tauri shell and forwards each tool call as an ordinary manager call.
 
