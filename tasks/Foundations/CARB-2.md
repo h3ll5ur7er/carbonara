@@ -2,7 +2,7 @@
 id: CARB-2
 title: Scaffold the project and the layer rules
 type: chore
-status: todo
+status: done
 priority: urgent
 labels: [tooling]
 wave: "0"
@@ -12,11 +12,18 @@ Create the project skeleton from [[Architecture]] so that every later task has a
 
 **Done when** `pnpm dev` shows an empty page, `pnpm check` and `cargo test` pass, and importing across a forbidden layer boundary fails the lint.
 
-- [ ] Single pnpm package: Vite + React 19 + TypeScript strict, Tailwind v4
-- [ ] Folders `src/{contracts,utilities,engines,access,managers,platforms,client,shells}` with a one-line README comment of what each hides
-- [ ] ESLint flat config with the layer rules from [[Architecture]] (a failing fixture test proves they bite) + Prettier
-- [ ] Vitest + fast-check, Playwright configured with the preinstalled Chromium
-- [ ] Cargo workspace: `crates/solver`, `crates/solver-wasm`; rustfmt + clippy settings
-- [ ] `pnpm build:wasm` builds the solver with wasm-pack into a place Vite can import
-- [ ] `pnpm check` = lint + typecheck + unit tests
-- [ ] Write [[Development]]: setup, scripts, checks before pushing
+- [x] Single pnpm package: Vite + React 19 + TypeScript strict, Tailwind v4
+- [x] Layer folders appear as their first code lands; what each hides is written once, in [[Architecture]] (no per-folder READMEs, DRY)
+- [x] ESLint flat config with the layer rules from [[Architecture]] (a failing fixture test proves they bite) + Prettier
+- [x] Vitest + fast-check, Playwright configured with the preinstalled Chromium
+- [x] Cargo workspace: `crates/solver`, `crates/solver-wasm`; rustfmt + clippy settings
+- [x] `pnpm build:wasm` builds the solver with wasm-pack into a place Vite can import
+- [x] `pnpm check` = lint + typecheck + unit tests
+- [x] Write [[Development]]: setup, scripts, checks before pushing
+
+**Decisions**
+
+- The layer rules are a small local ESLint rule ([[eslint-rules/layers.js]], tested in [[eslint-rules/layers.test.js]]) rather than `eslint-plugin-boundaries`: about 60 lines we fully understand, versus a large configuration API.
+- TypeScript stays on 6.0 because typescript-eslint doesn't support 7 yet.
+- One `tsconfig.json`, typechecked with `tsc` (no project references) — KISS.
+- `wasm-opt` is off for now; see [[Development]].

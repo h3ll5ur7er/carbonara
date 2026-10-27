@@ -1,0 +1,21 @@
+[package]
+name = "carbonara-solver-wasm"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+carbonara-solver = { path = "../solver" }
+wasm-bindgen = "0.2"
+
+# wasm-opt is downloaded from GitHub releases, which isn't reachable everywhere.
+# Re-enable once the bench shows binary size or speed matters.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

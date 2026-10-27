@@ -1,0 +1,9 @@
+node_modules
+dist
+target
+src/engines/solver/wasm
+playwright-report
+test-results
+*.local
+.DS_Store
+.claude/settings.local.json
