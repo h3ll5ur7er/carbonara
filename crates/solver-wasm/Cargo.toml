@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 carbonara-solver = { path = "../solver" }
+serde-wasm-bindgen = "0.6"
 wasm-bindgen = "0.2"
 
 # wasm-opt is downloaded from GitHub releases, which isn't reachable everywhere.

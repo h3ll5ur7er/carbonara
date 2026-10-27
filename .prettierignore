@@ -6,3 +6,4 @@ tasks
 docs
 schemas
 .claude/worktrees
+src/contracts/ir

@@ -30,6 +30,8 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+      - name: Generated TS types of the solver IR are up to date
+        run: git diff --exit-code src/contracts/ir
 
   e2e:
     name: End-to-end and screenshots

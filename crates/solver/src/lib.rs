@@ -5,12 +5,7 @@
 /// Version of the solver IR this crate understands.
 pub const IR_VERSION: u32 = 1;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod ir;
+pub mod validate;
 
-    #[test]
-    fn ir_version_is_one() {
-        assert_eq!(IR_VERSION, 1);
-    }
-}
+pub use validate::{InvalidModel, validate};
