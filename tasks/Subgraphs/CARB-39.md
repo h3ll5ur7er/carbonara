@@ -1,0 +1,18 @@
+---
+id: CARB-39
+title: Collapse, enter and leave subgraphs
+type: feature
+status: backlog
+priority: high
+labels: [canvas, subgraphs, ux]
+wave: "2"
+milestone: "M3 Megafactory"
+---
+
+`Ctrl+G` collapse with inferred ports, double-click to zoom in, breadcrumbs.
+
+**Done when** the e2e test collapses a selection, enters it, edits it, and returns with parent results updated.
+
+- [ ] Editing engine: collapse/expand commands
+- [ ] Zoom transition + breadcrumbs
+- [ ] e2e test
