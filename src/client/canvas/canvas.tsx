@@ -19,7 +19,13 @@ import { rateDisplayOf, type RateDisplay } from "./model/format";
 import { GRID } from "./model/geometry";
 import { createResultSlots } from "./model/result-slots";
 import { insertCommands } from "./model/insert";
-import { createSceneBuilder, type CanvasScene, type NodeView, type Subgraphs } from "./model/scene";
+import {
+  createEffectiveItemsKeeper,
+  createSceneBuilder,
+  type CanvasScene,
+  type NodeView,
+  type Subgraphs,
+} from "./model/scene";
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
 import { CanvasContextMenu } from "./context-menu";
 import { SelectionToolbar } from "./selection-toolbar";
@@ -164,13 +170,20 @@ function DocumentCanvas({
   const layout = document.layout[graph];
   // Instances draw their blueprint's ports: the blueprints and their layouts, the same object until one changes.
   const subgraphs = useSubgraphs(document);
+  // Recipe nodes' ports follow their effective recipes, which only the solve's results know: the last results'
+  // stay while the next solve runs, so ports change once, when it's done.
+  const [keepEffective] = useState(createEffectiveItemsKeeper);
+  const effective = useMemo(
+    () => keepEffective(document.id, results?.graph === graph ? results : null),
+    [keepEffective, document.id, results, graph],
+  );
   const scene = useMemo(
-    () => (shown ? buildScene(shown, layout, pack, subgraphs) : EMPTY_SCENE),
-    [buildScene, shown, layout, pack, subgraphs],
+    () => (shown ? buildScene(shown, layout, pack, subgraphs, effective) : EMPTY_SCENE),
+    [buildScene, shown, layout, pack, subgraphs, effective],
   );
 
   // A paste waiting to be placed is drawn over any other ghost: it's what the person did last.
-  const paste = usePaste(document, graph, scene);
+  const paste = usePaste(document, graph, scene, effective);
   const shownGhost = paste.ghost ?? ghost;
   const placeGhost = paste.ghost ? paste.onPlace : onGhostPlace;
   const cancelGhost = paste.ghost ? paste.onCancel : onGhostCancel;
@@ -188,8 +201,11 @@ function DocumentCanvas({
     () =>
       ghostGraph &&
       ghostPositions &&
-      ghostContent(buildGhostScene(ghostGraph, ghostPositions, pack, subgraphs), ghostLabel ?? ""),
-    [buildGhostScene, ghostGraph, ghostPositions, ghostLabel, pack, subgraphs],
+      ghostContent(
+        buildGhostScene(ghostGraph, ghostPositions, pack, subgraphs, ghostResults?.effectiveItems),
+        ghostLabel ?? "",
+      ),
+    [buildGhostScene, ghostGraph, ghostPositions, ghostLabel, pack, subgraphs, ghostResults],
   );
   const ghostScene = useMemo(() => content && placement && { ...content, placement }, [content, placement]);
 
@@ -268,6 +284,7 @@ function DocumentCanvas({
     pack,
     graph,
     scene,
+    effective,
     selection,
     apply,
     navigation: navigation.actions,

@@ -372,6 +372,17 @@ describe("changing the display settings", () => {
     expect(cleared.ok && cleared.value.document.settings).toEqual({ machineGroups: "even" });
   });
 
+  it("keeps the planner's buildings and resource weights, replaced as a whole, and undoes back", () => {
+    const planning = { buildings: ["assembler-mk2"], resourceWeights: { water: 10 } };
+    const { document: next, inversePatches } = edit({ type: "setSettings", settings: { planning } });
+    expect(next.settings.planning).toEqual(planning);
+    const replaced = applyCommands(next, [{ type: "setSettings", settings: { planning: { buildings: [] } } }]);
+    expect(replaced.ok && replaced.value.document.settings.planning).toEqual({ buildings: [] });
+    const cleared = applyCommands(next, [{ type: "setSettings", settings: { planning: null } }]);
+    expect(cleared.ok && cleared.value.document.settings).toEqual({ rateUnit: "per_minute" });
+    expect(applyPatches(next, inversePatches).settings).toEqual(document.settings);
+  });
+
   it("changes nothing when the settings are as asked", () => {
     expect(edit({ type: "setSettings", settings: { rateUnit: "per_minute", belt: null } }).patches).toEqual([]);
   });

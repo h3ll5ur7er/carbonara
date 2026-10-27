@@ -3,6 +3,7 @@ import type { Proposal } from "../../../contracts/managers";
 import { templatePack } from "../../scenes/template-pack";
 import { PackData } from "../../../contracts/pack";
 import {
+  buildingEdit,
   buildingFamilies,
   findItems,
   goalsOf,
@@ -10,6 +11,7 @@ import {
   preferBuilding,
   proposalGhost,
   targetsPerSecond,
+  weightEdit,
 } from "./plan";
 
 const proposal: Proposal = {
@@ -150,5 +152,26 @@ describe("planning in the client", () => {
     expect(preferred).toEqual(["steel", "am3"]);
     expect(preferBuilding(preferred, furnaces, "electric")).toEqual(["am3", "electric"]);
     expect(preferBuilding(preferred, furnaces, "stone")).toEqual(["am3"]);
+  });
+
+  it("saves the planner's buildings and weights with the document, leaving out what's at its default", () => {
+    const water = templatePack.items.find(({ id }) => id === "water");
+    expect(weightEdit(undefined, templatePack, "water", 100)).toEqual({
+      planning: { resourceWeights: { water: 100 } },
+      label: `Weigh ${water?.name} at 100`,
+    });
+    const saved = { buildings: ["fast-assembler"], resourceWeights: { water: 100 } };
+    expect(weightEdit(saved, templatePack, "water", 1)).toMatchObject({ planning: { buildings: ["fast-assembler"] } });
+    expect(weightEdit({ resourceWeights: { water: 100 } }, templatePack, "water", 1).planning).toBeNull();
+    const [assemblers] = buildingFamilies(templatePack).filter(({ base }) => base.id === "assembler");
+    if (!assemblers) throw new Error("no assembler family");
+    expect(buildingEdit(saved, assemblers, "assembler")).toEqual({
+      planning: { resourceWeights: { water: 100 } },
+      label: "Run Assembler recipes in the Assembler",
+    });
+    expect(buildingEdit(undefined, assemblers, "fast-assembler")).toEqual({
+      planning: { buildings: ["fast-assembler"] },
+      label: "Run Assembler recipes in the Fast Assembler",
+    });
   });
 });

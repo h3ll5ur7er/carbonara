@@ -73,6 +73,8 @@ describe("a plugin in its sandbox", () => {
       smeltingWith({}),
       smeltingWith({ fields: { speed: 150, mode: "eager", boosted: true } }, { boosters: 1 }),
       smeltingWith({ recipe: "iron-plate-from-ore", fields: { speed: 900 } }, { unlocked: [] }),
+      // At full speed the furnace burns coal, which its recipe doesn't name.
+      smeltingWith({ fields: { speed: 200 } }),
     ];
     for (const document of documents) {
       const [there, local] = [await isolated.value.compile(document), await here.compile(document)];
@@ -81,6 +83,9 @@ describe("a plugin in its sandbox", () => {
       const solution = ok(solutionFor(local.model.nodes.length, local.model.edges.length));
       expect(await there.results(solution, 4)).toEqual(await local.results(solution, 4));
     }
+    const fuelled = await isolated.value.compile(smeltingWith({ fields: { speed: 200 } }));
+    const solved = await fuelled.results(ok(solutionFor(fuelled.model.nodes.length, fuelled.model.edges.length)), 1);
+    expect(solved.effectiveItems).toEqual({ smelt: { in: ["clean-ferrite", "coal"], out: ["iron-plate"] } });
     expect(await isolated.value.describe({ boosters: 2 })).toEqual(await here.describe({ boosters: 2 }));
     for (const settings of [{}, { unlocked: [] }]) {
       expect(await isolated.value.unavailableRecipes(settings)).toEqual(await here.unavailableRecipes(settings));
@@ -117,6 +122,27 @@ describe("a plugin in its sandbox", () => {
     );
     if (!isolated.ok) throw new Error("not loaded");
     expect((await isolated.value.compile(platesModule())).blueprints).toEqual({});
+  });
+
+  it("keeps only effective items that are lists of item ids", async () => {
+    const honest = createSandboxRuntime(loadModule);
+    const lying = async (request: SandboxRequest): Promise<SandboxReply> => {
+      const reply = await honest(request);
+      if (request.call !== "results" || !reply.ok) return reply;
+      const effectiveItems = { smelt: { in: ["coal"], out: [] }, wash: { in: "coal", out: [1] }, purify: null };
+      return { ...reply, value: { ...(reply.value as object), effectiveItems } };
+    };
+    const isolated = await isolatePlugin(
+      { start: () => inProcess(lying) },
+      { source: "export default { id: 'liar' };", data: pack },
+    );
+    if (!isolated.ok) throw new Error("not loaded");
+    const compiled = await isolated.value.compile(smeltingWith({}));
+    const results = await compiled.results(
+      ok(solutionFor(compiled.model.nodes.length, compiled.model.edges.length)),
+      3,
+    );
+    expect(results.effectiveItems).toEqual({ smelt: { in: ["coal"], out: [] } });
   });
 
   it("refuses a plugin that doesn't load, or doesn't export a plugin", async () => {

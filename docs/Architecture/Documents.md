@@ -19,7 +19,12 @@ blueprints:                             # subgraph definitions, see Subgraphs
   <id>: { name: Iron rods, graph: { nodes, edges } }
 layout:                                 # positions, per graph: `root` or a blueprint id
   root: { <node id>: { x, y, width?, height?, locked?, tag? } }
-settings: { rateUnit: per_minute, belt?: conveyor-2, machineGroups?: even }   # how rates and machine counts read
+settings:
+  rateUnit: per_minute                  # how rates and machine counts read
+  belt?: conveyor-2
+  machineGroups?: even
+  plugin?: { … }                        # the pack plugin's save profile, see Plugins
+  planning?: { buildings?: [steel-furnace], resourceWeights?: { water: 10 } }   # the planner's defaults, see Planning
 ```
 
 Nodes and edges are maps keyed by id, not arrays. That keeps patch paths stable (`graph/nodes/smelt/fields/clock`) for undo, events and MCP tools.
@@ -66,7 +71,7 @@ Documents change only through `Command`s ([[src/contracts/commands.ts]]) sent to
 | `setTag` | Gives nodes a colour tag (`tag` on their position, created at the origin if missing), or removes it |
 | `setRecipe` | Swaps the recipe of recipe nodes, keeping fields and pins; a building not named is dropped (the recipe's first applies). Flows it can't take stay: callers remove them in the same batch |
 | `setLogistics` | Sets or clears the belt or pipe tier of flows |
-| `setSettings` | The document's display settings (`rateUnit`, `belt`, `machineGroups`); null puts one back to its default. It names no graph |
+| `setSettings` | The document's display settings (`rateUnit`, `belt`, `machineGroups`) and the planner's defaults (`planning`, replaced as a whole); null puts one back to its default. It names no graph |
 | `setLocked` | Locks nodes in place (`locked: true` on their position, which it creates at the origin if missing) or unlocks them |
 | `collapse` | Collapses nodes into a subgraph: a new blueprint holds them, an instance takes their place ([[#Collapse and expand]]) |
 | `expand` | Puts a copy of an instance's blueprint in its place and reconnects its flows; the last instance of a blueprint dissolves it |

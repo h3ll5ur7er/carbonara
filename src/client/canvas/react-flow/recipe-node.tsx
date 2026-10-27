@@ -97,20 +97,29 @@ export function cardRing(selected: boolean, short: boolean): string {
   return "ring-1 ring-line";
 }
 
-/** One port of a card: its item, name and live rate, with a warning when the node is short of it. */
+/**
+ * One port of a card: its item, name and live rate, with a warning when the node is short of it, or when a flow
+ * carries an item the recipe doesn't use (a stray port).
+ */
 export function PortRow({ port, slot, divided }: { port: PortView; slot: NodeSlot | undefined; divided: boolean }) {
   const unit = useRateUnit();
   const output = port.direction === "out";
   const rate = (output ? slot?.result.outputs : slot?.result.inputs)?.[port.item.id];
   const deficit = slot?.deficits[port.item.id];
+  const title = port.stray
+    ? `This recipe doesn't ${output ? "make" : "use"} ${port.item.name}; its flow carries nothing`
+    : deficit
+      ? `Short of ${port.item.name}`
+      : undefined;
   return (
     <li
       style={{ height: PORT_ROW }}
       className={`flex min-w-0 items-center gap-2 ${divided ? "border-t border-line-subtle" : ""}`}
-      title={deficit ? `Short of ${port.item.name}` : undefined}
+      title={title}
     >
       {!output && <ItemChip item={port.item} size="sm" />}
       <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">{port.item.name}</span>
+      {port.stray && <ShortIcon label="Not used" />}
       {deficit !== undefined && <ShortIcon />}
       <Rate
         perSecond={rate}

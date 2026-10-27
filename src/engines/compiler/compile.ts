@@ -8,7 +8,7 @@ import type { Document, Edge, Graph, LocalId, Node } from "../../contracts/docum
 import type { Id, PackData } from "../../contracts/pack";
 import type { Patch } from "../../contracts/patches";
 import type { NodeContext, Plugin, PluginContext } from "../../contracts/plugin";
-import type { Diagnostic } from "../../contracts/results";
+import type { Diagnostic, NodeItems } from "../../contracts/results";
 import type { Constraint, Model, ModelEdge, ModelNode } from "../../contracts/solver";
 import { own } from "../../utilities/records";
 import { toPerSecond } from "../../utilities/units";
@@ -36,6 +36,8 @@ export interface NodeInfo {
   context?: NodeContext;
   /** Rate-pinned recipes: the pinned item per machine and second, to report misses in items per second. */
   pinRate?: number;
+  /** Recipe nodes whose effective recipe uses other items than the pack's recipe: the items it uses. */
+  items?: NodeItems;
   /** Instance nodes: their blueprint's index in `Compiled.blueprints`, and its ports by index. */
   blueprint?: number;
   ports?: Port[];
@@ -55,6 +57,8 @@ export interface Compiled {
   context: PluginContext;
   /** What couldn't be compiled; those parts are left out of the model. */
   diagnostics: Diagnostic[];
+  /** The `items` of the nodes that have them, by node; left out when none does. */
+  effectiveItems?: Record<LocalId, NodeItems>;
   /** Blueprint graphs: the blueprint's name and its port nodes (indices into `nodes`), by port index. */
   name?: string;
   ports?: number[];
@@ -573,12 +577,13 @@ function draftGraph(
       Object.keys(amounts)
         .sort((a, b) => (items.get(a) ?? 0) - (items.get(b) ?? 0))
         .map((item) => ({ item, perSecond: sign * (amounts[item] as number) * perCraft }));
+    const used = itemsOf(effective);
     const draft: Draft = {
       id,
       kind: "process",
       rates: [...side(effective.in, -1), ...side(effective.out, 1)],
       cost: 0,
-      info: { kind: "recipe", context: nodeContext },
+      info: { kind: "recipe", context: nodeContext, ...(!sameItemsAs(used, recipe) && { items: used }) },
     };
     if (node.pin?.type === "machines") draft.pin = node.pin.count;
     if (node.pin?.type === "rate") {
@@ -676,6 +681,7 @@ function assemble(
   // One pass per list: these run over every node and edge of large documents.
   const count = drafted.nodes.length;
   const [nodes, ids, info, drafts]: [ModelNode[], LocalId[], NodeInfo[], Draft[]] = [[], [], [], []];
+  let effectiveItems: Record<LocalId, NodeItems> | undefined;
   for (let at = 0; at < count; at++) {
     const known = drafted.nodes[at] as NodeMemo;
     const draft = (known.compiling as { draft: Draft }).draft;
@@ -694,6 +700,7 @@ function assemble(
     ids.push(draft.id);
     info.push(draft.info);
     drafts.push(draft);
+    if (draft.info.items) (effectiveItems ??= {})[draft.id] = draft.info.items;
   }
 
   const edgeIds: LocalId[] = [];
@@ -754,6 +761,7 @@ function assemble(
     info,
     context,
     diagnostics: [...settingsDiagnostics, ...drafted.diagnostics, ...plugged.diagnostics],
+    ...(effectiveItems && { effectiveItems }),
   };
   memo.compiled = compiled;
   return compiled;
@@ -798,6 +806,17 @@ function sameNumbers(a: number[], b: number[]): boolean {
 
 function sameDrafts(a: Draft[], b: Draft[]): boolean {
   return a.length === b.length && a.every((draft, at) => b[at] === draft);
+}
+
+/** The items a recipe takes and makes: amounts above zero, in its order. */
+function itemsOf(recipe: { in: Record<Id, number>; out: Record<Id, number> }): NodeItems {
+  const used = (amounts: Record<Id, number>) => Object.keys(amounts).filter((item) => (amounts[item] as number) > 0);
+  return { in: used(recipe.in), out: used(recipe.out) };
+}
+
+function sameItemsAs(items: NodeItems, recipe: PackData["recipes"][number]): boolean {
+  const pack = itemsOf(recipe);
+  return sameItems(pack.in, items.in) && sameItems(pack.out, items.out);
 }
 
 function netRate(draft: Draft, item: Id): number {

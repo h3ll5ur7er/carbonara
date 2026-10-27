@@ -15,7 +15,7 @@ import { align, distribute, straightenChain, type AlignMode, type Box } from "./
 import { freeSpot, obstaclesOf } from "./model/free-spot";
 import { rateChoices, settingsFor } from "./model/format";
 import { GRID } from "./model/geometry";
-import { createSceneBuilder, type CanvasScene } from "./model/scene";
+import { createSceneBuilder, type CanvasScene, type EffectiveItems } from "./model/scene";
 import { shapesOf } from "./model/shapes";
 import { canvasActions, viewportCentre } from "./viewport";
 import { download, imageFileName } from "../features/export/export";
@@ -30,6 +30,8 @@ export interface EditActionsInput {
   pack: PackData;
   graph: string;
   scene: CanvasScene;
+  /** The effective items the scene was drawn with, to arrange nodes at the size they're drawn. */
+  effective: EffectiveItems | undefined;
   selection: RefObject<Selection>;
   apply(commands: CommandInput[], label: string): Promise<void>;
   /** Back, forward and bookmarks (use-navigation.ts). */
@@ -46,6 +48,7 @@ export function useEditActions({
   pack,
   graph,
   scene,
+  effective,
   selection,
   apply,
   navigation,
@@ -99,7 +102,7 @@ export function useEditActions({
             return [id, { ...at, ...(turn === "down" && { flow: "down" as const }) }];
           }),
         );
-        const views = shown ? createSceneBuilder()(shown, turned, pack, document).nodes : scene.nodes;
+        const views = shown ? createSceneBuilder()(shown, turned, pack, document, effective).nodes : scene.nodes;
         report(
           "Arrange",
           connector.editing.arrange({
@@ -264,6 +267,7 @@ export function useEditActions({
     layout,
     pack,
     scene,
+    effective,
     selection,
     apply,
     navigation,

@@ -285,6 +285,22 @@ describe("planning production", () => {
     // A plate a second takes a craft a second: a coal from the map or from drying sludge, and a slag spare.
     expect(summary.raw.coal ?? 0).toBeGreaterThan(0);
     expect(summary.byproducts).toMatchObject({ slag: expect.closeTo(1, 9) });
+    // The ghost and the layout draw the furnaces with ports for their coal and slag.
+    const buildingOf = (recipe: string) => template.data.recipes.find(({ id }) => id === recipe)?.buildings[0];
+    const furnaces = added(result.value).filter(
+      ({ node }) => node.kind === "recipe" && (node.building ?? buildingOf(node.recipe)) === "furnace",
+    );
+    expect(furnaces.length).toBeGreaterThan(0);
+    const { shapes } = proposalLayout(result.value, template.data);
+    for (const { id } of furnaces) {
+      const items = result.value.results.effectiveItems?.[id as string];
+      expect(items?.in).toContain("coal");
+      expect(items?.out).toContain("slag");
+      expect(shapes[id as string]?.ports.map((port) => `${port.side}:${port.item}`)).toEqual([
+        ...(items?.in ?? []).map((item) => `in:${item}`),
+        ...(items?.out ?? []).map((item) => `out:${item}`),
+      ]);
+    }
     const applied = accept(result.value);
     const solved = await (async () => {
       const compiled = compile({ document: applied, pack: template.data, plugin: burning });
@@ -332,6 +348,28 @@ describe("smarter plans", () => {
     const dear = await plan([{ item: "iron-plate", perSecond: 1 }], { resourceWeights: { water: 100 } });
     expect(recipesIn(dear)).toEqual(["iron-plate-from-ore"]);
     expect(dear.summary.raw).toEqual({ "ferrite-ore": expect.closeTo(2, 9), coal: expect.closeTo(1, 9) });
+  });
+
+  it("start from the buildings and resource weights saved with the document, unless the request names its own", async () => {
+    const saved: Document = {
+      ...factory(),
+      settings: { planning: { buildings: ["fast-assembler"], resourceWeights: { water: 100 } } },
+    };
+    const planning = setUp(saved);
+    const { objective, alternates, exclude } = defaults;
+    const asked = async (options: Partial<PlanOptions>, item = "iron-plate") => {
+      const result = await planning.planProduction({
+        documentId: "doc",
+        targets: [{ item, perSecond: 0.25 }],
+        options: { objective, alternates, exclude, ...options },
+      });
+      if (!result.ok) throw new Error(JSON.stringify(result.error));
+      return result.value;
+    };
+    expect(recipesIn(await asked({}))).toEqual(["iron-plate-from-ore"]);
+    expect(recipesIn(await asked({ resourceWeights: {} }))).not.toContain("iron-plate-from-ore");
+    expect((await asked({}, "motor")).summary.buildings.assembler).toBeUndefined();
+    expect((await asked({ buildings: [] }, "motor")).summary.buildings["fast-assembler"]).toBeUndefined();
   });
 
   it("ask the plugin which recipes the save allows, with its settings' defaults filled in", async () => {

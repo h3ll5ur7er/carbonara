@@ -11,7 +11,7 @@ import type { Issue } from "./issues";
 import { Id, type PackData, type PackManifest, type RateUnit } from "./pack";
 import type { PluginDescription } from "./plugin";
 import { Preferences } from "./preferences";
-import type { AnalysisResults, EdgeResult, NodeResult } from "./results";
+import type { AnalysisResults, EdgeResult, NodeItems, NodeResult } from "./results";
 import type { Result } from "./result";
 
 export type McpGroup = "read" | "plan" | "edit" | "authoring";
@@ -122,6 +122,29 @@ export type PlanOptions = z.output<typeof PlanOptions>;
 /** The options as they are when nobody chose any. */
 export const DEFAULT_PLAN_OPTIONS: PlanOptions = PlanOptions.parse({});
 
+/**
+ * The options a plan is asked for with. Buildings and resource weights left out are the document's
+ * (`settings.planning`), so a save that prefers steel furnaces or avoids asteroids says so once.
+ */
+export const PlanRequestOptions = PlanOptions.extend({
+  buildings: PlanOptions.shape.buildings
+    .unwrap()
+    .optional()
+    .describe(
+      "Buildings to prefer, such as steel-furnace or assembling-machine-3: each recipe runs in the first of " +
+        "these it can, otherwise in its default building (the first of its buildings). Left out: the ones saved " +
+        "with the document, if any.",
+    ),
+  resourceWeights: PlanOptions.shape.resourceWeights
+    .unwrap()
+    .optional()
+    .describe(
+      "What one item per second of a raw resource weighs against the others, by item; 1 when not named. " +
+        "Weigh scarce or unwanted resources higher. Left out: the weights saved with the document, if any.",
+    ),
+});
+export type PlanRequestOptions = z.output<typeof PlanRequestOptions>;
+
 /** What a proposal adds up to. All rates are items per second. */
 export interface ProposalSummary {
   /** Buildings by building id (machine counts rounded up per node, as in `Totals`). */
@@ -147,8 +170,15 @@ export interface Proposal {
    * flows between them (`connect`). Accepting applies them as one `editing.apply` batch: one undo step.
    */
   commands: Command[];
-  /** The planned solve, by the commands' node and edge ids, to preview machine counts and flows. */
-  results: { nodes: Record<string, NodeResult>; edges: Record<string, EdgeResult> };
+  /**
+   * The planned solve, by the commands' node and edge ids, to preview machine counts and flows, with the items of
+   * recipe nodes whose effective recipe differs from the pack's (as in `AnalysisResults.effectiveItems`).
+   */
+  results: {
+    nodes: Record<string, NodeResult>;
+    edges: Record<string, EdgeResult>;
+    effectiveItems?: Record<string, NodeItems>;
+  };
   summary: ProposalSummary;
 }
 
@@ -175,7 +205,7 @@ export interface RecipeComparison {
 
 const planRequest = z.object({
   documentId: z.string().min(1),
-  options: PlanOptions.default(DEFAULT_PLAN_OPTIONS),
+  options: PlanRequestOptions.default({ objective: "resources", alternates: true, exclude: [] }),
 });
 
 export const managers = {
@@ -324,7 +354,8 @@ export const managers = {
         "and flows to add next to the existing factory, a summary (buildings, raw inputs, byproducts, power) and " +
         "anything that can't be met. The person sees it in Carbonara as a ghost beside the factory, with Accept, " +
         "Adjust and Discard. Nothing changes until it's accepted there or with apply_proposal (by its id); a " +
-        "newer plan for the same document replaces it.",
+        "newer plan for the same document replaces it. The preferred buildings and resource weights saved with " +
+        "the document (its settings.planning, changed with edit_graph's setSettings) apply unless options name others.",
     }),
     compareRecipes: method<Result<RecipeComparison[]>>()(planRequest.extend(PlanTarget.shape), {
       tool: "compare_recipes",
