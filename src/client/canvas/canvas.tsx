@@ -1,6 +1,6 @@
 // The factory canvas. Hides how a document is drawn (React Flow today, behind the CanvasAdapter seam) and
 // turns what the user does on it into `editing` commands sent through the connector.
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CommandInput } from "../../contracts/commands";
 import type { Document, LocalId } from "../../contracts/document";
 import type { PackData } from "../../contracts/pack";
@@ -41,6 +41,8 @@ export interface CanvasProps {
   onGhostCancel?: () => void;
   /** Screen pixels that overlays on the canvas cover besides the side panels; fitting keeps clear of them. */
   reserved?: Partial<Insets> | undefined;
+  /** Drawn over the graph in flow coordinates, such as the bottleneck heatmap. */
+  overlay?: ReactNode;
 }
 
 export function Canvas({
@@ -110,7 +112,8 @@ function DocumentCanvas({
   onGhostPlace,
   onGhostCancel,
   reserved,
-}: Pick<CanvasProps, "ghost" | "onGhostPlace" | "onGhostCancel" | "reserved"> & {
+  overlay,
+}: Pick<CanvasProps, "ghost" | "onGhostPlace" | "onGhostCancel" | "reserved" | "overlay"> & {
   document: Document;
   pack: PackData;
   results: AnalysisResults | null;
@@ -225,6 +228,7 @@ function DocumentCanvas({
         ghost={ghostScene}
         {...(onGhostPlace && { onGhostPlace })}
         {...(onGhostCancel && { onGhostCancel })}
+        overlay={overlay}
       />
       {drop && request && (
         <RecipePicker

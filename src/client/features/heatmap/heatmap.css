@@ -1,0 +1,12 @@
+/*
+ * While the bottleneck heatmap is on (its layer is in the canvas), healthy flows and their particles fade so
+ * the trouble stands out. Same layer order as Tailwind's, declared again for load order (see canvas.css).
+ */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .react-flow:has(.heatmap-layer) .react-flow__edge .flow[data-saturation="healthy"] {
+    opacity: 0.3;
+    transition: opacity var(--duration-base) var(--ease-out);
+  }
+}

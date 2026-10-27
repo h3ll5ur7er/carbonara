@@ -4,6 +4,8 @@ import { Command, Download, FilePlus, FolderOpen, Link, PanelLeft, PanelRight, S
 import { canvasCommands } from "../canvas/commands";
 import { plannerCommands } from "../features/planner/commands";
 import { totalsCommands } from "../features/totals/commands";
+import { sankeyCommands } from "../features/sankey/commands";
+import { heatmapCommands } from "../features/heatmap/commands";
 import { createCommandRegistry, type CommandDefinition } from "../core/commands";
 import { paletteCommandId } from "../features/command-palette/command-palette";
 import { documentActions } from "../features/documents/actions";
@@ -97,6 +99,8 @@ export const appCommands: CommandDefinition[] = [
   ...canvasCommands,
   ...plannerCommands,
   ...totalsCommands,
+  ...sankeyCommands,
+  ...heatmapCommands,
 ];
 
 export const appRegistry = createCommandRegistry(appCommands);

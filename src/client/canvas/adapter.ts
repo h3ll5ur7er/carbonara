@@ -1,7 +1,7 @@
 // The seam between the canvas host and whatever draws the canvas (React Flow today, perhaps WebGL later).
 // A renderer gets a renderer-neutral scene and the result slots, and reports the user's intents back;
 // it never talks to managers or knows about commands. See docs/Architecture.md, "How the canvas is drawn".
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { LocalId } from "../../contracts/document";
 import type { Id, RateUnit } from "../../contracts/pack";
 import type { GhostView } from "./ghost/ghost";
@@ -60,6 +60,8 @@ export interface CanvasViewProps {
   onGhostPlace?(offset: Point): void;
   /** Escape while the ghost follows the pointer. */
   onGhostCancel?(): void;
+  /** Drawn over the graph in flow coordinates (the bottleneck heatmap); it never takes the pointer. */
+  overlay?: ReactNode;
 }
 
 /** A renderer of the factory canvas. */

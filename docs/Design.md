@@ -69,6 +69,8 @@ The shell ([[src/client/app.tsx]], `src/client/shell/`) is a top bar over a full
 | Switch light and dark theme | `Ctrl+Shift+L` |
 | Plan production… | `P` |
 | Toggle totals | `T` |
+| Sankey overview | `S` |
+| Bottleneck heatmap | `H` |
 
 - **Command palette** (`Ctrl+K`, or the search field in the top bar): type to filter, arrow keys to move, Enter to run, Escape to close. With a document open, typing an item or recipe name also lists **quick-add** entries: every recipe of the document's pack, found by its name, its outputs and their aliases, and its buildings, showing where it runs and what it turns into what. Picking one sends one `addNode` command to `editing.apply` ("Add Iron Plate") and confirms with a toast. Quick-added nodes land at the origin until the canvas can say where the user is looking.
 - **Toasts:** `toast({ title, description, tone })` from anywhere in the client; `info` and `success` close after 4 s, `error` after 8 s. At most three show at once. Screen readers announce them and F8 jumps to them.
@@ -77,7 +79,7 @@ The shell ([[src/client/app.tsx]], `src/client/shell/`) is a top bar over a full
 
 - Edge thickness grows with the log of throughput. Animated particles travel along edges, and their speed and density encode the rate. Animation turns off automatically when zoomed out or when the user prefers reduced motion.
 - Saturation colours: teal means healthy, amber means more than 90% of belt capacity, red means over capacity or a deficit. A colour-blind-safe palette is available as an option.
-- An optional **bottleneck heatmap** overlay and a **Sankey** overview mode give a whole-factory view.
+- An optional **bottleneck heatmap** overlay and a **Sankey** overview mode give a whole-factory view (see Whole-factory views below).
 
 How the canvas does it ([[src/client/canvas/model/flow-style.ts]], styles in `src/client/canvas/canvas.css`):
 
@@ -153,6 +155,13 @@ The proposal appears on the canvas as a **ghost** beside the factory, brought in
 The totals dashboard sits at the canvas's bottom-left ([[src/client/features/totals/totals-panel.tsx]]), following the latest solve. Collapsed, it's a pill: machines, power and, in red with a warning sign, any raw resource drawn beyond the map's limit. Expanded (click it, or `T`, "Toggle totals"), a card like the planner's summary: machines, power in MW and total raw input as tiles (compact as `50.3k` when large); raw resources with a bar against the pack's `resources.limit` (healthy, amber above 90%, red with a warning sign over it); buildings by count; what leaves through outputs; and a red callout for shortages. The expanded card counts as an inset for fitting; while the planner is open it hides, since the planner sums up its proposal.
 
 The numbers ([[src/client/features/totals/summary.ts]]) are the analysis's `totals` (raw inputs, buildings rounded up per node) plus power (the plugin's derived `powerMW`, else the building's `power.consume` × machines), sink throughput as outputs, and deficits and surpluses from the diagnostics. The planner's card uses the same summary parts. Build cost waits for packs to describe costs.
+
+### Whole-factory views
+
+- **Sankey overview** (`S`, Escape closes; [[src/client/features/sankey/sankey.ts]]): the factory as columns of bars joined by bands as wide as their rates, over the canvas and clear of the side panels. Columns follow the longest path along the flow (sources first, sinks last); a column keeps the canvas's top-to-bottom order, so the overview reads like the factory. One scale for every band, so the fullest column fills three quarters of the height. Bands are filled shapes in their item's tint (a wide stroke folds over itself on steep bends); flows near or over capacity get an amber or red outline; recycling loops (flows that run right to left on the canvas) run back below the chart, dashed. Hovering a bar or band dims everything not connected to it. Labels carry a halo in the canvas colour.
+- **Bottleneck heatmap** (`H`; [[src/client/features/heatmap/heat.ts]]): soft radial glows drawn over the canvas in flow coordinates (the canvas's `overlay`): amber along flows above 90% of their belt's capacity, red along flows over it and around machines short of an input. Healthy flows fade while it's on. A legend at the top says what the colours mean.
+
+Both, the planner and the totals are wired into a document's canvas by one hook, `useFactoryOverlays` ([[src/client/features/planner/factory-overlays.tsx]]).
 
 ### Ghosts
 

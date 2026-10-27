@@ -45,7 +45,8 @@ export function TotalsPanel({ document, pack, results, rateUnit }: TotalsPanelPr
     [document, pack, results],
   );
   const facts = useMemo(() => summary && summaryFacts(summary, pack), [summary, pack]);
-  if (!summary || !facts || Object.keys(document.graph.nodes).length === 0) return null;
+  // Nothing to total yet (no machines, no raw inputs): no card either.
+  if (!summary || !facts || (facts.machines === 0 && facts.raw.length === 0)) return null;
 
   const over = facts.raw.filter(
     (entry) => entry.limitPerSecond !== undefined && entry.perSecond > entry.limitPerSecond,

@@ -14,8 +14,7 @@ import { createDocumentActions, setDocumentActions } from "./features/documents/
 import { DocumentTabs } from "./features/documents/document-tabs";
 import { sharedDocumentIn } from "./features/documents/links";
 import { NewDocumentDialog } from "./features/documents/new-document-dialog";
-import { PlannerPanel, usePlannerCanvas } from "./features/planner/planner-panel";
-import { TotalsPanel, useTotalsReserved } from "./features/totals/totals-panel";
+import { useFactoryOverlays } from "./features/planner/factory-overlays";
 import { Welcome } from "./features/documents/welcome";
 import { errorMessage, toast } from "./shell/toasts";
 
@@ -67,8 +66,7 @@ function DocumentCanvas({
   results,
   onSelectionChange,
 }: ActiveDocument & { onSelectionChange(nodeIds: string[]): void }) {
-  const planner = usePlannerCanvas(document?.id);
-  const totals = useTotalsReserved();
+  const overlays = useFactoryOverlays({ info, document, pack: packData, results: results ?? null });
   const empty = !document || Object.keys(document.graph.nodes).length === 0;
   return (
     <>
@@ -78,27 +76,11 @@ function DocumentCanvas({
           {...(packData && { pack: packData })}
           results={results ?? null}
           onSelectionChange={onSelectionChange}
-          {...planner}
-          reserved={planner.reserved ?? totals}
+          {...overlays.canvas}
         />
       </div>
-      {info && document && packData && (
-        <PlannerPanel
-          document={{ id: info.id, name: info.name }}
-          pack={packData}
-          rateUnit={document.settings.rateUnit ?? packData.units.rate}
-        />
-      )}
-      {/* While the planner is open, its card sums up the proposal instead. */}
-      {document && packData && !planner.reserved && (
-        <TotalsPanel
-          document={document}
-          pack={packData}
-          results={results ?? null}
-          rateUnit={document.settings.rateUnit ?? packData.units.rate}
-        />
-      )}
-      {empty && !planner.ghost && (
+      {overlays.layers}
+      {empty && !overlays.previewing && (
         <EmptyState hint={`Search for a recipe with ${shortcutOf(paletteCommandId)}, then build from its ports.`} />
       )}
     </>

@@ -13,6 +13,7 @@ import {
   useStore,
   useReactFlow,
   useStoreApi,
+  ViewportPortal,
   type Connection,
   type EdgeChange,
   type EdgeTypes,
@@ -83,6 +84,7 @@ function FlowCanvas({
   ghost,
   onGhostPlace = ignore,
   onGhostCancel = ignore,
+  overlay,
 }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
@@ -310,6 +312,7 @@ function FlowCanvas({
               color="var(--color-grid-dot-major)"
             />
             <SnapMarks guides={snapping.marks.guides} gaps={snapping.marks.gaps} />
+            {overlay && <ViewportPortal>{overlay}</ViewportPortal>}
           </ReactFlow>
         </LassoArea>
       </div>

@@ -19,6 +19,10 @@ function canvasScene(name: "chain" | "congested" | "perf"): Promise<{ default: C
   return import("../canvas/scenes/scene-canvas").then((module) => ({ default: module.canvasScene(name) }));
 }
 
+function overview(mode: "sankey" | "heatmap"): Promise<{ default: ComponentType }> {
+  return import("./overview").then((module) => ({ default: module.overviewScene(mode) }));
+}
+
 function placeholder(title: string, task: string): Scene {
   return {
     title,
@@ -43,6 +47,8 @@ export const scenes: SceneRegistry = {
   // Features.
   planner: { title: "The goal planner's proposal as a ghost", load: () => import("./planner") },
   totals: { title: "Factory totals against the map's limits", load: () => import("./totals") },
+  sankey: { title: "Sankey overview of the gear line", load: () => overview("sankey") },
+  heatmap: { title: "Bottleneck heatmap of the gear line", load: () => overview("heatmap") },
 };
 
 export type ScenePick =
