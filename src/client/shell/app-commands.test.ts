@@ -12,7 +12,18 @@ describe("appCommands", () => {
   });
 
   it("have a shortcut, except the rarer ones, which the palette and the menus reach", () => {
-    const paletteOnly = new Set(["arrange.topToBottom"]);
+    // Aligning and distributing are also on the selection toolbar.
+    const paletteOnly = new Set([
+      "arrange.topToBottom",
+      "align.left",
+      "align.centre",
+      "align.right",
+      "align.top",
+      "align.middle",
+      "align.bottom",
+      "align.distributeHorizontally",
+      "align.distributeVertically",
+    ]);
     for (const command of appCommands) {
       if (!paletteOnly.has(command.id)) expect(command.shortcut, command.id).toBeDefined();
     }

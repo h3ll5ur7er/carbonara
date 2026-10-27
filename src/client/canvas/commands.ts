@@ -1,8 +1,46 @@
 // The canvas's commands, for the app's command registry (palette, menus, shortcuts).
-import { Cable, ChevronsDown, ChevronsRight, Focus, Lock, Maximize, Redo2, Trash, Undo2 } from "lucide-react";
+import {
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  AlignEndHorizontal,
+  AlignEndVertical,
+  AlignHorizontalSpaceBetween,
+  AlignStartHorizontal,
+  AlignStartVertical,
+  AlignVerticalSpaceBetween,
+  Cable,
+  ChevronsDown,
+  ChevronsRight,
+  Focus,
+  Lock,
+  Maximize,
+  MoveHorizontal,
+  Redo2,
+  Trash,
+  Undo2,
+} from "lucide-react";
 import type { CommandDefinition } from "../core/commands";
 import { canvasEditActions } from "./edit-actions";
+import type { AlignMode } from "./model/align";
 import { canvasActions } from "./viewport";
+
+/** Align commands, by mode: title, icon, words people may search for. */
+const ALIGN: [AlignMode, string, CommandDefinition["icon"], string[]][] = [
+  ["left", "Align left edges", AlignStartVertical, ["left"]],
+  ["centre", "Align centres", AlignCenterVertical, ["center", "horizontal centre", "column"]],
+  ["right", "Align right edges", AlignEndVertical, ["right"]],
+  ["top", "Align top edges", AlignStartHorizontal, ["top"]],
+  ["middle", "Align middles", AlignCenterHorizontal, ["vertical centre", "center", "row"]],
+  ["bottom", "Align bottom edges", AlignEndHorizontal, ["bottom"]],
+];
+
+/** The align, distribute and straighten commands, in the order the selection toolbar shows them. */
+export const tidyCommandIds = [
+  ...ALIGN.map(([mode]) => `align.${mode}`),
+  "align.distributeHorizontally",
+  "align.distributeVertically",
+  "align.straightenChain",
+];
 
 export const canvasCommands: CommandDefinition[] = [
   {
@@ -80,6 +118,39 @@ export const canvasCommands: CommandDefinition[] = [
     keywords: ["auto", "layout", "tidy", "organise", "organize", "clean up", "vertical", "selection"],
     icon: ChevronsDown,
     run: () => canvasEditActions()?.arrange("down"),
+  },
+  ...ALIGN.map(([mode, title, icon, keywords]): CommandDefinition => ({
+    id: `align.${mode}`,
+    title,
+    group: "Arrange",
+    keywords: ["line up", "tidy", ...keywords],
+    ...(icon && { icon }),
+    run: () => canvasEditActions()?.align(mode),
+  })),
+  {
+    id: "align.distributeHorizontally",
+    title: "Distribute horizontally",
+    group: "Arrange",
+    keywords: ["space", "evenly", "spacing", "gaps", "row"],
+    icon: AlignHorizontalSpaceBetween,
+    run: () => canvasEditActions()?.distribute("horizontal"),
+  },
+  {
+    id: "align.distributeVertically",
+    title: "Distribute vertically",
+    group: "Arrange",
+    keywords: ["space", "evenly", "spacing", "gaps", "column"],
+    icon: AlignVerticalSpaceBetween,
+    run: () => canvasEditActions()?.distribute("vertical"),
+  },
+  {
+    id: "align.straightenChain",
+    title: "Straighten chain",
+    group: "Arrange",
+    shortcut: "Shift+S",
+    keywords: ["level", "line", "flows", "row", "straight"],
+    icon: MoveHorizontal,
+    run: () => canvasEditActions()?.straighten(),
   },
   {
     id: "arrange.toggleLock",

@@ -7,6 +7,8 @@ import type { PackData } from "../../contracts/pack";
 import { useConnector } from "../core/connector";
 import { errorMessage, toast } from "../shell/toasts";
 import { setCanvasEditActions, type CanvasEditActions } from "./edit-actions";
+import type { Point } from "./adapter";
+import { align, distribute, straightenChain, type AlignMode, type Box } from "./model/align";
 import { freeSpot, obstaclesOf } from "./model/free-spot";
 import { GRID } from "./model/geometry";
 import { createSceneBuilder, type CanvasScene } from "./model/scene";
@@ -41,8 +43,25 @@ export function useEditActions({
   const shown = graph === "root" ? document.graph : document.blueprints[graph]?.graph;
   const layout = document.layout[graph];
 
-  const actions = useMemo(
-    (): CanvasEditActions => ({
+  const actions = useMemo((): CanvasEditActions => {
+    const selectedBoxes = (): Box[] => {
+      const chosen = new Set(selection.current.nodes);
+      return scene.nodes
+        .filter((view) => chosen.has(view.id))
+        .map((view) => ({
+          id: view.id,
+          ...view.position,
+          width: view.width,
+          height: view.height,
+          locked: !!view.locked,
+        }));
+    };
+    /** One move edit, keeping each position's other fields; nothing when nothing moves. */
+    const move = (moves: Record<LocalId, Point>, label: string) => {
+      const positions = Object.fromEntries(Object.entries(moves).map(([id, at]) => [id, { ...layout?.[id], ...at }]));
+      if (Object.keys(positions).length > 0) void apply([{ type: "moveNodes", graph, positions }], label);
+    };
+    return {
       arrange(direction) {
         const selected = selection.current.nodes;
         const nodeIds = selected.length >= 2 ? selected : undefined;
@@ -74,6 +93,15 @@ export function useEditActions({
         if (commands.length === 0) return;
         void apply(commands, bridge ? "Delete and bridge" : "Delete");
       },
+      align(mode) {
+        move(align(selectedBoxes(), mode), `Align ${ALIGN_LABELS[mode]}`);
+      },
+      distribute(axis) {
+        move(distribute(selectedBoxes(), axis), `Distribute ${axis}ly`);
+      },
+      straighten() {
+        move(straightenChain(scene, selection.current.nodes), "Straighten chain");
+      },
       toggleLock() {
         const ids = selection.current.nodes;
         if (ids.length === 0) return;
@@ -91,9 +119,8 @@ export function useEditActions({
         const wanted = { x: snap(centre.x - width / 2), y: snap(centre.y - height / 2), width, height };
         return freeSpot(wanted, obstaclesOf(scene.nodes), GRID);
       },
-    }),
-    [connector, documentId, graph, shown, layout, pack, scene, selection, apply],
-  );
+    };
+  }, [connector, documentId, graph, shown, layout, pack, scene, selection, apply]);
 
   useEffect(() => {
     setCanvasEditActions(actions);
@@ -101,6 +128,15 @@ export function useEditActions({
   }, [actions]);
   return actions;
 }
+
+const ALIGN_LABELS: Record<AlignMode, string> = {
+  left: "left",
+  centre: "centres",
+  right: "right",
+  top: "top",
+  middle: "middles",
+  bottom: "bottom",
+};
 
 /** Reports a call that failed, as a value or on the way. */
 function report(label: string, call: Promise<unknown>) {

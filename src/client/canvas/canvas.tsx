@@ -19,6 +19,7 @@ import { createResultSlots } from "./model/result-slots";
 import { insertCommands } from "./model/insert";
 import { createSceneBuilder, type CanvasScene, type NodeView } from "./model/scene";
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
+import { SelectionToolbar } from "./selection-toolbar";
 import { useEditActions, type Selection } from "./use-edit-actions";
 import { setViewportCentre } from "./viewport";
 
@@ -156,9 +157,12 @@ function DocumentCanvas({
   );
 
   const selection = useRef<Selection>({ nodes: [], edges: [] });
+  /** Whether several nodes are selected: the selection toolbar shows then. */
+  const [several, setSeveral] = useState(false);
   const onSelection: CanvasViewProps["onSelectionChange"] = useCallback(
     (nodes, edges) => {
       selection.current = { nodes, edges };
+      setSeveral(nodes.length >= 2);
       onSelectionChange(nodes);
     },
     [onSelectionChange],
@@ -244,6 +248,7 @@ function DocumentCanvas({
         onRewire={onRewire}
         onDelete={onDelete}
       />
+      {several && <SelectionToolbar left={insets.left} right={insets.right} />}
       {drop && request && (
         <RecipePicker
           pack={pack}

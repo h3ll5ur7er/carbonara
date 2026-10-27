@@ -10,6 +10,19 @@ These features decide whether the editor feels pleasant during a long session. T
 - **Align** left, centre, right, top, middle or bottom. **Distribute** horizontally or vertically. **Straighten chain** lines up a linear chain on one row.
 - Snap to grid (hold `Alt` to bypass), smart alignment guides with spacing indicators, and arrow-key nudging (`Shift` for big steps).
 
+### Align, distribute, straighten
+
+Select two or more nodes and a **selection toolbar** appears at the top of the visible canvas, with the commands below plus arrange and lock. Its buttons are the registered commands (same titles, icons, shortcuts as the palette). Each command is one `moveNodes` edit with only the nodes that actually move; the rules are pure functions in [[src/client/canvas/model/align.ts]] (the canvas owns node sizes and ports, as with snapping).
+
+| Command | Shortcut | Does |
+| --- | --- | --- |
+| Align left / right / top / bottom edges | — | Lines the nodes up on that edge of the selection's bounds |
+| Align centres / middles | — | On the bounds' vertical / horizontal centre line |
+| Distribute horizontally / vertically | — | Equal gaps between the nodes (three or more), keeping the outermost two; whole flow units |
+| Straighten chain | `Shift+S` | From each selected node no selected flow feeds (left to right), every node it feeds moves up or down so their ports are level; nodes keep their x |
+
+Locked nodes never move: when the selection has some, aligning lines the others up on them.
+
 ### Auto-arrange and lock
 
 | Command | Shortcut | Does |

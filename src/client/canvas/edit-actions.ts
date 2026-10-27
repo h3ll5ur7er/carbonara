@@ -2,12 +2,19 @@
 // arranging, undo, and where a new node should go. Set by the document canvas on screen; empty without one.
 import type { Node, Position } from "../../contracts/document";
 import type { ArrangeDirection } from "../../contracts/layout";
+import type { AlignMode, DistributeAxis } from "./model/align";
 
 export interface CanvasEditActions {
   /** Lays out the selection (two or more nodes) or else the whole graph. */
   arrange(direction: ArrangeDirection): void;
   /** Deletes the selected nodes and flows; with `bridge`, reconnects the flows that ran through the nodes. */
   deleteSelection(bridge: boolean): void;
+  /** Lines the selected nodes up on an edge or centre (model/align.ts). */
+  align(mode: AlignMode): void;
+  /** Spaces the selected nodes evenly. */
+  distribute(axis: DistributeAxis): void;
+  /** Levels the flows between the selected nodes. */
+  straighten(): void;
   /** Locks the selected nodes, or unlocks them when they all are locked already. */
   toggleLock(): void;
   undo(): void;

@@ -126,6 +126,15 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Delete and bridge\s*Ctrl\s*Shift\s*Del/,
     /Arrange left to right\s*Shift\s*A/,
     /Arrange top to bottom/,
+    /Align left edges/,
+    /Align centres/,
+    /Align right edges/,
+    /Align top edges/,
+    /Align middles/,
+    /Align bottom edges/,
+    /Distribute horizontally/,
+    /Distribute vertically/,
+    /Straighten chain\s*Shift\s*S/,
     /Lock or unlock selection\s*Shift\s*L/,
   ]);
   // Typeahead moves to the item, wherever new commands put it.
