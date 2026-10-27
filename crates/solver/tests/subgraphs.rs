@@ -416,6 +416,42 @@ mod several_ways_of_running {
     }
 
     #[test]
+    fn passing_items_through_costs_less_than_combining_the_modes_around_it() {
+        // Found by proptest (CARB-133). Coal enters and is burnt inside (cost 1), or a machine inside
+        // makes it (cost 2), or it passes straight through for free. Through is no extreme way of
+        // running (burning plus making do the same) but the cheapest: the outside's coal costs 1.
+        let blueprint = Blueprint {
+            nodes: vec![
+                port_in(COAL),
+                junction(),
+                port_out(COAL),
+                Node {
+                    cost: 2.0,
+                    ..process(&[(COAL, 1.0)])
+                },
+                Node {
+                    cost: 1.0,
+                    ..process(&[(COAL, -1.0)])
+                },
+            ],
+            edges: vec![
+                edge(0, 1, COAL),
+                edge(3, 1, COAL),
+                edge(1, 2, COAL),
+                edge(1, 4, COAL),
+            ],
+            constraints: vec![],
+            ports: vec![0, 2],
+        };
+        let model = placed(&blueprint, &[Some(1.0)]);
+        let solution = solved(&model);
+        assert!(solution.inlined.is_empty());
+        assert_all_close(&solution.instances[0].ports, &[1.0, 1.0]);
+        assert_close(scores(&model, &solution)[2], 1.0);
+        assert_same_flows(&solution, &inlined(&model));
+    }
+
+    #[test]
     fn a_blueprint_with_too_many_independent_ways_is_inlined_and_says_so() {
         // Five unrelated machines, each from its own input port to its own output port.
         let lines = 5;
