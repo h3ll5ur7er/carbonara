@@ -3,6 +3,7 @@
 import builtInPacks from "virtual:built-in-packs";
 import { createAutosavedDocumentStore } from "../../access/documents/autosave";
 import { createPackLibrary, type IsolatePlugin } from "../../access/packs/library";
+import { createMemoryProposalStore } from "../../access/proposals/memory";
 import type { Issue } from "../../contracts/issues";
 import type { KeyValueStorage } from "../../contracts/platform";
 import type { ElkRunner } from "../../engines/layout/arrange";
@@ -51,12 +52,16 @@ export function startBackend(
     ...(isolate && { isolate }),
   });
 
+  // The planner's proposals: made by the planning manager, accepted by the editing manager.
+  const proposals = createMemoryProposalStore();
+  const layout = elkInWorker();
+
   const dispatch = createDispatcher(managers, {
     workspace: createWorkspaceManager({ documents, packs, events: bus, newId, restoreProblems: () => restoreProblems }),
-    editing: createEditingManager({ documents, events: bus, newId, layout: elkInWorker() }),
+    editing: createEditingManager({ documents, events: bus, newId, layout, proposals }),
     packs: createPacksManager({ library: packs, bus }),
     analysis: createAnalysisManager({ bus, documents, packs }),
-    planning: createPlanningManager({ documents, packs }),
+    planning: createPlanningManager({ documents, packs, proposals, events: bus, layout }),
   });
   transport.listen(async (message) => {
     await restored;

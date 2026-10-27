@@ -4,7 +4,7 @@
 import type { PackData } from "../../contracts/pack";
 import type { ModuleLoader } from "../../contracts/platform";
 import type { Plugin } from "../../contracts/plugin";
-import { compile, describePlugin, toResults, type Compiled } from "../../engines/compiler";
+import { compile, describePlugin, toResults, unavailableRecipes, type Compiled } from "../../engines/compiler";
 import type { CompileAnswer, SandboxCall, SandboxReply, SandboxRequest } from "./plugin-sandbox-protocol";
 
 /** Answers one call at a time. Expected failures (a plugin that doesn't load) are errors in the reply. */
@@ -30,7 +30,7 @@ export function createSandboxRuntime(loadModule: ModuleLoader): (request: Sandbo
         if (before !== undefined) compiles.delete(before);
         latest.set(compiled.documentId, compileId);
         compiles.set(compileId, compiled);
-        return { compileId, model: compiled.model } satisfies CompileAnswer;
+        return { compileId, model: compiled.model, items: compiled.items } satisfies CompileAnswer;
       }
       case "results": {
         const compiled = compiles.get(call.compileId);
@@ -40,6 +40,8 @@ export function createSandboxRuntime(loadModule: ModuleLoader): (request: Sandbo
       }
       case "describe":
         return describePlugin(data, plugin, call.settings);
+      case "unavailable":
+        return unavailableRecipes(data, plugin, call.settings);
     }
   }
 

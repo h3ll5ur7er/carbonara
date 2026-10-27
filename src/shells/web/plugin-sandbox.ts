@@ -50,11 +50,12 @@ export async function isolatePlugin(
     async compile(document) {
       const sandbox = await started();
       const answer = (await sandbox.call({ call: "compile", document })) as CompileAnswer;
-      if (typeof answer?.compileId !== "number" || typeof answer.model !== "object") {
+      if (typeof answer?.compileId !== "number" || typeof answer.model !== "object" || !strings(answer.items)) {
         throw new Error("The pack's plugin sandbox answered nonsense");
       }
       return {
         model: answer.model,
+        items: answer.items,
         async results(outcome, version) {
           const results = (await sandbox.call({
             call: "results",
@@ -74,11 +75,20 @@ export async function isolatePlugin(
     async describe(settings) {
       return (await (await started()).call({ call: "describe", settings })) as PluginDescription;
     },
+    async unavailableRecipes(settings) {
+      const answer = await (await started()).call({ call: "unavailable", settings });
+      if (!strings(answer)) throw new Error("The pack's plugin sandbox answered nonsense");
+      return answer;
+    },
     dispose() {
       void running?.then((connection) => connection.stop());
       running = undefined;
     },
   });
+}
+
+function strings(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
 }
 
 interface Connection {

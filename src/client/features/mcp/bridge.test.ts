@@ -23,6 +23,7 @@ const results: AnalysisResults = {
 };
 const info = { id: "doc-1", name: "Iron", packId: "satisfactory", version: 2 };
 const proposal = {
+  id: "proposal-1",
   documentId: "doc-1",
   targets: [{ item: "iron-ingot", perSecond: 1 }],
   commands: [],
@@ -44,12 +45,17 @@ function fakeManagers() {
     editing: {
       getDocument: record<OpenDocument>("editing.getDocument", { document, version: 2 }),
       apply: record("editing.apply", { ok: true as const, value: info }),
+      applyProposal: record("editing.applyProposal", { ok: true as const, value: info }),
       undo: record("editing.undo", info),
     },
     analysis: { getResults: record("analysis.getResults", results) },
     planning: {
       planProduction: record("planning.planProduction", { ok: true as const, value: proposal }),
       compareRecipes: record("planning.compareRecipes", { ok: true as const, value: [] }),
+      convertRate: record("planning.convertRate", {
+        ok: true as const,
+        value: { perSecond: 30, inDocumentUnit: { rate: 1800, unit: "per_minute" as const }, explanation: "" },
+      }),
     },
     packs: {
       listPacks: record("packs.listPacks", []),
@@ -118,6 +124,8 @@ describe("the MCP bridge", () => {
       edit_graph: { documentId: "doc-1", commands: [{ type: "removeNodes", ids: ["ore"] }] },
       plan_production: { documentId: "doc-1", targets: [{ item: "iron-ingot", perSecond: 1 }] },
       compare_recipes: { documentId: "doc-1", item: "iron-ingot", perSecond: 1 },
+      apply_proposal: { proposalId: "proposal-1", label: "Plan iron" },
+      convert_rate: { documentId: "doc-1", amount: 2, unit: "yellow belt" },
     };
     for (const { tool, manager, method } of mcpTools(managers)) {
       const response = await call(tool, args[tool] ?? { documentId: "doc-1" });
@@ -224,9 +232,11 @@ describe("edits through MCP", () => {
     const commands = [{ type: "removeNodes", ids: ["ore"] }];
     await call("edit_graph", { documentId: "doc-1", commands, label: "Remove the ore" });
     await call("edit_graph", { documentId: "doc-1", commands });
+    await call("apply_proposal", { proposalId: "proposal-1", label: "Steel for 2 yellow belts" });
     expect(calls.map((entry) => JSON.parse(entry.slice(entry.indexOf(" "))).label)).toEqual([
       "AI: Remove the ore",
       "AI: Edit",
+      "AI: Steel for 2 yellow belts",
     ]);
   });
 });

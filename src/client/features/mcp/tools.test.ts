@@ -21,11 +21,13 @@ describe("the MCP tools", () => {
       "list_documents → workspace.listDocuments",
       "get_graph → editing.getDocument",
       "edit_graph → editing.apply",
+      "apply_proposal → editing.applyProposal",
       "undo → editing.undo",
       "get_totals → analysis.getResults",
       "get_diagnostics → analysis.getResults",
       "plan_production → planning.planProduction",
       "compare_recipes → planning.compareRecipes",
+      "convert_rate → planning.convertRate",
       "list_packs → packs.listPacks",
       "get_pack_data → packs.getPackData",
     ]);
