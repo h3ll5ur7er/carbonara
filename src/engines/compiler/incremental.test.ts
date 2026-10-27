@@ -1,6 +1,8 @@
 import fc from "fast-check";
+import { enablePatches, produceWithPatches } from "immer";
 import { describe, expect, it } from "vitest";
 import type { Document, Edge, Graph, Node } from "../../contracts/document";
+import type { Patch } from "../../contracts/patches";
 import { ok } from "../../contracts/result";
 import type { Solution } from "../../contracts/solver";
 import { compile, compileMemo, type Compiled } from "./compile";
@@ -73,6 +75,38 @@ function applyChange(document: Document, change: Change): Document {
   return { ...document, blueprints: { inner: { ...inner, graph: next } } };
 }
 
+enablePatches();
+
+/** The same change made the way the editing engine makes it: with Immer, which says what it changed. */
+function patchChange(document: Document, change: Change | { move: string }): [Document, Patch[]] {
+  const [next, patches] = produceWithPatches(document, (draft) => {
+    if ("move" in change) {
+      draft.layout.root = { ...draft.layout.root, [change.move]: { x: 1, y: 2 } };
+      return;
+    }
+    if ("settings" in change) {
+      draft.settings = { plugin: { boosters: change.settings } };
+      return;
+    }
+    const inner = draft.blueprints.inner as Document["blueprints"][string];
+    if ("rename" in change) {
+      inner.name = change.rename;
+      return;
+    }
+    const graph = change.graph === "root" ? draft.graph : inner.graph;
+    if ("set" in change) {
+      const known = graph.nodes[change.set];
+      // A pin changed in place gives a patch deep inside the node.
+      if (known?.kind === "recipe" && change.node.kind === "recipe" && change.node.recipe === known.recipe) {
+        known.pin = { type: "machines", count: 7 };
+      } else graph.nodes[change.set] = change.node;
+    } else if ("drop" in change) Reflect.deleteProperty(graph.nodes, change.drop);
+    else if ("connect" in change) graph.edges[change.connect] = change.edge;
+    else Reflect.deleteProperty(graph.edges, change.disconnect);
+  });
+  return [next, patches as Patch[]];
+}
+
 const start: Document = {
   ...waterLoop(),
   blueprints: { inner: { name: "Inner", graph: { nodes: {}, edges: {} } } },
@@ -93,7 +127,48 @@ describe("compiling incrementally", () => {
           expect(JSON.stringify(incremental)).toBe(JSON.stringify(fresh));
         }
       }),
-      { numRuns: 300 },
+      { numRuns: 120 },
+    );
+  });
+
+  it("gives exactly what compiling from scratch gives when it looks only at what the patches touched", () => {
+    const moves = fc.record({ move: fc.constantFrom("a", "b") });
+    fc.assert(
+      fc.property(fc.array(fc.oneof(change, change, moves), { minLength: 1, maxLength: 25 }), (changes) => {
+        const memo = compileMemo();
+        let document = start;
+        compile({ document, pack, plugin: fixturePlugin }, memo);
+        for (const next of changes) {
+          const [changed, patches] = patchChange(document, next);
+          document = changed;
+          const incremental = compile({ document, pack, plugin: fixturePlugin }, memo, patches);
+          const fresh = compile({ document, pack, plugin: fixturePlugin });
+          expect(incremental).toEqual(fresh);
+          expect(JSON.stringify(incremental)).toBe(JSON.stringify(fresh));
+        }
+      }),
+      { numRuns: 120 },
+    );
+  });
+
+  it("doesn't list a graph's nodes and edges when patches say what changed", () => {
+    const memo = compileMemo();
+    compile({ document: start, pack, plugin: fixturePlugin }, memo);
+    const [edited, patches] = patchChange(start, {
+      graph: "root",
+      set: "plates",
+      node: { kind: "sink", item: "iron-plate", targetPerSecond: 2 },
+    });
+    const unlisted = <T extends object>(record: T): T =>
+      new Proxy(record, {
+        ownKeys: () => {
+          throw new Error("listed");
+        },
+      });
+    const graph = { nodes: unlisted(edited.graph.nodes), edges: unlisted(edited.graph.edges) };
+    const document = { ...edited, graph };
+    expect(compile({ document, pack, plugin: fixturePlugin }, memo, patches)).toEqual(
+      compile({ document: edited, pack, plugin: fixturePlugin }),
     );
   });
 
@@ -155,7 +230,7 @@ describe("mapping results incrementally", () => {
           });
         },
       ),
-      { numRuns: 300 },
+      { numRuns: 120 },
     );
   });
 

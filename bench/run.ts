@@ -17,13 +17,14 @@ import {
   expandedNodes,
   generateFactory,
   generateSubgraphFactory,
+  type Edited,
 } from "./factories";
 
 interface Scenario {
   name: string;
   factory: Document;
-  /** The document after the nth edit. */
-  edit: (edit: number) => Document;
+  /** The nth edit, made to the document after the edit before it. */
+  edit: (document: Document, edit: number) => Edited;
   /** Components each edit re-solves. */
   resolves: number;
   /** Median edit → results, in milliseconds. */
@@ -39,7 +40,7 @@ function flat(name: string, lines: number, nodesPerLine: number, edits: number, 
   return {
     name,
     factory,
-    edit: (edit) => editMotor(factory, line, cell, edit),
+    edit: (document, edit) => editMotor(document, line, cell, edit),
     resolves: 1,
     edits,
     ...(budget !== undefined && { budget }),
@@ -53,7 +54,7 @@ function subgraphs(name: string, lines: number, cells: number, edits: number, bu
   return {
     name,
     factory,
-    edit: (edit) => editTarget(factory, line, cell, edit),
+    edit: (document, edit) => editTarget(document, line, cell, edit),
     resolves: 1,
     edits,
     ...(budget !== undefined && { budget }),
@@ -72,7 +73,7 @@ const SCENARIOS: Scenario[] = [
     // Every instance's summary changes, so every line re-solves: measured, not budgeted.
     factory: builtFromSubgraphs.factory,
     name: "the same, editing the blueprint",
-    edit: (edit) => editBlueprint(builtFromSubgraphs.factory, edit),
+    edit: editBlueprint,
     resolves: 100,
     edits: 5,
   },
@@ -94,14 +95,14 @@ interface Timing {
 
 /** What the analysis manager does for an edit: compile with the document's compiler, solve, map back. */
 async function analyse(
-  document: Document,
+  { document, patches }: Edited,
   compiler: DocumentCompiler,
   solver: IncrementalSolver,
   version: number,
 ): Promise<Timing> {
   const start = performance.now();
   const cpuAtStart = process.cpuUsage();
-  const compiled = await compiler.compile(document);
+  const compiled = await compiler.compile(document, patches);
   const compiledAt = performance.now();
   const outcome = solver.solve(compiled.model);
   if (!outcome.ok) throw new Error(`The generated factory is ${outcome.error}`);
@@ -126,10 +127,13 @@ async function measure(scenario: Scenario) {
   const solver = await createSolver();
   try {
     const compiler = localRuntime(pack, plugin).compiler();
-    const cold = (await analyse(scenario.factory, compiler, solver, 1)).total;
+    let document = scenario.factory;
+    const cold = (await analyse({ document, patches: [] }, compiler, solver, 1)).total;
     const timings: Timing[] = [];
     for (let edit = 1; edit <= scenario.edits; edit++) {
-      timings.push(await analyse(scenario.edit(edit), compiler, solver, edit + 1));
+      const next = scenario.edit(document, edit);
+      document = next.document;
+      timings.push(await analyse(next, compiler, solver, edit + 1));
       if (solver.lastSolved() !== scenario.resolves) {
         throw new Error(`An edit re-solved ${solver.lastSolved()} components, not ${scenario.resolves}`);
       }

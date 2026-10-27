@@ -18,17 +18,17 @@ import { addBoundaryFlows, addInsideTotals, inlineHints, type InsideTotals } fro
  */
 export interface ResultsMemo {
   inputs?: { plugin: Plugin; context: PluginContext; documentId: string; graph: string };
-  nodes: Map<LocalId, NodeMemo>;
-  edges: Map<LocalId, EdgeMemo>;
-  /** The node and edge ids of the last mapping, in model order. */
-  nodeIds?: LocalId[] | undefined;
-  edgeIds?: LocalId[] | undefined;
+  /** The node and edge ids of the last mapping, and what it mapped them to, in model order. */
+  nodeIds: LocalId[];
+  nodes: (NodeMemo | undefined)[];
+  edgeIds: LocalId[];
+  edges: (EdgeMemo | undefined)[];
   /** What each instance adds to the totals, by the instance solution it was counted from. */
   inside: Map<InstanceSolution, InsideTotals>;
 }
 
 export function resultsMemo(): ResultsMemo {
-  return { nodes: new Map(), edges: new Map(), inside: new Map() };
+  return { nodeIds: [], nodes: [], edgeIds: [], edges: [], inside: new Map() };
 }
 
 interface NodeMemo {
@@ -83,45 +83,44 @@ export function toResults(
   ) {
     // Derived metrics depend on the plugin and its context: nothing mapped before can be reused.
     memo.inputs = { plugin, context: compiled.context, documentId: compiled.documentId, graph: compiled.graph };
-    memo.nodes.clear();
-    memo.edges.clear();
-    memo.nodeIds = undefined;
-    memo.edgeIds = undefined;
+    memo.nodeIds = memo.edgeIds = [];
+    memo.nodes = memo.edges = [];
   }
-  // The memos are updated in place while the ids stay the same, and built again when one comes or goes.
-  if (!sameIds(memo.nodeIds, compiled.nodes)) memo.nodes = new Map();
-  if (!sameIds(memo.edgeIds, compiled.edges)) memo.edges = new Map();
+  // By model index; looked up by id only when nodes or edges came or went.
+  const sameEdges = sameIds(memo.edgeIds, compiled.edges);
+  const nodeMemos = aligned(memo.nodeIds, memo.nodes, compiled.nodes);
+  const edgeMemos = aligned(memo.edgeIds, memo.edges, compiled.edges);
+  Object.assign(memo, { nodeIds: compiled.nodes, nodes: nodeMemos, edgeIds: compiled.edges, edges: edgeMemos });
 
   // Nodes to map again: an edge whose flow changed changes what the junctions at its ends pass on.
   const stale = new Uint8Array(model.nodes.length);
   const edges: Record<string, EdgeResult> = {};
-  model.edges.forEach((edge, index) => {
-    const id = compiled.edges[index] as LocalId;
+  for (let index = 0; index < model.edges.length; index++) {
+    const edge = model.edges[index] as ModelEdge;
     const flow = solution.flow[index] ?? 0;
-    let known = memo.edges.get(id);
+    let known = edgeMemos[index];
     if (!known || known.model !== edge || known.flow !== flow) {
       const result = { perSecond: flow, ...(edge.capacity !== undefined && { capacity: edge.capacity }) };
-      memo.edges.set(id, (known = { model: edge, flow, result }));
+      edgeMemos[index] = known = { model: edge, flow, result };
       stale[edge.from] = 1;
       stale[edge.to] = 1;
     }
-    edges[id] = known.result;
-  });
+    edges[compiled.edges[index] as LocalId] = known.result;
+  }
   // An edge that went away changed its junctions too, but which they were is gone with it.
-  if (!sameIds(memo.edgeIds, compiled.edges)) stale.fill(1);
-  memo.nodeIds = compiled.nodes;
-  memo.edgeIds = compiled.edges;
+  if (!sameEdges) stale.fill(1);
   const instances = new Map((solution.instances ?? []).map((inside) => [inside.node, inside]));
-  model.nodes.forEach((modelNode, index) => {
-    if (stale[index] === 1 && modelNode.kind === "junction") return;
-    const known = memo.nodes.get(node(index));
+  for (let index = 0; index < model.nodes.length; index++) {
+    const modelNode = model.nodes[index] as ModelNode;
+    if (stale[index] === 1 && modelNode.kind === "junction") continue;
+    const known = nodeMemos[index];
     const same =
       known?.model === modelNode &&
       known.info === compiled.info[index] &&
       known.activity === (solution.activity[index] ?? 0) &&
       known.inside === instances.get(index);
     stale[index] = same ? 0 : 1;
-  });
+  }
 
   // Edge indices per junction mapped again, so junctions don't scan every edge.
   const incoming = new Map<number, number[]>();
@@ -140,11 +139,11 @@ export function toResults(
   const nodes: Record<string, NodeResult> = {};
   model.nodes.forEach((modelNode, index) => {
     const id = node(index);
-    const activity = solution.activity[index] ?? 0;
-    const info = compiled.info[index];
-    const inside = instances.get(index);
-    let known = memo.nodes.get(id);
+    let known = nodeMemos[index];
     if (!known || stale[index] === 1) {
+      const activity = solution.activity[index] ?? 0;
+      const info = compiled.info[index];
+      const inside = instances.get(index);
       const inputs: Record<Id, number> = {};
       const outputs: Record<Id, number> = {};
       const add = (amounts: Record<Id, number>, id: Id, amount: number) => (amounts[id] = (amounts[id] ?? 0) + amount);
@@ -162,7 +161,7 @@ export function toResults(
       // Noise such as 3.00000001 machines must not round up to 4.
       const machines = context && activity > 0 ? Math.ceil(clean(activity)) : 0;
       const result = { activity, inputs, outputs, ...(derived && { derived }) };
-      memo.nodes.set(id, (known = { model: modelNode, info, activity, inside, result, machines }));
+      nodeMemos[index] = known = { model: modelNode, info, activity, inside, result, machines };
     }
     nodes[id] = known.result;
   });
@@ -208,7 +207,7 @@ export function toResults(
       const building = info.context.building.id;
       // Own keys only: an id such as "constructor" would otherwise start from Object.prototype's.
       const counted = Object.hasOwn(buildings, building) ? (buildings[building] ?? 0) : 0;
-      buildings[building] = counted + (memo.nodes.get(node(index)) as NodeMemo).machines;
+      buildings[building] = counted + (nodeMemos[index] as NodeMemo).machines;
     }
   });
   addInsideTotals(compiled, solution, raw, buildings, memo.inside);
@@ -216,6 +215,16 @@ export function toResults(
   return { ...base, nodes, edges, diagnostics, totals: { raw, buildings } };
 }
 
-function sameIds(a: LocalId[] | undefined, b: LocalId[]): boolean {
-  return a !== undefined && (a === b || (a.length === b.length && a.every((id, at) => b[at] === id)));
+function sameIds(a: LocalId[], b: LocalId[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let at = 0; at < a.length; at++) if (a[at] !== b[at]) return false;
+  return true;
+}
+
+/** What was remembered for `before`'s ids, at their positions in `after`. */
+function aligned<T>(before: LocalId[], memos: T[], after: LocalId[]): (T | undefined)[] {
+  if (sameIds(before, after)) return memos;
+  const byId = new Map(before.map((id, at) => [id, memos[at]]));
+  return after.map((id) => byId.get(id));
 }

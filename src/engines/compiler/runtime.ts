@@ -22,8 +22,8 @@ function localCompiler(pack: PackData, plugin: Plugin): DocumentCompiler {
   const compiling = compileMemo();
   const mapping = resultsMemo();
   return {
-    async compile(document) {
-      const compiled = compile({ document, pack, plugin }, compiling);
+    async compile(document, patches) {
+      const compiled = compile({ document, pack, plugin }, compiling, patches);
       return {
         model: compiled.model,
         results: async (outcome, version) => toResults(compiled, outcome, plugin, version, mapping),

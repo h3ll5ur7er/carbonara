@@ -6,6 +6,7 @@ import type { Document } from "../contracts/document";
 import type { Events } from "../contracts/managers";
 import type { AnalysisResults } from "../contracts/results";
 import { platesModule, templatePack, waterLoop } from "../engines/compiler/template.fixture";
+import { applyCommands, type ResolvedCommand } from "../engines/editing/commands";
 import { loadSolver } from "../engines/solver";
 import { createEventBus } from "../utilities/events";
 import { createAnalysisManager } from "./analysis";
@@ -66,10 +67,23 @@ function setUp(packs = [template]) {
   const analysis = createAnalysisManager({ bus, documents, packs: memoryPacks(packs) });
   const published: AnalysisResults[] = [];
   bus.subscribe("resultsChanged", (results) => published.push(results));
-  /** What the editing manager does: store the document, then announce the change. */
+  /** What the editing manager does: store the document, then announce the change (here: all of it). */
   const edit = (document: Document) => {
     const { version } = documents.put(document);
-    bus.publish("documentChanged", { documentId: document.id, version, patches: [] });
+    bus.publish("documentChanged", {
+      documentId: document.id,
+      version,
+      patches: [{ op: "replace", path: [], value: document }],
+    });
+  };
+  /** Commands applied as the editing manager applies them, announced with the patches they make. */
+  const command = (documentId: string, commands: ResolvedCommand[]) => {
+    const open = documents.get(documentId);
+    if (!open) throw new Error("not open");
+    const applied = applyCommands(open.document, commands);
+    if (!applied.ok) throw new Error(JSON.stringify(applied.error));
+    const { version } = documents.put(applied.value.document);
+    bus.publish("documentChanged", { documentId, version, patches: applied.value.patches });
   };
   const nextResults = () =>
     new Promise<AnalysisResults>((resolve) => {
@@ -78,7 +92,7 @@ function setUp(packs = [template]) {
         resolve(results);
       });
     });
-  return { bus, documents, analysis, published, edit, nextResults };
+  return { bus, documents, analysis, published, edit, command, nextResults };
 }
 
 function withTarget(perSecond: number): Document {
@@ -115,6 +129,27 @@ describe("the analysis manager", () => {
     expect(diagnostics).toEqual([
       { kind: "surplus", node: "purify", item: "sludge", perSecond: expect.closeTo(0.125, 9) },
     ]);
+  });
+
+  it("follows edits by their patches, with the results a fresh solve of each version gets", async () => {
+    const { edit, command, documents, analysis } = setUp();
+    edit(waterLoop());
+    await analysis.getResults({ documentId: "doc-water", graph: "root" });
+    const edits: ResolvedCommand[][] = [
+      [{ type: "setPin", graph: "root", id: "smelt", pin: { type: "machines", count: 2 } }],
+      [{ type: "setRate", graph: "root", id: "plates", perSecond: 2 }],
+      [{ type: "removeNodes", graph: "root", ids: ["purify"] }],
+      [{ type: "setPin", graph: "root", id: "smelt", pin: null }],
+    ];
+    for (const commands of edits) {
+      command("doc-water", commands);
+      const followed = await analysis.getResults({ documentId: "doc-water", graph: "root" });
+      // Another manager, which sees each version whole.
+      const fresh = setUp();
+      fresh.edit(documents.get("doc-water")?.document as Document);
+      const expected = await fresh.analysis.getResults({ documentId: "doc-water", graph: "root" });
+      expect(followed).toEqual({ ...expected, version: followed?.version });
+    }
   });
 
   it("drops results that a newer edit made stale", async () => {

@@ -1,5 +1,6 @@
 // What managers need from the access components that more than one manager uses.
 // Each access component implements its interface; managers get it injected by the composition root.
+import type { Patch } from "./patches";
 import type { Document } from "./document";
 import type { DocumentInfo, PackInfo } from "./managers";
 import type { PackData } from "./pack";
@@ -56,7 +57,11 @@ export interface PluginRuntime {
 }
 
 export interface DocumentCompiler {
-  compile(document: Document): Promise<CompiledModel>;
+  /**
+   * `patches`, when given, turn the document of the last compile into this one, and the compiler looks only at
+   * what they touch. Without them, it compares the whole document with the last one.
+   */
+  compile(document: Document, patches?: Patch[]): Promise<CompiledModel>;
 }
 
 export interface CompiledModel {

@@ -1,7 +1,23 @@
 // Generates benchmark factories from the template pack: production lines of motor cells along shared
 // ore and water buses. Every cell has the template's water loop and a slag byproduct, so the LP sees
-// cycles and surplus like a real plan. Deterministic: the same size gives the same document.
-import type { Blueprint, Document, Edge, Graph, Node } from "../src/contracts/document";
+// cycles and surplus like a real plan. Deterministic: the same size gives the same document. Edits are made the way
+// the editing engine makes them: with Immer, which gives the patches the analysis manager passes to the compiler.
+import { enablePatches, produceWithPatches } from "immer";
+import type { Document, Edge, Graph, Node } from "../src/contracts/document";
+import type { Patch } from "../src/contracts/patches";
+
+enablePatches();
+
+/** A document after an edit, with the patches that made it from the one before. */
+export interface Edited {
+  document: Document;
+  patches: Patch[];
+}
+
+function edited(document: Document, change: (draft: Document) => void): Edited {
+  const [next, patches] = produceWithPatches(document, change);
+  return { document: next, patches: patches as Patch[] };
+}
 
 /** Nodes in one cell; a line adds its three sources and one sink. */
 export const NODES_PER_CELL = 15;
@@ -192,53 +208,33 @@ export function expandedNodes(document: Document): number {
 }
 
 /** The subgraph factory with one cell's motor target changed. */
-export function editTarget(document: Document, line: number, cell: number, edit: number): Document {
-  const id = `l${line}-c${cell}-motors`;
-  return {
-    ...document,
-    graph: {
-      ...document.graph,
-      nodes: {
-        ...document.graph.nodes,
-        // Never a target the factory had before, so the edit can't hit a cached component.
-        [id]: { kind: "sink", item: "motor", targetPerSecond: (2 + edit / 64) * MOTORS_PER_MACHINE },
-      },
-    },
-  };
+export function editTarget(document: Document, line: number, cell: number, edit: number): Edited {
+  return edited(document, (draft) => {
+    // Never a target the factory had before, so the edit can't hit a cached component.
+    draft.graph.nodes[`l${line}-c${cell}-motors`] = {
+      kind: "sink",
+      item: "motor",
+      targetPerSecond: (2 + edit / 64) * MOTORS_PER_MACHINE,
+    };
+  });
 }
 
 /** The subgraph factory with its blueprint's design changed: every instance's summary changes. */
-export function editBlueprint(document: Document, edit: number): Document {
-  const cell = document.blueprints["motor-cell"] as Blueprint;
-  return {
-    ...document,
-    blueprints: {
-      "motor-cell": {
-        ...cell,
-        graph: {
-          ...cell.graph,
-          nodes: {
-            ...cell.graph.nodes,
-            motor: { kind: "recipe", recipe: "motor", pin: { type: "machines", count: 1 + edit / 64 } },
-          },
-        },
-      },
-    },
-  };
+export function editBlueprint(document: Document, edit: number): Edited {
+  return edited(document, (draft) => {
+    const cell = draft.blueprints["motor-cell"] as Document["blueprints"][string];
+    cell.graph.nodes.motor = { kind: "recipe", recipe: "motor", pin: { type: "machines", count: 1 + edit / 64 } };
+  });
 }
 
 /** The same factory with one motor assembler's pin changed: the edit the benchmark measures. */
-export function editMotor(document: Document, line: number, cell: number, edit: number): Document {
-  const id = `l${line}-c${cell}-motor`;
-  return {
-    ...document,
-    graph: {
-      ...document.graph,
-      nodes: {
-        ...document.graph.nodes,
-        // Never a count the factory had before, so the edit can't hit a cached component.
-        [id]: { kind: "recipe", recipe: "motor", pin: { type: "machines", count: 2 + edit / 64 } },
-      },
-    },
-  };
+export function editMotor(document: Document, line: number, cell: number, edit: number): Edited {
+  return edited(document, (draft) => {
+    // Never a count the factory had before, so the edit can't hit a cached component.
+    draft.graph.nodes[`l${line}-c${cell}-motor`] = {
+      kind: "recipe",
+      recipe: "motor",
+      pin: { type: "machines", count: 2 + edit / 64 },
+    };
+  });
 }

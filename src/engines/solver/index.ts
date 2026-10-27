@@ -106,9 +106,9 @@ export async function createSolver(): Promise<IncrementalSolver> {
 /** What changed from `before` to `after`, by identity. */
 function changed<T>(before: T[], after: T[]): Changes<T> {
   const set: [number, T][] = [];
-  after.forEach((element, index) => {
-    if (before[index] !== element) set.push([index, element]);
-  });
+  for (let index = 0; index < after.length; index++) {
+    if (before[index] !== after[index]) set.push([index, after[index] as T]);
+  }
   return { length: after.length, set };
 }
 
