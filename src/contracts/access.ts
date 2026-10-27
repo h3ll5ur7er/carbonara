@@ -11,9 +11,14 @@ export interface OpenDocument {
   version: number;
 }
 
+/** How an open document is listed to clients. */
+export function documentInfo({ document, version }: OpenDocument): DocumentInfo {
+  return { id: document.id, name: document.name, packId: document.pack.id, version };
+}
+
 /**
  * The documents open in this session (documents access). The editing and workspace managers change them;
- * the analysis manager only reads. Persistence (autosave, files) is the same component's job, added by CARB-34.
+ * the analysis manager only reads. The web store autosaves every change, so open documents survive a reload.
  */
 export interface DocumentStore {
   list(): DocumentInfo[];

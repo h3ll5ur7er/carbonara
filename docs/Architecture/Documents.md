@@ -63,6 +63,16 @@ A batch is all or nothing. The engine rejects it, as a value with the path of th
 
 Removing nodes also removes their positions and every edge that touches them; removing a blueprint's port node also removes the edges that reach that port through the blueprint's instances. Property tests check that `undo(do(x)) = x` for random command sequences and that no edge or position is ever left dangling.
 
+## Saving
+
+The documents access component ([[src/access/documents/autosave.ts]], [[src/access/documents/files.ts]]) holds the documents open in this session and saves them.
+
+- **Autosave.** The web backend's `DocumentStore` writes each changed document through to IndexedDB in the background, so a reload never loses work. A burst of changes (a drag, a paste) is written once, with its latest state. On start it restores the documents that were open, upgraded to the current version; documents it can't load (from a newer Carbonara) are reported and stay saved, untouched. Closing a document deletes its autosave.
+- **Files.** A `.carbonara` file is the document as gzipped UTF-8 JSON. Reading also accepts plain JSON, so a file someone unzipped and edited by hand opens too. Damaged files are refused as values ("Not a Carbonara document").
+- **Platform port.** IndexedDB hides behind the `KeyValueStorage` port ([[src/contracts/platform.ts]]), implemented for the web by [[src/platforms/web/indexeddb.ts]]; Tauri and Node implement the same port later. Every port implementation passes [[src/contracts/platform.contract.ts]], and every `DocumentStore` (memory, autosaved) passes [[src/access/documents/store.contract.ts]].
+
+Versions count changes within a session: a document restored from autosave or opened from a file starts at version 1.
+
 ## Versions and migrations
 
 `version` is the document format version. When a stored document is older, the documents access component upgrades it step by step (`MIGRATIONS[n]` turns version n into n + 1, in [[src/access/documents/migrations.ts]]) before parsing it with the current schema. A document from a newer Carbonara is refused with a clear message rather than half-loaded.
