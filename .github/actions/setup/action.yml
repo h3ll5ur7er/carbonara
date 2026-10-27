@@ -1,0 +1,22 @@
+name: Setup
+description: Node, pnpm, Rust with the wasm target, wasm-pack, dependencies and the solver's WebAssembly build
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-unknown-unknown
+        components: rustfmt, clippy
+    - uses: Swatinem/rust-cache@v2
+    - uses: taiki-e/install-action@v2
+      with:
+        tool: wasm-pack
+    - run: pnpm install --frozen-lockfile
+      shell: bash
+    - run: pnpm build:wasm
+      shell: bash
