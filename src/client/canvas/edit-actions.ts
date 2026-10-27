@@ -2,10 +2,11 @@
 // arranging, undo, and where a new node should go. Set by the document canvas on screen; empty without one.
 import type { Node, Position, TagColour } from "../../contracts/document";
 import type { ArrangeDirection } from "../../contracts/layout";
+import type { ClipboardActions } from "./clipboard-actions";
 import type { AlignMode, DistributeAxis } from "./model/align";
 import type { NavigationActions } from "./use-navigation";
 
-export interface CanvasEditActions extends NavigationActions {
+export interface CanvasEditActions extends NavigationActions, ClipboardActions {
   /** Lays out the selection (two or more nodes) or else the whole graph. */
   arrange(direction: ArrangeDirection): void;
   /** Deletes the selected nodes and flows; with `bridge`, reconnects the flows that ran through the nodes. */

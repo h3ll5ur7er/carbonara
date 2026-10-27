@@ -9,6 +9,7 @@ import { errorMessage, toast } from "../shell/toasts";
 import { setCanvasEditActions, type CanvasEditActions } from "./edit-actions";
 import type { NavigationActions } from "./use-navigation";
 import type { Point } from "./adapter";
+import { clipboardActions } from "./clipboard-actions";
 import { align, distribute, straightenChain, type AlignMode, type Box } from "./model/align";
 import { freeSpot, obstaclesOf } from "./model/free-spot";
 import { rateChoices, settingsFor } from "./model/format";
@@ -170,22 +171,10 @@ export function useEditActions({
       undo: () => report("Undo", connector.editing.undo({ documentId })),
       redo: () => report("Redo", connector.editing.redo({ documentId })),
       placeNew,
+      ...clipboardActions({ connector, document, pack, graph, shown, scene, selection, apply }),
       ...navigation,
     };
-  }, [
-    connector,
-    document.name,
-    document.settings,
-    documentId,
-    graph,
-    shown,
-    layout,
-    pack,
-    scene,
-    selection,
-    apply,
-    navigation,
-  ]);
+  }, [connector, document, documentId, graph, shown, layout, pack, scene, selection, apply, navigation]);
 
   useEffect(() => {
     setCanvasEditActions(actions);

@@ -13,6 +13,9 @@ import {
   Bookmark,
   BookmarkCheck,
   Cable,
+  ClipboardPaste,
+  Copy,
+  CopyPlus,
   Factory,
   FileImage,
   Gauge,
@@ -24,6 +27,7 @@ import {
   Maximize,
   MoveHorizontal,
   Redo2,
+  Scissors,
   Search,
   StickyNote,
   Tag,
@@ -57,6 +61,17 @@ export const tidyCommandIds = [
   "align.straightenChain",
 ];
 
+/**
+ * Text selected on the page outside a field (a name in the inspector) is copied as text, as the browser would
+ * have done if the shortcut hadn't been taken.
+ */
+function copiesSelectedText(): boolean {
+  const selected = window.getSelection();
+  if (!selected || selected.isCollapsed || selected.toString().trim() === "") return false;
+  // Deprecated, but the one way to run the browser's own copy from a key handler.
+  return document.execCommand("copy");
+}
+
 export const canvasCommands: CommandDefinition[] = [
   {
     id: "edit.undo",
@@ -78,6 +93,60 @@ export const canvasCommands: CommandDefinition[] = [
     keywords: ["again", "history"],
     icon: Redo2,
     run: () => canvasEditActions()?.redo(),
+  },
+  {
+    id: "edit.copy",
+    title: "Copy",
+    group: "Edit",
+    shortcut: "Mod+C",
+    // A text field copies its own text.
+    inTextFields: false,
+    keywords: ["clipboard", "duplicate", "nodes", "selection", "share"],
+    icon: Copy,
+    run: () => {
+      if (!copiesSelectedText()) canvasEditActions()?.copy();
+    },
+  },
+  {
+    id: "edit.cut",
+    title: "Cut",
+    group: "Edit",
+    shortcut: "Mod+X",
+    inTextFields: false,
+    keywords: ["clipboard", "move", "nodes", "selection"],
+    icon: Scissors,
+    run: () => canvasEditActions()?.cut(),
+  },
+  {
+    id: "edit.paste",
+    title: "Paste",
+    group: "Edit",
+    shortcut: "Mod+V",
+    inTextFields: false,
+    keywords: ["clipboard", "insert", "ghost", "place"],
+    icon: ClipboardPaste,
+    run: () => canvasEditActions()?.paste(false),
+  },
+  {
+    id: "edit.pasteWithConnections",
+    title: "Paste with connections",
+    group: "Edit",
+    shortcut: "Mod+Shift+V",
+    inTextFields: false,
+    keywords: ["clipboard", "flows", "reconnect", "edges", "linked"],
+    icon: ClipboardPaste,
+    run: () => canvasEditActions()?.paste(true),
+  },
+  {
+    id: "edit.duplicate",
+    title: "Duplicate",
+    group: "Edit",
+    // Browsers bookmark the page with Mod+D, but let a page take the key.
+    shortcut: "Mod+D",
+    inTextFields: false,
+    keywords: ["copy", "clone", "repeat", "nodes", "selection"],
+    icon: CopyPlus,
+    run: () => canvasEditActions()?.duplicate(),
   },
   {
     id: "edit.find",

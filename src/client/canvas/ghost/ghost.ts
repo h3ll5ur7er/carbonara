@@ -6,6 +6,7 @@ import type { Graph, LocalId, Position } from "../../../contracts/document";
 import type { AnalysisResults, EdgeResult, NodeResult } from "../../../contracts/results";
 import type { Point } from "../adapter";
 import type { CanvasScene } from "../model/scene";
+import { snapDrag, type Gap, type Guide, type SnapOptions } from "../model/snap";
 
 /** What to preview, and where. */
 export interface Ghost {
@@ -21,9 +22,11 @@ export interface Ghost {
 
 /**
  * `fixed`: drawn `offset` away from its positions; dragging it moves it as one and reports the new offset.
- * `pointer`: its centre follows the pointer until a click places it (or Escape cancels).
+ * `pointer`: its centre follows the pointer, snapping like a dragged node, until a click (or Enter) places it;
+ * Escape cancels and the arrow keys move it. It starts centred on `at` (flow units) when given, else under the
+ * pointer when that was last on the canvas, else mid-view.
  */
-export type GhostPlacement = { mode: "fixed"; offset: Point } | { mode: "pointer" };
+export type GhostPlacement = { mode: "fixed"; offset: Point } | { mode: "pointer"; at?: Point };
 
 export interface Rect {
   x: number;
@@ -119,6 +122,23 @@ const NEAR = 480;
 
 function overlaps(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
+
+/** Where a ghost following the pointer goes, and the guides that explain a snap to its neighbours. */
+export interface Followed {
+  offset: Point;
+  guides: Guide[];
+  gaps: Gap[];
+}
+
+/**
+ * The offset that centres the ghost on `pointer`, snapped as a dragged node snaps (model/snap.ts): its edges or
+ * centre onto a nearby node's, even spacing, or else its top-left corner onto the grid.
+ */
+export function followPointer(bounds: Rect, pointer: Point, others: Rect[], options: SnapOptions): Followed {
+  const moving = { ...bounds, x: pointer.x - bounds.width / 2, y: pointer.y - bounds.height / 2 };
+  const snapped = snapDrag(moving, others, options);
+  return { offset: { x: snapped.x - bounds.x, y: snapped.y - bounds.y }, guides: snapped.guides, gaps: snapped.gaps };
 }
 
 /** Where the ghost's nodes land when it's placed at `offset`. */

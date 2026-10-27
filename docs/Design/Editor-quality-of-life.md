@@ -72,6 +72,25 @@ While a node is dragged ([[src/client/canvas/model/snap.ts]], [[src/client/canva
 - Works across documents and into or out of subgraphs. The clipboard also holds plain text (JSON), so you can paste a setup into Discord and someone else can paste it back. Pasting between different packs warns about ids that don't exist.
 - The same ghost renderer is used for blueprints dragged from the library and for MCP proposals ([[Architecture/MCP server]]).
 
+### How copy and paste work
+
+| Command | Shortcut | Does |
+| --- | --- | --- |
+| Copy | `Ctrl+C` | Copies the selected nodes (says "Copied 5 nodes"). Text selected on the page outside a field is copied as text instead |
+| Cut | `Ctrl+X` | Copies them, then deletes them and the selected flows: one edit, "Cut 5 nodes" |
+| Paste | `Ctrl+V` | The copy as a ghost to place (below); placing it is one edit, "Paste 5 nodes" |
+| Paste with connections | `Ctrl+Shift+V` | The same, and the pasted nodes get the flows the originals had to nodes outside the copy, when pasting into the graph they came from (and those nodes are still there) |
+| Duplicate | `Ctrl+D` | A ghost of the selected nodes two grid steps beside them, leaving the clipboard alone; "Duplicate 5 nodes". Browsers bookmark the page with `Ctrl+D` but let a page take the key, as Figma does |
+
+All of them are in the palette and the app menu; the node's context menu offers copy, cut and duplicate, the canvas's paste. In text fields the keys stay the field's own.
+
+- **The payload** is `Clipboard` ([[src/contracts/clipboard.ts]]): the format and version, the source pack (id and version), where it was copied from (document and graph), the copied nodes with the flows among them, their positions (with size, lock and tag), and the flows to nodes outside the copy (`connections`). `editing.copy` makes it, `editing.paste` places it; the rules are in [[src/engines/editing/clipboard.ts]].
+- **Pasting** adds the nodes `offset` from where they were, under fresh ids that keep the readable stem of the copied ones (`smelter-3fa9c1` → `smelter-8b2e40`) and never clash with the graph's; flows get fresh ids too. Nodes the graph can't hold are left out with their flows, and a toast names them: subgraph ports outside a subgraph, subgraphs the factory doesn't have (blueprints don't travel with a copy yet, [[CARB-90]]), a subgraph pasted into itself. Property tests: a paste never reuses an id, never leaves a flow without its nodes, copies nodes and flows faithfully, connects outside only with connections in its own graph, and undoing it restores the document ([[src/engines/editing/clipboard.properties.test.ts]]).
+- **The system clipboard** gets the copy as compact JSON text. Browsers only let a page write it during a key press, and a copy takes a round trip to the backend, so the write starts with the key as a `ClipboardItem` whose text is a promise (Safari requires this; `writeText` is the fallback). Pasting reads the system clipboard first (another tab, window or a chat), and falls back to this tab's last copy when it holds anything else or the browser won't let the page read it ([[src/client/features/clipboard/]]).
+- **Across packs**, the paste warns as the ghost appears: "These nodes come from the factorio pack: 1 recipe and 1 belt don't exist in satisfactory and will show as missing" (or that everything exists, when nothing is missing). It still pastes; the nodes show their ids until the right pack is used.
+- **Placing:** the ghost starts under the pointer (duplicates: beside the originals) and follows it in grid steps, snapping into line with neighbours like a dragged node ([[Design]], Ghosts). The pasted block keeps its own arrangement, and its top-left corner lands on the grid. The new nodes are selected once they're on the canvas. Switching documents or graphs drops a paste waiting there.
+- Tests: [[e2e/qol-clipboard.spec.ts]] (copy, paste, connections, cut, duplicate with the keyboard, another tab, another pack, text fields, the snapping ghost in dark and light) and the canonical scene `ghost-paste`.
+
 ## Editing
 
 - Drop a node onto an edge to insert it. **Delete & bridge** (`Ctrl+Shift+Del`) removes a node and keeps the flow connected. `Alt`-drag the end of an edge to move it to another port.

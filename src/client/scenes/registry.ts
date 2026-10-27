@@ -37,7 +37,7 @@ export const scenes: SceneRegistry = {
   chain: { title: "A 20-node chain", load: () => canvasScene("chain") },
   congested: { title: "A congested graph", load: () => canvasScene("congested") },
   subgraph: placeholder("Inside a subgraph", "CARB-39"),
-  "ghost-paste": placeholder("The ghost paste", "CARB-51"),
+  "ghost-paste": { title: "A paste following the pointer as a ghost", load: () => import("./ghost-paste") },
   // The canvas perf harness (e2e/canvas-perf.spec.ts): 1,000 nodes.
   perf: { title: "1,000 nodes for the perf harness", load: () => canvasScene("perf") },
   // The design system and the shell.

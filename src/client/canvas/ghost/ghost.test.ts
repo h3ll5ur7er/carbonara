@@ -2,7 +2,16 @@ import { describe, expect, it } from "vitest";
 import type { AnalysisResults } from "../../../contracts/results";
 import { templatePack } from "../../scenes/template-pack";
 import { createSceneBuilder } from "../model/scene";
-import { boundsOf, ghostContent, isGhost, neighbours, placedPositions, withGhostResults, type Ghost } from "./ghost";
+import {
+  boundsOf,
+  followPointer,
+  ghostContent,
+  isGhost,
+  neighbours,
+  placedPositions,
+  withGhostResults,
+  type Ghost,
+} from "./ghost";
 
 const ghost: Ghost = {
   graph: {
@@ -75,6 +84,24 @@ describe("the ghost view", () => {
         node("ghost:smelt", 1000, 0),
       ]),
     ).toEqual(["beside", "above"]);
+  });
+
+  it("following the pointer, centres on it with its top-left corner on the grid", () => {
+    const bounds = { x: 480, y: 96, width: 672, height: 184 };
+    // The centre (816, 188) to (1000, 500): 184, 312 raw; the corner lands on (672, 408), the grid's nearest.
+    const placed = followPointer(bounds, { x: 1000, y: 500 }, [], { grid: 24, threshold: 6 });
+    expect(placed.offset).toEqual({ x: 192, y: 312 });
+    expect((bounds.x + placed.offset.x) % 24).toBe(0);
+    expect((bounds.y + placed.offset.y) % 24).toBe(0);
+    expect(placed.guides).toEqual([]);
+  });
+
+  it("following the pointer, lines up with a nearby node and shows the guide", () => {
+    const bounds = { x: 0, y: 0, width: 200, height: 100 };
+    const beside = { x: 400, y: 303, width: 100, height: 100 };
+    const placed = followPointer(bounds, { x: 100, y: 352 }, [beside], { grid: 24, threshold: 6 });
+    expect(placed.offset).toEqual({ x: 0, y: 303 });
+    expect(placed.guides).toContainEqual(expect.objectContaining({ axis: "y", at: 303 }));
   });
 
   it("gives the positions to place it at: its own, moved by the offset", () => {

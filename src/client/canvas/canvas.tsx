@@ -32,6 +32,7 @@ import { useFind } from "../features/find/find-store";
 import type { Id } from "../../contracts/pack";
 import { useEditActions, type Selection } from "./use-edit-actions";
 import { useNavigation } from "./use-navigation";
+import { usePaste } from "./use-paste";
 import { setViewportCentre } from "./viewport";
 
 /** The renderer in use; the only place that names it. */
@@ -154,6 +155,12 @@ function DocumentCanvas({
     [buildScene, shown, layout, pack],
   );
 
+  // A paste waiting to be placed is drawn over any other ghost: it's what the person did last.
+  const paste = usePaste(document, graph, scene);
+  const shownGhost = paste.ghost ?? ghost;
+  const placeGhost = paste.ghost ? paste.onPlace : onGhostPlace;
+  const cancelGhost = paste.ghost ? paste.onCancel : onGhostCancel;
+
   const [buildGhostScene] = useState(createSceneBuilder);
   // The ghost's content and its placement change apart: moving it mustn't rebuild (or re-reveal) it.
   const {
@@ -162,7 +169,7 @@ function DocumentCanvas({
     label: ghostLabel,
     placement,
     results: ghostResults,
-  } = ghost ?? {};
+  } = shownGhost ?? {};
   const content = useMemo(
     () =>
       ghostGraph && ghostPositions && ghostContent(buildGhostScene(ghostGraph, ghostPositions, pack), ghostLabel ?? ""),
@@ -344,8 +351,8 @@ function DocumentCanvas({
           onResize={onResize}
           onViewSettled={navigation.onViewSettled}
           ghost={ghostScene}
-          {...(onGhostPlace && { onGhostPlace })}
-          {...(onGhostCancel && { onGhostCancel })}
+          {...(placeGhost && { onGhostPlace: placeGhost })}
+          {...(cancelGhost && { onGhostCancel: cancelGhost })}
           overlay={overlay}
         />
       </CanvasContextMenu>

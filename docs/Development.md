@@ -69,7 +69,7 @@ A scene is a fixed state of the UI for screenshots and visual QA. In development
 
 | Scene | What it shows | Screenshots |
 | --- | --- | --- |
-| `empty`, `chain`, `congested`, `subgraph`, `ghost-paste` | The canonical scenes of [[Design]] (Visual QA); placeholders mark the ones whose feature doesn't exist yet | `e2e/scenes.spec.ts` |
+| `empty`, `chain`, `congested`, `subgraph`, `ghost-paste` | The canonical scenes of [[Design]] (Visual QA); placeholders mark the ones whose feature doesn't exist yet. `ghost-paste` is the chain with a copy of its wire line following the pointer | `e2e/scenes.spec.ts` |
 | `gallery` | Every design-system primitive, with a theme and accent switch | `e2e/ui.spec.ts` |
 | `inspector` | Both side panels, the inspector with each kind of field, error toasts | `e2e/shell-panels.spec.ts` |
 | `palette` | A template-pack document, for the command palette and quick-add | `e2e/shell-palette.spec.ts` |
