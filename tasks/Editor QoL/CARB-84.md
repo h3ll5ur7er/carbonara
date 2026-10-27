@@ -12,7 +12,7 @@ milestone: "M4 Ship"
 Left over from [[CARB-49]] to [[CARB-56]].
 
 - [ ] Top-to-bottom arrange: flows leave and enter cards at the bottom and top, not sideways
-- [ ] Load ELK's worker before the first arrange (it took about 4 s on the dev server)
+- [x] Load ELK's worker before the first arrange (it took about 4 s on the dev server): warmed up 1.5 s after the documents are restored
 - [ ] Find jumps into subgraphs once subgraph navigation exists ([[CARB-39]])
 - [ ] Multi-select editing of plugin fields (clock, modules)
 - [ ] Collapsible frames

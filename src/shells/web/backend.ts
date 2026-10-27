@@ -25,6 +25,9 @@ export interface BackendOptions {
   storage?: (name: string) => KeyValueStorage;
 }
 
+/** How long after start ELK loads: after the first documents are solved, before anyone reaches for arrange. */
+const ELK_WARM_UP_DELAY_MS = 1500;
+
 export function startBackend(
   transport: Transport,
   { isolate, storage = createIndexedDbStorage }: BackendOptions = {},
@@ -43,6 +46,9 @@ export function startBackend(
     })
     .catch(() => undefined);
   const newId = () => crypto.randomUUID();
+  // Arranging shouldn't wait for ELK to load: it loads once the documents are back and the first answers are out.
+  const elk = elkInWorker();
+  void restored.then(() => setTimeout(elk.warmUp, ELK_WARM_UP_DELAY_MS));
   // Built-in packs and the installed ones; the workspace and packs managers share the one library.
   const packs = createPackLibrary({
     builtIns: builtInPacks,
@@ -53,7 +59,7 @@ export function startBackend(
 
   const dispatch = createDispatcher(managers, {
     workspace: createWorkspaceManager({ documents, packs, events: bus, newId, restoreProblems: () => restoreProblems }),
-    editing: createEditingManager({ documents, events: bus, newId, layout: elkInWorker() }),
+    editing: createEditingManager({ documents, events: bus, newId, layout: elk }),
     packs: createPacksManager({ library: packs, bus }),
     analysis: createAnalysisManager({ bus, documents, packs }),
     planning: createPlanningManager({ documents, packs }),
@@ -65,18 +71,23 @@ export function startBackend(
 }
 
 /**
- * ELK for the layout engine, in a worker of its own, started on the first arrange. Not in this worker: ELK's
- * bundle takes over `self.onmessage` in any worker it loads in, and a long layout would hold up every other call.
+ * ELK for the layout engine, in a worker of its own. Not in this worker: ELK's bundle takes over `self.onmessage`
+ * in any worker it loads in, and a long layout would hold up every other call. It starts on the first arrange or
+ * when warmed up, whichever comes first.
  */
-function elkInWorker(): ElkRunner {
+function elkInWorker(): ElkRunner & { warmUp(): void } {
   let elk: Promise<ElkRunner> | undefined;
+  const start = () =>
+    // A classic worker: ELK's script is not a module.
+    (elk ??= Promise.all([import("elkjs/lib/elk-api.js"), import("elkjs/lib/elk-worker.min.js?url")]).then(
+      ([{ default: ELK }, { default: url }]) => new ELK({ workerFactory: () => new Worker(url) }),
+    ));
   return {
-    layout: async (graph) => {
-      // A classic worker: ELK's script is not a module.
-      elk ??= Promise.all([import("elkjs/lib/elk-api.js"), import("elkjs/lib/elk-worker.min.js?url")]).then(
-        ([{ default: ELK }, { default: url }]) => new ELK({ workerFactory: () => new Worker(url) }),
-      );
-      return (await elk).layout(graph);
-    },
+    layout: async (graph) => (await start()).layout(graph),
+    /** Loads ELK and lays out an empty graph, so the first arrange waits for neither (seconds on the dev server). */
+    warmUp: () =>
+      void start()
+        .then((runner) => runner.layout({ id: "warm-up", children: [] }))
+        .catch(() => undefined),
   };
 }
