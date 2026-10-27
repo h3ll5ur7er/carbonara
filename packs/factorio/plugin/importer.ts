@@ -1,8 +1,9 @@
 // Turns the game's `factorio --dump-data` output (script-output/data-raw-dump.json: every prototype, as the game
 // loaded it) and its English locale files into pack data. Hides the dump format: prototype types, energy written as
 // strings ("75kW"), recipe categories (one in 2.0, several in 2.1), probabilistic results, defaults the dump leaves
-// out, and that names live in separate locale files. Maintainer tooling (`pnpm pack:import factorio`); the app never
-// runs it.
+// out, and that names live in separate locale files. Quality levels become item variants (`iron-plate@rare`), and
+// what the mechanics plugin needs becomes building fields and recipe tags. Maintainer tooling
+// (`pnpm pack:import factorio`); the app never runs it.
 import type { Building, Item, Logistics, PackDataFile, Recipe, Resource } from "../../../src/contracts/pack";
 import { localise, parseLocale } from "./locale";
 
@@ -40,6 +41,8 @@ const PIPE_CAPACITY = 6000;
 
 /** Crafting machines draw 1/30 of their power even when idle, unless their prototype says otherwise. */
 const DEFAULT_DRAIN = 1 / 30;
+/** A building that doesn't list its allowed effects takes modules of every effect. */
+const ALL_EFFECTS = ["consumption", "speed", "productivity", "pollution", "quality"];
 const DEFAULT_CRAFT_SECONDS = 0.5;
 
 type Prototype = Record<string, unknown> & { name: string };
@@ -128,7 +131,7 @@ export function importDump(files: Record<string, Uint8Array>): {
   const extractors = EXTRACTORS.flatMap((type) => prototypes(type).sort(buildingOrder));
   const building = (entity: Prototype, crafting: boolean): Building => {
     const power = powerMW(entity, crafting);
-    const extra = fields(entity);
+    const extra = fields(entity, crafting);
     return {
       id: entity.name,
       name: named(entity, `entity-name.${entity.name}`),
@@ -174,7 +177,8 @@ export function importDump(files: Record<string, Uint8Array>): {
     const tags = [
       ...[...mods].sort(),
       ...(categories.includes("recycling") ? ["recycling"] : []),
-      ...(entry.allow_productivity === true ? ["productivity"] : []),
+      ...(entry.allow_productivity === true ? ["productivity", ...ignoredByProductivity(entry)] : []),
+      ...(entry.allow_quality === false ? ["no-quality"] : []),
     ];
     return [
       {
@@ -233,15 +237,30 @@ export function importDump(files: Record<string, Uint8Array>): {
     ...recipes.flatMap((recipe) => [...Object.keys(recipe.in), ...Object.keys(recipe.out)]),
     ...resources.map((resource) => resource.item),
   ]);
+  // Every solid item comes in each quality above normal, as a variant (`iron-plate@rare`) right after it.
+  const qualities = prototypes("quality")
+    .filter((quality) => (number(quality.level) ?? 0) > 0)
+    .sort((a, b) => (number(a.level) ?? 0) - (number(b.level) ?? 0));
   const itemList: Item[] = [...used]
     .sort()
     .map((id) => product(id) as Prototype)
-    .map((prototype) => ({
-      id: prototype.name,
-      name: itemName(prototype),
-      form: fluids.get(prototype.name) === prototype ? "fluid" : "solid",
-      ...iconFor(prototype.name, prototype),
-    }));
+    .flatMap((prototype): Item[] => {
+      const item: Item = {
+        id: prototype.name,
+        name: itemName(prototype),
+        form: fluids.get(prototype.name) === prototype ? "fluid" : "solid",
+        ...iconFor(prototype.name, prototype),
+      };
+      if (item.form === "fluid") return [item];
+      return [
+        item,
+        ...qualities.map((quality) => ({
+          ...item,
+          id: `${item.id}@${quality.name}`,
+          name: `${item.name} (${named(quality, `quality-name.${quality.name}`)})`,
+        })),
+      ];
+    });
 
   const logistics: Logistics[] = [
     ...prototypes("transport-belt")
@@ -284,9 +303,27 @@ export function importDump(files: Record<string, Uint8Array>): {
 /** What one result yields per craft on average: chance × (amount + the chance of one more). */
 function expectedAmount(result: Amount): number {
   const amount = result.amount ?? ((result.amount_min ?? 0) + (result.amount_max ?? 0)) / 2;
+  return chanceOf(result) * (amount + (result.extra_count_fraction ?? 0));
+}
+
+function chanceOf(result: Amount): number {
   const shared = result.shared_probability;
-  const chance = result.probability ?? result.independent_probability ?? (shared ? shared.max - shared.min : 1);
-  return chance * (amount + (result.extra_count_fraction ?? 0));
+  return result.probability ?? result.independent_probability ?? (shared ? shared.max - shared.min : 1);
+}
+
+/**
+ * Tags with the part of each result that productivity doesn't multiply (`ignored_by_productivity`, catalysts such
+ * as Kovarex's 40 U-235), per craft on average: `ignored-by-productivity:uranium-235=40`.
+ */
+function ignoredByProductivity(recipe: Prototype): string[] {
+  const ignored = new Map<string, number>();
+  for (const result of (Array.isArray(recipe.results) ? recipe.results : []) as (Amount & {
+    ignored_by_productivity?: number;
+  })[]) {
+    const amount = Math.min(result.ignored_by_productivity ?? 0, result.amount ?? result.amount_max ?? 0);
+    if (amount > 0) ignored.set(result.name, (ignored.get(result.name) ?? 0) + chanceOf(result) * amount);
+  }
+  return [...ignored].map(([item, amount]) => `ignored-by-productivity:${item}=${clean(amount)}`);
 }
 
 /** Factorio 2.1 gives recipes several categories, 2.0 one; without any, a recipe is "crafting". */
@@ -295,11 +332,12 @@ function recipeCategories(recipe: Prototype): string[] {
   return [typeof recipe.category === "string" ? recipe.category : "crafting"];
 }
 
-/** Settings and facts the mechanics plugin (CARB-44) or a Space Age filter will read. */
-function fields(entity: Prototype): Building["fields"] {
+/** What the mechanics plugin reads: module slots and effects, built-in effects, drain, fuel and the expansion. */
+function fields(entity: Prototype, crafting: boolean): Building["fields"] {
   const result: NonNullable<Building["fields"]> = {};
   const slots = number(entity.module_slots) ?? 0;
-  if (slots > 0) result.modules = { slots, effects: list(entity.allowed_effects).join(",") };
+  const effects = entity.allowed_effects === undefined ? ALL_EFFECTS : list(entity.allowed_effects);
+  if (slots > 0) result.modules = { slots, effects: effects.join(",") };
   const receiver = entity.effect_receiver as { base_effect?: Record<string, number> } | undefined;
   if (receiver?.base_effect && Object.keys(receiver.base_effect).length > 0) {
     result["base-effect"] = receiver.base_effect;
@@ -309,6 +347,8 @@ function fields(entity: Prototype): Building["fields"] {
     const fuel = list(source.fuel_categories);
     result.energy = { source: source.type, ...(fuel.length > 0 && { fuel: fuel.join(",") }) };
   }
+  const drain = drainWatts(entity, crafting);
+  if (drain > 0) result.energy = { drain: clean(drain / 1e6) };
   const mod = modOf(entity);
   if (mod !== "base") result.mod = { name: mod };
   return Object.keys(result).length > 0 ? result : undefined;
@@ -318,9 +358,14 @@ function fields(entity: Prototype): Building["fields"] {
 function powerMW(entity: Prototype, crafting: boolean): number | undefined {
   const usage = watts(entity.energy_usage);
   if (usage === undefined) return undefined;
+  return clean((usage + drainWatts(entity, crafting)) / 1e6);
+}
+
+/** What an electric building draws even when idle, in W. */
+function drainWatts(entity: Prototype, crafting: boolean): number {
+  const usage = watts(entity.energy_usage) ?? 0;
   const source = entity.energy_source as { type?: string; drain?: string } | undefined;
-  const drain = source?.type === "electric" ? (watts(source.drain) ?? (crafting ? usage * DEFAULT_DRAIN : 0)) : 0;
-  return clean((usage + drain) / 1e6);
+  return source?.type === "electric" ? (watts(source.drain) ?? (crafting ? usage * DEFAULT_DRAIN : 0)) : 0;
 }
 
 function speedOf(entity: Prototype): number {

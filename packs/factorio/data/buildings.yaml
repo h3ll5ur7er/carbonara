@@ -6,18 +6,29 @@ buildings:
     icon: icons/assembling-machine-1.webp
     speed: 0.5
     power: { consume: 0.0775 }
+    fields: { energy: { drain: 0.0025 } }
   - id: assembling-machine-2
     name: Assembling machine 2
     icon: icons/assembling-machine-2.webp
     speed: 0.75
     power: { consume: 0.155 }
-    fields: { modules: { slots: 2, effects: "consumption,speed,productivity,pollution,quality" } }
+    fields:
+      modules:
+        slots: 2
+        effects: consumption,speed,productivity,pollution,quality
+      energy:
+        drain: 0.005
   - id: rocket-silo
     name: Rocket silo
     icon: icons/rocket-silo.webp
     speed: 1
     power: { consume: 0.258333333333 }
-    fields: { modules: { slots: 4, effects: "consumption,speed,productivity,pollution" } }
+    fields:
+      modules:
+        slots: 4
+        effects: consumption,speed,productivity,pollution
+      energy:
+        drain: 0.00833333333333
   - id: stone-furnace
     name: Stone furnace
     icon: icons/stone-furnace.webp
@@ -29,25 +40,40 @@ buildings:
     icon: icons/oil-refinery.webp
     speed: 1
     power: { consume: 0.434 }
-    fields: { modules: { slots: 3, effects: "consumption,speed,productivity,pollution" } }
+    fields: { modules: { slots: 3, effects: "consumption,speed,productivity,pollution" }, energy: { drain: 0.014 } }
   - id: chemical-plant
     name: Chemical plant
     icon: icons/chemical-plant.webp
     speed: 1
     power: { consume: 0.217 }
-    fields: { modules: { slots: 3, effects: "consumption,speed,productivity,pollution,quality" } }
+    fields:
+      modules:
+        slots: 3
+        effects: consumption,speed,productivity,pollution,quality
+      energy:
+        drain: 0.007
   - id: centrifuge
     name: Centrifuge
     icon: icons/centrifuge.webp
     speed: 1
     power: { consume: 0.361666666667 }
-    fields: { modules: { slots: 2, effects: "consumption,speed,productivity,pollution,quality" } }
+    fields:
+      modules:
+        slots: 2
+        effects: consumption,speed,productivity,pollution,quality
+      energy:
+        drain: 0.0116666666667
   - id: assembling-machine-3
     name: Assembling machine 3
     icon: icons/assembling-machine-3.webp
     speed: 1.25
     power: { consume: 0.3875 }
-    fields: { modules: { slots: 4, effects: "consumption,speed,productivity,pollution,quality" } }
+    fields:
+      modules:
+        slots: 4
+        effects: consumption,speed,productivity,pollution,quality
+      energy:
+        drain: 0.0125
   - id: steel-furnace
     name: Steel furnace
     icon: icons/steel-furnace.webp
@@ -59,13 +85,25 @@ buildings:
     icon: icons/electric-furnace.webp
     speed: 2
     power: { consume: 0.186 }
-    fields: { modules: { slots: 2, effects: "consumption,speed,productivity,pollution,quality" } }
+    fields:
+      modules:
+        slots: 2
+        effects: consumption,speed,productivity,pollution,quality
+      energy:
+        drain: 0.006
   - id: recycler
     name: Recycler
     icon: icons/recycler.webp
     speed: 0.5
     power: { consume: 0.186 }
-    fields: { modules: { slots: 4, effects: "consumption,speed,pollution,quality" }, mod: { name: recycler } }
+    fields:
+      modules:
+        slots: 4
+        effects: consumption,speed,pollution,quality
+      energy:
+        drain: 0.006
+      mod:
+        name: recycler
   - id: crusher
     name: Crusher
     icon: icons/crusher.webp
@@ -75,6 +113,8 @@ buildings:
       modules:
         slots: 2
         effects: consumption,speed,productivity,pollution,quality
+      energy:
+        drain: 0.018
       mod:
         name: space-age
   - id: captive-biter-spawner
@@ -110,6 +150,8 @@ buildings:
         effects: consumption,speed,productivity,pollution,quality
       base-effect:
         productivity: 0.5
+      energy:
+        drain: 0.0666666666667
       mod:
         name: space-age
   - id: cryogenic-plant
@@ -121,6 +163,8 @@ buildings:
       modules:
         slots: 8
         effects: consumption,speed,productivity,pollution,quality
+      energy:
+        drain: 0.05
       mod:
         name: space-age
   - id: foundry
@@ -134,6 +178,8 @@ buildings:
         effects: consumption,speed,productivity,pollution,quality
       base-effect:
         productivity: 0.5
+      energy:
+        drain: 0.0833333333333
       mod:
         name: space-age
   - id: burner-mining-drill
@@ -147,7 +193,7 @@ buildings:
     icon: icons/electric-mining-drill.webp
     speed: 0.5
     power: { consume: 0.09 }
-    fields: { modules: { slots: 3, effects: "" } }
+    fields: { modules: { slots: 3, effects: "consumption,speed,productivity,pollution,quality" } }
   - id: pumpjack
     name: Pumpjack
     icon: icons/pumpjack.webp
@@ -159,7 +205,12 @@ buildings:
     icon: icons/big-mining-drill.webp
     speed: 2.5
     power: { consume: 0.3 }
-    fields: { modules: { slots: 4, effects: "" }, mod: { name: space-age } }
+    fields:
+      modules:
+        slots: 4
+        effects: consumption,speed,productivity,pollution,quality
+      mod:
+        name: space-age
   - id: offshore-pump
     name: Offshore pump
     icon: icons/offshore-pump.webp

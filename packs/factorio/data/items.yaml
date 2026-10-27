@@ -3,150 +3,1122 @@
 units: { rate: per_second }
 items:
   - { id: accumulator, name: Accumulator, form: solid, icon: icons/accumulator.webp }
+  - { id: accumulator@uncommon, name: Accumulator (Uncommon), form: solid, icon: icons/accumulator.webp }
+  - { id: accumulator@rare, name: Accumulator (Rare), form: solid, icon: icons/accumulator.webp }
+  - { id: accumulator@epic, name: Accumulator (Epic), form: solid, icon: icons/accumulator.webp }
+  - { id: accumulator@legendary, name: Accumulator (Legendary), form: solid, icon: icons/accumulator.webp }
   - { id: active-provider-chest, name: Active provider chest, form: solid, icon: icons/active-provider-chest.webp }
+  - id: active-provider-chest@uncommon
+    name: Active provider chest (Uncommon)
+    form: solid
+    icon: icons/active-provider-chest.webp
+  - id: active-provider-chest@rare
+    name: Active provider chest (Rare)
+    form: solid
+    icon: icons/active-provider-chest.webp
+  - id: active-provider-chest@epic
+    name: Active provider chest (Epic)
+    form: solid
+    icon: icons/active-provider-chest.webp
+  - id: active-provider-chest@legendary
+    name: Active provider chest (Legendary)
+    form: solid
+    icon: icons/active-provider-chest.webp
   - { id: advanced-circuit, name: Advanced circuit, form: solid, icon: icons/advanced-circuit.webp }
+  - { id: advanced-circuit@uncommon, name: Advanced circuit (Uncommon), form: solid, icon: icons/advanced-circuit.webp }
+  - { id: advanced-circuit@rare, name: Advanced circuit (Rare), form: solid, icon: icons/advanced-circuit.webp }
+  - { id: advanced-circuit@epic, name: Advanced circuit (Epic), form: solid, icon: icons/advanced-circuit.webp }
+  - id: advanced-circuit@legendary
+    name: Advanced circuit (Legendary)
+    form: solid
+    icon: icons/advanced-circuit.webp
   - id: agricultural-science-pack
     name: Agricultural science pack
     form: solid
     icon: icons/agricultural-science-pack.webp
+  - id: agricultural-science-pack@uncommon
+    name: Agricultural science pack (Uncommon)
+    form: solid
+    icon: icons/agricultural-science-pack.webp
+  - id: agricultural-science-pack@rare
+    name: Agricultural science pack (Rare)
+    form: solid
+    icon: icons/agricultural-science-pack.webp
+  - id: agricultural-science-pack@epic
+    name: Agricultural science pack (Epic)
+    form: solid
+    icon: icons/agricultural-science-pack.webp
+  - id: agricultural-science-pack@legendary
+    name: Agricultural science pack (Legendary)
+    form: solid
+    icon: icons/agricultural-science-pack.webp
   - { id: agricultural-tower, name: Agricultural tower, form: solid, icon: icons/agricultural-tower.webp }
+  - id: agricultural-tower@uncommon
+    name: Agricultural tower (Uncommon)
+    form: solid
+    icon: icons/agricultural-tower.webp
+  - { id: agricultural-tower@rare, name: Agricultural tower (Rare), form: solid, icon: icons/agricultural-tower.webp }
+  - { id: agricultural-tower@epic, name: Agricultural tower (Epic), form: solid, icon: icons/agricultural-tower.webp }
+  - id: agricultural-tower@legendary
+    name: Agricultural tower (Legendary)
+    form: solid
+    icon: icons/agricultural-tower.webp
   - { id: ammonia, name: Ammonia, form: fluid, icon: icons/ammonia.webp }
   - { id: ammoniacal-solution, name: Ammoniacal solution, form: fluid, icon: icons/ammoniacal-solution.webp }
   - { id: arithmetic-combinator, name: Arithmetic combinator, form: solid, icon: icons/arithmetic-combinator.webp }
+  - id: arithmetic-combinator@uncommon
+    name: Arithmetic combinator (Uncommon)
+    form: solid
+    icon: icons/arithmetic-combinator.webp
+  - id: arithmetic-combinator@rare
+    name: Arithmetic combinator (Rare)
+    form: solid
+    icon: icons/arithmetic-combinator.webp
+  - id: arithmetic-combinator@epic
+    name: Arithmetic combinator (Epic)
+    form: solid
+    icon: icons/arithmetic-combinator.webp
+  - id: arithmetic-combinator@legendary
+    name: Arithmetic combinator (Legendary)
+    form: solid
+    icon: icons/arithmetic-combinator.webp
   - id: artificial-jellynut-soil
     name: Artificial jellynut soil
     form: solid
     icon: icons/artificial-jellynut-soil.webp
+  - id: artificial-jellynut-soil@uncommon
+    name: Artificial jellynut soil (Uncommon)
+    form: solid
+    icon: icons/artificial-jellynut-soil.webp
+  - id: artificial-jellynut-soil@rare
+    name: Artificial jellynut soil (Rare)
+    form: solid
+    icon: icons/artificial-jellynut-soil.webp
+  - id: artificial-jellynut-soil@epic
+    name: Artificial jellynut soil (Epic)
+    form: solid
+    icon: icons/artificial-jellynut-soil.webp
+  - id: artificial-jellynut-soil@legendary
+    name: Artificial jellynut soil (Legendary)
+    form: solid
+    icon: icons/artificial-jellynut-soil.webp
   - { id: artificial-yumako-soil, name: Artificial yumako soil, form: solid, icon: icons/artificial-yumako-soil.webp }
+  - id: artificial-yumako-soil@uncommon
+    name: Artificial yumako soil (Uncommon)
+    form: solid
+    icon: icons/artificial-yumako-soil.webp
+  - id: artificial-yumako-soil@rare
+    name: Artificial yumako soil (Rare)
+    form: solid
+    icon: icons/artificial-yumako-soil.webp
+  - id: artificial-yumako-soil@epic
+    name: Artificial yumako soil (Epic)
+    form: solid
+    icon: icons/artificial-yumako-soil.webp
+  - id: artificial-yumako-soil@legendary
+    name: Artificial yumako soil (Legendary)
+    form: solid
+    icon: icons/artificial-yumako-soil.webp
   - { id: artillery-shell, name: Artillery shell, form: solid, icon: icons/artillery-shell.webp }
+  - { id: artillery-shell@uncommon, name: Artillery shell (Uncommon), form: solid, icon: icons/artillery-shell.webp }
+  - { id: artillery-shell@rare, name: Artillery shell (Rare), form: solid, icon: icons/artillery-shell.webp }
+  - { id: artillery-shell@epic, name: Artillery shell (Epic), form: solid, icon: icons/artillery-shell.webp }
+  - { id: artillery-shell@legendary, name: Artillery shell (Legendary), form: solid, icon: icons/artillery-shell.webp }
   - { id: artillery-turret, name: Artillery turret, form: solid, icon: icons/artillery-turret.webp }
+  - { id: artillery-turret@uncommon, name: Artillery turret (Uncommon), form: solid, icon: icons/artillery-turret.webp }
+  - { id: artillery-turret@rare, name: Artillery turret (Rare), form: solid, icon: icons/artillery-turret.webp }
+  - { id: artillery-turret@epic, name: Artillery turret (Epic), form: solid, icon: icons/artillery-turret.webp }
+  - id: artillery-turret@legendary
+    name: Artillery turret (Legendary)
+    form: solid
+    icon: icons/artillery-turret.webp
   - { id: artillery-wagon, name: Artillery wagon, form: solid, icon: icons/artillery-wagon.webp }
+  - { id: artillery-wagon@uncommon, name: Artillery wagon (Uncommon), form: solid, icon: icons/artillery-wagon.webp }
+  - { id: artillery-wagon@rare, name: Artillery wagon (Rare), form: solid, icon: icons/artillery-wagon.webp }
+  - { id: artillery-wagon@epic, name: Artillery wagon (Epic), form: solid, icon: icons/artillery-wagon.webp }
+  - { id: artillery-wagon@legendary, name: Artillery wagon (Legendary), form: solid, icon: icons/artillery-wagon.webp }
   - { id: assembling-machine-1, name: Assembling machine 1, form: solid, icon: icons/assembling-machine-1.webp }
+  - id: assembling-machine-1@uncommon
+    name: Assembling machine 1 (Uncommon)
+    form: solid
+    icon: icons/assembling-machine-1.webp
+  - id: assembling-machine-1@rare
+    name: Assembling machine 1 (Rare)
+    form: solid
+    icon: icons/assembling-machine-1.webp
+  - id: assembling-machine-1@epic
+    name: Assembling machine 1 (Epic)
+    form: solid
+    icon: icons/assembling-machine-1.webp
+  - id: assembling-machine-1@legendary
+    name: Assembling machine 1 (Legendary)
+    form: solid
+    icon: icons/assembling-machine-1.webp
   - { id: assembling-machine-2, name: Assembling machine 2, form: solid, icon: icons/assembling-machine-2.webp }
+  - id: assembling-machine-2@uncommon
+    name: Assembling machine 2 (Uncommon)
+    form: solid
+    icon: icons/assembling-machine-2.webp
+  - id: assembling-machine-2@rare
+    name: Assembling machine 2 (Rare)
+    form: solid
+    icon: icons/assembling-machine-2.webp
+  - id: assembling-machine-2@epic
+    name: Assembling machine 2 (Epic)
+    form: solid
+    icon: icons/assembling-machine-2.webp
+  - id: assembling-machine-2@legendary
+    name: Assembling machine 2 (Legendary)
+    form: solid
+    icon: icons/assembling-machine-2.webp
   - { id: assembling-machine-3, name: Assembling machine 3, form: solid, icon: icons/assembling-machine-3.webp }
+  - id: assembling-machine-3@uncommon
+    name: Assembling machine 3 (Uncommon)
+    form: solid
+    icon: icons/assembling-machine-3.webp
+  - id: assembling-machine-3@rare
+    name: Assembling machine 3 (Rare)
+    form: solid
+    icon: icons/assembling-machine-3.webp
+  - id: assembling-machine-3@epic
+    name: Assembling machine 3 (Epic)
+    form: solid
+    icon: icons/assembling-machine-3.webp
+  - id: assembling-machine-3@legendary
+    name: Assembling machine 3 (Legendary)
+    form: solid
+    icon: icons/assembling-machine-3.webp
   - { id: asteroid-collector, name: Asteroid collector, form: solid, icon: icons/asteroid-collector.webp }
+  - id: asteroid-collector@uncommon
+    name: Asteroid collector (Uncommon)
+    form: solid
+    icon: icons/asteroid-collector.webp
+  - { id: asteroid-collector@rare, name: Asteroid collector (Rare), form: solid, icon: icons/asteroid-collector.webp }
+  - { id: asteroid-collector@epic, name: Asteroid collector (Epic), form: solid, icon: icons/asteroid-collector.webp }
+  - id: asteroid-collector@legendary
+    name: Asteroid collector (Legendary)
+    form: solid
+    icon: icons/asteroid-collector.webp
   - { id: atomic-bomb, name: Atomic bomb, form: solid, icon: icons/atomic-bomb.webp }
+  - { id: atomic-bomb@uncommon, name: Atomic bomb (Uncommon), form: solid, icon: icons/atomic-bomb.webp }
+  - { id: atomic-bomb@rare, name: Atomic bomb (Rare), form: solid, icon: icons/atomic-bomb.webp }
+  - { id: atomic-bomb@epic, name: Atomic bomb (Epic), form: solid, icon: icons/atomic-bomb.webp }
+  - { id: atomic-bomb@legendary, name: Atomic bomb (Legendary), form: solid, icon: icons/atomic-bomb.webp }
   - id: automation-science-pack
     name: Automation science pack
     form: solid
     icon: icons/automation-science-pack.webp
+  - id: automation-science-pack@uncommon
+    name: Automation science pack (Uncommon)
+    form: solid
+    icon: icons/automation-science-pack.webp
+  - id: automation-science-pack@rare
+    name: Automation science pack (Rare)
+    form: solid
+    icon: icons/automation-science-pack.webp
+  - id: automation-science-pack@epic
+    name: Automation science pack (Epic)
+    form: solid
+    icon: icons/automation-science-pack.webp
+  - id: automation-science-pack@legendary
+    name: Automation science pack (Legendary)
+    form: solid
+    icon: icons/automation-science-pack.webp
   - { id: barrel, name: Barrel, form: solid, icon: icons/barrel.webp }
+  - { id: barrel@uncommon, name: Barrel (Uncommon), form: solid, icon: icons/barrel.webp }
+  - { id: barrel@rare, name: Barrel (Rare), form: solid, icon: icons/barrel.webp }
+  - { id: barrel@epic, name: Barrel (Epic), form: solid, icon: icons/barrel.webp }
+  - { id: barrel@legendary, name: Barrel (Legendary), form: solid, icon: icons/barrel.webp }
   - { id: battery, name: Battery, form: solid, icon: icons/battery.webp }
+  - { id: battery@uncommon, name: Battery (Uncommon), form: solid, icon: icons/battery.webp }
+  - { id: battery@rare, name: Battery (Rare), form: solid, icon: icons/battery.webp }
+  - { id: battery@epic, name: Battery (Epic), form: solid, icon: icons/battery.webp }
+  - { id: battery@legendary, name: Battery (Legendary), form: solid, icon: icons/battery.webp }
   - { id: battery-equipment, name: Personal battery, form: solid, icon: icons/battery-equipment.webp }
+  - id: battery-equipment@uncommon
+    name: Personal battery (Uncommon)
+    form: solid
+    icon: icons/battery-equipment.webp
+  - { id: battery-equipment@rare, name: Personal battery (Rare), form: solid, icon: icons/battery-equipment.webp }
+  - { id: battery-equipment@epic, name: Personal battery (Epic), form: solid, icon: icons/battery-equipment.webp }
+  - id: battery-equipment@legendary
+    name: Personal battery (Legendary)
+    form: solid
+    icon: icons/battery-equipment.webp
   - { id: battery-mk2-equipment, name: Personal battery MK2, form: solid, icon: icons/battery-mk2-equipment.webp }
+  - id: battery-mk2-equipment@uncommon
+    name: Personal battery MK2 (Uncommon)
+    form: solid
+    icon: icons/battery-mk2-equipment.webp
+  - id: battery-mk2-equipment@rare
+    name: Personal battery MK2 (Rare)
+    form: solid
+    icon: icons/battery-mk2-equipment.webp
+  - id: battery-mk2-equipment@epic
+    name: Personal battery MK2 (Epic)
+    form: solid
+    icon: icons/battery-mk2-equipment.webp
+  - id: battery-mk2-equipment@legendary
+    name: Personal battery MK2 (Legendary)
+    form: solid
+    icon: icons/battery-mk2-equipment.webp
   - { id: battery-mk3-equipment, name: Personal battery MK3, form: solid, icon: icons/battery-mk3-equipment.webp }
+  - id: battery-mk3-equipment@uncommon
+    name: Personal battery MK3 (Uncommon)
+    form: solid
+    icon: icons/battery-mk3-equipment.webp
+  - id: battery-mk3-equipment@rare
+    name: Personal battery MK3 (Rare)
+    form: solid
+    icon: icons/battery-mk3-equipment.webp
+  - id: battery-mk3-equipment@epic
+    name: Personal battery MK3 (Epic)
+    form: solid
+    icon: icons/battery-mk3-equipment.webp
+  - id: battery-mk3-equipment@legendary
+    name: Personal battery MK3 (Legendary)
+    form: solid
+    icon: icons/battery-mk3-equipment.webp
   - { id: beacon, name: Beacon, form: solid, icon: icons/beacon.webp }
+  - { id: beacon@uncommon, name: Beacon (Uncommon), form: solid, icon: icons/beacon.webp }
+  - { id: beacon@rare, name: Beacon (Rare), form: solid, icon: icons/beacon.webp }
+  - { id: beacon@epic, name: Beacon (Epic), form: solid, icon: icons/beacon.webp }
+  - { id: beacon@legendary, name: Beacon (Legendary), form: solid, icon: icons/beacon.webp }
   - id: belt-immunity-equipment
     name: Belt immunity equipment
     form: solid
     icon: icons/belt-immunity-equipment.webp
+  - id: belt-immunity-equipment@uncommon
+    name: Belt immunity equipment (Uncommon)
+    form: solid
+    icon: icons/belt-immunity-equipment.webp
+  - id: belt-immunity-equipment@rare
+    name: Belt immunity equipment (Rare)
+    form: solid
+    icon: icons/belt-immunity-equipment.webp
+  - id: belt-immunity-equipment@epic
+    name: Belt immunity equipment (Epic)
+    form: solid
+    icon: icons/belt-immunity-equipment.webp
+  - id: belt-immunity-equipment@legendary
+    name: Belt immunity equipment (Legendary)
+    form: solid
+    icon: icons/belt-immunity-equipment.webp
   - { id: big-electric-pole, name: Big electric pole, form: solid, icon: icons/big-electric-pole.webp }
+  - id: big-electric-pole@uncommon
+    name: Big electric pole (Uncommon)
+    form: solid
+    icon: icons/big-electric-pole.webp
+  - { id: big-electric-pole@rare, name: Big electric pole (Rare), form: solid, icon: icons/big-electric-pole.webp }
+  - { id: big-electric-pole@epic, name: Big electric pole (Epic), form: solid, icon: icons/big-electric-pole.webp }
+  - id: big-electric-pole@legendary
+    name: Big electric pole (Legendary)
+    form: solid
+    icon: icons/big-electric-pole.webp
   - { id: big-mining-drill, name: Big mining drill, form: solid, icon: icons/big-mining-drill.webp }
+  - { id: big-mining-drill@uncommon, name: Big mining drill (Uncommon), form: solid, icon: icons/big-mining-drill.webp }
+  - { id: big-mining-drill@rare, name: Big mining drill (Rare), form: solid, icon: icons/big-mining-drill.webp }
+  - { id: big-mining-drill@epic, name: Big mining drill (Epic), form: solid, icon: icons/big-mining-drill.webp }
+  - id: big-mining-drill@legendary
+    name: Big mining drill (Legendary)
+    form: solid
+    icon: icons/big-mining-drill.webp
   - { id: biochamber, name: Biochamber, form: solid, icon: icons/biochamber.webp }
+  - { id: biochamber@uncommon, name: Biochamber (Uncommon), form: solid, icon: icons/biochamber.webp }
+  - { id: biochamber@rare, name: Biochamber (Rare), form: solid, icon: icons/biochamber.webp }
+  - { id: biochamber@epic, name: Biochamber (Epic), form: solid, icon: icons/biochamber.webp }
+  - { id: biochamber@legendary, name: Biochamber (Legendary), form: solid, icon: icons/biochamber.webp }
   - { id: bioflux, name: Bioflux, form: solid, icon: icons/bioflux.webp }
+  - { id: bioflux@uncommon, name: Bioflux (Uncommon), form: solid, icon: icons/bioflux.webp }
+  - { id: bioflux@rare, name: Bioflux (Rare), form: solid, icon: icons/bioflux.webp }
+  - { id: bioflux@epic, name: Bioflux (Epic), form: solid, icon: icons/bioflux.webp }
+  - { id: bioflux@legendary, name: Bioflux (Legendary), form: solid, icon: icons/bioflux.webp }
   - { id: biolab, name: Biolab, form: solid, icon: icons/biolab.webp }
+  - { id: biolab@uncommon, name: Biolab (Uncommon), form: solid, icon: icons/biolab.webp }
+  - { id: biolab@rare, name: Biolab (Rare), form: solid, icon: icons/biolab.webp }
+  - { id: biolab@epic, name: Biolab (Epic), form: solid, icon: icons/biolab.webp }
+  - { id: biolab@legendary, name: Biolab (Legendary), form: solid, icon: icons/biolab.webp }
   - { id: biter-egg, name: Biter egg, form: solid, icon: icons/biter-egg.webp }
+  - { id: biter-egg@uncommon, name: Biter egg (Uncommon), form: solid, icon: icons/biter-egg.webp }
+  - { id: biter-egg@rare, name: Biter egg (Rare), form: solid, icon: icons/biter-egg.webp }
+  - { id: biter-egg@epic, name: Biter egg (Epic), form: solid, icon: icons/biter-egg.webp }
+  - { id: biter-egg@legendary, name: Biter egg (Legendary), form: solid, icon: icons/biter-egg.webp }
   - { id: boiler, name: Boiler, form: solid, icon: icons/boiler.webp }
+  - { id: boiler@uncommon, name: Boiler (Uncommon), form: solid, icon: icons/boiler.webp }
+  - { id: boiler@rare, name: Boiler (Rare), form: solid, icon: icons/boiler.webp }
+  - { id: boiler@epic, name: Boiler (Epic), form: solid, icon: icons/boiler.webp }
+  - { id: boiler@legendary, name: Boiler (Legendary), form: solid, icon: icons/boiler.webp }
   - { id: buffer-chest, name: Buffer chest, form: solid, icon: icons/buffer-chest.webp }
+  - { id: buffer-chest@uncommon, name: Buffer chest (Uncommon), form: solid, icon: icons/buffer-chest.webp }
+  - { id: buffer-chest@rare, name: Buffer chest (Rare), form: solid, icon: icons/buffer-chest.webp }
+  - { id: buffer-chest@epic, name: Buffer chest (Epic), form: solid, icon: icons/buffer-chest.webp }
+  - { id: buffer-chest@legendary, name: Buffer chest (Legendary), form: solid, icon: icons/buffer-chest.webp }
   - { id: bulk-inserter, name: Bulk inserter, form: solid, icon: icons/bulk-inserter.webp }
+  - { id: bulk-inserter@uncommon, name: Bulk inserter (Uncommon), form: solid, icon: icons/bulk-inserter.webp }
+  - { id: bulk-inserter@rare, name: Bulk inserter (Rare), form: solid, icon: icons/bulk-inserter.webp }
+  - { id: bulk-inserter@epic, name: Bulk inserter (Epic), form: solid, icon: icons/bulk-inserter.webp }
+  - { id: bulk-inserter@legendary, name: Bulk inserter (Legendary), form: solid, icon: icons/bulk-inserter.webp }
   - { id: burner-inserter, name: Burner inserter, form: solid, icon: icons/burner-inserter.webp }
+  - { id: burner-inserter@uncommon, name: Burner inserter (Uncommon), form: solid, icon: icons/burner-inserter.webp }
+  - { id: burner-inserter@rare, name: Burner inserter (Rare), form: solid, icon: icons/burner-inserter.webp }
+  - { id: burner-inserter@epic, name: Burner inserter (Epic), form: solid, icon: icons/burner-inserter.webp }
+  - { id: burner-inserter@legendary, name: Burner inserter (Legendary), form: solid, icon: icons/burner-inserter.webp }
   - { id: burner-mining-drill, name: Burner mining drill, form: solid, icon: icons/burner-mining-drill.webp }
+  - id: burner-mining-drill@uncommon
+    name: Burner mining drill (Uncommon)
+    form: solid
+    icon: icons/burner-mining-drill.webp
+  - id: burner-mining-drill@rare
+    name: Burner mining drill (Rare)
+    form: solid
+    icon: icons/burner-mining-drill.webp
+  - id: burner-mining-drill@epic
+    name: Burner mining drill (Epic)
+    form: solid
+    icon: icons/burner-mining-drill.webp
+  - id: burner-mining-drill@legendary
+    name: Burner mining drill (Legendary)
+    form: solid
+    icon: icons/burner-mining-drill.webp
   - { id: calcite, name: Calcite, form: solid, icon: icons/calcite.webp }
+  - { id: calcite@uncommon, name: Calcite (Uncommon), form: solid, icon: icons/calcite.webp }
+  - { id: calcite@rare, name: Calcite (Rare), form: solid, icon: icons/calcite.webp }
+  - { id: calcite@epic, name: Calcite (Epic), form: solid, icon: icons/calcite.webp }
+  - { id: calcite@legendary, name: Calcite (Legendary), form: solid, icon: icons/calcite.webp }
   - { id: cannon-shell, name: Cannon shell, form: solid, icon: icons/cannon-shell.webp }
+  - { id: cannon-shell@uncommon, name: Cannon shell (Uncommon), form: solid, icon: icons/cannon-shell.webp }
+  - { id: cannon-shell@rare, name: Cannon shell (Rare), form: solid, icon: icons/cannon-shell.webp }
+  - { id: cannon-shell@epic, name: Cannon shell (Epic), form: solid, icon: icons/cannon-shell.webp }
+  - { id: cannon-shell@legendary, name: Cannon shell (Legendary), form: solid, icon: icons/cannon-shell.webp }
   - { id: captive-biter-spawner, name: Captive biter spawner, form: solid, icon: icons/captive-biter-spawner.webp }
+  - id: captive-biter-spawner@uncommon
+    name: Captive biter spawner (Uncommon)
+    form: solid
+    icon: icons/captive-biter-spawner.webp
+  - id: captive-biter-spawner@rare
+    name: Captive biter spawner (Rare)
+    form: solid
+    icon: icons/captive-biter-spawner.webp
+  - id: captive-biter-spawner@epic
+    name: Captive biter spawner (Epic)
+    form: solid
+    icon: icons/captive-biter-spawner.webp
+  - id: captive-biter-spawner@legendary
+    name: Captive biter spawner (Legendary)
+    form: solid
+    icon: icons/captive-biter-spawner.webp
   - { id: capture-robot-rocket, name: Capture bot rocket, form: solid, icon: icons/capture-robot-rocket.webp }
+  - id: capture-robot-rocket@uncommon
+    name: Capture bot rocket (Uncommon)
+    form: solid
+    icon: icons/capture-robot-rocket.webp
+  - id: capture-robot-rocket@rare
+    name: Capture bot rocket (Rare)
+    form: solid
+    icon: icons/capture-robot-rocket.webp
+  - id: capture-robot-rocket@epic
+    name: Capture bot rocket (Epic)
+    form: solid
+    icon: icons/capture-robot-rocket.webp
+  - id: capture-robot-rocket@legendary
+    name: Capture bot rocket (Legendary)
+    form: solid
+    icon: icons/capture-robot-rocket.webp
   - { id: car, name: Car, form: solid, icon: icons/car.webp }
+  - { id: car@uncommon, name: Car (Uncommon), form: solid, icon: icons/car.webp }
+  - { id: car@rare, name: Car (Rare), form: solid, icon: icons/car.webp }
+  - { id: car@epic, name: Car (Epic), form: solid, icon: icons/car.webp }
+  - { id: car@legendary, name: Car (Legendary), form: solid, icon: icons/car.webp }
   - { id: carbon, name: Carbon, form: solid, icon: icons/carbon.webp }
+  - { id: carbon@uncommon, name: Carbon (Uncommon), form: solid, icon: icons/carbon.webp }
+  - { id: carbon@rare, name: Carbon (Rare), form: solid, icon: icons/carbon.webp }
+  - { id: carbon@epic, name: Carbon (Epic), form: solid, icon: icons/carbon.webp }
+  - { id: carbon@legendary, name: Carbon (Legendary), form: solid, icon: icons/carbon.webp }
   - { id: carbon-fiber, name: Carbon fiber, form: solid, icon: icons/carbon-fiber.webp }
+  - { id: carbon-fiber@uncommon, name: Carbon fiber (Uncommon), form: solid, icon: icons/carbon-fiber.webp }
+  - { id: carbon-fiber@rare, name: Carbon fiber (Rare), form: solid, icon: icons/carbon-fiber.webp }
+  - { id: carbon-fiber@epic, name: Carbon fiber (Epic), form: solid, icon: icons/carbon-fiber.webp }
+  - { id: carbon-fiber@legendary, name: Carbon fiber (Legendary), form: solid, icon: icons/carbon-fiber.webp }
   - id: carbonic-asteroid-chunk
     name: Carbonic asteroid chunk
     form: solid
     icon: icons/carbonic-asteroid-chunk.webp
+  - id: carbonic-asteroid-chunk@uncommon
+    name: Carbonic asteroid chunk (Uncommon)
+    form: solid
+    icon: icons/carbonic-asteroid-chunk.webp
+  - id: carbonic-asteroid-chunk@rare
+    name: Carbonic asteroid chunk (Rare)
+    form: solid
+    icon: icons/carbonic-asteroid-chunk.webp
+  - id: carbonic-asteroid-chunk@epic
+    name: Carbonic asteroid chunk (Epic)
+    form: solid
+    icon: icons/carbonic-asteroid-chunk.webp
+  - id: carbonic-asteroid-chunk@legendary
+    name: Carbonic asteroid chunk (Legendary)
+    form: solid
+    icon: icons/carbonic-asteroid-chunk.webp
   - { id: cargo-bay, name: Cargo bay, form: solid, icon: icons/cargo-bay.webp }
+  - { id: cargo-bay@uncommon, name: Cargo bay (Uncommon), form: solid, icon: icons/cargo-bay.webp }
+  - { id: cargo-bay@rare, name: Cargo bay (Rare), form: solid, icon: icons/cargo-bay.webp }
+  - { id: cargo-bay@epic, name: Cargo bay (Epic), form: solid, icon: icons/cargo-bay.webp }
+  - { id: cargo-bay@legendary, name: Cargo bay (Legendary), form: solid, icon: icons/cargo-bay.webp }
   - { id: cargo-landing-pad, name: Cargo landing pad, form: solid, icon: icons/cargo-landing-pad.webp }
+  - id: cargo-landing-pad@uncommon
+    name: Cargo landing pad (Uncommon)
+    form: solid
+    icon: icons/cargo-landing-pad.webp
+  - { id: cargo-landing-pad@rare, name: Cargo landing pad (Rare), form: solid, icon: icons/cargo-landing-pad.webp }
+  - { id: cargo-landing-pad@epic, name: Cargo landing pad (Epic), form: solid, icon: icons/cargo-landing-pad.webp }
+  - id: cargo-landing-pad@legendary
+    name: Cargo landing pad (Legendary)
+    form: solid
+    icon: icons/cargo-landing-pad.webp
   - { id: cargo-wagon, name: Cargo wagon, form: solid, icon: icons/cargo-wagon.webp }
+  - { id: cargo-wagon@uncommon, name: Cargo wagon (Uncommon), form: solid, icon: icons/cargo-wagon.webp }
+  - { id: cargo-wagon@rare, name: Cargo wagon (Rare), form: solid, icon: icons/cargo-wagon.webp }
+  - { id: cargo-wagon@epic, name: Cargo wagon (Epic), form: solid, icon: icons/cargo-wagon.webp }
+  - { id: cargo-wagon@legendary, name: Cargo wagon (Legendary), form: solid, icon: icons/cargo-wagon.webp }
   - { id: centrifuge, name: Centrifuge, form: solid, icon: icons/centrifuge.webp }
+  - { id: centrifuge@uncommon, name: Centrifuge (Uncommon), form: solid, icon: icons/centrifuge.webp }
+  - { id: centrifuge@rare, name: Centrifuge (Rare), form: solid, icon: icons/centrifuge.webp }
+  - { id: centrifuge@epic, name: Centrifuge (Epic), form: solid, icon: icons/centrifuge.webp }
+  - { id: centrifuge@legendary, name: Centrifuge (Legendary), form: solid, icon: icons/centrifuge.webp }
   - { id: chemical-plant, name: Chemical plant, form: solid, icon: icons/chemical-plant.webp }
+  - { id: chemical-plant@uncommon, name: Chemical plant (Uncommon), form: solid, icon: icons/chemical-plant.webp }
+  - { id: chemical-plant@rare, name: Chemical plant (Rare), form: solid, icon: icons/chemical-plant.webp }
+  - { id: chemical-plant@epic, name: Chemical plant (Epic), form: solid, icon: icons/chemical-plant.webp }
+  - { id: chemical-plant@legendary, name: Chemical plant (Legendary), form: solid, icon: icons/chemical-plant.webp }
   - { id: chemical-science-pack, name: Chemical science pack, form: solid, icon: icons/chemical-science-pack.webp }
+  - id: chemical-science-pack@uncommon
+    name: Chemical science pack (Uncommon)
+    form: solid
+    icon: icons/chemical-science-pack.webp
+  - id: chemical-science-pack@rare
+    name: Chemical science pack (Rare)
+    form: solid
+    icon: icons/chemical-science-pack.webp
+  - id: chemical-science-pack@epic
+    name: Chemical science pack (Epic)
+    form: solid
+    icon: icons/chemical-science-pack.webp
+  - id: chemical-science-pack@legendary
+    name: Chemical science pack (Legendary)
+    form: solid
+    icon: icons/chemical-science-pack.webp
   - { id: cliff-explosives, name: Cliff explosives, form: solid, icon: icons/cliff-explosives.webp }
+  - { id: cliff-explosives@uncommon, name: Cliff explosives (Uncommon), form: solid, icon: icons/cliff-explosives.webp }
+  - { id: cliff-explosives@rare, name: Cliff explosives (Rare), form: solid, icon: icons/cliff-explosives.webp }
+  - { id: cliff-explosives@epic, name: Cliff explosives (Epic), form: solid, icon: icons/cliff-explosives.webp }
+  - id: cliff-explosives@legendary
+    name: Cliff explosives (Legendary)
+    form: solid
+    icon: icons/cliff-explosives.webp
   - { id: cluster-grenade, name: Cluster grenade, form: solid, icon: icons/cluster-grenade.webp }
+  - { id: cluster-grenade@uncommon, name: Cluster grenade (Uncommon), form: solid, icon: icons/cluster-grenade.webp }
+  - { id: cluster-grenade@rare, name: Cluster grenade (Rare), form: solid, icon: icons/cluster-grenade.webp }
+  - { id: cluster-grenade@epic, name: Cluster grenade (Epic), form: solid, icon: icons/cluster-grenade.webp }
+  - { id: cluster-grenade@legendary, name: Cluster grenade (Legendary), form: solid, icon: icons/cluster-grenade.webp }
   - { id: coal, name: Coal, form: solid, icon: icons/coal.webp }
+  - { id: coal@uncommon, name: Coal (Uncommon), form: solid, icon: icons/coal.webp }
+  - { id: coal@rare, name: Coal (Rare), form: solid, icon: icons/coal.webp }
+  - { id: coal@epic, name: Coal (Epic), form: solid, icon: icons/coal.webp }
+  - { id: coal@legendary, name: Coal (Legendary), form: solid, icon: icons/coal.webp }
   - { id: combat-shotgun, name: Combat shotgun, form: solid, icon: icons/combat-shotgun.webp }
+  - { id: combat-shotgun@uncommon, name: Combat shotgun (Uncommon), form: solid, icon: icons/combat-shotgun.webp }
+  - { id: combat-shotgun@rare, name: Combat shotgun (Rare), form: solid, icon: icons/combat-shotgun.webp }
+  - { id: combat-shotgun@epic, name: Combat shotgun (Epic), form: solid, icon: icons/combat-shotgun.webp }
+  - { id: combat-shotgun@legendary, name: Combat shotgun (Legendary), form: solid, icon: icons/combat-shotgun.webp }
   - { id: concrete, name: Concrete, form: solid, icon: icons/concrete.webp }
+  - { id: concrete@uncommon, name: Concrete (Uncommon), form: solid, icon: icons/concrete.webp }
+  - { id: concrete@rare, name: Concrete (Rare), form: solid, icon: icons/concrete.webp }
+  - { id: concrete@epic, name: Concrete (Epic), form: solid, icon: icons/concrete.webp }
+  - { id: concrete@legendary, name: Concrete (Legendary), form: solid, icon: icons/concrete.webp }
   - { id: constant-combinator, name: Constant combinator, form: solid, icon: icons/constant-combinator.webp }
+  - id: constant-combinator@uncommon
+    name: Constant combinator (Uncommon)
+    form: solid
+    icon: icons/constant-combinator.webp
+  - id: constant-combinator@rare
+    name: Constant combinator (Rare)
+    form: solid
+    icon: icons/constant-combinator.webp
+  - id: constant-combinator@epic
+    name: Constant combinator (Epic)
+    form: solid
+    icon: icons/constant-combinator.webp
+  - id: constant-combinator@legendary
+    name: Constant combinator (Legendary)
+    form: solid
+    icon: icons/constant-combinator.webp
   - { id: construction-robot, name: Construction robot, form: solid, icon: icons/construction-robot.webp }
+  - id: construction-robot@uncommon
+    name: Construction robot (Uncommon)
+    form: solid
+    icon: icons/construction-robot.webp
+  - { id: construction-robot@rare, name: Construction robot (Rare), form: solid, icon: icons/construction-robot.webp }
+  - { id: construction-robot@epic, name: Construction robot (Epic), form: solid, icon: icons/construction-robot.webp }
+  - id: construction-robot@legendary
+    name: Construction robot (Legendary)
+    form: solid
+    icon: icons/construction-robot.webp
   - { id: copper-bacteria, name: Copper bacteria, form: solid, icon: icons/copper-bacteria.webp }
+  - { id: copper-bacteria@uncommon, name: Copper bacteria (Uncommon), form: solid, icon: icons/copper-bacteria.webp }
+  - { id: copper-bacteria@rare, name: Copper bacteria (Rare), form: solid, icon: icons/copper-bacteria.webp }
+  - { id: copper-bacteria@epic, name: Copper bacteria (Epic), form: solid, icon: icons/copper-bacteria.webp }
+  - { id: copper-bacteria@legendary, name: Copper bacteria (Legendary), form: solid, icon: icons/copper-bacteria.webp }
   - { id: copper-cable, name: Copper cable, form: solid, icon: icons/copper-cable.webp }
+  - { id: copper-cable@uncommon, name: Copper cable (Uncommon), form: solid, icon: icons/copper-cable.webp }
+  - { id: copper-cable@rare, name: Copper cable (Rare), form: solid, icon: icons/copper-cable.webp }
+  - { id: copper-cable@epic, name: Copper cable (Epic), form: solid, icon: icons/copper-cable.webp }
+  - { id: copper-cable@legendary, name: Copper cable (Legendary), form: solid, icon: icons/copper-cable.webp }
   - { id: copper-ore, name: Copper ore, form: solid, icon: icons/copper-ore.webp }
+  - { id: copper-ore@uncommon, name: Copper ore (Uncommon), form: solid, icon: icons/copper-ore.webp }
+  - { id: copper-ore@rare, name: Copper ore (Rare), form: solid, icon: icons/copper-ore.webp }
+  - { id: copper-ore@epic, name: Copper ore (Epic), form: solid, icon: icons/copper-ore.webp }
+  - { id: copper-ore@legendary, name: Copper ore (Legendary), form: solid, icon: icons/copper-ore.webp }
   - { id: copper-plate, name: Copper plate, form: solid, icon: icons/copper-plate.webp }
+  - { id: copper-plate@uncommon, name: Copper plate (Uncommon), form: solid, icon: icons/copper-plate.webp }
+  - { id: copper-plate@rare, name: Copper plate (Rare), form: solid, icon: icons/copper-plate.webp }
+  - { id: copper-plate@epic, name: Copper plate (Epic), form: solid, icon: icons/copper-plate.webp }
+  - { id: copper-plate@legendary, name: Copper plate (Legendary), form: solid, icon: icons/copper-plate.webp }
   - { id: crude-oil, name: Crude oil, form: fluid, icon: icons/crude-oil.webp }
   - { id: crude-oil-barrel, name: Crude oil barrel, form: solid, icon: icons/crude-oil-barrel.webp }
+  - { id: crude-oil-barrel@uncommon, name: Crude oil barrel (Uncommon), form: solid, icon: icons/crude-oil-barrel.webp }
+  - { id: crude-oil-barrel@rare, name: Crude oil barrel (Rare), form: solid, icon: icons/crude-oil-barrel.webp }
+  - { id: crude-oil-barrel@epic, name: Crude oil barrel (Epic), form: solid, icon: icons/crude-oil-barrel.webp }
+  - id: crude-oil-barrel@legendary
+    name: Crude oil barrel (Legendary)
+    form: solid
+    icon: icons/crude-oil-barrel.webp
   - { id: crusher, name: Crusher, form: solid, icon: icons/crusher.webp }
+  - { id: crusher@uncommon, name: Crusher (Uncommon), form: solid, icon: icons/crusher.webp }
+  - { id: crusher@rare, name: Crusher (Rare), form: solid, icon: icons/crusher.webp }
+  - { id: crusher@epic, name: Crusher (Epic), form: solid, icon: icons/crusher.webp }
+  - { id: crusher@legendary, name: Crusher (Legendary), form: solid, icon: icons/crusher.webp }
   - { id: cryogenic-plant, name: Cryogenic plant, form: solid, icon: icons/cryogenic-plant.webp }
+  - { id: cryogenic-plant@uncommon, name: Cryogenic plant (Uncommon), form: solid, icon: icons/cryogenic-plant.webp }
+  - { id: cryogenic-plant@rare, name: Cryogenic plant (Rare), form: solid, icon: icons/cryogenic-plant.webp }
+  - { id: cryogenic-plant@epic, name: Cryogenic plant (Epic), form: solid, icon: icons/cryogenic-plant.webp }
+  - { id: cryogenic-plant@legendary, name: Cryogenic plant (Legendary), form: solid, icon: icons/cryogenic-plant.webp }
   - { id: cryogenic-science-pack, name: Cryogenic science pack, form: solid, icon: icons/cryogenic-science-pack.webp }
+  - id: cryogenic-science-pack@uncommon
+    name: Cryogenic science pack (Uncommon)
+    form: solid
+    icon: icons/cryogenic-science-pack.webp
+  - id: cryogenic-science-pack@rare
+    name: Cryogenic science pack (Rare)
+    form: solid
+    icon: icons/cryogenic-science-pack.webp
+  - id: cryogenic-science-pack@epic
+    name: Cryogenic science pack (Epic)
+    form: solid
+    icon: icons/cryogenic-science-pack.webp
+  - id: cryogenic-science-pack@legendary
+    name: Cryogenic science pack (Legendary)
+    form: solid
+    icon: icons/cryogenic-science-pack.webp
   - { id: decider-combinator, name: Decider combinator, form: solid, icon: icons/decider-combinator.webp }
+  - id: decider-combinator@uncommon
+    name: Decider combinator (Uncommon)
+    form: solid
+    icon: icons/decider-combinator.webp
+  - { id: decider-combinator@rare, name: Decider combinator (Rare), form: solid, icon: icons/decider-combinator.webp }
+  - { id: decider-combinator@epic, name: Decider combinator (Epic), form: solid, icon: icons/decider-combinator.webp }
+  - id: decider-combinator@legendary
+    name: Decider combinator (Legendary)
+    form: solid
+    icon: icons/decider-combinator.webp
   - { id: defender-capsule, name: Defender capsule, form: solid, icon: icons/defender-capsule.webp }
+  - { id: defender-capsule@uncommon, name: Defender capsule (Uncommon), form: solid, icon: icons/defender-capsule.webp }
+  - { id: defender-capsule@rare, name: Defender capsule (Rare), form: solid, icon: icons/defender-capsule.webp }
+  - { id: defender-capsule@epic, name: Defender capsule (Epic), form: solid, icon: icons/defender-capsule.webp }
+  - id: defender-capsule@legendary
+    name: Defender capsule (Legendary)
+    form: solid
+    icon: icons/defender-capsule.webp
   - id: depleted-uranium-fuel-cell
     name: Depleted uranium fuel cell
     form: solid
     icon: icons/depleted-uranium-fuel-cell.webp
+  - id: depleted-uranium-fuel-cell@uncommon
+    name: Depleted uranium fuel cell (Uncommon)
+    form: solid
+    icon: icons/depleted-uranium-fuel-cell.webp
+  - id: depleted-uranium-fuel-cell@rare
+    name: Depleted uranium fuel cell (Rare)
+    form: solid
+    icon: icons/depleted-uranium-fuel-cell.webp
+  - id: depleted-uranium-fuel-cell@epic
+    name: Depleted uranium fuel cell (Epic)
+    form: solid
+    icon: icons/depleted-uranium-fuel-cell.webp
+  - id: depleted-uranium-fuel-cell@legendary
+    name: Depleted uranium fuel cell (Legendary)
+    form: solid
+    icon: icons/depleted-uranium-fuel-cell.webp
   - { id: destroyer-capsule, name: Destroyer capsule, form: solid, icon: icons/destroyer-capsule.webp }
+  - id: destroyer-capsule@uncommon
+    name: Destroyer capsule (Uncommon)
+    form: solid
+    icon: icons/destroyer-capsule.webp
+  - { id: destroyer-capsule@rare, name: Destroyer capsule (Rare), form: solid, icon: icons/destroyer-capsule.webp }
+  - { id: destroyer-capsule@epic, name: Destroyer capsule (Epic), form: solid, icon: icons/destroyer-capsule.webp }
+  - id: destroyer-capsule@legendary
+    name: Destroyer capsule (Legendary)
+    form: solid
+    icon: icons/destroyer-capsule.webp
   - id: discharge-defense-equipment
     name: Discharge defense
     form: solid
     icon: icons/discharge-defense-equipment.webp
+  - id: discharge-defense-equipment@uncommon
+    name: Discharge defense (Uncommon)
+    form: solid
+    icon: icons/discharge-defense-equipment.webp
+  - id: discharge-defense-equipment@rare
+    name: Discharge defense (Rare)
+    form: solid
+    icon: icons/discharge-defense-equipment.webp
+  - id: discharge-defense-equipment@epic
+    name: Discharge defense (Epic)
+    form: solid
+    icon: icons/discharge-defense-equipment.webp
+  - id: discharge-defense-equipment@legendary
+    name: Discharge defense (Legendary)
+    form: solid
+    icon: icons/discharge-defense-equipment.webp
   - { id: display-panel, name: Display panel, form: solid, icon: icons/display-panel.webp }
+  - { id: display-panel@uncommon, name: Display panel (Uncommon), form: solid, icon: icons/display-panel.webp }
+  - { id: display-panel@rare, name: Display panel (Rare), form: solid, icon: icons/display-panel.webp }
+  - { id: display-panel@epic, name: Display panel (Epic), form: solid, icon: icons/display-panel.webp }
+  - { id: display-panel@legendary, name: Display panel (Legendary), form: solid, icon: icons/display-panel.webp }
   - { id: distractor-capsule, name: Distractor capsule, form: solid, icon: icons/distractor-capsule.webp }
+  - id: distractor-capsule@uncommon
+    name: Distractor capsule (Uncommon)
+    form: solid
+    icon: icons/distractor-capsule.webp
+  - { id: distractor-capsule@rare, name: Distractor capsule (Rare), form: solid, icon: icons/distractor-capsule.webp }
+  - { id: distractor-capsule@epic, name: Distractor capsule (Epic), form: solid, icon: icons/distractor-capsule.webp }
+  - id: distractor-capsule@legendary
+    name: Distractor capsule (Legendary)
+    form: solid
+    icon: icons/distractor-capsule.webp
   - { id: efficiency-module, name: Efficiency module, form: solid, icon: icons/efficiency-module.webp }
+  - id: efficiency-module@uncommon
+    name: Efficiency module (Uncommon)
+    form: solid
+    icon: icons/efficiency-module.webp
+  - { id: efficiency-module@rare, name: Efficiency module (Rare), form: solid, icon: icons/efficiency-module.webp }
+  - { id: efficiency-module@epic, name: Efficiency module (Epic), form: solid, icon: icons/efficiency-module.webp }
+  - id: efficiency-module@legendary
+    name: Efficiency module (Legendary)
+    form: solid
+    icon: icons/efficiency-module.webp
   - { id: efficiency-module-2, name: Efficiency module 2, form: solid, icon: icons/efficiency-module-2.webp }
+  - id: efficiency-module-2@uncommon
+    name: Efficiency module 2 (Uncommon)
+    form: solid
+    icon: icons/efficiency-module-2.webp
+  - id: efficiency-module-2@rare
+    name: Efficiency module 2 (Rare)
+    form: solid
+    icon: icons/efficiency-module-2.webp
+  - id: efficiency-module-2@epic
+    name: Efficiency module 2 (Epic)
+    form: solid
+    icon: icons/efficiency-module-2.webp
+  - id: efficiency-module-2@legendary
+    name: Efficiency module 2 (Legendary)
+    form: solid
+    icon: icons/efficiency-module-2.webp
   - { id: efficiency-module-3, name: Efficiency module 3, form: solid, icon: icons/efficiency-module-3.webp }
+  - id: efficiency-module-3@uncommon
+    name: Efficiency module 3 (Uncommon)
+    form: solid
+    icon: icons/efficiency-module-3.webp
+  - id: efficiency-module-3@rare
+    name: Efficiency module 3 (Rare)
+    form: solid
+    icon: icons/efficiency-module-3.webp
+  - id: efficiency-module-3@epic
+    name: Efficiency module 3 (Epic)
+    form: solid
+    icon: icons/efficiency-module-3.webp
+  - id: efficiency-module-3@legendary
+    name: Efficiency module 3 (Legendary)
+    form: solid
+    icon: icons/efficiency-module-3.webp
   - { id: electric-engine-unit, name: Electric engine unit, form: solid, icon: icons/electric-engine-unit.webp }
+  - id: electric-engine-unit@uncommon
+    name: Electric engine unit (Uncommon)
+    form: solid
+    icon: icons/electric-engine-unit.webp
+  - id: electric-engine-unit@rare
+    name: Electric engine unit (Rare)
+    form: solid
+    icon: icons/electric-engine-unit.webp
+  - id: electric-engine-unit@epic
+    name: Electric engine unit (Epic)
+    form: solid
+    icon: icons/electric-engine-unit.webp
+  - id: electric-engine-unit@legendary
+    name: Electric engine unit (Legendary)
+    form: solid
+    icon: icons/electric-engine-unit.webp
   - { id: electric-furnace, name: Electric furnace, form: solid, icon: icons/electric-furnace.webp }
+  - { id: electric-furnace@uncommon, name: Electric furnace (Uncommon), form: solid, icon: icons/electric-furnace.webp }
+  - { id: electric-furnace@rare, name: Electric furnace (Rare), form: solid, icon: icons/electric-furnace.webp }
+  - { id: electric-furnace@epic, name: Electric furnace (Epic), form: solid, icon: icons/electric-furnace.webp }
+  - id: electric-furnace@legendary
+    name: Electric furnace (Legendary)
+    form: solid
+    icon: icons/electric-furnace.webp
   - { id: electric-mining-drill, name: Electric mining drill, form: solid, icon: icons/electric-mining-drill.webp }
+  - id: electric-mining-drill@uncommon
+    name: Electric mining drill (Uncommon)
+    form: solid
+    icon: icons/electric-mining-drill.webp
+  - id: electric-mining-drill@rare
+    name: Electric mining drill (Rare)
+    form: solid
+    icon: icons/electric-mining-drill.webp
+  - id: electric-mining-drill@epic
+    name: Electric mining drill (Epic)
+    form: solid
+    icon: icons/electric-mining-drill.webp
+  - id: electric-mining-drill@legendary
+    name: Electric mining drill (Legendary)
+    form: solid
+    icon: icons/electric-mining-drill.webp
   - { id: electrolyte, name: Electrolyte, form: fluid, icon: icons/electrolyte.webp }
   - { id: electromagnetic-plant, name: Electromagnetic plant, form: solid, icon: icons/electromagnetic-plant.webp }
+  - id: electromagnetic-plant@uncommon
+    name: Electromagnetic plant (Uncommon)
+    form: solid
+    icon: icons/electromagnetic-plant.webp
+  - id: electromagnetic-plant@rare
+    name: Electromagnetic plant (Rare)
+    form: solid
+    icon: icons/electromagnetic-plant.webp
+  - id: electromagnetic-plant@epic
+    name: Electromagnetic plant (Epic)
+    form: solid
+    icon: icons/electromagnetic-plant.webp
+  - id: electromagnetic-plant@legendary
+    name: Electromagnetic plant (Legendary)
+    form: solid
+    icon: icons/electromagnetic-plant.webp
   - id: electromagnetic-science-pack
     name: Electromagnetic science pack
     form: solid
     icon: icons/electromagnetic-science-pack.webp
+  - id: electromagnetic-science-pack@uncommon
+    name: Electromagnetic science pack (Uncommon)
+    form: solid
+    icon: icons/electromagnetic-science-pack.webp
+  - id: electromagnetic-science-pack@rare
+    name: Electromagnetic science pack (Rare)
+    form: solid
+    icon: icons/electromagnetic-science-pack.webp
+  - id: electromagnetic-science-pack@epic
+    name: Electromagnetic science pack (Epic)
+    form: solid
+    icon: icons/electromagnetic-science-pack.webp
+  - id: electromagnetic-science-pack@legendary
+    name: Electromagnetic science pack (Legendary)
+    form: solid
+    icon: icons/electromagnetic-science-pack.webp
   - { id: electronic-circuit, name: Electronic circuit, form: solid, icon: icons/electronic-circuit.webp }
+  - id: electronic-circuit@uncommon
+    name: Electronic circuit (Uncommon)
+    form: solid
+    icon: icons/electronic-circuit.webp
+  - { id: electronic-circuit@rare, name: Electronic circuit (Rare), form: solid, icon: icons/electronic-circuit.webp }
+  - { id: electronic-circuit@epic, name: Electronic circuit (Epic), form: solid, icon: icons/electronic-circuit.webp }
+  - id: electronic-circuit@legendary
+    name: Electronic circuit (Legendary)
+    form: solid
+    icon: icons/electronic-circuit.webp
   - { id: energy-shield-equipment, name: Energy shield, form: solid, icon: icons/energy-shield-equipment.webp }
+  - id: energy-shield-equipment@uncommon
+    name: Energy shield (Uncommon)
+    form: solid
+    icon: icons/energy-shield-equipment.webp
+  - id: energy-shield-equipment@rare
+    name: Energy shield (Rare)
+    form: solid
+    icon: icons/energy-shield-equipment.webp
+  - id: energy-shield-equipment@epic
+    name: Energy shield (Epic)
+    form: solid
+    icon: icons/energy-shield-equipment.webp
+  - id: energy-shield-equipment@legendary
+    name: Energy shield (Legendary)
+    form: solid
+    icon: icons/energy-shield-equipment.webp
   - id: energy-shield-mk2-equipment
     name: Energy shield MK2
     form: solid
     icon: icons/energy-shield-mk2-equipment.webp
+  - id: energy-shield-mk2-equipment@uncommon
+    name: Energy shield MK2 (Uncommon)
+    form: solid
+    icon: icons/energy-shield-mk2-equipment.webp
+  - id: energy-shield-mk2-equipment@rare
+    name: Energy shield MK2 (Rare)
+    form: solid
+    icon: icons/energy-shield-mk2-equipment.webp
+  - id: energy-shield-mk2-equipment@epic
+    name: Energy shield MK2 (Epic)
+    form: solid
+    icon: icons/energy-shield-mk2-equipment.webp
+  - id: energy-shield-mk2-equipment@legendary
+    name: Energy shield MK2 (Legendary)
+    form: solid
+    icon: icons/energy-shield-mk2-equipment.webp
   - { id: engine-unit, name: Engine unit, form: solid, icon: icons/engine-unit.webp }
+  - { id: engine-unit@uncommon, name: Engine unit (Uncommon), form: solid, icon: icons/engine-unit.webp }
+  - { id: engine-unit@rare, name: Engine unit (Rare), form: solid, icon: icons/engine-unit.webp }
+  - { id: engine-unit@epic, name: Engine unit (Epic), form: solid, icon: icons/engine-unit.webp }
+  - { id: engine-unit@legendary, name: Engine unit (Legendary), form: solid, icon: icons/engine-unit.webp }
   - { id: exoskeleton-equipment, name: Exoskeleton, form: solid, icon: icons/exoskeleton-equipment.webp }
+  - id: exoskeleton-equipment@uncommon
+    name: Exoskeleton (Uncommon)
+    form: solid
+    icon: icons/exoskeleton-equipment.webp
+  - { id: exoskeleton-equipment@rare, name: Exoskeleton (Rare), form: solid, icon: icons/exoskeleton-equipment.webp }
+  - { id: exoskeleton-equipment@epic, name: Exoskeleton (Epic), form: solid, icon: icons/exoskeleton-equipment.webp }
+  - id: exoskeleton-equipment@legendary
+    name: Exoskeleton (Legendary)
+    form: solid
+    icon: icons/exoskeleton-equipment.webp
   - { id: explosive-cannon-shell, name: Explosive cannon shell, form: solid, icon: icons/explosive-cannon-shell.webp }
+  - id: explosive-cannon-shell@uncommon
+    name: Explosive cannon shell (Uncommon)
+    form: solid
+    icon: icons/explosive-cannon-shell.webp
+  - id: explosive-cannon-shell@rare
+    name: Explosive cannon shell (Rare)
+    form: solid
+    icon: icons/explosive-cannon-shell.webp
+  - id: explosive-cannon-shell@epic
+    name: Explosive cannon shell (Epic)
+    form: solid
+    icon: icons/explosive-cannon-shell.webp
+  - id: explosive-cannon-shell@legendary
+    name: Explosive cannon shell (Legendary)
+    form: solid
+    icon: icons/explosive-cannon-shell.webp
   - { id: explosive-rocket, name: Explosive rocket, form: solid, icon: icons/explosive-rocket.webp }
+  - { id: explosive-rocket@uncommon, name: Explosive rocket (Uncommon), form: solid, icon: icons/explosive-rocket.webp }
+  - { id: explosive-rocket@rare, name: Explosive rocket (Rare), form: solid, icon: icons/explosive-rocket.webp }
+  - { id: explosive-rocket@epic, name: Explosive rocket (Epic), form: solid, icon: icons/explosive-rocket.webp }
+  - id: explosive-rocket@legendary
+    name: Explosive rocket (Legendary)
+    form: solid
+    icon: icons/explosive-rocket.webp
   - id: explosive-uranium-cannon-shell
     name: Explosive uranium cannon shell
     form: solid
     icon: icons/explosive-uranium-cannon-shell.webp
+  - id: explosive-uranium-cannon-shell@uncommon
+    name: Explosive uranium cannon shell (Uncommon)
+    form: solid
+    icon: icons/explosive-uranium-cannon-shell.webp
+  - id: explosive-uranium-cannon-shell@rare
+    name: Explosive uranium cannon shell (Rare)
+    form: solid
+    icon: icons/explosive-uranium-cannon-shell.webp
+  - id: explosive-uranium-cannon-shell@epic
+    name: Explosive uranium cannon shell (Epic)
+    form: solid
+    icon: icons/explosive-uranium-cannon-shell.webp
+  - id: explosive-uranium-cannon-shell@legendary
+    name: Explosive uranium cannon shell (Legendary)
+    form: solid
+    icon: icons/explosive-uranium-cannon-shell.webp
   - { id: explosives, name: Explosives, form: solid, icon: icons/explosives.webp }
+  - { id: explosives@uncommon, name: Explosives (Uncommon), form: solid, icon: icons/explosives.webp }
+  - { id: explosives@rare, name: Explosives (Rare), form: solid, icon: icons/explosives.webp }
+  - { id: explosives@epic, name: Explosives (Epic), form: solid, icon: icons/explosives.webp }
+  - { id: explosives@legendary, name: Explosives (Legendary), form: solid, icon: icons/explosives.webp }
   - { id: express-splitter, name: Express splitter, form: solid, icon: icons/express-splitter.webp }
+  - { id: express-splitter@uncommon, name: Express splitter (Uncommon), form: solid, icon: icons/express-splitter.webp }
+  - { id: express-splitter@rare, name: Express splitter (Rare), form: solid, icon: icons/express-splitter.webp }
+  - { id: express-splitter@epic, name: Express splitter (Epic), form: solid, icon: icons/express-splitter.webp }
+  - id: express-splitter@legendary
+    name: Express splitter (Legendary)
+    form: solid
+    icon: icons/express-splitter.webp
   - { id: express-transport-belt, name: Express transport belt, form: solid, icon: icons/express-transport-belt.webp }
+  - id: express-transport-belt@uncommon
+    name: Express transport belt (Uncommon)
+    form: solid
+    icon: icons/express-transport-belt.webp
+  - id: express-transport-belt@rare
+    name: Express transport belt (Rare)
+    form: solid
+    icon: icons/express-transport-belt.webp
+  - id: express-transport-belt@epic
+    name: Express transport belt (Epic)
+    form: solid
+    icon: icons/express-transport-belt.webp
+  - id: express-transport-belt@legendary
+    name: Express transport belt (Legendary)
+    form: solid
+    icon: icons/express-transport-belt.webp
   - id: express-underground-belt
     name: Express underground belt
     form: solid
     icon: icons/express-underground-belt.webp
+  - id: express-underground-belt@uncommon
+    name: Express underground belt (Uncommon)
+    form: solid
+    icon: icons/express-underground-belt.webp
+  - id: express-underground-belt@rare
+    name: Express underground belt (Rare)
+    form: solid
+    icon: icons/express-underground-belt.webp
+  - id: express-underground-belt@epic
+    name: Express underground belt (Epic)
+    form: solid
+    icon: icons/express-underground-belt.webp
+  - id: express-underground-belt@legendary
+    name: Express underground belt (Legendary)
+    form: solid
+    icon: icons/express-underground-belt.webp
   - { id: fast-inserter, name: Fast inserter, form: solid, icon: icons/fast-inserter.webp }
+  - { id: fast-inserter@uncommon, name: Fast inserter (Uncommon), form: solid, icon: icons/fast-inserter.webp }
+  - { id: fast-inserter@rare, name: Fast inserter (Rare), form: solid, icon: icons/fast-inserter.webp }
+  - { id: fast-inserter@epic, name: Fast inserter (Epic), form: solid, icon: icons/fast-inserter.webp }
+  - { id: fast-inserter@legendary, name: Fast inserter (Legendary), form: solid, icon: icons/fast-inserter.webp }
   - { id: fast-splitter, name: Fast splitter, form: solid, icon: icons/fast-splitter.webp }
+  - { id: fast-splitter@uncommon, name: Fast splitter (Uncommon), form: solid, icon: icons/fast-splitter.webp }
+  - { id: fast-splitter@rare, name: Fast splitter (Rare), form: solid, icon: icons/fast-splitter.webp }
+  - { id: fast-splitter@epic, name: Fast splitter (Epic), form: solid, icon: icons/fast-splitter.webp }
+  - { id: fast-splitter@legendary, name: Fast splitter (Legendary), form: solid, icon: icons/fast-splitter.webp }
   - { id: fast-transport-belt, name: Fast transport belt, form: solid, icon: icons/fast-transport-belt.webp }
+  - id: fast-transport-belt@uncommon
+    name: Fast transport belt (Uncommon)
+    form: solid
+    icon: icons/fast-transport-belt.webp
+  - id: fast-transport-belt@rare
+    name: Fast transport belt (Rare)
+    form: solid
+    icon: icons/fast-transport-belt.webp
+  - id: fast-transport-belt@epic
+    name: Fast transport belt (Epic)
+    form: solid
+    icon: icons/fast-transport-belt.webp
+  - id: fast-transport-belt@legendary
+    name: Fast transport belt (Legendary)
+    form: solid
+    icon: icons/fast-transport-belt.webp
   - { id: fast-underground-belt, name: Fast underground belt, form: solid, icon: icons/fast-underground-belt.webp }
+  - id: fast-underground-belt@uncommon
+    name: Fast underground belt (Uncommon)
+    form: solid
+    icon: icons/fast-underground-belt.webp
+  - id: fast-underground-belt@rare
+    name: Fast underground belt (Rare)
+    form: solid
+    icon: icons/fast-underground-belt.webp
+  - id: fast-underground-belt@epic
+    name: Fast underground belt (Epic)
+    form: solid
+    icon: icons/fast-underground-belt.webp
+  - id: fast-underground-belt@legendary
+    name: Fast underground belt (Legendary)
+    form: solid
+    icon: icons/fast-underground-belt.webp
   - { id: firearm-magazine, name: Firearm magazine, form: solid, icon: icons/firearm-magazine.webp }
+  - { id: firearm-magazine@uncommon, name: Firearm magazine (Uncommon), form: solid, icon: icons/firearm-magazine.webp }
+  - { id: firearm-magazine@rare, name: Firearm magazine (Rare), form: solid, icon: icons/firearm-magazine.webp }
+  - { id: firearm-magazine@epic, name: Firearm magazine (Epic), form: solid, icon: icons/firearm-magazine.webp }
+  - id: firearm-magazine@legendary
+    name: Firearm magazine (Legendary)
+    form: solid
+    icon: icons/firearm-magazine.webp
   - id: fission-reactor-equipment
     name: Portable fission reactor
     form: solid
     icon: icons/fission-reactor-equipment.webp
+  - id: fission-reactor-equipment@uncommon
+    name: Portable fission reactor (Uncommon)
+    form: solid
+    icon: icons/fission-reactor-equipment.webp
+  - id: fission-reactor-equipment@rare
+    name: Portable fission reactor (Rare)
+    form: solid
+    icon: icons/fission-reactor-equipment.webp
+  - id: fission-reactor-equipment@epic
+    name: Portable fission reactor (Epic)
+    form: solid
+    icon: icons/fission-reactor-equipment.webp
+  - id: fission-reactor-equipment@legendary
+    name: Portable fission reactor (Legendary)
+    form: solid
+    icon: icons/fission-reactor-equipment.webp
   - { id: flamethrower, name: Flamethrower, form: solid, icon: icons/flamethrower.webp }
+  - { id: flamethrower@uncommon, name: Flamethrower (Uncommon), form: solid, icon: icons/flamethrower.webp }
+  - { id: flamethrower@rare, name: Flamethrower (Rare), form: solid, icon: icons/flamethrower.webp }
+  - { id: flamethrower@epic, name: Flamethrower (Epic), form: solid, icon: icons/flamethrower.webp }
+  - { id: flamethrower@legendary, name: Flamethrower (Legendary), form: solid, icon: icons/flamethrower.webp }
   - { id: flamethrower-ammo, name: Flamethrower ammo, form: solid, icon: icons/flamethrower-ammo.webp }
+  - id: flamethrower-ammo@uncommon
+    name: Flamethrower ammo (Uncommon)
+    form: solid
+    icon: icons/flamethrower-ammo.webp
+  - { id: flamethrower-ammo@rare, name: Flamethrower ammo (Rare), form: solid, icon: icons/flamethrower-ammo.webp }
+  - { id: flamethrower-ammo@epic, name: Flamethrower ammo (Epic), form: solid, icon: icons/flamethrower-ammo.webp }
+  - id: flamethrower-ammo@legendary
+    name: Flamethrower ammo (Legendary)
+    form: solid
+    icon: icons/flamethrower-ammo.webp
   - { id: flamethrower-turret, name: Flamethrower turret, form: solid, icon: icons/flamethrower-turret.webp }
+  - id: flamethrower-turret@uncommon
+    name: Flamethrower turret (Uncommon)
+    form: solid
+    icon: icons/flamethrower-turret.webp
+  - id: flamethrower-turret@rare
+    name: Flamethrower turret (Rare)
+    form: solid
+    icon: icons/flamethrower-turret.webp
+  - id: flamethrower-turret@epic
+    name: Flamethrower turret (Epic)
+    form: solid
+    icon: icons/flamethrower-turret.webp
+  - id: flamethrower-turret@legendary
+    name: Flamethrower turret (Legendary)
+    form: solid
+    icon: icons/flamethrower-turret.webp
   - { id: fluid-wagon, name: Fluid wagon, form: solid, icon: icons/fluid-wagon.webp }
+  - { id: fluid-wagon@uncommon, name: Fluid wagon (Uncommon), form: solid, icon: icons/fluid-wagon.webp }
+  - { id: fluid-wagon@rare, name: Fluid wagon (Rare), form: solid, icon: icons/fluid-wagon.webp }
+  - { id: fluid-wagon@epic, name: Fluid wagon (Epic), form: solid, icon: icons/fluid-wagon.webp }
+  - { id: fluid-wagon@legendary, name: Fluid wagon (Legendary), form: solid, icon: icons/fluid-wagon.webp }
   - { id: fluorine, name: Fluorine, form: fluid, icon: icons/fluorine.webp }
   - { id: fluoroketone-cold, name: Fluoroketone (Cold), form: fluid, icon: icons/fluoroketone-cold.webp }
   - id: fluoroketone-cold-barrel
     name: Fluoroketone (Cold) barrel
+    form: solid
+    icon: icons/fluoroketone-cold-barrel.webp
+  - id: fluoroketone-cold-barrel@uncommon
+    name: Fluoroketone (Cold) barrel (Uncommon)
+    form: solid
+    icon: icons/fluoroketone-cold-barrel.webp
+  - id: fluoroketone-cold-barrel@rare
+    name: Fluoroketone (Cold) barrel (Rare)
+    form: solid
+    icon: icons/fluoroketone-cold-barrel.webp
+  - id: fluoroketone-cold-barrel@epic
+    name: Fluoroketone (Cold) barrel (Epic)
+    form: solid
+    icon: icons/fluoroketone-cold-barrel.webp
+  - id: fluoroketone-cold-barrel@legendary
+    name: Fluoroketone (Cold) barrel (Legendary)
     form: solid
     icon: icons/fluoroketone-cold-barrel.webp
   - { id: fluoroketone-hot, name: Fluoroketone (Hot), form: fluid, icon: icons/fluoroketone-hot.webp }
@@ -154,245 +1126,1527 @@ items:
     name: Fluoroketone (Hot) barrel
     form: solid
     icon: icons/fluoroketone-hot-barrel.webp
+  - id: fluoroketone-hot-barrel@uncommon
+    name: Fluoroketone (Hot) barrel (Uncommon)
+    form: solid
+    icon: icons/fluoroketone-hot-barrel.webp
+  - id: fluoroketone-hot-barrel@rare
+    name: Fluoroketone (Hot) barrel (Rare)
+    form: solid
+    icon: icons/fluoroketone-hot-barrel.webp
+  - id: fluoroketone-hot-barrel@epic
+    name: Fluoroketone (Hot) barrel (Epic)
+    form: solid
+    icon: icons/fluoroketone-hot-barrel.webp
+  - id: fluoroketone-hot-barrel@legendary
+    name: Fluoroketone (Hot) barrel (Legendary)
+    form: solid
+    icon: icons/fluoroketone-hot-barrel.webp
   - { id: flying-robot-frame, name: Flying robot frame, form: solid, icon: icons/flying-robot-frame.webp }
+  - id: flying-robot-frame@uncommon
+    name: Flying robot frame (Uncommon)
+    form: solid
+    icon: icons/flying-robot-frame.webp
+  - { id: flying-robot-frame@rare, name: Flying robot frame (Rare), form: solid, icon: icons/flying-robot-frame.webp }
+  - { id: flying-robot-frame@epic, name: Flying robot frame (Epic), form: solid, icon: icons/flying-robot-frame.webp }
+  - id: flying-robot-frame@legendary
+    name: Flying robot frame (Legendary)
+    form: solid
+    icon: icons/flying-robot-frame.webp
   - { id: foundation, name: Foundation, form: solid, icon: icons/foundation.webp }
+  - { id: foundation@uncommon, name: Foundation (Uncommon), form: solid, icon: icons/foundation.webp }
+  - { id: foundation@rare, name: Foundation (Rare), form: solid, icon: icons/foundation.webp }
+  - { id: foundation@epic, name: Foundation (Epic), form: solid, icon: icons/foundation.webp }
+  - { id: foundation@legendary, name: Foundation (Legendary), form: solid, icon: icons/foundation.webp }
   - { id: foundry, name: Foundry, form: solid, icon: icons/foundry.webp }
+  - { id: foundry@uncommon, name: Foundry (Uncommon), form: solid, icon: icons/foundry.webp }
+  - { id: foundry@rare, name: Foundry (Rare), form: solid, icon: icons/foundry.webp }
+  - { id: foundry@epic, name: Foundry (Epic), form: solid, icon: icons/foundry.webp }
+  - { id: foundry@legendary, name: Foundry (Legendary), form: solid, icon: icons/foundry.webp }
   - { id: fusion-generator, name: Fusion generator, form: solid, icon: icons/fusion-generator.webp }
+  - { id: fusion-generator@uncommon, name: Fusion generator (Uncommon), form: solid, icon: icons/fusion-generator.webp }
+  - { id: fusion-generator@rare, name: Fusion generator (Rare), form: solid, icon: icons/fusion-generator.webp }
+  - { id: fusion-generator@epic, name: Fusion generator (Epic), form: solid, icon: icons/fusion-generator.webp }
+  - id: fusion-generator@legendary
+    name: Fusion generator (Legendary)
+    form: solid
+    icon: icons/fusion-generator.webp
   - { id: fusion-power-cell, name: Fusion power cell, form: solid, icon: icons/fusion-power-cell.webp }
+  - id: fusion-power-cell@uncommon
+    name: Fusion power cell (Uncommon)
+    form: solid
+    icon: icons/fusion-power-cell.webp
+  - { id: fusion-power-cell@rare, name: Fusion power cell (Rare), form: solid, icon: icons/fusion-power-cell.webp }
+  - { id: fusion-power-cell@epic, name: Fusion power cell (Epic), form: solid, icon: icons/fusion-power-cell.webp }
+  - id: fusion-power-cell@legendary
+    name: Fusion power cell (Legendary)
+    form: solid
+    icon: icons/fusion-power-cell.webp
   - { id: fusion-reactor, name: Fusion reactor, form: solid, icon: icons/fusion-reactor.webp }
+  - { id: fusion-reactor@uncommon, name: Fusion reactor (Uncommon), form: solid, icon: icons/fusion-reactor.webp }
+  - { id: fusion-reactor@rare, name: Fusion reactor (Rare), form: solid, icon: icons/fusion-reactor.webp }
+  - { id: fusion-reactor@epic, name: Fusion reactor (Epic), form: solid, icon: icons/fusion-reactor.webp }
+  - { id: fusion-reactor@legendary, name: Fusion reactor (Legendary), form: solid, icon: icons/fusion-reactor.webp }
   - id: fusion-reactor-equipment
     name: Portable fusion reactor
     form: solid
     icon: icons/fusion-reactor-equipment.webp
+  - id: fusion-reactor-equipment@uncommon
+    name: Portable fusion reactor (Uncommon)
+    form: solid
+    icon: icons/fusion-reactor-equipment.webp
+  - id: fusion-reactor-equipment@rare
+    name: Portable fusion reactor (Rare)
+    form: solid
+    icon: icons/fusion-reactor-equipment.webp
+  - id: fusion-reactor-equipment@epic
+    name: Portable fusion reactor (Epic)
+    form: solid
+    icon: icons/fusion-reactor-equipment.webp
+  - id: fusion-reactor-equipment@legendary
+    name: Portable fusion reactor (Legendary)
+    form: solid
+    icon: icons/fusion-reactor-equipment.webp
   - { id: gate, name: Gate, form: solid, icon: icons/gate.webp }
+  - { id: gate@uncommon, name: Gate (Uncommon), form: solid, icon: icons/gate.webp }
+  - { id: gate@rare, name: Gate (Rare), form: solid, icon: icons/gate.webp }
+  - { id: gate@epic, name: Gate (Epic), form: solid, icon: icons/gate.webp }
+  - { id: gate@legendary, name: Gate (Legendary), form: solid, icon: icons/gate.webp }
   - { id: grenade, name: Grenade, form: solid, icon: icons/grenade.webp }
+  - { id: grenade@uncommon, name: Grenade (Uncommon), form: solid, icon: icons/grenade.webp }
+  - { id: grenade@rare, name: Grenade (Rare), form: solid, icon: icons/grenade.webp }
+  - { id: grenade@epic, name: Grenade (Epic), form: solid, icon: icons/grenade.webp }
+  - { id: grenade@legendary, name: Grenade (Legendary), form: solid, icon: icons/grenade.webp }
   - { id: gun-turret, name: Gun turret, form: solid, icon: icons/gun-turret.webp }
+  - { id: gun-turret@uncommon, name: Gun turret (Uncommon), form: solid, icon: icons/gun-turret.webp }
+  - { id: gun-turret@rare, name: Gun turret (Rare), form: solid, icon: icons/gun-turret.webp }
+  - { id: gun-turret@epic, name: Gun turret (Epic), form: solid, icon: icons/gun-turret.webp }
+  - { id: gun-turret@legendary, name: Gun turret (Legendary), form: solid, icon: icons/gun-turret.webp }
   - { id: hazard-concrete, name: Hazard concrete, form: solid, icon: icons/hazard-concrete.webp }
+  - { id: hazard-concrete@uncommon, name: Hazard concrete (Uncommon), form: solid, icon: icons/hazard-concrete.webp }
+  - { id: hazard-concrete@rare, name: Hazard concrete (Rare), form: solid, icon: icons/hazard-concrete.webp }
+  - { id: hazard-concrete@epic, name: Hazard concrete (Epic), form: solid, icon: icons/hazard-concrete.webp }
+  - { id: hazard-concrete@legendary, name: Hazard concrete (Legendary), form: solid, icon: icons/hazard-concrete.webp }
   - { id: heat-exchanger, name: Heat exchanger, form: solid, icon: icons/heat-exchanger.webp }
+  - { id: heat-exchanger@uncommon, name: Heat exchanger (Uncommon), form: solid, icon: icons/heat-exchanger.webp }
+  - { id: heat-exchanger@rare, name: Heat exchanger (Rare), form: solid, icon: icons/heat-exchanger.webp }
+  - { id: heat-exchanger@epic, name: Heat exchanger (Epic), form: solid, icon: icons/heat-exchanger.webp }
+  - { id: heat-exchanger@legendary, name: Heat exchanger (Legendary), form: solid, icon: icons/heat-exchanger.webp }
   - { id: heat-pipe, name: Heat pipe, form: solid, icon: icons/heat-pipe.webp }
+  - { id: heat-pipe@uncommon, name: Heat pipe (Uncommon), form: solid, icon: icons/heat-pipe.webp }
+  - { id: heat-pipe@rare, name: Heat pipe (Rare), form: solid, icon: icons/heat-pipe.webp }
+  - { id: heat-pipe@epic, name: Heat pipe (Epic), form: solid, icon: icons/heat-pipe.webp }
+  - { id: heat-pipe@legendary, name: Heat pipe (Legendary), form: solid, icon: icons/heat-pipe.webp }
   - { id: heating-tower, name: Heating tower, form: solid, icon: icons/heating-tower.webp }
+  - { id: heating-tower@uncommon, name: Heating tower (Uncommon), form: solid, icon: icons/heating-tower.webp }
+  - { id: heating-tower@rare, name: Heating tower (Rare), form: solid, icon: icons/heating-tower.webp }
+  - { id: heating-tower@epic, name: Heating tower (Epic), form: solid, icon: icons/heating-tower.webp }
+  - { id: heating-tower@legendary, name: Heating tower (Legendary), form: solid, icon: icons/heating-tower.webp }
   - { id: heavy-armor, name: Heavy armor, form: solid, icon: icons/heavy-armor.webp }
+  - { id: heavy-armor@uncommon, name: Heavy armor (Uncommon), form: solid, icon: icons/heavy-armor.webp }
+  - { id: heavy-armor@rare, name: Heavy armor (Rare), form: solid, icon: icons/heavy-armor.webp }
+  - { id: heavy-armor@epic, name: Heavy armor (Epic), form: solid, icon: icons/heavy-armor.webp }
+  - { id: heavy-armor@legendary, name: Heavy armor (Legendary), form: solid, icon: icons/heavy-armor.webp }
   - { id: heavy-oil, name: Heavy oil, form: fluid, icon: icons/heavy-oil.webp }
   - { id: heavy-oil-barrel, name: Heavy oil barrel, form: solid, icon: icons/heavy-oil-barrel.webp }
+  - { id: heavy-oil-barrel@uncommon, name: Heavy oil barrel (Uncommon), form: solid, icon: icons/heavy-oil-barrel.webp }
+  - { id: heavy-oil-barrel@rare, name: Heavy oil barrel (Rare), form: solid, icon: icons/heavy-oil-barrel.webp }
+  - { id: heavy-oil-barrel@epic, name: Heavy oil barrel (Epic), form: solid, icon: icons/heavy-oil-barrel.webp }
+  - id: heavy-oil-barrel@legendary
+    name: Heavy oil barrel (Legendary)
+    form: solid
+    icon: icons/heavy-oil-barrel.webp
   - { id: holmium-ore, name: Holmium ore, form: solid, icon: icons/holmium-ore.webp }
+  - { id: holmium-ore@uncommon, name: Holmium ore (Uncommon), form: solid, icon: icons/holmium-ore.webp }
+  - { id: holmium-ore@rare, name: Holmium ore (Rare), form: solid, icon: icons/holmium-ore.webp }
+  - { id: holmium-ore@epic, name: Holmium ore (Epic), form: solid, icon: icons/holmium-ore.webp }
+  - { id: holmium-ore@legendary, name: Holmium ore (Legendary), form: solid, icon: icons/holmium-ore.webp }
   - { id: holmium-plate, name: Holmium plate, form: solid, icon: icons/holmium-plate.webp }
+  - { id: holmium-plate@uncommon, name: Holmium plate (Uncommon), form: solid, icon: icons/holmium-plate.webp }
+  - { id: holmium-plate@rare, name: Holmium plate (Rare), form: solid, icon: icons/holmium-plate.webp }
+  - { id: holmium-plate@epic, name: Holmium plate (Epic), form: solid, icon: icons/holmium-plate.webp }
+  - { id: holmium-plate@legendary, name: Holmium plate (Legendary), form: solid, icon: icons/holmium-plate.webp }
   - { id: holmium-solution, name: Holmium solution, form: fluid, icon: icons/holmium-solution.webp }
   - { id: ice, name: Ice, form: solid, icon: icons/ice.webp }
+  - { id: ice@uncommon, name: Ice (Uncommon), form: solid, icon: icons/ice.webp }
+  - { id: ice@rare, name: Ice (Rare), form: solid, icon: icons/ice.webp }
+  - { id: ice@epic, name: Ice (Epic), form: solid, icon: icons/ice.webp }
+  - { id: ice@legendary, name: Ice (Legendary), form: solid, icon: icons/ice.webp }
   - { id: ice-platform, name: Ice platform, form: solid, icon: icons/ice-platform.webp }
+  - { id: ice-platform@uncommon, name: Ice platform (Uncommon), form: solid, icon: icons/ice-platform.webp }
+  - { id: ice-platform@rare, name: Ice platform (Rare), form: solid, icon: icons/ice-platform.webp }
+  - { id: ice-platform@epic, name: Ice platform (Epic), form: solid, icon: icons/ice-platform.webp }
+  - { id: ice-platform@legendary, name: Ice platform (Legendary), form: solid, icon: icons/ice-platform.webp }
   - { id: inserter, name: Inserter, form: solid, icon: icons/inserter.webp }
+  - { id: inserter@uncommon, name: Inserter (Uncommon), form: solid, icon: icons/inserter.webp }
+  - { id: inserter@rare, name: Inserter (Rare), form: solid, icon: icons/inserter.webp }
+  - { id: inserter@epic, name: Inserter (Epic), form: solid, icon: icons/inserter.webp }
+  - { id: inserter@legendary, name: Inserter (Legendary), form: solid, icon: icons/inserter.webp }
   - { id: iron-bacteria, name: Iron bacteria, form: solid, icon: icons/iron-bacteria.webp }
+  - { id: iron-bacteria@uncommon, name: Iron bacteria (Uncommon), form: solid, icon: icons/iron-bacteria.webp }
+  - { id: iron-bacteria@rare, name: Iron bacteria (Rare), form: solid, icon: icons/iron-bacteria.webp }
+  - { id: iron-bacteria@epic, name: Iron bacteria (Epic), form: solid, icon: icons/iron-bacteria.webp }
+  - { id: iron-bacteria@legendary, name: Iron bacteria (Legendary), form: solid, icon: icons/iron-bacteria.webp }
   - { id: iron-chest, name: Iron chest, form: solid, icon: icons/iron-chest.webp }
+  - { id: iron-chest@uncommon, name: Iron chest (Uncommon), form: solid, icon: icons/iron-chest.webp }
+  - { id: iron-chest@rare, name: Iron chest (Rare), form: solid, icon: icons/iron-chest.webp }
+  - { id: iron-chest@epic, name: Iron chest (Epic), form: solid, icon: icons/iron-chest.webp }
+  - { id: iron-chest@legendary, name: Iron chest (Legendary), form: solid, icon: icons/iron-chest.webp }
   - { id: iron-gear-wheel, name: Iron gear wheel, form: solid, icon: icons/iron-gear-wheel.webp }
+  - { id: iron-gear-wheel@uncommon, name: Iron gear wheel (Uncommon), form: solid, icon: icons/iron-gear-wheel.webp }
+  - { id: iron-gear-wheel@rare, name: Iron gear wheel (Rare), form: solid, icon: icons/iron-gear-wheel.webp }
+  - { id: iron-gear-wheel@epic, name: Iron gear wheel (Epic), form: solid, icon: icons/iron-gear-wheel.webp }
+  - { id: iron-gear-wheel@legendary, name: Iron gear wheel (Legendary), form: solid, icon: icons/iron-gear-wheel.webp }
   - { id: iron-ore, name: Iron ore, form: solid, icon: icons/iron-ore.webp }
+  - { id: iron-ore@uncommon, name: Iron ore (Uncommon), form: solid, icon: icons/iron-ore.webp }
+  - { id: iron-ore@rare, name: Iron ore (Rare), form: solid, icon: icons/iron-ore.webp }
+  - { id: iron-ore@epic, name: Iron ore (Epic), form: solid, icon: icons/iron-ore.webp }
+  - { id: iron-ore@legendary, name: Iron ore (Legendary), form: solid, icon: icons/iron-ore.webp }
   - { id: iron-plate, name: Iron plate, form: solid, icon: icons/iron-plate.webp }
+  - { id: iron-plate@uncommon, name: Iron plate (Uncommon), form: solid, icon: icons/iron-plate.webp }
+  - { id: iron-plate@rare, name: Iron plate (Rare), form: solid, icon: icons/iron-plate.webp }
+  - { id: iron-plate@epic, name: Iron plate (Epic), form: solid, icon: icons/iron-plate.webp }
+  - { id: iron-plate@legendary, name: Iron plate (Legendary), form: solid, icon: icons/iron-plate.webp }
   - { id: iron-stick, name: Iron stick, form: solid, icon: icons/iron-stick.webp }
+  - { id: iron-stick@uncommon, name: Iron stick (Uncommon), form: solid, icon: icons/iron-stick.webp }
+  - { id: iron-stick@rare, name: Iron stick (Rare), form: solid, icon: icons/iron-stick.webp }
+  - { id: iron-stick@epic, name: Iron stick (Epic), form: solid, icon: icons/iron-stick.webp }
+  - { id: iron-stick@legendary, name: Iron stick (Legendary), form: solid, icon: icons/iron-stick.webp }
   - { id: jelly, name: Jelly, form: solid, icon: icons/jelly.webp }
+  - { id: jelly@uncommon, name: Jelly (Uncommon), form: solid, icon: icons/jelly.webp }
+  - { id: jelly@rare, name: Jelly (Rare), form: solid, icon: icons/jelly.webp }
+  - { id: jelly@epic, name: Jelly (Epic), form: solid, icon: icons/jelly.webp }
+  - { id: jelly@legendary, name: Jelly (Legendary), form: solid, icon: icons/jelly.webp }
   - { id: jellynut, name: Jellynut, form: solid, icon: icons/jellynut.webp }
+  - { id: jellynut@uncommon, name: Jellynut (Uncommon), form: solid, icon: icons/jellynut.webp }
+  - { id: jellynut@rare, name: Jellynut (Rare), form: solid, icon: icons/jellynut.webp }
+  - { id: jellynut@epic, name: Jellynut (Epic), form: solid, icon: icons/jellynut.webp }
+  - { id: jellynut@legendary, name: Jellynut (Legendary), form: solid, icon: icons/jellynut.webp }
   - { id: jellynut-seed, name: Jellynut seed, form: solid, icon: icons/jellynut-seed.webp }
+  - { id: jellynut-seed@uncommon, name: Jellynut seed (Uncommon), form: solid, icon: icons/jellynut-seed.webp }
+  - { id: jellynut-seed@rare, name: Jellynut seed (Rare), form: solid, icon: icons/jellynut-seed.webp }
+  - { id: jellynut-seed@epic, name: Jellynut seed (Epic), form: solid, icon: icons/jellynut-seed.webp }
+  - { id: jellynut-seed@legendary, name: Jellynut seed (Legendary), form: solid, icon: icons/jellynut-seed.webp }
   - { id: lab, name: Lab, form: solid, icon: icons/lab.webp }
+  - { id: lab@uncommon, name: Lab (Uncommon), form: solid, icon: icons/lab.webp }
+  - { id: lab@rare, name: Lab (Rare), form: solid, icon: icons/lab.webp }
+  - { id: lab@epic, name: Lab (Epic), form: solid, icon: icons/lab.webp }
+  - { id: lab@legendary, name: Lab (Legendary), form: solid, icon: icons/lab.webp }
   - { id: land-mine, name: Land mine, form: solid, icon: icons/land-mine.webp }
+  - { id: land-mine@uncommon, name: Land mine (Uncommon), form: solid, icon: icons/land-mine.webp }
+  - { id: land-mine@rare, name: Land mine (Rare), form: solid, icon: icons/land-mine.webp }
+  - { id: land-mine@epic, name: Land mine (Epic), form: solid, icon: icons/land-mine.webp }
+  - { id: land-mine@legendary, name: Land mine (Legendary), form: solid, icon: icons/land-mine.webp }
   - { id: landfill, name: Landfill, form: solid, icon: icons/landfill.webp }
+  - { id: landfill@uncommon, name: Landfill (Uncommon), form: solid, icon: icons/landfill.webp }
+  - { id: landfill@rare, name: Landfill (Rare), form: solid, icon: icons/landfill.webp }
+  - { id: landfill@epic, name: Landfill (Epic), form: solid, icon: icons/landfill.webp }
+  - { id: landfill@legendary, name: Landfill (Legendary), form: solid, icon: icons/landfill.webp }
   - id: landing-pad-unloading-bay
     name: Landing pad unloading bay
     form: solid
     icon: icons/landing-pad-unloading-bay.webp
+  - id: landing-pad-unloading-bay@uncommon
+    name: Landing pad unloading bay (Uncommon)
+    form: solid
+    icon: icons/landing-pad-unloading-bay.webp
+  - id: landing-pad-unloading-bay@rare
+    name: Landing pad unloading bay (Rare)
+    form: solid
+    icon: icons/landing-pad-unloading-bay.webp
+  - id: landing-pad-unloading-bay@epic
+    name: Landing pad unloading bay (Epic)
+    form: solid
+    icon: icons/landing-pad-unloading-bay.webp
+  - id: landing-pad-unloading-bay@legendary
+    name: Landing pad unloading bay (Legendary)
+    form: solid
+    icon: icons/landing-pad-unloading-bay.webp
   - { id: laser-turret, name: Laser turret, form: solid, icon: icons/laser-turret.webp }
+  - { id: laser-turret@uncommon, name: Laser turret (Uncommon), form: solid, icon: icons/laser-turret.webp }
+  - { id: laser-turret@rare, name: Laser turret (Rare), form: solid, icon: icons/laser-turret.webp }
+  - { id: laser-turret@epic, name: Laser turret (Epic), form: solid, icon: icons/laser-turret.webp }
+  - { id: laser-turret@legendary, name: Laser turret (Legendary), form: solid, icon: icons/laser-turret.webp }
   - { id: lava, name: Lava, form: fluid, icon: icons/lava.webp }
   - { id: light-armor, name: Light armor, form: solid, icon: icons/light-armor.webp }
+  - { id: light-armor@uncommon, name: Light armor (Uncommon), form: solid, icon: icons/light-armor.webp }
+  - { id: light-armor@rare, name: Light armor (Rare), form: solid, icon: icons/light-armor.webp }
+  - { id: light-armor@epic, name: Light armor (Epic), form: solid, icon: icons/light-armor.webp }
+  - { id: light-armor@legendary, name: Light armor (Legendary), form: solid, icon: icons/light-armor.webp }
   - { id: light-oil, name: Light oil, form: fluid, icon: icons/light-oil.webp }
   - { id: light-oil-barrel, name: Light oil barrel, form: solid, icon: icons/light-oil-barrel.webp }
+  - { id: light-oil-barrel@uncommon, name: Light oil barrel (Uncommon), form: solid, icon: icons/light-oil-barrel.webp }
+  - { id: light-oil-barrel@rare, name: Light oil barrel (Rare), form: solid, icon: icons/light-oil-barrel.webp }
+  - { id: light-oil-barrel@epic, name: Light oil barrel (Epic), form: solid, icon: icons/light-oil-barrel.webp }
+  - id: light-oil-barrel@legendary
+    name: Light oil barrel (Legendary)
+    form: solid
+    icon: icons/light-oil-barrel.webp
   - { id: lightning-collector, name: Lightning collector, form: solid, icon: icons/lightning-collector.webp }
+  - id: lightning-collector@uncommon
+    name: Lightning collector (Uncommon)
+    form: solid
+    icon: icons/lightning-collector.webp
+  - id: lightning-collector@rare
+    name: Lightning collector (Rare)
+    form: solid
+    icon: icons/lightning-collector.webp
+  - id: lightning-collector@epic
+    name: Lightning collector (Epic)
+    form: solid
+    icon: icons/lightning-collector.webp
+  - id: lightning-collector@legendary
+    name: Lightning collector (Legendary)
+    form: solid
+    icon: icons/lightning-collector.webp
   - { id: lightning-rod, name: Lightning rod, form: solid, icon: icons/lightning-rod.webp }
+  - { id: lightning-rod@uncommon, name: Lightning rod (Uncommon), form: solid, icon: icons/lightning-rod.webp }
+  - { id: lightning-rod@rare, name: Lightning rod (Rare), form: solid, icon: icons/lightning-rod.webp }
+  - { id: lightning-rod@epic, name: Lightning rod (Epic), form: solid, icon: icons/lightning-rod.webp }
+  - { id: lightning-rod@legendary, name: Lightning rod (Legendary), form: solid, icon: icons/lightning-rod.webp }
   - { id: lithium, name: Lithium, form: solid, icon: icons/lithium.webp }
+  - { id: lithium@uncommon, name: Lithium (Uncommon), form: solid, icon: icons/lithium.webp }
+  - { id: lithium@rare, name: Lithium (Rare), form: solid, icon: icons/lithium.webp }
+  - { id: lithium@epic, name: Lithium (Epic), form: solid, icon: icons/lithium.webp }
+  - { id: lithium@legendary, name: Lithium (Legendary), form: solid, icon: icons/lithium.webp }
   - { id: lithium-brine, name: Lithium brine, form: fluid, icon: icons/lithium-brine.webp }
   - { id: lithium-plate, name: Lithium plate, form: solid, icon: icons/lithium-plate.webp }
+  - { id: lithium-plate@uncommon, name: Lithium plate (Uncommon), form: solid, icon: icons/lithium-plate.webp }
+  - { id: lithium-plate@rare, name: Lithium plate (Rare), form: solid, icon: icons/lithium-plate.webp }
+  - { id: lithium-plate@epic, name: Lithium plate (Epic), form: solid, icon: icons/lithium-plate.webp }
+  - { id: lithium-plate@legendary, name: Lithium plate (Legendary), form: solid, icon: icons/lithium-plate.webp }
   - { id: locomotive, name: Locomotive, form: solid, icon: icons/locomotive.webp }
+  - { id: locomotive@uncommon, name: Locomotive (Uncommon), form: solid, icon: icons/locomotive.webp }
+  - { id: locomotive@rare, name: Locomotive (Rare), form: solid, icon: icons/locomotive.webp }
+  - { id: locomotive@epic, name: Locomotive (Epic), form: solid, icon: icons/locomotive.webp }
+  - { id: locomotive@legendary, name: Locomotive (Legendary), form: solid, icon: icons/locomotive.webp }
   - { id: logistic-robot, name: Logistic robot, form: solid, icon: icons/logistic-robot.webp }
+  - { id: logistic-robot@uncommon, name: Logistic robot (Uncommon), form: solid, icon: icons/logistic-robot.webp }
+  - { id: logistic-robot@rare, name: Logistic robot (Rare), form: solid, icon: icons/logistic-robot.webp }
+  - { id: logistic-robot@epic, name: Logistic robot (Epic), form: solid, icon: icons/logistic-robot.webp }
+  - { id: logistic-robot@legendary, name: Logistic robot (Legendary), form: solid, icon: icons/logistic-robot.webp }
   - { id: logistic-science-pack, name: Logistic science pack, form: solid, icon: icons/logistic-science-pack.webp }
+  - id: logistic-science-pack@uncommon
+    name: Logistic science pack (Uncommon)
+    form: solid
+    icon: icons/logistic-science-pack.webp
+  - id: logistic-science-pack@rare
+    name: Logistic science pack (Rare)
+    form: solid
+    icon: icons/logistic-science-pack.webp
+  - id: logistic-science-pack@epic
+    name: Logistic science pack (Epic)
+    form: solid
+    icon: icons/logistic-science-pack.webp
+  - id: logistic-science-pack@legendary
+    name: Logistic science pack (Legendary)
+    form: solid
+    icon: icons/logistic-science-pack.webp
   - { id: long-handed-inserter, name: Long-handed inserter, form: solid, icon: icons/long-handed-inserter.webp }
+  - id: long-handed-inserter@uncommon
+    name: Long-handed inserter (Uncommon)
+    form: solid
+    icon: icons/long-handed-inserter.webp
+  - id: long-handed-inserter@rare
+    name: Long-handed inserter (Rare)
+    form: solid
+    icon: icons/long-handed-inserter.webp
+  - id: long-handed-inserter@epic
+    name: Long-handed inserter (Epic)
+    form: solid
+    icon: icons/long-handed-inserter.webp
+  - id: long-handed-inserter@legendary
+    name: Long-handed inserter (Legendary)
+    form: solid
+    icon: icons/long-handed-inserter.webp
   - { id: low-density-structure, name: Low density structure, form: solid, icon: icons/low-density-structure.webp }
+  - id: low-density-structure@uncommon
+    name: Low density structure (Uncommon)
+    form: solid
+    icon: icons/low-density-structure.webp
+  - id: low-density-structure@rare
+    name: Low density structure (Rare)
+    form: solid
+    icon: icons/low-density-structure.webp
+  - id: low-density-structure@epic
+    name: Low density structure (Epic)
+    form: solid
+    icon: icons/low-density-structure.webp
+  - id: low-density-structure@legendary
+    name: Low density structure (Legendary)
+    form: solid
+    icon: icons/low-density-structure.webp
   - { id: lubricant, name: Lubricant, form: fluid, icon: icons/lubricant.webp }
   - { id: lubricant-barrel, name: Lubricant barrel, form: solid, icon: icons/lubricant-barrel.webp }
+  - { id: lubricant-barrel@uncommon, name: Lubricant barrel (Uncommon), form: solid, icon: icons/lubricant-barrel.webp }
+  - { id: lubricant-barrel@rare, name: Lubricant barrel (Rare), form: solid, icon: icons/lubricant-barrel.webp }
+  - { id: lubricant-barrel@epic, name: Lubricant barrel (Epic), form: solid, icon: icons/lubricant-barrel.webp }
+  - id: lubricant-barrel@legendary
+    name: Lubricant barrel (Legendary)
+    form: solid
+    icon: icons/lubricant-barrel.webp
   - { id: mech-armor, name: Mech armor, form: solid, icon: icons/mech-armor.webp }
+  - { id: mech-armor@uncommon, name: Mech armor (Uncommon), form: solid, icon: icons/mech-armor.webp }
+  - { id: mech-armor@rare, name: Mech armor (Rare), form: solid, icon: icons/mech-armor.webp }
+  - { id: mech-armor@epic, name: Mech armor (Epic), form: solid, icon: icons/mech-armor.webp }
+  - { id: mech-armor@legendary, name: Mech armor (Legendary), form: solid, icon: icons/mech-armor.webp }
   - { id: medium-electric-pole, name: Medium electric pole, form: solid, icon: icons/medium-electric-pole.webp }
+  - id: medium-electric-pole@uncommon
+    name: Medium electric pole (Uncommon)
+    form: solid
+    icon: icons/medium-electric-pole.webp
+  - id: medium-electric-pole@rare
+    name: Medium electric pole (Rare)
+    form: solid
+    icon: icons/medium-electric-pole.webp
+  - id: medium-electric-pole@epic
+    name: Medium electric pole (Epic)
+    form: solid
+    icon: icons/medium-electric-pole.webp
+  - id: medium-electric-pole@legendary
+    name: Medium electric pole (Legendary)
+    form: solid
+    icon: icons/medium-electric-pole.webp
   - id: metallic-asteroid-chunk
     name: Metallic asteroid chunk
+    form: solid
+    icon: icons/metallic-asteroid-chunk.webp
+  - id: metallic-asteroid-chunk@uncommon
+    name: Metallic asteroid chunk (Uncommon)
+    form: solid
+    icon: icons/metallic-asteroid-chunk.webp
+  - id: metallic-asteroid-chunk@rare
+    name: Metallic asteroid chunk (Rare)
+    form: solid
+    icon: icons/metallic-asteroid-chunk.webp
+  - id: metallic-asteroid-chunk@epic
+    name: Metallic asteroid chunk (Epic)
+    form: solid
+    icon: icons/metallic-asteroid-chunk.webp
+  - id: metallic-asteroid-chunk@legendary
+    name: Metallic asteroid chunk (Legendary)
     form: solid
     icon: icons/metallic-asteroid-chunk.webp
   - id: metallurgic-science-pack
     name: Metallurgic science pack
     form: solid
     icon: icons/metallurgic-science-pack.webp
+  - id: metallurgic-science-pack@uncommon
+    name: Metallurgic science pack (Uncommon)
+    form: solid
+    icon: icons/metallurgic-science-pack.webp
+  - id: metallurgic-science-pack@rare
+    name: Metallurgic science pack (Rare)
+    form: solid
+    icon: icons/metallurgic-science-pack.webp
+  - id: metallurgic-science-pack@epic
+    name: Metallurgic science pack (Epic)
+    form: solid
+    icon: icons/metallurgic-science-pack.webp
+  - id: metallurgic-science-pack@legendary
+    name: Metallurgic science pack (Legendary)
+    form: solid
+    icon: icons/metallurgic-science-pack.webp
   - { id: military-science-pack, name: Military science pack, form: solid, icon: icons/military-science-pack.webp }
+  - id: military-science-pack@uncommon
+    name: Military science pack (Uncommon)
+    form: solid
+    icon: icons/military-science-pack.webp
+  - id: military-science-pack@rare
+    name: Military science pack (Rare)
+    form: solid
+    icon: icons/military-science-pack.webp
+  - id: military-science-pack@epic
+    name: Military science pack (Epic)
+    form: solid
+    icon: icons/military-science-pack.webp
+  - id: military-science-pack@legendary
+    name: Military science pack (Legendary)
+    form: solid
+    icon: icons/military-science-pack.webp
   - { id: modular-armor, name: Modular armor, form: solid, icon: icons/modular-armor.webp }
+  - { id: modular-armor@uncommon, name: Modular armor (Uncommon), form: solid, icon: icons/modular-armor.webp }
+  - { id: modular-armor@rare, name: Modular armor (Rare), form: solid, icon: icons/modular-armor.webp }
+  - { id: modular-armor@epic, name: Modular armor (Epic), form: solid, icon: icons/modular-armor.webp }
+  - { id: modular-armor@legendary, name: Modular armor (Legendary), form: solid, icon: icons/modular-armor.webp }
   - { id: molten-copper, name: Molten copper, form: fluid, icon: icons/molten-copper.webp }
   - { id: molten-iron, name: Molten iron, form: fluid, icon: icons/molten-iron.webp }
   - { id: night-vision-equipment, name: Nightvision, form: solid, icon: icons/night-vision-equipment.webp }
+  - id: night-vision-equipment@uncommon
+    name: Nightvision (Uncommon)
+    form: solid
+    icon: icons/night-vision-equipment.webp
+  - { id: night-vision-equipment@rare, name: Nightvision (Rare), form: solid, icon: icons/night-vision-equipment.webp }
+  - { id: night-vision-equipment@epic, name: Nightvision (Epic), form: solid, icon: icons/night-vision-equipment.webp }
+  - id: night-vision-equipment@legendary
+    name: Nightvision (Legendary)
+    form: solid
+    icon: icons/night-vision-equipment.webp
   - { id: nuclear-fuel, name: Nuclear fuel, form: solid, icon: icons/nuclear-fuel.webp }
+  - { id: nuclear-fuel@uncommon, name: Nuclear fuel (Uncommon), form: solid, icon: icons/nuclear-fuel.webp }
+  - { id: nuclear-fuel@rare, name: Nuclear fuel (Rare), form: solid, icon: icons/nuclear-fuel.webp }
+  - { id: nuclear-fuel@epic, name: Nuclear fuel (Epic), form: solid, icon: icons/nuclear-fuel.webp }
+  - { id: nuclear-fuel@legendary, name: Nuclear fuel (Legendary), form: solid, icon: icons/nuclear-fuel.webp }
   - { id: nuclear-reactor, name: Nuclear reactor, form: solid, icon: icons/nuclear-reactor.webp }
+  - { id: nuclear-reactor@uncommon, name: Nuclear reactor (Uncommon), form: solid, icon: icons/nuclear-reactor.webp }
+  - { id: nuclear-reactor@rare, name: Nuclear reactor (Rare), form: solid, icon: icons/nuclear-reactor.webp }
+  - { id: nuclear-reactor@epic, name: Nuclear reactor (Epic), form: solid, icon: icons/nuclear-reactor.webp }
+  - { id: nuclear-reactor@legendary, name: Nuclear reactor (Legendary), form: solid, icon: icons/nuclear-reactor.webp }
   - { id: nutrients, name: Nutrients, form: solid, icon: icons/nutrients.webp }
+  - { id: nutrients@uncommon, name: Nutrients (Uncommon), form: solid, icon: icons/nutrients.webp }
+  - { id: nutrients@rare, name: Nutrients (Rare), form: solid, icon: icons/nutrients.webp }
+  - { id: nutrients@epic, name: Nutrients (Epic), form: solid, icon: icons/nutrients.webp }
+  - { id: nutrients@legendary, name: Nutrients (Legendary), form: solid, icon: icons/nutrients.webp }
   - { id: offshore-pump, name: Offshore pump, form: solid, icon: icons/offshore-pump.webp }
+  - { id: offshore-pump@uncommon, name: Offshore pump (Uncommon), form: solid, icon: icons/offshore-pump.webp }
+  - { id: offshore-pump@rare, name: Offshore pump (Rare), form: solid, icon: icons/offshore-pump.webp }
+  - { id: offshore-pump@epic, name: Offshore pump (Epic), form: solid, icon: icons/offshore-pump.webp }
+  - { id: offshore-pump@legendary, name: Offshore pump (Legendary), form: solid, icon: icons/offshore-pump.webp }
   - { id: oil-refinery, name: Oil refinery, form: solid, icon: icons/oil-refinery.webp }
+  - { id: oil-refinery@uncommon, name: Oil refinery (Uncommon), form: solid, icon: icons/oil-refinery.webp }
+  - { id: oil-refinery@rare, name: Oil refinery (Rare), form: solid, icon: icons/oil-refinery.webp }
+  - { id: oil-refinery@epic, name: Oil refinery (Epic), form: solid, icon: icons/oil-refinery.webp }
+  - { id: oil-refinery@legendary, name: Oil refinery (Legendary), form: solid, icon: icons/oil-refinery.webp }
   - id: overgrowth-jellynut-soil
     name: Overgrowth jellynut soil
     form: solid
     icon: icons/overgrowth-jellynut-soil.webp
+  - id: overgrowth-jellynut-soil@uncommon
+    name: Overgrowth jellynut soil (Uncommon)
+    form: solid
+    icon: icons/overgrowth-jellynut-soil.webp
+  - id: overgrowth-jellynut-soil@rare
+    name: Overgrowth jellynut soil (Rare)
+    form: solid
+    icon: icons/overgrowth-jellynut-soil.webp
+  - id: overgrowth-jellynut-soil@epic
+    name: Overgrowth jellynut soil (Epic)
+    form: solid
+    icon: icons/overgrowth-jellynut-soil.webp
+  - id: overgrowth-jellynut-soil@legendary
+    name: Overgrowth jellynut soil (Legendary)
+    form: solid
+    icon: icons/overgrowth-jellynut-soil.webp
   - { id: overgrowth-yumako-soil, name: Overgrowth yumako soil, form: solid, icon: icons/overgrowth-yumako-soil.webp }
+  - id: overgrowth-yumako-soil@uncommon
+    name: Overgrowth yumako soil (Uncommon)
+    form: solid
+    icon: icons/overgrowth-yumako-soil.webp
+  - id: overgrowth-yumako-soil@rare
+    name: Overgrowth yumako soil (Rare)
+    form: solid
+    icon: icons/overgrowth-yumako-soil.webp
+  - id: overgrowth-yumako-soil@epic
+    name: Overgrowth yumako soil (Epic)
+    form: solid
+    icon: icons/overgrowth-yumako-soil.webp
+  - id: overgrowth-yumako-soil@legendary
+    name: Overgrowth yumako soil (Legendary)
+    form: solid
+    icon: icons/overgrowth-yumako-soil.webp
   - { id: oxide-asteroid-chunk, name: Oxide asteroid chunk, form: solid, icon: icons/oxide-asteroid-chunk.webp }
+  - id: oxide-asteroid-chunk@uncommon
+    name: Oxide asteroid chunk (Uncommon)
+    form: solid
+    icon: icons/oxide-asteroid-chunk.webp
+  - id: oxide-asteroid-chunk@rare
+    name: Oxide asteroid chunk (Rare)
+    form: solid
+    icon: icons/oxide-asteroid-chunk.webp
+  - id: oxide-asteroid-chunk@epic
+    name: Oxide asteroid chunk (Epic)
+    form: solid
+    icon: icons/oxide-asteroid-chunk.webp
+  - id: oxide-asteroid-chunk@legendary
+    name: Oxide asteroid chunk (Legendary)
+    form: solid
+    icon: icons/oxide-asteroid-chunk.webp
   - { id: passive-provider-chest, name: Passive provider chest, form: solid, icon: icons/passive-provider-chest.webp }
+  - id: passive-provider-chest@uncommon
+    name: Passive provider chest (Uncommon)
+    form: solid
+    icon: icons/passive-provider-chest.webp
+  - id: passive-provider-chest@rare
+    name: Passive provider chest (Rare)
+    form: solid
+    icon: icons/passive-provider-chest.webp
+  - id: passive-provider-chest@epic
+    name: Passive provider chest (Epic)
+    form: solid
+    icon: icons/passive-provider-chest.webp
+  - id: passive-provider-chest@legendary
+    name: Passive provider chest (Legendary)
+    form: solid
+    icon: icons/passive-provider-chest.webp
   - { id: pentapod-egg, name: Pentapod egg, form: solid, icon: icons/pentapod-egg.webp }
+  - { id: pentapod-egg@uncommon, name: Pentapod egg (Uncommon), form: solid, icon: icons/pentapod-egg.webp }
+  - { id: pentapod-egg@rare, name: Pentapod egg (Rare), form: solid, icon: icons/pentapod-egg.webp }
+  - { id: pentapod-egg@epic, name: Pentapod egg (Epic), form: solid, icon: icons/pentapod-egg.webp }
+  - { id: pentapod-egg@legendary, name: Pentapod egg (Legendary), form: solid, icon: icons/pentapod-egg.webp }
   - id: personal-laser-defense-equipment
     name: Personal laser defense
+    form: solid
+    icon: icons/personal-laser-defense-equipment.webp
+  - id: personal-laser-defense-equipment@uncommon
+    name: Personal laser defense (Uncommon)
+    form: solid
+    icon: icons/personal-laser-defense-equipment.webp
+  - id: personal-laser-defense-equipment@rare
+    name: Personal laser defense (Rare)
+    form: solid
+    icon: icons/personal-laser-defense-equipment.webp
+  - id: personal-laser-defense-equipment@epic
+    name: Personal laser defense (Epic)
+    form: solid
+    icon: icons/personal-laser-defense-equipment.webp
+  - id: personal-laser-defense-equipment@legendary
+    name: Personal laser defense (Legendary)
     form: solid
     icon: icons/personal-laser-defense-equipment.webp
   - id: personal-roboport-equipment
     name: Personal roboport
     form: solid
     icon: icons/personal-roboport-equipment.webp
+  - id: personal-roboport-equipment@uncommon
+    name: Personal roboport (Uncommon)
+    form: solid
+    icon: icons/personal-roboport-equipment.webp
+  - id: personal-roboport-equipment@rare
+    name: Personal roboport (Rare)
+    form: solid
+    icon: icons/personal-roboport-equipment.webp
+  - id: personal-roboport-equipment@epic
+    name: Personal roboport (Epic)
+    form: solid
+    icon: icons/personal-roboport-equipment.webp
+  - id: personal-roboport-equipment@legendary
+    name: Personal roboport (Legendary)
+    form: solid
+    icon: icons/personal-roboport-equipment.webp
   - id: personal-roboport-mk2-equipment
     name: Personal roboport MK2
     form: solid
     icon: icons/personal-roboport-mk2-equipment.webp
+  - id: personal-roboport-mk2-equipment@uncommon
+    name: Personal roboport MK2 (Uncommon)
+    form: solid
+    icon: icons/personal-roboport-mk2-equipment.webp
+  - id: personal-roboport-mk2-equipment@rare
+    name: Personal roboport MK2 (Rare)
+    form: solid
+    icon: icons/personal-roboport-mk2-equipment.webp
+  - id: personal-roboport-mk2-equipment@epic
+    name: Personal roboport MK2 (Epic)
+    form: solid
+    icon: icons/personal-roboport-mk2-equipment.webp
+  - id: personal-roboport-mk2-equipment@legendary
+    name: Personal roboport MK2 (Legendary)
+    form: solid
+    icon: icons/personal-roboport-mk2-equipment.webp
   - { id: petroleum-gas, name: Petroleum gas, form: fluid, icon: icons/petroleum-gas.webp }
   - { id: petroleum-gas-barrel, name: Petroleum gas barrel, form: solid, icon: icons/petroleum-gas-barrel.webp }
+  - id: petroleum-gas-barrel@uncommon
+    name: Petroleum gas barrel (Uncommon)
+    form: solid
+    icon: icons/petroleum-gas-barrel.webp
+  - id: petroleum-gas-barrel@rare
+    name: Petroleum gas barrel (Rare)
+    form: solid
+    icon: icons/petroleum-gas-barrel.webp
+  - id: petroleum-gas-barrel@epic
+    name: Petroleum gas barrel (Epic)
+    form: solid
+    icon: icons/petroleum-gas-barrel.webp
+  - id: petroleum-gas-barrel@legendary
+    name: Petroleum gas barrel (Legendary)
+    form: solid
+    icon: icons/petroleum-gas-barrel.webp
   - id: piercing-rounds-magazine
     name: Piercing rounds magazine
     form: solid
     icon: icons/piercing-rounds-magazine.webp
+  - id: piercing-rounds-magazine@uncommon
+    name: Piercing rounds magazine (Uncommon)
+    form: solid
+    icon: icons/piercing-rounds-magazine.webp
+  - id: piercing-rounds-magazine@rare
+    name: Piercing rounds magazine (Rare)
+    form: solid
+    icon: icons/piercing-rounds-magazine.webp
+  - id: piercing-rounds-magazine@epic
+    name: Piercing rounds magazine (Epic)
+    form: solid
+    icon: icons/piercing-rounds-magazine.webp
+  - id: piercing-rounds-magazine@legendary
+    name: Piercing rounds magazine (Legendary)
+    form: solid
+    icon: icons/piercing-rounds-magazine.webp
   - { id: piercing-shotgun-shell, name: Piercing shotgun shells, form: solid, icon: icons/piercing-shotgun-shell.webp }
+  - id: piercing-shotgun-shell@uncommon
+    name: Piercing shotgun shells (Uncommon)
+    form: solid
+    icon: icons/piercing-shotgun-shell.webp
+  - id: piercing-shotgun-shell@rare
+    name: Piercing shotgun shells (Rare)
+    form: solid
+    icon: icons/piercing-shotgun-shell.webp
+  - id: piercing-shotgun-shell@epic
+    name: Piercing shotgun shells (Epic)
+    form: solid
+    icon: icons/piercing-shotgun-shell.webp
+  - id: piercing-shotgun-shell@legendary
+    name: Piercing shotgun shells (Legendary)
+    form: solid
+    icon: icons/piercing-shotgun-shell.webp
   - { id: pipe, name: Pipe, form: solid, icon: icons/pipe.webp }
+  - { id: pipe@uncommon, name: Pipe (Uncommon), form: solid, icon: icons/pipe.webp }
+  - { id: pipe@rare, name: Pipe (Rare), form: solid, icon: icons/pipe.webp }
+  - { id: pipe@epic, name: Pipe (Epic), form: solid, icon: icons/pipe.webp }
+  - { id: pipe@legendary, name: Pipe (Legendary), form: solid, icon: icons/pipe.webp }
   - { id: pipe-to-ground, name: Pipe to ground, form: solid, icon: icons/pipe-to-ground.webp }
+  - { id: pipe-to-ground@uncommon, name: Pipe to ground (Uncommon), form: solid, icon: icons/pipe-to-ground.webp }
+  - { id: pipe-to-ground@rare, name: Pipe to ground (Rare), form: solid, icon: icons/pipe-to-ground.webp }
+  - { id: pipe-to-ground@epic, name: Pipe to ground (Epic), form: solid, icon: icons/pipe-to-ground.webp }
+  - { id: pipe-to-ground@legendary, name: Pipe to ground (Legendary), form: solid, icon: icons/pipe-to-ground.webp }
   - { id: pistol, name: Pistol, form: solid }
+  - { id: pistol@uncommon, name: Pistol (Uncommon), form: solid }
+  - { id: pistol@rare, name: Pistol (Rare), form: solid }
+  - { id: pistol@epic, name: Pistol (Epic), form: solid }
+  - { id: pistol@legendary, name: Pistol (Legendary), form: solid }
   - { id: plastic-bar, name: Plastic bar, form: solid, icon: icons/plastic-bar.webp }
+  - { id: plastic-bar@uncommon, name: Plastic bar (Uncommon), form: solid, icon: icons/plastic-bar.webp }
+  - { id: plastic-bar@rare, name: Plastic bar (Rare), form: solid, icon: icons/plastic-bar.webp }
+  - { id: plastic-bar@epic, name: Plastic bar (Epic), form: solid, icon: icons/plastic-bar.webp }
+  - { id: plastic-bar@legendary, name: Plastic bar (Legendary), form: solid, icon: icons/plastic-bar.webp }
   - { id: poison-capsule, name: Poison capsule, form: solid, icon: icons/poison-capsule.webp }
+  - { id: poison-capsule@uncommon, name: Poison capsule (Uncommon), form: solid, icon: icons/poison-capsule.webp }
+  - { id: poison-capsule@rare, name: Poison capsule (Rare), form: solid, icon: icons/poison-capsule.webp }
+  - { id: poison-capsule@epic, name: Poison capsule (Epic), form: solid, icon: icons/poison-capsule.webp }
+  - { id: poison-capsule@legendary, name: Poison capsule (Legendary), form: solid, icon: icons/poison-capsule.webp }
   - { id: power-armor, name: Power armor, form: solid, icon: icons/power-armor.webp }
+  - { id: power-armor@uncommon, name: Power armor (Uncommon), form: solid, icon: icons/power-armor.webp }
+  - { id: power-armor@rare, name: Power armor (Rare), form: solid, icon: icons/power-armor.webp }
+  - { id: power-armor@epic, name: Power armor (Epic), form: solid, icon: icons/power-armor.webp }
+  - { id: power-armor@legendary, name: Power armor (Legendary), form: solid, icon: icons/power-armor.webp }
   - { id: power-armor-mk2, name: Power armor MK2, form: solid, icon: icons/power-armor-mk2.webp }
+  - { id: power-armor-mk2@uncommon, name: Power armor MK2 (Uncommon), form: solid, icon: icons/power-armor-mk2.webp }
+  - { id: power-armor-mk2@rare, name: Power armor MK2 (Rare), form: solid, icon: icons/power-armor-mk2.webp }
+  - { id: power-armor-mk2@epic, name: Power armor MK2 (Epic), form: solid, icon: icons/power-armor-mk2.webp }
+  - { id: power-armor-mk2@legendary, name: Power armor MK2 (Legendary), form: solid, icon: icons/power-armor-mk2.webp }
   - { id: power-switch, name: Power switch, form: solid, icon: icons/power-switch.webp }
+  - { id: power-switch@uncommon, name: Power switch (Uncommon), form: solid, icon: icons/power-switch.webp }
+  - { id: power-switch@rare, name: Power switch (Rare), form: solid, icon: icons/power-switch.webp }
+  - { id: power-switch@epic, name: Power switch (Epic), form: solid, icon: icons/power-switch.webp }
+  - { id: power-switch@legendary, name: Power switch (Legendary), form: solid, icon: icons/power-switch.webp }
   - { id: processing-unit, name: Processing unit, form: solid, icon: icons/processing-unit.webp }
+  - { id: processing-unit@uncommon, name: Processing unit (Uncommon), form: solid, icon: icons/processing-unit.webp }
+  - { id: processing-unit@rare, name: Processing unit (Rare), form: solid, icon: icons/processing-unit.webp }
+  - { id: processing-unit@epic, name: Processing unit (Epic), form: solid, icon: icons/processing-unit.webp }
+  - { id: processing-unit@legendary, name: Processing unit (Legendary), form: solid, icon: icons/processing-unit.webp }
   - id: production-science-pack
     name: Production science pack
     form: solid
     icon: icons/production-science-pack.webp
+  - id: production-science-pack@uncommon
+    name: Production science pack (Uncommon)
+    form: solid
+    icon: icons/production-science-pack.webp
+  - id: production-science-pack@rare
+    name: Production science pack (Rare)
+    form: solid
+    icon: icons/production-science-pack.webp
+  - id: production-science-pack@epic
+    name: Production science pack (Epic)
+    form: solid
+    icon: icons/production-science-pack.webp
+  - id: production-science-pack@legendary
+    name: Production science pack (Legendary)
+    form: solid
+    icon: icons/production-science-pack.webp
   - { id: productivity-module, name: Productivity module, form: solid, icon: icons/productivity-module.webp }
+  - id: productivity-module@uncommon
+    name: Productivity module (Uncommon)
+    form: solid
+    icon: icons/productivity-module.webp
+  - id: productivity-module@rare
+    name: Productivity module (Rare)
+    form: solid
+    icon: icons/productivity-module.webp
+  - id: productivity-module@epic
+    name: Productivity module (Epic)
+    form: solid
+    icon: icons/productivity-module.webp
+  - id: productivity-module@legendary
+    name: Productivity module (Legendary)
+    form: solid
+    icon: icons/productivity-module.webp
   - { id: productivity-module-2, name: Productivity module 2, form: solid, icon: icons/productivity-module-2.webp }
+  - id: productivity-module-2@uncommon
+    name: Productivity module 2 (Uncommon)
+    form: solid
+    icon: icons/productivity-module-2.webp
+  - id: productivity-module-2@rare
+    name: Productivity module 2 (Rare)
+    form: solid
+    icon: icons/productivity-module-2.webp
+  - id: productivity-module-2@epic
+    name: Productivity module 2 (Epic)
+    form: solid
+    icon: icons/productivity-module-2.webp
+  - id: productivity-module-2@legendary
+    name: Productivity module 2 (Legendary)
+    form: solid
+    icon: icons/productivity-module-2.webp
   - { id: productivity-module-3, name: Productivity module 3, form: solid, icon: icons/productivity-module-3.webp }
+  - id: productivity-module-3@uncommon
+    name: Productivity module 3 (Uncommon)
+    form: solid
+    icon: icons/productivity-module-3.webp
+  - id: productivity-module-3@rare
+    name: Productivity module 3 (Rare)
+    form: solid
+    icon: icons/productivity-module-3.webp
+  - id: productivity-module-3@epic
+    name: Productivity module 3 (Epic)
+    form: solid
+    icon: icons/productivity-module-3.webp
+  - id: productivity-module-3@legendary
+    name: Productivity module 3 (Legendary)
+    form: solid
+    icon: icons/productivity-module-3.webp
   - { id: programmable-speaker, name: Programmable speaker, form: solid, icon: icons/programmable-speaker.webp }
+  - id: programmable-speaker@uncommon
+    name: Programmable speaker (Uncommon)
+    form: solid
+    icon: icons/programmable-speaker.webp
+  - id: programmable-speaker@rare
+    name: Programmable speaker (Rare)
+    form: solid
+    icon: icons/programmable-speaker.webp
+  - id: programmable-speaker@epic
+    name: Programmable speaker (Epic)
+    form: solid
+    icon: icons/programmable-speaker.webp
+  - id: programmable-speaker@legendary
+    name: Programmable speaker (Legendary)
+    form: solid
+    icon: icons/programmable-speaker.webp
   - id: promethium-asteroid-chunk
     name: Promethium asteroid chunk
+    form: solid
+    icon: icons/promethium-asteroid-chunk.webp
+  - id: promethium-asteroid-chunk@uncommon
+    name: Promethium asteroid chunk (Uncommon)
+    form: solid
+    icon: icons/promethium-asteroid-chunk.webp
+  - id: promethium-asteroid-chunk@rare
+    name: Promethium asteroid chunk (Rare)
+    form: solid
+    icon: icons/promethium-asteroid-chunk.webp
+  - id: promethium-asteroid-chunk@epic
+    name: Promethium asteroid chunk (Epic)
+    form: solid
+    icon: icons/promethium-asteroid-chunk.webp
+  - id: promethium-asteroid-chunk@legendary
+    name: Promethium asteroid chunk (Legendary)
     form: solid
     icon: icons/promethium-asteroid-chunk.webp
   - id: promethium-science-pack
     name: Promethium science pack
     form: solid
     icon: icons/promethium-science-pack.webp
+  - id: promethium-science-pack@uncommon
+    name: Promethium science pack (Uncommon)
+    form: solid
+    icon: icons/promethium-science-pack.webp
+  - id: promethium-science-pack@rare
+    name: Promethium science pack (Rare)
+    form: solid
+    icon: icons/promethium-science-pack.webp
+  - id: promethium-science-pack@epic
+    name: Promethium science pack (Epic)
+    form: solid
+    icon: icons/promethium-science-pack.webp
+  - id: promethium-science-pack@legendary
+    name: Promethium science pack (Legendary)
+    form: solid
+    icon: icons/promethium-science-pack.webp
   - { id: pump, name: Pump, form: solid, icon: icons/pump.webp }
+  - { id: pump@uncommon, name: Pump (Uncommon), form: solid, icon: icons/pump.webp }
+  - { id: pump@rare, name: Pump (Rare), form: solid, icon: icons/pump.webp }
+  - { id: pump@epic, name: Pump (Epic), form: solid, icon: icons/pump.webp }
+  - { id: pump@legendary, name: Pump (Legendary), form: solid, icon: icons/pump.webp }
   - { id: pumpjack, name: Pumpjack, form: solid, icon: icons/pumpjack.webp }
+  - { id: pumpjack@uncommon, name: Pumpjack (Uncommon), form: solid, icon: icons/pumpjack.webp }
+  - { id: pumpjack@rare, name: Pumpjack (Rare), form: solid, icon: icons/pumpjack.webp }
+  - { id: pumpjack@epic, name: Pumpjack (Epic), form: solid, icon: icons/pumpjack.webp }
+  - { id: pumpjack@legendary, name: Pumpjack (Legendary), form: solid, icon: icons/pumpjack.webp }
   - { id: quality-module, name: Quality module, form: solid, icon: icons/quality-module.webp }
+  - { id: quality-module@uncommon, name: Quality module (Uncommon), form: solid, icon: icons/quality-module.webp }
+  - { id: quality-module@rare, name: Quality module (Rare), form: solid, icon: icons/quality-module.webp }
+  - { id: quality-module@epic, name: Quality module (Epic), form: solid, icon: icons/quality-module.webp }
+  - { id: quality-module@legendary, name: Quality module (Legendary), form: solid, icon: icons/quality-module.webp }
   - { id: quality-module-2, name: Quality module 2, form: solid, icon: icons/quality-module-2.webp }
+  - { id: quality-module-2@uncommon, name: Quality module 2 (Uncommon), form: solid, icon: icons/quality-module-2.webp }
+  - { id: quality-module-2@rare, name: Quality module 2 (Rare), form: solid, icon: icons/quality-module-2.webp }
+  - { id: quality-module-2@epic, name: Quality module 2 (Epic), form: solid, icon: icons/quality-module-2.webp }
+  - id: quality-module-2@legendary
+    name: Quality module 2 (Legendary)
+    form: solid
+    icon: icons/quality-module-2.webp
   - { id: quality-module-3, name: Quality module 3, form: solid, icon: icons/quality-module-3.webp }
+  - { id: quality-module-3@uncommon, name: Quality module 3 (Uncommon), form: solid, icon: icons/quality-module-3.webp }
+  - { id: quality-module-3@rare, name: Quality module 3 (Rare), form: solid, icon: icons/quality-module-3.webp }
+  - { id: quality-module-3@epic, name: Quality module 3 (Epic), form: solid, icon: icons/quality-module-3.webp }
+  - id: quality-module-3@legendary
+    name: Quality module 3 (Legendary)
+    form: solid
+    icon: icons/quality-module-3.webp
   - { id: quantum-processor, name: Quantum processor, form: solid, icon: icons/quantum-processor.webp }
+  - id: quantum-processor@uncommon
+    name: Quantum processor (Uncommon)
+    form: solid
+    icon: icons/quantum-processor.webp
+  - { id: quantum-processor@rare, name: Quantum processor (Rare), form: solid, icon: icons/quantum-processor.webp }
+  - { id: quantum-processor@epic, name: Quantum processor (Epic), form: solid, icon: icons/quantum-processor.webp }
+  - id: quantum-processor@legendary
+    name: Quantum processor (Legendary)
+    form: solid
+    icon: icons/quantum-processor.webp
   - { id: radar, name: Radar, form: solid, icon: icons/radar.webp }
+  - { id: radar@uncommon, name: Radar (Uncommon), form: solid, icon: icons/radar.webp }
+  - { id: radar@rare, name: Radar (Rare), form: solid, icon: icons/radar.webp }
+  - { id: radar@epic, name: Radar (Epic), form: solid, icon: icons/radar.webp }
+  - { id: radar@legendary, name: Radar (Legendary), form: solid, icon: icons/radar.webp }
   - { id: rail, name: Rail, form: solid, icon: icons/rail.webp }
+  - { id: rail@uncommon, name: Rail (Uncommon), form: solid, icon: icons/rail.webp }
+  - { id: rail@rare, name: Rail (Rare), form: solid, icon: icons/rail.webp }
+  - { id: rail@epic, name: Rail (Epic), form: solid, icon: icons/rail.webp }
+  - { id: rail@legendary, name: Rail (Legendary), form: solid, icon: icons/rail.webp }
   - { id: rail-chain-signal, name: Rail chain signal, form: solid, icon: icons/rail-chain-signal.webp }
+  - id: rail-chain-signal@uncommon
+    name: Rail chain signal (Uncommon)
+    form: solid
+    icon: icons/rail-chain-signal.webp
+  - { id: rail-chain-signal@rare, name: Rail chain signal (Rare), form: solid, icon: icons/rail-chain-signal.webp }
+  - { id: rail-chain-signal@epic, name: Rail chain signal (Epic), form: solid, icon: icons/rail-chain-signal.webp }
+  - id: rail-chain-signal@legendary
+    name: Rail chain signal (Legendary)
+    form: solid
+    icon: icons/rail-chain-signal.webp
   - { id: rail-ramp, name: Rail ramp, form: solid, icon: icons/rail-ramp.webp }
+  - { id: rail-ramp@uncommon, name: Rail ramp (Uncommon), form: solid, icon: icons/rail-ramp.webp }
+  - { id: rail-ramp@rare, name: Rail ramp (Rare), form: solid, icon: icons/rail-ramp.webp }
+  - { id: rail-ramp@epic, name: Rail ramp (Epic), form: solid, icon: icons/rail-ramp.webp }
+  - { id: rail-ramp@legendary, name: Rail ramp (Legendary), form: solid, icon: icons/rail-ramp.webp }
   - { id: rail-signal, name: Rail signal, form: solid, icon: icons/rail-signal.webp }
+  - { id: rail-signal@uncommon, name: Rail signal (Uncommon), form: solid, icon: icons/rail-signal.webp }
+  - { id: rail-signal@rare, name: Rail signal (Rare), form: solid, icon: icons/rail-signal.webp }
+  - { id: rail-signal@epic, name: Rail signal (Epic), form: solid, icon: icons/rail-signal.webp }
+  - { id: rail-signal@legendary, name: Rail signal (Legendary), form: solid, icon: icons/rail-signal.webp }
   - { id: rail-support, name: Rail support, form: solid, icon: icons/rail-support.webp }
+  - { id: rail-support@uncommon, name: Rail support (Uncommon), form: solid, icon: icons/rail-support.webp }
+  - { id: rail-support@rare, name: Rail support (Rare), form: solid, icon: icons/rail-support.webp }
+  - { id: rail-support@epic, name: Rail support (Epic), form: solid, icon: icons/rail-support.webp }
+  - { id: rail-support@legendary, name: Rail support (Legendary), form: solid, icon: icons/rail-support.webp }
   - { id: railgun, name: Railgun, form: solid, icon: icons/railgun.webp }
+  - { id: railgun@uncommon, name: Railgun (Uncommon), form: solid, icon: icons/railgun.webp }
+  - { id: railgun@rare, name: Railgun (Rare), form: solid, icon: icons/railgun.webp }
+  - { id: railgun@epic, name: Railgun (Epic), form: solid, icon: icons/railgun.webp }
+  - { id: railgun@legendary, name: Railgun (Legendary), form: solid, icon: icons/railgun.webp }
   - { id: railgun-ammo, name: Railgun ammo, form: solid, icon: icons/railgun-ammo.webp }
+  - { id: railgun-ammo@uncommon, name: Railgun ammo (Uncommon), form: solid, icon: icons/railgun-ammo.webp }
+  - { id: railgun-ammo@rare, name: Railgun ammo (Rare), form: solid, icon: icons/railgun-ammo.webp }
+  - { id: railgun-ammo@epic, name: Railgun ammo (Epic), form: solid, icon: icons/railgun-ammo.webp }
+  - { id: railgun-ammo@legendary, name: Railgun ammo (Legendary), form: solid, icon: icons/railgun-ammo.webp }
   - { id: railgun-turret, name: Railgun turret, form: solid, icon: icons/railgun-turret.webp }
+  - { id: railgun-turret@uncommon, name: Railgun turret (Uncommon), form: solid, icon: icons/railgun-turret.webp }
+  - { id: railgun-turret@rare, name: Railgun turret (Rare), form: solid, icon: icons/railgun-turret.webp }
+  - { id: railgun-turret@epic, name: Railgun turret (Epic), form: solid, icon: icons/railgun-turret.webp }
+  - { id: railgun-turret@legendary, name: Railgun turret (Legendary), form: solid, icon: icons/railgun-turret.webp }
   - { id: raw-fish, name: Raw fish, form: solid, icon: icons/raw-fish.webp }
+  - { id: raw-fish@uncommon, name: Raw fish (Uncommon), form: solid, icon: icons/raw-fish.webp }
+  - { id: raw-fish@rare, name: Raw fish (Rare), form: solid, icon: icons/raw-fish.webp }
+  - { id: raw-fish@epic, name: Raw fish (Epic), form: solid, icon: icons/raw-fish.webp }
+  - { id: raw-fish@legendary, name: Raw fish (Legendary), form: solid, icon: icons/raw-fish.webp }
   - { id: recycler, name: Recycler, form: solid, icon: icons/recycler.webp }
+  - { id: recycler@uncommon, name: Recycler (Uncommon), form: solid, icon: icons/recycler.webp }
+  - { id: recycler@rare, name: Recycler (Rare), form: solid, icon: icons/recycler.webp }
+  - { id: recycler@epic, name: Recycler (Epic), form: solid, icon: icons/recycler.webp }
+  - { id: recycler@legendary, name: Recycler (Legendary), form: solid, icon: icons/recycler.webp }
   - { id: refined-concrete, name: Refined concrete, form: solid, icon: icons/refined-concrete.webp }
+  - { id: refined-concrete@uncommon, name: Refined concrete (Uncommon), form: solid, icon: icons/refined-concrete.webp }
+  - { id: refined-concrete@rare, name: Refined concrete (Rare), form: solid, icon: icons/refined-concrete.webp }
+  - { id: refined-concrete@epic, name: Refined concrete (Epic), form: solid, icon: icons/refined-concrete.webp }
+  - id: refined-concrete@legendary
+    name: Refined concrete (Legendary)
+    form: solid
+    icon: icons/refined-concrete.webp
   - id: refined-hazard-concrete
     name: Refined hazard concrete
     form: solid
     icon: icons/refined-hazard-concrete.webp
+  - id: refined-hazard-concrete@uncommon
+    name: Refined hazard concrete (Uncommon)
+    form: solid
+    icon: icons/refined-hazard-concrete.webp
+  - id: refined-hazard-concrete@rare
+    name: Refined hazard concrete (Rare)
+    form: solid
+    icon: icons/refined-hazard-concrete.webp
+  - id: refined-hazard-concrete@epic
+    name: Refined hazard concrete (Epic)
+    form: solid
+    icon: icons/refined-hazard-concrete.webp
+  - id: refined-hazard-concrete@legendary
+    name: Refined hazard concrete (Legendary)
+    form: solid
+    icon: icons/refined-hazard-concrete.webp
   - { id: repair-pack, name: Repair pack, form: solid, icon: icons/repair-pack.webp }
+  - { id: repair-pack@uncommon, name: Repair pack (Uncommon), form: solid, icon: icons/repair-pack.webp }
+  - { id: repair-pack@rare, name: Repair pack (Rare), form: solid, icon: icons/repair-pack.webp }
+  - { id: repair-pack@epic, name: Repair pack (Epic), form: solid, icon: icons/repair-pack.webp }
+  - { id: repair-pack@legendary, name: Repair pack (Legendary), form: solid, icon: icons/repair-pack.webp }
   - { id: requester-chest, name: Requester chest, form: solid, icon: icons/requester-chest.webp }
+  - { id: requester-chest@uncommon, name: Requester chest (Uncommon), form: solid, icon: icons/requester-chest.webp }
+  - { id: requester-chest@rare, name: Requester chest (Rare), form: solid, icon: icons/requester-chest.webp }
+  - { id: requester-chest@epic, name: Requester chest (Epic), form: solid, icon: icons/requester-chest.webp }
+  - { id: requester-chest@legendary, name: Requester chest (Legendary), form: solid, icon: icons/requester-chest.webp }
   - { id: roboport, name: Roboport, form: solid, icon: icons/roboport.webp }
+  - { id: roboport@uncommon, name: Roboport (Uncommon), form: solid, icon: icons/roboport.webp }
+  - { id: roboport@rare, name: Roboport (Rare), form: solid, icon: icons/roboport.webp }
+  - { id: roboport@epic, name: Roboport (Epic), form: solid, icon: icons/roboport.webp }
+  - { id: roboport@legendary, name: Roboport (Legendary), form: solid, icon: icons/roboport.webp }
   - { id: rocket, name: Rocket, form: solid, icon: icons/rocket.webp }
+  - { id: rocket@uncommon, name: Rocket (Uncommon), form: solid, icon: icons/rocket.webp }
+  - { id: rocket@rare, name: Rocket (Rare), form: solid, icon: icons/rocket.webp }
+  - { id: rocket@epic, name: Rocket (Epic), form: solid, icon: icons/rocket.webp }
+  - { id: rocket@legendary, name: Rocket (Legendary), form: solid, icon: icons/rocket.webp }
   - { id: rocket-fuel, name: Rocket fuel, form: solid, icon: icons/rocket-fuel.webp }
+  - { id: rocket-fuel@uncommon, name: Rocket fuel (Uncommon), form: solid, icon: icons/rocket-fuel.webp }
+  - { id: rocket-fuel@rare, name: Rocket fuel (Rare), form: solid, icon: icons/rocket-fuel.webp }
+  - { id: rocket-fuel@epic, name: Rocket fuel (Epic), form: solid, icon: icons/rocket-fuel.webp }
+  - { id: rocket-fuel@legendary, name: Rocket fuel (Legendary), form: solid, icon: icons/rocket-fuel.webp }
   - { id: rocket-launcher, name: Rocket launcher, form: solid, icon: icons/rocket-launcher.webp }
+  - { id: rocket-launcher@uncommon, name: Rocket launcher (Uncommon), form: solid, icon: icons/rocket-launcher.webp }
+  - { id: rocket-launcher@rare, name: Rocket launcher (Rare), form: solid, icon: icons/rocket-launcher.webp }
+  - { id: rocket-launcher@epic, name: Rocket launcher (Epic), form: solid, icon: icons/rocket-launcher.webp }
+  - { id: rocket-launcher@legendary, name: Rocket launcher (Legendary), form: solid, icon: icons/rocket-launcher.webp }
   - { id: rocket-part, name: Rocket part, form: solid, icon: icons/rocket-part.webp }
+  - { id: rocket-part@uncommon, name: Rocket part (Uncommon), form: solid, icon: icons/rocket-part.webp }
+  - { id: rocket-part@rare, name: Rocket part (Rare), form: solid, icon: icons/rocket-part.webp }
+  - { id: rocket-part@epic, name: Rocket part (Epic), form: solid, icon: icons/rocket-part.webp }
+  - { id: rocket-part@legendary, name: Rocket part (Legendary), form: solid, icon: icons/rocket-part.webp }
   - { id: rocket-silo, name: Rocket silo, form: solid, icon: icons/rocket-silo.webp }
+  - { id: rocket-silo@uncommon, name: Rocket silo (Uncommon), form: solid, icon: icons/rocket-silo.webp }
+  - { id: rocket-silo@rare, name: Rocket silo (Rare), form: solid, icon: icons/rocket-silo.webp }
+  - { id: rocket-silo@epic, name: Rocket silo (Epic), form: solid, icon: icons/rocket-silo.webp }
+  - { id: rocket-silo@legendary, name: Rocket silo (Legendary), form: solid, icon: icons/rocket-silo.webp }
   - { id: rocket-turret, name: Rocket turret, form: solid, icon: icons/rocket-turret.webp }
+  - { id: rocket-turret@uncommon, name: Rocket turret (Uncommon), form: solid, icon: icons/rocket-turret.webp }
+  - { id: rocket-turret@rare, name: Rocket turret (Rare), form: solid, icon: icons/rocket-turret.webp }
+  - { id: rocket-turret@epic, name: Rocket turret (Epic), form: solid, icon: icons/rocket-turret.webp }
+  - { id: rocket-turret@legendary, name: Rocket turret (Legendary), form: solid, icon: icons/rocket-turret.webp }
   - { id: scrap, name: Scrap, form: solid, icon: icons/scrap.webp }
+  - { id: scrap@uncommon, name: Scrap (Uncommon), form: solid, icon: icons/scrap.webp }
+  - { id: scrap@rare, name: Scrap (Rare), form: solid, icon: icons/scrap.webp }
+  - { id: scrap@epic, name: Scrap (Epic), form: solid, icon: icons/scrap.webp }
+  - { id: scrap@legendary, name: Scrap (Legendary), form: solid, icon: icons/scrap.webp }
   - { id: selector-combinator, name: Selector combinator, form: solid, icon: icons/selector-combinator.webp }
+  - id: selector-combinator@uncommon
+    name: Selector combinator (Uncommon)
+    form: solid
+    icon: icons/selector-combinator.webp
+  - id: selector-combinator@rare
+    name: Selector combinator (Rare)
+    form: solid
+    icon: icons/selector-combinator.webp
+  - id: selector-combinator@epic
+    name: Selector combinator (Epic)
+    form: solid
+    icon: icons/selector-combinator.webp
+  - id: selector-combinator@legendary
+    name: Selector combinator (Legendary)
+    form: solid
+    icon: icons/selector-combinator.webp
   - { id: shotgun, name: Shotgun, form: solid, icon: icons/shotgun.webp }
+  - { id: shotgun@uncommon, name: Shotgun (Uncommon), form: solid, icon: icons/shotgun.webp }
+  - { id: shotgun@rare, name: Shotgun (Rare), form: solid, icon: icons/shotgun.webp }
+  - { id: shotgun@epic, name: Shotgun (Epic), form: solid, icon: icons/shotgun.webp }
+  - { id: shotgun@legendary, name: Shotgun (Legendary), form: solid, icon: icons/shotgun.webp }
   - { id: shotgun-shell, name: Shotgun shells, form: solid, icon: icons/shotgun-shell.webp }
+  - { id: shotgun-shell@uncommon, name: Shotgun shells (Uncommon), form: solid, icon: icons/shotgun-shell.webp }
+  - { id: shotgun-shell@rare, name: Shotgun shells (Rare), form: solid, icon: icons/shotgun-shell.webp }
+  - { id: shotgun-shell@epic, name: Shotgun shells (Epic), form: solid, icon: icons/shotgun-shell.webp }
+  - { id: shotgun-shell@legendary, name: Shotgun shells (Legendary), form: solid, icon: icons/shotgun-shell.webp }
   - { id: slowdown-capsule, name: Slowdown capsule, form: solid, icon: icons/slowdown-capsule.webp }
+  - { id: slowdown-capsule@uncommon, name: Slowdown capsule (Uncommon), form: solid, icon: icons/slowdown-capsule.webp }
+  - { id: slowdown-capsule@rare, name: Slowdown capsule (Rare), form: solid, icon: icons/slowdown-capsule.webp }
+  - { id: slowdown-capsule@epic, name: Slowdown capsule (Epic), form: solid, icon: icons/slowdown-capsule.webp }
+  - id: slowdown-capsule@legendary
+    name: Slowdown capsule (Legendary)
+    form: solid
+    icon: icons/slowdown-capsule.webp
   - { id: small-electric-pole, name: Small electric pole, form: solid, icon: icons/small-electric-pole.webp }
+  - id: small-electric-pole@uncommon
+    name: Small electric pole (Uncommon)
+    form: solid
+    icon: icons/small-electric-pole.webp
+  - id: small-electric-pole@rare
+    name: Small electric pole (Rare)
+    form: solid
+    icon: icons/small-electric-pole.webp
+  - id: small-electric-pole@epic
+    name: Small electric pole (Epic)
+    form: solid
+    icon: icons/small-electric-pole.webp
+  - id: small-electric-pole@legendary
+    name: Small electric pole (Legendary)
+    form: solid
+    icon: icons/small-electric-pole.webp
   - { id: small-lamp, name: Lamp, form: solid, icon: icons/small-lamp.webp }
+  - { id: small-lamp@uncommon, name: Lamp (Uncommon), form: solid, icon: icons/small-lamp.webp }
+  - { id: small-lamp@rare, name: Lamp (Rare), form: solid, icon: icons/small-lamp.webp }
+  - { id: small-lamp@epic, name: Lamp (Epic), form: solid, icon: icons/small-lamp.webp }
+  - { id: small-lamp@legendary, name: Lamp (Legendary), form: solid, icon: icons/small-lamp.webp }
   - { id: solar-panel, name: Solar panel, form: solid, icon: icons/solar-panel.webp }
+  - { id: solar-panel@uncommon, name: Solar panel (Uncommon), form: solid, icon: icons/solar-panel.webp }
+  - { id: solar-panel@rare, name: Solar panel (Rare), form: solid, icon: icons/solar-panel.webp }
+  - { id: solar-panel@epic, name: Solar panel (Epic), form: solid, icon: icons/solar-panel.webp }
+  - { id: solar-panel@legendary, name: Solar panel (Legendary), form: solid, icon: icons/solar-panel.webp }
   - { id: solar-panel-equipment, name: Portable solar panel, form: solid, icon: icons/solar-panel-equipment.webp }
+  - id: solar-panel-equipment@uncommon
+    name: Portable solar panel (Uncommon)
+    form: solid
+    icon: icons/solar-panel-equipment.webp
+  - id: solar-panel-equipment@rare
+    name: Portable solar panel (Rare)
+    form: solid
+    icon: icons/solar-panel-equipment.webp
+  - id: solar-panel-equipment@epic
+    name: Portable solar panel (Epic)
+    form: solid
+    icon: icons/solar-panel-equipment.webp
+  - id: solar-panel-equipment@legendary
+    name: Portable solar panel (Legendary)
+    form: solid
+    icon: icons/solar-panel-equipment.webp
   - { id: solid-fuel, name: Solid fuel, form: solid, icon: icons/solid-fuel.webp }
+  - { id: solid-fuel@uncommon, name: Solid fuel (Uncommon), form: solid, icon: icons/solid-fuel.webp }
+  - { id: solid-fuel@rare, name: Solid fuel (Rare), form: solid, icon: icons/solid-fuel.webp }
+  - { id: solid-fuel@epic, name: Solid fuel (Epic), form: solid, icon: icons/solid-fuel.webp }
+  - { id: solid-fuel@legendary, name: Solid fuel (Legendary), form: solid, icon: icons/solid-fuel.webp }
   - id: space-platform-foundation
     name: Space platform foundation
+    form: solid
+    icon: icons/space-platform-foundation.webp
+  - id: space-platform-foundation@uncommon
+    name: Space platform foundation (Uncommon)
+    form: solid
+    icon: icons/space-platform-foundation.webp
+  - id: space-platform-foundation@rare
+    name: Space platform foundation (Rare)
+    form: solid
+    icon: icons/space-platform-foundation.webp
+  - id: space-platform-foundation@epic
+    name: Space platform foundation (Epic)
+    form: solid
+    icon: icons/space-platform-foundation.webp
+  - id: space-platform-foundation@legendary
+    name: Space platform foundation (Legendary)
     form: solid
     icon: icons/space-platform-foundation.webp
   - id: space-platform-starter-pack
     name: Space platform starter pack
     form: solid
     icon: icons/space-platform-starter-pack.webp
+  - id: space-platform-starter-pack@uncommon
+    name: Space platform starter pack (Uncommon)
+    form: solid
+    icon: icons/space-platform-starter-pack.webp
+  - id: space-platform-starter-pack@rare
+    name: Space platform starter pack (Rare)
+    form: solid
+    icon: icons/space-platform-starter-pack.webp
+  - id: space-platform-starter-pack@epic
+    name: Space platform starter pack (Epic)
+    form: solid
+    icon: icons/space-platform-starter-pack.webp
+  - id: space-platform-starter-pack@legendary
+    name: Space platform starter pack (Legendary)
+    form: solid
+    icon: icons/space-platform-starter-pack.webp
   - { id: space-science-pack, name: Space science pack, form: solid, icon: icons/space-science-pack.webp }
+  - id: space-science-pack@uncommon
+    name: Space science pack (Uncommon)
+    form: solid
+    icon: icons/space-science-pack.webp
+  - { id: space-science-pack@rare, name: Space science pack (Rare), form: solid, icon: icons/space-science-pack.webp }
+  - { id: space-science-pack@epic, name: Space science pack (Epic), form: solid, icon: icons/space-science-pack.webp }
+  - id: space-science-pack@legendary
+    name: Space science pack (Legendary)
+    form: solid
+    icon: icons/space-science-pack.webp
   - { id: speed-module, name: Speed module, form: solid, icon: icons/speed-module.webp }
+  - { id: speed-module@uncommon, name: Speed module (Uncommon), form: solid, icon: icons/speed-module.webp }
+  - { id: speed-module@rare, name: Speed module (Rare), form: solid, icon: icons/speed-module.webp }
+  - { id: speed-module@epic, name: Speed module (Epic), form: solid, icon: icons/speed-module.webp }
+  - { id: speed-module@legendary, name: Speed module (Legendary), form: solid, icon: icons/speed-module.webp }
   - { id: speed-module-2, name: Speed module 2, form: solid, icon: icons/speed-module-2.webp }
+  - { id: speed-module-2@uncommon, name: Speed module 2 (Uncommon), form: solid, icon: icons/speed-module-2.webp }
+  - { id: speed-module-2@rare, name: Speed module 2 (Rare), form: solid, icon: icons/speed-module-2.webp }
+  - { id: speed-module-2@epic, name: Speed module 2 (Epic), form: solid, icon: icons/speed-module-2.webp }
+  - { id: speed-module-2@legendary, name: Speed module 2 (Legendary), form: solid, icon: icons/speed-module-2.webp }
   - { id: speed-module-3, name: Speed module 3, form: solid, icon: icons/speed-module-3.webp }
+  - { id: speed-module-3@uncommon, name: Speed module 3 (Uncommon), form: solid, icon: icons/speed-module-3.webp }
+  - { id: speed-module-3@rare, name: Speed module 3 (Rare), form: solid, icon: icons/speed-module-3.webp }
+  - { id: speed-module-3@epic, name: Speed module 3 (Epic), form: solid, icon: icons/speed-module-3.webp }
+  - { id: speed-module-3@legendary, name: Speed module 3 (Legendary), form: solid, icon: icons/speed-module-3.webp }
   - { id: spidertron, name: Spidertron, form: solid, icon: icons/spidertron.webp }
+  - { id: spidertron@uncommon, name: Spidertron (Uncommon), form: solid, icon: icons/spidertron.webp }
+  - { id: spidertron@rare, name: Spidertron (Rare), form: solid, icon: icons/spidertron.webp }
+  - { id: spidertron@epic, name: Spidertron (Epic), form: solid, icon: icons/spidertron.webp }
+  - { id: spidertron@legendary, name: Spidertron (Legendary), form: solid, icon: icons/spidertron.webp }
   - { id: splitter, name: Splitter, form: solid, icon: icons/splitter.webp }
+  - { id: splitter@uncommon, name: Splitter (Uncommon), form: solid, icon: icons/splitter.webp }
+  - { id: splitter@rare, name: Splitter (Rare), form: solid, icon: icons/splitter.webp }
+  - { id: splitter@epic, name: Splitter (Epic), form: solid, icon: icons/splitter.webp }
+  - { id: splitter@legendary, name: Splitter (Legendary), form: solid, icon: icons/splitter.webp }
   - { id: spoilage, name: Spoilage, form: solid, icon: icons/spoilage.webp }
+  - { id: spoilage@uncommon, name: Spoilage (Uncommon), form: solid, icon: icons/spoilage.webp }
+  - { id: spoilage@rare, name: Spoilage (Rare), form: solid, icon: icons/spoilage.webp }
+  - { id: spoilage@epic, name: Spoilage (Epic), form: solid, icon: icons/spoilage.webp }
+  - { id: spoilage@legendary, name: Spoilage (Legendary), form: solid, icon: icons/spoilage.webp }
   - { id: stack-inserter, name: Stack inserter, form: solid, icon: icons/stack-inserter.webp }
+  - { id: stack-inserter@uncommon, name: Stack inserter (Uncommon), form: solid, icon: icons/stack-inserter.webp }
+  - { id: stack-inserter@rare, name: Stack inserter (Rare), form: solid, icon: icons/stack-inserter.webp }
+  - { id: stack-inserter@epic, name: Stack inserter (Epic), form: solid, icon: icons/stack-inserter.webp }
+  - { id: stack-inserter@legendary, name: Stack inserter (Legendary), form: solid, icon: icons/stack-inserter.webp }
   - { id: steam, name: Steam, form: fluid, icon: icons/steam.webp }
   - { id: steam-engine, name: Steam engine, form: solid, icon: icons/steam-engine.webp }
+  - { id: steam-engine@uncommon, name: Steam engine (Uncommon), form: solid, icon: icons/steam-engine.webp }
+  - { id: steam-engine@rare, name: Steam engine (Rare), form: solid, icon: icons/steam-engine.webp }
+  - { id: steam-engine@epic, name: Steam engine (Epic), form: solid, icon: icons/steam-engine.webp }
+  - { id: steam-engine@legendary, name: Steam engine (Legendary), form: solid, icon: icons/steam-engine.webp }
   - { id: steam-turbine, name: Steam turbine, form: solid, icon: icons/steam-turbine.webp }
+  - { id: steam-turbine@uncommon, name: Steam turbine (Uncommon), form: solid, icon: icons/steam-turbine.webp }
+  - { id: steam-turbine@rare, name: Steam turbine (Rare), form: solid, icon: icons/steam-turbine.webp }
+  - { id: steam-turbine@epic, name: Steam turbine (Epic), form: solid, icon: icons/steam-turbine.webp }
+  - { id: steam-turbine@legendary, name: Steam turbine (Legendary), form: solid, icon: icons/steam-turbine.webp }
   - { id: steel-chest, name: Steel chest, form: solid, icon: icons/steel-chest.webp }
+  - { id: steel-chest@uncommon, name: Steel chest (Uncommon), form: solid, icon: icons/steel-chest.webp }
+  - { id: steel-chest@rare, name: Steel chest (Rare), form: solid, icon: icons/steel-chest.webp }
+  - { id: steel-chest@epic, name: Steel chest (Epic), form: solid, icon: icons/steel-chest.webp }
+  - { id: steel-chest@legendary, name: Steel chest (Legendary), form: solid, icon: icons/steel-chest.webp }
   - { id: steel-furnace, name: Steel furnace, form: solid, icon: icons/steel-furnace.webp }
+  - { id: steel-furnace@uncommon, name: Steel furnace (Uncommon), form: solid, icon: icons/steel-furnace.webp }
+  - { id: steel-furnace@rare, name: Steel furnace (Rare), form: solid, icon: icons/steel-furnace.webp }
+  - { id: steel-furnace@epic, name: Steel furnace (Epic), form: solid, icon: icons/steel-furnace.webp }
+  - { id: steel-furnace@legendary, name: Steel furnace (Legendary), form: solid, icon: icons/steel-furnace.webp }
   - { id: steel-plate, name: Steel plate, form: solid, icon: icons/steel-plate.webp }
+  - { id: steel-plate@uncommon, name: Steel plate (Uncommon), form: solid, icon: icons/steel-plate.webp }
+  - { id: steel-plate@rare, name: Steel plate (Rare), form: solid, icon: icons/steel-plate.webp }
+  - { id: steel-plate@epic, name: Steel plate (Epic), form: solid, icon: icons/steel-plate.webp }
+  - { id: steel-plate@legendary, name: Steel plate (Legendary), form: solid, icon: icons/steel-plate.webp }
   - { id: stone, name: Stone, form: solid, icon: icons/stone.webp }
+  - { id: stone@uncommon, name: Stone (Uncommon), form: solid, icon: icons/stone.webp }
+  - { id: stone@rare, name: Stone (Rare), form: solid, icon: icons/stone.webp }
+  - { id: stone@epic, name: Stone (Epic), form: solid, icon: icons/stone.webp }
+  - { id: stone@legendary, name: Stone (Legendary), form: solid, icon: icons/stone.webp }
   - { id: stone-brick, name: Stone brick, form: solid, icon: icons/stone-brick.webp }
+  - { id: stone-brick@uncommon, name: Stone brick (Uncommon), form: solid, icon: icons/stone-brick.webp }
+  - { id: stone-brick@rare, name: Stone brick (Rare), form: solid, icon: icons/stone-brick.webp }
+  - { id: stone-brick@epic, name: Stone brick (Epic), form: solid, icon: icons/stone-brick.webp }
+  - { id: stone-brick@legendary, name: Stone brick (Legendary), form: solid, icon: icons/stone-brick.webp }
   - { id: stone-furnace, name: Stone furnace, form: solid, icon: icons/stone-furnace.webp }
+  - { id: stone-furnace@uncommon, name: Stone furnace (Uncommon), form: solid, icon: icons/stone-furnace.webp }
+  - { id: stone-furnace@rare, name: Stone furnace (Rare), form: solid, icon: icons/stone-furnace.webp }
+  - { id: stone-furnace@epic, name: Stone furnace (Epic), form: solid, icon: icons/stone-furnace.webp }
+  - { id: stone-furnace@legendary, name: Stone furnace (Legendary), form: solid, icon: icons/stone-furnace.webp }
   - { id: stone-wall, name: Wall, form: solid, icon: icons/stone-wall.webp }
+  - { id: stone-wall@uncommon, name: Wall (Uncommon), form: solid, icon: icons/stone-wall.webp }
+  - { id: stone-wall@rare, name: Wall (Rare), form: solid, icon: icons/stone-wall.webp }
+  - { id: stone-wall@epic, name: Wall (Epic), form: solid, icon: icons/stone-wall.webp }
+  - { id: stone-wall@legendary, name: Wall (Legendary), form: solid, icon: icons/stone-wall.webp }
   - { id: storage-chest, name: Storage chest, form: solid, icon: icons/storage-chest.webp }
+  - { id: storage-chest@uncommon, name: Storage chest (Uncommon), form: solid, icon: icons/storage-chest.webp }
+  - { id: storage-chest@rare, name: Storage chest (Rare), form: solid, icon: icons/storage-chest.webp }
+  - { id: storage-chest@epic, name: Storage chest (Epic), form: solid, icon: icons/storage-chest.webp }
+  - { id: storage-chest@legendary, name: Storage chest (Legendary), form: solid, icon: icons/storage-chest.webp }
   - { id: storage-tank, name: Storage tank, form: solid, icon: icons/storage-tank.webp }
+  - { id: storage-tank@uncommon, name: Storage tank (Uncommon), form: solid, icon: icons/storage-tank.webp }
+  - { id: storage-tank@rare, name: Storage tank (Rare), form: solid, icon: icons/storage-tank.webp }
+  - { id: storage-tank@epic, name: Storage tank (Epic), form: solid, icon: icons/storage-tank.webp }
+  - { id: storage-tank@legendary, name: Storage tank (Legendary), form: solid, icon: icons/storage-tank.webp }
   - { id: submachine-gun, name: Submachine gun, form: solid, icon: icons/submachine-gun.webp }
+  - { id: submachine-gun@uncommon, name: Submachine gun (Uncommon), form: solid, icon: icons/submachine-gun.webp }
+  - { id: submachine-gun@rare, name: Submachine gun (Rare), form: solid, icon: icons/submachine-gun.webp }
+  - { id: submachine-gun@epic, name: Submachine gun (Epic), form: solid, icon: icons/submachine-gun.webp }
+  - { id: submachine-gun@legendary, name: Submachine gun (Legendary), form: solid, icon: icons/submachine-gun.webp }
   - { id: substation, name: Substation, form: solid, icon: icons/substation.webp }
+  - { id: substation@uncommon, name: Substation (Uncommon), form: solid, icon: icons/substation.webp }
+  - { id: substation@rare, name: Substation (Rare), form: solid, icon: icons/substation.webp }
+  - { id: substation@epic, name: Substation (Epic), form: solid, icon: icons/substation.webp }
+  - { id: substation@legendary, name: Substation (Legendary), form: solid, icon: icons/substation.webp }
   - { id: sulfur, name: Sulfur, form: solid, icon: icons/sulfur.webp }
+  - { id: sulfur@uncommon, name: Sulfur (Uncommon), form: solid, icon: icons/sulfur.webp }
+  - { id: sulfur@rare, name: Sulfur (Rare), form: solid, icon: icons/sulfur.webp }
+  - { id: sulfur@epic, name: Sulfur (Epic), form: solid, icon: icons/sulfur.webp }
+  - { id: sulfur@legendary, name: Sulfur (Legendary), form: solid, icon: icons/sulfur.webp }
   - { id: sulfuric-acid, name: Sulfuric acid, form: fluid, icon: icons/sulfuric-acid.webp }
   - { id: sulfuric-acid-barrel, name: Sulfuric acid barrel, form: solid, icon: icons/sulfuric-acid-barrel.webp }
+  - id: sulfuric-acid-barrel@uncommon
+    name: Sulfuric acid barrel (Uncommon)
+    form: solid
+    icon: icons/sulfuric-acid-barrel.webp
+  - id: sulfuric-acid-barrel@rare
+    name: Sulfuric acid barrel (Rare)
+    form: solid
+    icon: icons/sulfuric-acid-barrel.webp
+  - id: sulfuric-acid-barrel@epic
+    name: Sulfuric acid barrel (Epic)
+    form: solid
+    icon: icons/sulfuric-acid-barrel.webp
+  - id: sulfuric-acid-barrel@legendary
+    name: Sulfuric acid barrel (Legendary)
+    form: solid
+    icon: icons/sulfuric-acid-barrel.webp
   - { id: supercapacitor, name: Supercapacitor, form: solid, icon: icons/supercapacitor.webp }
+  - { id: supercapacitor@uncommon, name: Supercapacitor (Uncommon), form: solid, icon: icons/supercapacitor.webp }
+  - { id: supercapacitor@rare, name: Supercapacitor (Rare), form: solid, icon: icons/supercapacitor.webp }
+  - { id: supercapacitor@epic, name: Supercapacitor (Epic), form: solid, icon: icons/supercapacitor.webp }
+  - { id: supercapacitor@legendary, name: Supercapacitor (Legendary), form: solid, icon: icons/supercapacitor.webp }
   - { id: superconductor, name: Superconductor, form: solid, icon: icons/superconductor.webp }
+  - { id: superconductor@uncommon, name: Superconductor (Uncommon), form: solid, icon: icons/superconductor.webp }
+  - { id: superconductor@rare, name: Superconductor (Rare), form: solid, icon: icons/superconductor.webp }
+  - { id: superconductor@epic, name: Superconductor (Epic), form: solid, icon: icons/superconductor.webp }
+  - { id: superconductor@legendary, name: Superconductor (Legendary), form: solid, icon: icons/superconductor.webp }
   - { id: tank, name: Tank, form: solid, icon: icons/tank.webp }
+  - { id: tank@uncommon, name: Tank (Uncommon), form: solid, icon: icons/tank.webp }
+  - { id: tank@rare, name: Tank (Rare), form: solid, icon: icons/tank.webp }
+  - { id: tank@epic, name: Tank (Epic), form: solid, icon: icons/tank.webp }
+  - { id: tank@legendary, name: Tank (Legendary), form: solid, icon: icons/tank.webp }
   - { id: tesla-ammo, name: Tesla ammo, form: solid, icon: icons/tesla-ammo.webp }
+  - { id: tesla-ammo@uncommon, name: Tesla ammo (Uncommon), form: solid, icon: icons/tesla-ammo.webp }
+  - { id: tesla-ammo@rare, name: Tesla ammo (Rare), form: solid, icon: icons/tesla-ammo.webp }
+  - { id: tesla-ammo@epic, name: Tesla ammo (Epic), form: solid, icon: icons/tesla-ammo.webp }
+  - { id: tesla-ammo@legendary, name: Tesla ammo (Legendary), form: solid, icon: icons/tesla-ammo.webp }
   - { id: tesla-turret, name: Tesla turret, form: solid, icon: icons/tesla-turret.webp }
+  - { id: tesla-turret@uncommon, name: Tesla turret (Uncommon), form: solid, icon: icons/tesla-turret.webp }
+  - { id: tesla-turret@rare, name: Tesla turret (Rare), form: solid, icon: icons/tesla-turret.webp }
+  - { id: tesla-turret@epic, name: Tesla turret (Epic), form: solid, icon: icons/tesla-turret.webp }
+  - { id: tesla-turret@legendary, name: Tesla turret (Legendary), form: solid, icon: icons/tesla-turret.webp }
   - { id: teslagun, name: Tesla gun, form: solid, icon: icons/teslagun.webp }
+  - { id: teslagun@uncommon, name: Tesla gun (Uncommon), form: solid, icon: icons/teslagun.webp }
+  - { id: teslagun@rare, name: Tesla gun (Rare), form: solid, icon: icons/teslagun.webp }
+  - { id: teslagun@epic, name: Tesla gun (Epic), form: solid, icon: icons/teslagun.webp }
+  - { id: teslagun@legendary, name: Tesla gun (Legendary), form: solid, icon: icons/teslagun.webp }
   - { id: thruster, name: Thruster, form: solid, icon: icons/thruster.webp }
+  - { id: thruster@uncommon, name: Thruster (Uncommon), form: solid, icon: icons/thruster.webp }
+  - { id: thruster@rare, name: Thruster (Rare), form: solid, icon: icons/thruster.webp }
+  - { id: thruster@epic, name: Thruster (Epic), form: solid, icon: icons/thruster.webp }
+  - { id: thruster@legendary, name: Thruster (Legendary), form: solid, icon: icons/thruster.webp }
   - { id: thruster-fuel, name: Thruster fuel, form: fluid, icon: icons/thruster-fuel.webp }
   - { id: thruster-oxidizer, name: Thruster oxidizer, form: fluid, icon: icons/thruster-oxidizer.webp }
   - { id: toolbelt-equipment, name: Toolbelt equipment, form: solid, icon: icons/toolbelt-equipment.webp }
+  - id: toolbelt-equipment@uncommon
+    name: Toolbelt equipment (Uncommon)
+    form: solid
+    icon: icons/toolbelt-equipment.webp
+  - { id: toolbelt-equipment@rare, name: Toolbelt equipment (Rare), form: solid, icon: icons/toolbelt-equipment.webp }
+  - { id: toolbelt-equipment@epic, name: Toolbelt equipment (Epic), form: solid, icon: icons/toolbelt-equipment.webp }
+  - id: toolbelt-equipment@legendary
+    name: Toolbelt equipment (Legendary)
+    form: solid
+    icon: icons/toolbelt-equipment.webp
   - { id: train-stop, name: Train stop, form: solid, icon: icons/train-stop.webp }
+  - { id: train-stop@uncommon, name: Train stop (Uncommon), form: solid, icon: icons/train-stop.webp }
+  - { id: train-stop@rare, name: Train stop (Rare), form: solid, icon: icons/train-stop.webp }
+  - { id: train-stop@epic, name: Train stop (Epic), form: solid, icon: icons/train-stop.webp }
+  - { id: train-stop@legendary, name: Train stop (Legendary), form: solid, icon: icons/train-stop.webp }
   - { id: transport-belt, name: Transport belt, form: solid, icon: icons/transport-belt.webp }
+  - { id: transport-belt@uncommon, name: Transport belt (Uncommon), form: solid, icon: icons/transport-belt.webp }
+  - { id: transport-belt@rare, name: Transport belt (Rare), form: solid, icon: icons/transport-belt.webp }
+  - { id: transport-belt@epic, name: Transport belt (Epic), form: solid, icon: icons/transport-belt.webp }
+  - { id: transport-belt@legendary, name: Transport belt (Legendary), form: solid, icon: icons/transport-belt.webp }
   - { id: tree-seed, name: Tree seed, form: solid, icon: icons/tree-seed.webp }
+  - { id: tree-seed@uncommon, name: Tree seed (Uncommon), form: solid, icon: icons/tree-seed.webp }
+  - { id: tree-seed@rare, name: Tree seed (Rare), form: solid, icon: icons/tree-seed.webp }
+  - { id: tree-seed@epic, name: Tree seed (Epic), form: solid, icon: icons/tree-seed.webp }
+  - { id: tree-seed@legendary, name: Tree seed (Legendary), form: solid, icon: icons/tree-seed.webp }
   - { id: tungsten-carbide, name: Tungsten carbide, form: solid, icon: icons/tungsten-carbide.webp }
+  - { id: tungsten-carbide@uncommon, name: Tungsten carbide (Uncommon), form: solid, icon: icons/tungsten-carbide.webp }
+  - { id: tungsten-carbide@rare, name: Tungsten carbide (Rare), form: solid, icon: icons/tungsten-carbide.webp }
+  - { id: tungsten-carbide@epic, name: Tungsten carbide (Epic), form: solid, icon: icons/tungsten-carbide.webp }
+  - id: tungsten-carbide@legendary
+    name: Tungsten carbide (Legendary)
+    form: solid
+    icon: icons/tungsten-carbide.webp
   - { id: tungsten-ore, name: Tungsten ore, form: solid, icon: icons/tungsten-ore.webp }
+  - { id: tungsten-ore@uncommon, name: Tungsten ore (Uncommon), form: solid, icon: icons/tungsten-ore.webp }
+  - { id: tungsten-ore@rare, name: Tungsten ore (Rare), form: solid, icon: icons/tungsten-ore.webp }
+  - { id: tungsten-ore@epic, name: Tungsten ore (Epic), form: solid, icon: icons/tungsten-ore.webp }
+  - { id: tungsten-ore@legendary, name: Tungsten ore (Legendary), form: solid, icon: icons/tungsten-ore.webp }
   - { id: tungsten-plate, name: Tungsten plate, form: solid, icon: icons/tungsten-plate.webp }
+  - { id: tungsten-plate@uncommon, name: Tungsten plate (Uncommon), form: solid, icon: icons/tungsten-plate.webp }
+  - { id: tungsten-plate@rare, name: Tungsten plate (Rare), form: solid, icon: icons/tungsten-plate.webp }
+  - { id: tungsten-plate@epic, name: Tungsten plate (Epic), form: solid, icon: icons/tungsten-plate.webp }
+  - { id: tungsten-plate@legendary, name: Tungsten plate (Legendary), form: solid, icon: icons/tungsten-plate.webp }
   - { id: turbo-splitter, name: Turbo splitter, form: solid, icon: icons/turbo-splitter.webp }
+  - { id: turbo-splitter@uncommon, name: Turbo splitter (Uncommon), form: solid, icon: icons/turbo-splitter.webp }
+  - { id: turbo-splitter@rare, name: Turbo splitter (Rare), form: solid, icon: icons/turbo-splitter.webp }
+  - { id: turbo-splitter@epic, name: Turbo splitter (Epic), form: solid, icon: icons/turbo-splitter.webp }
+  - { id: turbo-splitter@legendary, name: Turbo splitter (Legendary), form: solid, icon: icons/turbo-splitter.webp }
   - { id: turbo-transport-belt, name: Turbo transport belt, form: solid, icon: icons/turbo-transport-belt.webp }
+  - id: turbo-transport-belt@uncommon
+    name: Turbo transport belt (Uncommon)
+    form: solid
+    icon: icons/turbo-transport-belt.webp
+  - id: turbo-transport-belt@rare
+    name: Turbo transport belt (Rare)
+    form: solid
+    icon: icons/turbo-transport-belt.webp
+  - id: turbo-transport-belt@epic
+    name: Turbo transport belt (Epic)
+    form: solid
+    icon: icons/turbo-transport-belt.webp
+  - id: turbo-transport-belt@legendary
+    name: Turbo transport belt (Legendary)
+    form: solid
+    icon: icons/turbo-transport-belt.webp
   - { id: turbo-underground-belt, name: Turbo underground belt, form: solid, icon: icons/turbo-underground-belt.webp }
+  - id: turbo-underground-belt@uncommon
+    name: Turbo underground belt (Uncommon)
+    form: solid
+    icon: icons/turbo-underground-belt.webp
+  - id: turbo-underground-belt@rare
+    name: Turbo underground belt (Rare)
+    form: solid
+    icon: icons/turbo-underground-belt.webp
+  - id: turbo-underground-belt@epic
+    name: Turbo underground belt (Epic)
+    form: solid
+    icon: icons/turbo-underground-belt.webp
+  - id: turbo-underground-belt@legendary
+    name: Turbo underground belt (Legendary)
+    form: solid
+    icon: icons/turbo-underground-belt.webp
   - { id: underground-belt, name: Underground belt, form: solid, icon: icons/underground-belt.webp }
+  - { id: underground-belt@uncommon, name: Underground belt (Uncommon), form: solid, icon: icons/underground-belt.webp }
+  - { id: underground-belt@rare, name: Underground belt (Rare), form: solid, icon: icons/underground-belt.webp }
+  - { id: underground-belt@epic, name: Underground belt (Epic), form: solid, icon: icons/underground-belt.webp }
+  - id: underground-belt@legendary
+    name: Underground belt (Legendary)
+    form: solid
+    icon: icons/underground-belt.webp
   - { id: uranium-235, name: Uranium-235, form: solid, icon: icons/uranium-235.webp }
+  - { id: uranium-235@uncommon, name: Uranium-235 (Uncommon), form: solid, icon: icons/uranium-235.webp }
+  - { id: uranium-235@rare, name: Uranium-235 (Rare), form: solid, icon: icons/uranium-235.webp }
+  - { id: uranium-235@epic, name: Uranium-235 (Epic), form: solid, icon: icons/uranium-235.webp }
+  - { id: uranium-235@legendary, name: Uranium-235 (Legendary), form: solid, icon: icons/uranium-235.webp }
   - { id: uranium-238, name: Uranium-238, form: solid, icon: icons/uranium-238.webp }
+  - { id: uranium-238@uncommon, name: Uranium-238 (Uncommon), form: solid, icon: icons/uranium-238.webp }
+  - { id: uranium-238@rare, name: Uranium-238 (Rare), form: solid, icon: icons/uranium-238.webp }
+  - { id: uranium-238@epic, name: Uranium-238 (Epic), form: solid, icon: icons/uranium-238.webp }
+  - { id: uranium-238@legendary, name: Uranium-238 (Legendary), form: solid, icon: icons/uranium-238.webp }
   - { id: uranium-cannon-shell, name: Uranium cannon shell, form: solid, icon: icons/uranium-cannon-shell.webp }
+  - id: uranium-cannon-shell@uncommon
+    name: Uranium cannon shell (Uncommon)
+    form: solid
+    icon: icons/uranium-cannon-shell.webp
+  - id: uranium-cannon-shell@rare
+    name: Uranium cannon shell (Rare)
+    form: solid
+    icon: icons/uranium-cannon-shell.webp
+  - id: uranium-cannon-shell@epic
+    name: Uranium cannon shell (Epic)
+    form: solid
+    icon: icons/uranium-cannon-shell.webp
+  - id: uranium-cannon-shell@legendary
+    name: Uranium cannon shell (Legendary)
+    form: solid
+    icon: icons/uranium-cannon-shell.webp
   - { id: uranium-fuel-cell, name: Uranium fuel cell, form: solid, icon: icons/uranium-fuel-cell.webp }
+  - id: uranium-fuel-cell@uncommon
+    name: Uranium fuel cell (Uncommon)
+    form: solid
+    icon: icons/uranium-fuel-cell.webp
+  - { id: uranium-fuel-cell@rare, name: Uranium fuel cell (Rare), form: solid, icon: icons/uranium-fuel-cell.webp }
+  - { id: uranium-fuel-cell@epic, name: Uranium fuel cell (Epic), form: solid, icon: icons/uranium-fuel-cell.webp }
+  - id: uranium-fuel-cell@legendary
+    name: Uranium fuel cell (Legendary)
+    form: solid
+    icon: icons/uranium-fuel-cell.webp
   - { id: uranium-ore, name: Uranium ore, form: solid, icon: icons/uranium-ore.webp }
+  - { id: uranium-ore@uncommon, name: Uranium ore (Uncommon), form: solid, icon: icons/uranium-ore.webp }
+  - { id: uranium-ore@rare, name: Uranium ore (Rare), form: solid, icon: icons/uranium-ore.webp }
+  - { id: uranium-ore@epic, name: Uranium ore (Epic), form: solid, icon: icons/uranium-ore.webp }
+  - { id: uranium-ore@legendary, name: Uranium ore (Legendary), form: solid, icon: icons/uranium-ore.webp }
   - id: uranium-rounds-magazine
     name: Uranium rounds magazine
     form: solid
     icon: icons/uranium-rounds-magazine.webp
+  - id: uranium-rounds-magazine@uncommon
+    name: Uranium rounds magazine (Uncommon)
+    form: solid
+    icon: icons/uranium-rounds-magazine.webp
+  - id: uranium-rounds-magazine@rare
+    name: Uranium rounds magazine (Rare)
+    form: solid
+    icon: icons/uranium-rounds-magazine.webp
+  - id: uranium-rounds-magazine@epic
+    name: Uranium rounds magazine (Epic)
+    form: solid
+    icon: icons/uranium-rounds-magazine.webp
+  - id: uranium-rounds-magazine@legendary
+    name: Uranium rounds magazine (Legendary)
+    form: solid
+    icon: icons/uranium-rounds-magazine.webp
   - { id: utility-science-pack, name: Utility science pack, form: solid, icon: icons/utility-science-pack.webp }
+  - id: utility-science-pack@uncommon
+    name: Utility science pack (Uncommon)
+    form: solid
+    icon: icons/utility-science-pack.webp
+  - id: utility-science-pack@rare
+    name: Utility science pack (Rare)
+    form: solid
+    icon: icons/utility-science-pack.webp
+  - id: utility-science-pack@epic
+    name: Utility science pack (Epic)
+    form: solid
+    icon: icons/utility-science-pack.webp
+  - id: utility-science-pack@legendary
+    name: Utility science pack (Legendary)
+    form: solid
+    icon: icons/utility-science-pack.webp
   - { id: water, name: Water, form: fluid, icon: icons/water.webp }
   - { id: water-barrel, name: Water barrel, form: solid, icon: icons/water-barrel.webp }
+  - { id: water-barrel@uncommon, name: Water barrel (Uncommon), form: solid, icon: icons/water-barrel.webp }
+  - { id: water-barrel@rare, name: Water barrel (Rare), form: solid, icon: icons/water-barrel.webp }
+  - { id: water-barrel@epic, name: Water barrel (Epic), form: solid, icon: icons/water-barrel.webp }
+  - { id: water-barrel@legendary, name: Water barrel (Legendary), form: solid, icon: icons/water-barrel.webp }
   - { id: wood, name: Wood, form: solid, icon: icons/wood.webp }
+  - { id: wood@uncommon, name: Wood (Uncommon), form: solid, icon: icons/wood.webp }
+  - { id: wood@rare, name: Wood (Rare), form: solid, icon: icons/wood.webp }
+  - { id: wood@epic, name: Wood (Epic), form: solid, icon: icons/wood.webp }
+  - { id: wood@legendary, name: Wood (Legendary), form: solid, icon: icons/wood.webp }
   - { id: wooden-chest, name: Wooden chest, form: solid, icon: icons/wooden-chest.webp }
+  - { id: wooden-chest@uncommon, name: Wooden chest (Uncommon), form: solid, icon: icons/wooden-chest.webp }
+  - { id: wooden-chest@rare, name: Wooden chest (Rare), form: solid, icon: icons/wooden-chest.webp }
+  - { id: wooden-chest@epic, name: Wooden chest (Epic), form: solid, icon: icons/wooden-chest.webp }
+  - { id: wooden-chest@legendary, name: Wooden chest (Legendary), form: solid, icon: icons/wooden-chest.webp }
   - { id: yumako, name: Yumako, form: solid, icon: icons/yumako.webp }
+  - { id: yumako@uncommon, name: Yumako (Uncommon), form: solid, icon: icons/yumako.webp }
+  - { id: yumako@rare, name: Yumako (Rare), form: solid, icon: icons/yumako.webp }
+  - { id: yumako@epic, name: Yumako (Epic), form: solid, icon: icons/yumako.webp }
+  - { id: yumako@legendary, name: Yumako (Legendary), form: solid, icon: icons/yumako.webp }
   - { id: yumako-mash, name: Yumako mash, form: solid, icon: icons/yumako-mash.webp }
+  - { id: yumako-mash@uncommon, name: Yumako mash (Uncommon), form: solid, icon: icons/yumako-mash.webp }
+  - { id: yumako-mash@rare, name: Yumako mash (Rare), form: solid, icon: icons/yumako-mash.webp }
+  - { id: yumako-mash@epic, name: Yumako mash (Epic), form: solid, icon: icons/yumako-mash.webp }
+  - { id: yumako-mash@legendary, name: Yumako mash (Legendary), form: solid, icon: icons/yumako-mash.webp }
   - { id: yumako-seed, name: Yumako seed, form: solid, icon: icons/yumako-seed.webp }
+  - { id: yumako-seed@uncommon, name: Yumako seed (Uncommon), form: solid, icon: icons/yumako-seed.webp }
+  - { id: yumako-seed@rare, name: Yumako seed (Rare), form: solid, icon: icons/yumako-seed.webp }
+  - { id: yumako-seed@epic, name: Yumako seed (Epic), form: solid, icon: icons/yumako-seed.webp }
+  - { id: yumako-seed@legendary, name: Yumako seed (Legendary), form: solid, icon: icons/yumako-seed.webp }
