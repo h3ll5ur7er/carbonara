@@ -245,6 +245,17 @@ function FlowCanvas({
         const selected = store.getState().nodes.filter((node) => node.selected);
         fit(selected.length > 0 ? selected : undefined);
       },
+      focus: (ids) => {
+        const chosen = new Set(ids);
+        setNodes((current) =>
+          current.map((node) =>
+            node.selected === chosen.has(node.id) ? node : { ...node, selected: chosen.has(node.id) },
+          ),
+        );
+        const targets = store.getState().nodes.filter((node) => chosen.has(node.id));
+        // Close enough to read the cards, never closer than real size.
+        if (targets.length > 0) void fitView({ ...fitOptions(insets), nodes: targets, duration: motionDuration() });
+      },
     });
     return () => setCanvasActions(undefined);
   }, [fitView, insets, store]);

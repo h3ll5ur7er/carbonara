@@ -1,5 +1,6 @@
 // A small toolbar over the canvas while several nodes are selected: align, distribute, straighten, arrange and
 // lock, one click away. Its buttons are the registered commands, so titles, icons and shortcuts match the palette.
+import type { ReactNode } from "react";
 import { canvasCommands, tidyCommandIds } from "./commands";
 import { formatShortcut, platformOf } from "../core/commands-shortcuts";
 import type { CommandDefinition } from "../core/commands";
@@ -15,7 +16,7 @@ const GROUPS: string[][] = [
   ["arrange.leftToRight", "arrange.toggleLock"],
 ];
 
-export function SelectionToolbar({ left, right }: { left: number; right: number }) {
+export function SelectionToolbar({ left, right, multiEdit }: { left: number; right: number; multiEdit?: ReactNode }) {
   return (
     <div
       role="toolbar"
@@ -34,6 +35,12 @@ export function SelectionToolbar({ left, right }: { left: number; right: number 
             })}
           </div>
         ))}
+        {multiEdit && (
+          <>
+            <span aria-hidden className="mx-1 h-5 w-px bg-line-subtle" />
+            {multiEdit}
+          </>
+        )}
       </div>
     </div>
   );

@@ -22,6 +22,12 @@ import { createSceneBuilder, type CanvasScene, type NodeView } from "./model/sce
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
 import { SelectionToolbar } from "./selection-toolbar";
 import { UnitsPicker } from "./units-picker";
+import { MultiEdit } from "./multi-edit";
+import { canvasActions } from "./viewport";
+import { FindPanel } from "../features/find/find-panel";
+import { recipeChangeCommands, type FindResult } from "../features/find/find";
+import { useFind } from "../features/find/find-store";
+import type { Id } from "../../contracts/pack";
 import { useEditActions, type Selection } from "./use-edit-actions";
 import { setViewportCentre } from "./viewport";
 
@@ -209,6 +215,30 @@ function DocumentCanvas({
     [apply, graph, shown],
   );
 
+  const finding = useFind((state) => state.open);
+  const onJump = useCallback((result: FindResult) => canvasActions()?.focus([result.nodeId]), []);
+  const onReplace = useCallback(
+    (from: Id, to: Id) => {
+      const running: Record<string, LocalId[]> = {};
+      const graphs = [
+        ["root", document.graph] as const,
+        ...Object.entries(document.blueprints).map(([id, b]) => [id, b.graph] as const),
+      ];
+      for (const [scope, { nodes }] of graphs) {
+        const ids = Object.entries(nodes).flatMap(([id, node]) =>
+          node.kind === "recipe" && node.recipe === from ? [id] : [],
+        );
+        if (ids.length > 0) running[scope] = ids;
+      }
+      const name = (id: Id) => pack.recipes.find((recipe) => recipe.id === id)?.name ?? id;
+      void apply(
+        recipeChangeCommands(document, pack, running, to),
+        `Replace ${name(from)} with ${name(to)} everywhere`,
+      );
+    },
+    [apply, document, pack],
+  );
+
   // The recipe picker, while a connection dropped in empty space waits for its other end.
   const [drop, setDrop] = useState<(PortDrop & { bounds: { left: number; right: number; height: number } }) | null>(
     null,
@@ -253,7 +283,24 @@ function DocumentCanvas({
         onRewire={onRewire}
         onDelete={onDelete}
       />
-      {several && <SelectionToolbar left={insets.left} right={insets.right} />}
+      {several && !finding && (
+        <SelectionToolbar
+          left={insets.left}
+          right={insets.right}
+          multiEdit={<MultiEdit document={document} pack={pack} graph={graph} selection={selection} apply={apply} />}
+        />
+      )}
+      {finding && (
+        <FindPanel
+          document={document}
+          pack={pack}
+          graph={graph}
+          left={insets.left}
+          right={insets.right}
+          onJump={onJump}
+          onReplace={onReplace}
+        />
+      )}
       <UnitsPicker settings={document.settings} pack={pack} left={insets.left} actions={actions} />
       {drop && request && (
         <RecipePicker

@@ -295,6 +295,50 @@ describe("deleting and bridging", () => {
   });
 });
 
+describe("changing recipes and belts", () => {
+  it("swaps the recipe of recipe nodes, keeping their fields and pin, and drops a building the caller doesn't name", () => {
+    const { document: next } = edit({ type: "setRecipe", graph: "root", ids: ["smelt"], recipe: "iron-alloy" });
+    expect(next.graph.nodes["smelt"]).toEqual({
+      kind: "recipe",
+      recipe: "iron-alloy",
+      fields: { clock: 150 },
+      pin: { type: "machines", count: 4 },
+    });
+    const built = edit({
+      type: "setRecipe",
+      graph: "rods",
+      ids: ["make"],
+      recipe: "iron-rod",
+      building: "constructor",
+    });
+    expect(built.document.blueprints["rods"]?.graph.nodes["make"]).toMatchObject({ building: "constructor" });
+  });
+
+  it("refuses nodes that don't run a recipe", () => {
+    expect(rejection({ type: "setRecipe", graph: "root", ids: ["smelt", "ore"], recipe: "x" })).toEqual([
+      { path: ["commands", 0, "ids", 1], message: "ore is not a recipe node" },
+    ]);
+  });
+
+  it("sets and clears the belt of flows", () => {
+    const { document: next } = edit({ type: "setLogistics", graph: "root", ids: ["e1", "e2"], logistics: "belt-mk3" });
+    expect(next.graph.edges["e1"]?.logistics).toBe("belt-mk3");
+    expect(next.graph.edges["e2"]?.logistics).toBe("belt-mk3");
+    const cleared = applyCommands(next, [{ type: "setLogistics", graph: "root", ids: ["e1"], logistics: null }]);
+    expect(cleared.ok && cleared.value.document.graph.edges["e1"]).toEqual({
+      from: "ore",
+      to: "smelt",
+      item: "iron-ore",
+    });
+  });
+
+  it("refuses unknown flows", () => {
+    expect(rejection({ type: "setLogistics", graph: "root", ids: ["ghost"], logistics: null })).toEqual([
+      { path: ["commands", 0, "ids", 0], message: "Unknown edge ghost" },
+    ]);
+  });
+});
+
 describe("changing the display settings", () => {
   it("sets the ones given, clears the ones set to null and keeps the rest", () => {
     const { document: next } = edit({ type: "setSettings", settings: { belt: "belt-mk3", machineGroups: "even" } });

@@ -18,10 +18,12 @@ import {
   Maximize,
   MoveHorizontal,
   Redo2,
+  Search,
   Trash,
   Undo2,
 } from "lucide-react";
 import type { CommandDefinition } from "../core/commands";
+import { setFindOpen, useFind } from "../features/find/find-store";
 import { canvasEditActions } from "./edit-actions";
 import type { AlignMode } from "./model/align";
 import { canvasActions } from "./viewport";
@@ -65,6 +67,15 @@ export const canvasCommands: CommandDefinition[] = [
     keywords: ["again", "history"],
     icon: Redo2,
     run: () => canvasEditActions()?.redo(),
+  },
+  {
+    id: "edit.find",
+    title: "Find in factory",
+    group: "Edit",
+    shortcut: "Mod+F",
+    keywords: ["search", "locate", "jump", "replace", "recipe", "item", "node"],
+    icon: Search,
+    run: () => setFindOpen(!useFind.getState().open),
   },
   {
     id: "edit.delete",

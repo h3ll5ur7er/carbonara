@@ -85,6 +85,18 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       perSecond: fc.option(fc.double({ min: 0, max: 100, noNaN: true }), { nil: null }),
     }),
     fc.record({
+      type: fc.constant("setRecipe" as const),
+      graph,
+      ids: fc.uniqueArray(recipeId, { minLength: 1, maxLength: 2 }),
+      recipe: fc.constantFrom("iron-ingot", "iron-alloy"),
+    }),
+    fc.record({
+      type: fc.constant("setLogistics" as const),
+      graph,
+      ids: fc.uniqueArray(edgeId, { minLength: 1, maxLength: 2 }),
+      logistics: fc.constantFrom("belt-mk1", "belt-mk2", null),
+    }),
+    fc.record({
       type: fc.constant("setSettings" as const),
       settings: fc.record(
         {

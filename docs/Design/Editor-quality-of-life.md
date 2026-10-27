@@ -99,6 +99,13 @@ While a node is dragged ([[src/client/canvas/model/snap.ts]], [[src/client/canva
 - Lock nodes; group frames (colour, label, collapsible); sticky notes; colour tags.
 - Units per document: /s, /min, /h, or **belts** ("2.0 × Mk.3 belt").
 
+### Find and multi-select editing
+
+- **Find** (`Ctrl+F`, "Find in factory"): a bar over the canvas lists every node matching all the words typed, across the root graph and every subgraph ([[src/client/features/find/find.ts]]): recipes by name, id, building and the names and aliases of the items they take and make; sources, sinks and ports by item; notes by text, frames by label, subgraph instances by blueprint name. `↑↓` move, `Enter` jumps (selects the node and zooms to it, `--duration-slow`; the bar stays, to step through), `Esc` closes. Nodes inside subgraphs are listed with where they are but can't be jumped to until subgraphs open on the canvas ([[CARB-39]]).
+- **Replace recipe everywhere**: when the highlighted result runs a recipe, the bar offers the recipes with the same main product (first output); picking one swaps it in every graph, and drops the flows of items the new recipe neither takes nor makes, in one edit.
+- **Multi-select editing** (selection toolbar): *Recipe* swaps every selected machine to a recipe they could all run (same main product); *Belt* puts the selected flows and the flows of the selected nodes on a belt or pipe (only flows of the items it carries) or removes the limit. Clock and modules wait for plugin fields in the inspector ([[CARB-41]]).
+- New commands: `setRecipe` (keeps fields and pins; drops a building the caller doesn't name) and `setLogistics`.
+
 ### Balance and units
 
 - **Fit to demand / Fit to supply** (inspector, on a machine): pins the machine count that makes exactly what the consumers downstream want of its main product, or that the producers upstream can keep busy ([[src/client/shell/inspector/balance.ts]]). Both work from the latest solve: a consumer wants what it takes less what reaches it from elsewhere, a sink with a target wants its target, a producer can spare what it makes less what it sends elsewhere, a source its limit; junctions pass both through. A machine's rate is its solved rate per machine (so plugin modifiers count), or the pack's recipe when it's idle. Each button shows its count and is off when nothing sets one (no consumer that wants a set amount, no limited supply).

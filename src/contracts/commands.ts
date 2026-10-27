@@ -37,6 +37,25 @@ export const Command = z.discriminatedUnion("type", [
   }),
   z
     .object({
+      type: z.literal("setRecipe"),
+      graph: GraphScope,
+      ids: z.array(LocalId).min(1),
+      recipe: Id,
+      building: Id.optional().describe("The building to run it in; the recipe's first when left out."),
+    })
+    .describe(
+      "Changes the recipe of recipe nodes; their fields and pins stay. Flows the recipe can't take aren't removed.",
+    ),
+  z
+    .object({
+      type: z.literal("setLogistics"),
+      graph: GraphScope,
+      ids: z.array(LocalId).min(1),
+      logistics: Id.nullable().describe("The belt or pipe tier; null leaves the flow unlimited."),
+    })
+    .describe("Sets the belt or pipe tier of flows."),
+  z
+    .object({
       type: z.literal("setSettings"),
       settings: z.object({
         rateUnit: RateUnit.nullable().optional(),

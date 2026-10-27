@@ -54,6 +54,8 @@ const LABELS: Record<Command["type"], string> = {
   setLocked: "Lock nodes",
   removeAndBridge: "Delete and bridge",
   setSettings: "Change settings",
+  setRecipe: "Change recipe",
+  setLogistics: "Change belt",
 };
 
 /** A name for the history when the caller gives none. */
@@ -153,6 +155,33 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
       const key = node.kind === "source" ? "maxPerSecond" : "targetPerSecond";
       if (command.perSecond === null) Reflect.deleteProperty(node, key);
       else Object.assign(node, { [key]: command.perSecond });
+      return;
+    }
+    case "setRecipe": {
+      for (const [index, id] of command.ids.entries()) {
+        const node = graph.nodes[id];
+        if (!node) return issue(["ids", index], `Unknown node ${id}`);
+        if (node.kind !== "recipe") return issue(["ids", index], `${id} is not a recipe node`);
+      }
+      for (const id of command.ids) {
+        const node = graph.nodes[id];
+        if (node?.kind !== "recipe") continue;
+        node.recipe = command.recipe;
+        if (command.building !== undefined) node.building = command.building;
+        else delete node.building;
+      }
+      return;
+    }
+    case "setLogistics": {
+      for (const [index, id] of command.ids.entries()) {
+        if (!graph.edges[id]) return issue(["ids", index], `Unknown edge ${id}`);
+      }
+      for (const id of command.ids) {
+        const edge = graph.edges[id];
+        if (!edge) continue;
+        if (command.logistics === null) delete edge.logistics;
+        else edge.logistics = command.logistics;
+      }
       return;
     }
     case "setLocked": {

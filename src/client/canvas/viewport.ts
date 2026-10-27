@@ -7,6 +7,8 @@ export interface CanvasActions {
   zoomToFit(): void;
   /** Shows the selected nodes, or the whole graph when nothing is selected. */
   zoomToSelection(): void;
+  /** Selects these nodes and brings them into view (find's jump). */
+  focus(nodeIds: string[]): void;
 }
 
 let centre: Point | undefined;

@@ -62,6 +62,8 @@ Documents change only through `Command`s ([[src/contracts/commands.ts]]) sent to
 | `moveNodes` | Replaces positions (the whole `Position`, so callers keep `width`, `height` and `locked`) |
 | `setNodeFields`, `setPin` | A recipe node's plugin fields, its pin |
 | `setRate` | A source's limit or a sink's target |
+| `setRecipe` | Swaps the recipe of recipe nodes, keeping fields and pins; a building not named is dropped (the recipe's first applies). Flows it can't take stay: callers remove them in the same batch |
+| `setLogistics` | Sets or clears the belt or pipe tier of flows |
 | `setSettings` | The document's display settings (`rateUnit`, `belt`, `machineGroups`); null puts one back to its default. It names no graph |
 | `setLocked` | Locks nodes in place (`locked: true` on their position, which it creates at the origin if missing) or unlocks them |
 

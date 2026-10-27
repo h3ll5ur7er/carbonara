@@ -127,6 +127,7 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Round machines to buildable/,
     /Undo\s*Ctrl\s*Z/,
     /Redo\s*Ctrl\s*Shift\s*Z/,
+    /Find in factory\s*Ctrl\s*F/,
     /Delete selection\s*Del/,
     /Delete and bridge\s*Ctrl\s*Shift\s*Del/,
     /Arrange left to right\s*Shift\s*A/,
