@@ -15,8 +15,11 @@ import type {
 } from "../../../src/contracts/plugin";
 import {
   BEACON,
+  BEACON_POWER_BY_QUALITY,
   MODULE_KINDS,
   QUALITIES,
+  QUALITY_LEVELS,
+  qualityMultiplier,
   fits,
   qualityShares,
   totalEffects,
@@ -32,6 +35,10 @@ import { atTemperature, ELECTRICITY, temperatureOf } from "./energy";
 /** Recipe tags of the expansion's mods; without Space Age, recipes carrying one aren't available. */
 const EXPANSION_TAGS = ["space-age", "quality", "recycler", "elevated-rails"];
 const IGNORED_BY_PRODUCTIVITY = "ignored-by-productivity:";
+const RESEARCH = "research:";
+const MAXIMUM_PRODUCTIVITY = "maximum-productivity:";
+/** RecipePrototype's default `maximum_productivity`: +300 %. */
+const DEFAULT_MAXIMUM_PRODUCTIVITY = 3;
 const TIERS = ["1", "2", "3"];
 /** How many machines one beacon can reach, for the field's range: a 3×3 beacon reaches 9×9 tiles. */
 const MAX_MACHINES_PER_BEACON = 12;
@@ -41,10 +48,18 @@ const moduleField = (kind: ModuleKind) => `${kind}Modules`;
 const beaconField = (kind: ModuleKind) => `beacon${kind.charAt(0).toUpperCase()}${kind.slice(1)}Modules`;
 const label = (kind: ModuleKind) => `${kind.charAt(0).toUpperCase()}${kind.slice(1)} modules`;
 
+const ofQuality = (text: string): FieldDescriptor => ({
+  kind: "choice",
+  label: text,
+  options: [...QUALITIES],
+  default: QUALITIES[0],
+});
+
 export function nodeFields(building: Building, { pack }: PluginContext): Record<string, FieldDescriptor> {
   const quality: Record<string, FieldDescriptor> = {
     ...energyFields(building, pack),
-    quality: { kind: "choice", label: "Quality", options: [...QUALITIES], default: "normal" },
+    machineQuality: ofQuality("Machine quality"),
+    quality: ofQuality("Quality"),
   };
   const slots = slotsOf(building);
   if (slots === 0) return quality;
@@ -60,11 +75,14 @@ export function nodeFields(building: Building, { pack }: PluginContext): Record<
   return {
     ...Object.fromEntries(acceptedKinds(building).map((kind) => [moduleField(kind), count(label(kind), slots)])),
     moduleTier: tier("Module tier"),
+    moduleQuality: ofQuality("Module quality"),
     beacons: count("Beacons in range", BEACON.maxInRange),
     ...Object.fromEntries(
       BEACON_KINDS.map((kind) => [beaconField(kind), count(`${label(kind)} per beacon`, BEACON.slots)]),
     ),
     beaconModuleTier: tier("Beacon module tier"),
+    beaconModuleQuality: ofQuality("Beacon module quality"),
+    beaconQuality: ofQuality("Beacon quality"),
     machinesPerBeacon: {
       kind: "number",
       label: "Machines per beacon",
@@ -77,8 +95,24 @@ export function nodeFields(building: Building, { pack }: PluginContext): Record<
   };
 }
 
-export function settingsFields(): Record<string, FieldDescriptor> {
-  return { spaceAge: { kind: "toggle", label: "Space Age", default: true } };
+/** The Space Age setting, and the level of each productivity research the pack's recipes name. */
+export function settingsFields({ pack }: PluginContext): Record<string, FieldDescriptor> {
+  const fields: Record<string, FieldDescriptor> = {
+    spaceAge: { kind: "toggle", label: "Space Age", default: true },
+  };
+  for (const [technology, change] of researchOf(pack)) {
+    fields[technology] = {
+      kind: "number",
+      label: humanise(technology),
+      min: 0,
+      // Levels beyond the default maximum productivity add nothing.
+      max: Math.ceil(DEFAULT_MAXIMUM_PRODUCTIVITY / change - 1e-9),
+      step: 1,
+      unit: "levels",
+      default: 0,
+    };
+  }
+  return fields;
 }
 
 /**
@@ -121,16 +155,18 @@ export function recipeAvailable(recipe: Recipe, { settings }: PluginContext): bo
   return settings.spaceAge !== false || !recipe.tags?.some((tag) => EXPANSION_TAGS.includes(tag));
 }
 
-export function validate(node: NodeContext, { settings }: PluginContext): PluginProblem[] {
+export function validate(node: NodeContext, context: PluginContext): PluginProblem[] {
   const warning = (message: string): PluginProblem => ({ kind: "warning", message });
-  const { problems } = loadoutOf(node);
+  const { problems } = loadoutOf(node, context);
   const usesQuality = qualityLevelAsked(node) > 0 || Number(node.fields.qualityModules ?? 0) > 0;
   if (usesQuality && !allowsQuality(node.recipe)) {
     problems.push(`${nameOf(node.recipe)} has no quality; making it at normal quality without quality effects`);
   }
-  if (settings.spaceAge === false) {
+  const equipment = ["machineQuality", "moduleQuality", "beaconQuality", "beaconModuleQuality"];
+  const betterEquipment = equipment.some((field) => qualityLevel(node.fields[field]) > 0);
+  if (context.settings.spaceAge === false) {
     if (node.building.fields?.mod) problems.push(`${node.building.name} needs Space Age`);
-    if (usesQuality) problems.push("Quality needs Space Age");
+    if (usesQuality || betterEquipment) problems.push("Quality needs Space Age");
   }
   const neighbours = Number(node.fields.neighbours ?? 0);
   if (reactorOf(node.building)?.boosts === "temperature" && !Number.isInteger(neighbours)) {
@@ -139,9 +175,10 @@ export function validate(node: NodeContext, { settings }: PluginContext): Plugin
   return problems.map(warning);
 }
 
-export function effectiveRecipe(node: NodeContext, { pack }: PluginContext): EffectiveRecipe {
+export function effectiveRecipe(node: NodeContext, context: PluginContext): EffectiveRecipe {
   const { recipe } = node;
-  const effects = effectsOf(node);
+  const { pack } = context;
+  const effects = effectsOf(node, context);
   const level = allowsQuality(recipe) ? qualityLevelAsked(node) : 0;
   const items = itemIdsOf(pack);
   // Solid items have a variant per quality level; fluids have none.
@@ -153,19 +190,23 @@ export function effectiveRecipe(node: NodeContext, { pack }: PluginContext): Eff
   const out: Record<string, number> = {};
   const shares = qualityShares(level, effects.quality);
   for (const [item, amount] of Object.entries(recipe.out)) {
-    const made = amount + Math.max(0, amount - (ignored[item] ?? 0)) * effects.productivity;
+    const kept = Object.hasOwn(ignored, item) ? (ignored[item] as number) : 0;
+    const made = amount + Math.max(0, amount - kept) * effects.productivity;
     if (!hasQuality(item)) {
-      out[item] = (out[item] ?? 0) + made;
+      add(out, item, made);
       continue;
     }
     shares.forEach((share, at) => {
-      if (share > 0) out[variant(item, at)] = (out[variant(item, at)] ?? 0) + made * share;
+      if (share > 0) add(out, variant(item, at), made * share);
     });
   }
-  const time = recipe.time / (1 + effects.speed);
+  // A better machine crafts faster; a generator of better quality makes and burns more, a crafting machine doesn't.
+  const machine = qualityMultiplier(qualityLevel(node.fields.machineQuality));
+  const time = recipe.time / (1 + effects.speed) / machine;
   boostByNeighbours(node, out);
   takeHotterPlasma(node, inputs, out);
-  burnFuel(node, time, effects, inputs, out);
+  const generates = recipe.tags?.includes("power") === true;
+  burnFuel(node, time, effects.consumption, generates ? machine : 1, inputs, out);
   return { time, in: inputs, out };
 }
 
@@ -218,7 +259,9 @@ function takeHotterPlasma(node: NodeContext, inputs: Record<string, number>, out
 function burnFuel(
   node: NodeContext,
   time: number,
-  effects: Effects,
+  consumption: number,
+  /** How much more the building burns than its prototype says: generators of better quality burn more. */
+  scale: number,
   inputs: Record<string, number>,
   out: Record<string, number>,
 ): void {
@@ -228,12 +271,18 @@ function burnFuel(
   const fuel = String(fields.fuel ?? Object.keys(fuels)[0] ?? "");
   const value = Object.hasOwn(fuels, fuel) ? Number(fuels[fuel]) : 0;
   if (energy?.source !== "burner" || value <= 0) return;
-  const megajoules =
-    (Number(energy.usage ?? 0) * (time / building.speed) * (1 + effects.consumption)) / effectivityOf(building);
+  const usage = Number(energy.usage ?? 0) * scale;
+  const megajoules = (usage * (time / building.speed) * (1 + consumption)) / effectivityOf(building);
   const burnt = megajoules / value;
-  inputs[fuel] = (Object.hasOwn(inputs, fuel) ? (inputs[fuel] as number) : 0) + burnt;
-  const ash = building.fields?.burnt?.[fuel];
-  if (typeof ash === "string") out[ash] = (Object.hasOwn(out, ash) ? (out[ash] as number) : 0) + burnt;
+  add(inputs, fuel, burnt);
+  const burntInto = building.fields?.burnt;
+  const ash = burntInto && Object.hasOwn(burntInto, fuel) ? burntInto[fuel] : undefined;
+  if (typeof ash === "string") add(out, ash, burnt);
+}
+
+/** Adds to an amount by item, own keys only (an item could be called `constructor`). */
+function add(amounts: Record<string, number>, item: string, amount: number): void {
+  amounts[item] = (Object.hasOwn(amounts, item) ? (amounts[item] as number) : 0) + amount;
 }
 
 /**
@@ -241,22 +290,24 @@ function burnFuel(
  * drain, idle or not, and so do the beacons around them. Buildings that draw no electricity (burners, generators)
  * have no power metric: what burners burn is an input of their recipe.
  */
-export function derive(node: NodeContext & { machines: number }): Record<string, number> {
+export function derive(node: NodeContext & { machines: number }, context: PluginContext): Record<string, number> {
   const { building, machines, fields } = node;
   if (building.power?.consume === undefined) return {};
   const drain = Number(building.fields?.energy?.drain ?? 0);
-  const working = machines * (building.power.consume - drain) * (1 + effectsOf(node).consumption);
+  const working = machines * (building.power.consume - drain) * (1 + effectsOf(node, context).consumption);
   const built = Math.abs(machines - Math.round(machines)) < 1e-9 ? Math.round(machines) : Math.ceil(machines);
   const beacons = slotsOf(building) > 0 ? Number(fields.beacons ?? 0) : 0;
   const perBeacon = Number(fields.machinesPerBeacon ?? 1);
   return {
     power: working + built * drain,
-    ...(beacons > 0 && { beaconPower: ((built * beacons) / perBeacon) * BEACON.powerMW }),
+    ...(beacons > 0 && {
+      beaconPower: ((built * beacons) / perBeacon) * BEACON.powerMW * beaconPowerOf(fields.beaconQuality),
+    }),
   };
 }
 
-function effectsOf(node: NodeContext): Effects {
-  return totalEffects(loadoutOf(node).loadout);
+function effectsOf(node: NodeContext, context: PluginContext): Effects {
+  return totalEffects(loadoutOf(node, context).loadout);
 }
 
 /**
@@ -264,7 +315,7 @@ function effectsOf(node: NodeContext): Effects {
  * then as many as fit the slots, in field order (speed, productivity, efficiency, quality), and the same for each
  * beacon. Problems say what was left out.
  */
-function loadoutOf(node: NodeContext): { loadout: Loadout; problems: string[] } {
+function loadoutOf(node: NodeContext, { settings }: PluginContext): { loadout: Loadout; problems: string[] } {
   const { building, recipe, fields } = node;
   const problems: string[] = [];
   const slots = slotsOf(building);
@@ -290,9 +341,14 @@ function loadoutOf(node: NodeContext): { loadout: Loadout; problems: string[] } 
     loadout: {
       modules: fitted,
       tier: tierOf(fields.moduleTier),
+      moduleQuality: qualityLevel(fields.moduleQuality),
       beacons: slots > 0 ? Number(fields.beacons ?? 0) : 0,
       beaconModules,
       beaconTier: tierOf(fields.beaconModuleTier),
+      beaconModuleQuality: qualityLevel(fields.beaconModuleQuality),
+      beaconQuality: qualityLevel(fields.beaconQuality),
+      research: researchBonus(recipe, settings),
+      maximumProductivity: maximumProductivityOf(recipe),
       base: baseEffectOf(building),
       allowed,
     },
@@ -351,6 +407,58 @@ function temperaturesOf(pack: PackData, fluid: string): number[] {
       return variant?.fluid === fluid ? [variant.temperature] : [];
     })
     .sort((a, b) => a - b);
+}
+
+/** A quality's level (its strength: legendary 5) from a field's value; normal for anything else. */
+function qualityLevel(value: unknown): number {
+  const index = QUALITIES.indexOf(String(value ?? QUALITIES[0]) as (typeof QUALITIES)[number]);
+  return index > 0 ? (QUALITY_LEVELS[index] ?? 0) : 0;
+}
+
+function beaconPowerOf(value: unknown): number {
+  const index = QUALITIES.indexOf(String(value ?? QUALITIES[0]) as (typeof QUALITIES)[number]);
+  return BEACON_POWER_BY_QUALITY[Math.max(0, index)] ?? 1;
+}
+
+/** Productivity from the research the recipe's `research:<technology>=<change>` tags name, at the save's levels. */
+function researchBonus(recipe: Recipe, settings: Record<string, unknown>): number {
+  let bonus = 0;
+  for (const tag of recipe.tags ?? []) {
+    const [technology, change] = tag.startsWith(RESEARCH) ? tag.slice(RESEARCH.length).split("=") : [];
+    const level = technology !== undefined && Object.hasOwn(settings, technology) ? Number(settings[technology]) : 0;
+    if (Number.isFinite(level) && Number.isFinite(Number(change))) bonus += level * Number(change);
+  }
+  return bonus;
+}
+
+/** The productivity research the pack's recipes name, with their change per level; built once per pack. */
+const researchCache = new WeakMap<PackData, Map<string, number>>();
+function researchOf(pack: PackData): Map<string, number> {
+  let research = researchCache.get(pack);
+  if (!research) {
+    research = new Map();
+    for (const recipe of pack.recipes) {
+      for (const tag of recipe.tags ?? []) {
+        if (!tag.startsWith(RESEARCH)) continue;
+        const [technology, change] = tag.slice(RESEARCH.length).split("=");
+        if (technology && Number(change) > 0) research.set(technology, Number(change));
+      }
+    }
+    researchCache.set(pack, research);
+  }
+  return research;
+}
+
+function maximumProductivityOf(recipe: Recipe): number {
+  const tag = recipe.tags?.find((entry) => entry.startsWith(MAXIMUM_PRODUCTIVITY));
+  const maximum = Number(tag?.slice(MAXIMUM_PRODUCTIVITY.length));
+  return tag !== undefined && Number.isFinite(maximum) ? maximum : DEFAULT_MAXIMUM_PRODUCTIVITY;
+}
+
+/** "steel-plate-productivity" → "Steel plate productivity", as the game's English names read. */
+function humanise(id: string): string {
+  const words = id.replaceAll("-", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 function slotsOf(building: Building): number {

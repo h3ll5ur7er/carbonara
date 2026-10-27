@@ -5,7 +5,8 @@ Plan factories for [Factorio](https://factorio.com/) 2.1 by Wube Software, with 
 The plugin models modules and beacons, built-in productivity (foundry, electromagnetic plant, biochamber), quality, fuel, power use and power generation:
 
 - **Per node:** speed, productivity, efficiency and quality modules (and their tier), beacons in range with their speed and efficiency modules, how many machines share each beacon, the quality the node crafts at, the fuel a burner burns (an input of the node, coal by default), a reactor's neighbours, and the plasma temperature a fusion generator takes.
-- **Save setting:** Space Age. Off, expansion recipes and buildings get a warning.
+- **Per node, quality:** of the machines (crafting speed, or what a generator makes and burns), of their modules and of the beacons' modules (stronger effects), and of the beacons (more of their modules passed on, less power).
+- **Save settings:** Space Age (off, expansion recipes and buildings get a warning), and the level of each productivity research (`steel-plate-productivity` …), capped at the recipe's maximum productivity.
 - **Metrics:** power use and beacon power in MW (drain included).
 - **Power generation:** boilers, heat exchangers, steam engines and turbines, nuclear reactors and heating towers, fusion reactors and generators run recipes of their own. They make `electricity` and `heat`, items where 1 per second is 1 MW: a sink of electricity with a target sizes a power plant.
 
@@ -21,6 +22,7 @@ Content from the expansion is marked so a plugin can filter it:
 
 - `ignored-by-productivity:<item>=<amount>` tags the part of a result productivity doesn't multiply (`ignored_by_productivity`, such as Kovarex's 40 U-235), per craft on average.
 - `no-quality` tags recipes whose products can't get a better quality (`allow_quality: false`).
+- `research:<technology>=<change>` tags the productivity research that improves a recipe, per level; `maximum-productivity:<x>` a maximum other than +300 %.
 - Every solid item has a variant per quality above normal: `iron-plate@uncommon`, `@rare`, `@epic`, `@legendary`. Fluids have none. Recipes stay at normal quality; the plugin maps a node's items to the quality it crafts at.
 
 ## Building fields
@@ -78,7 +80,7 @@ pnpm pack:build packs/factorio
 The importer reads the dump but leaves these out; extend it when a plugin needs them:
 
 - Solar panels, accumulators and lightning collectors; heat pipes, and the temperature of heat.
-- `maximum_productivity` of recipes: none sets it in 2.1.14, so all have the default +300 %. Modules, beacons and quality levels are prototypes the data doesn't hold; their numbers are in `plugin/effects.ts`, from the Lua prototypes (see `CREDITS.md`). Update them there with a new game version.
+- Modules, beacons and quality levels are prototypes the data doesn't hold; their numbers are in `plugin/effects.ts`, from the Lua prototypes (see `CREDITS.md`). Update them there with a new game version. No 2.1.14 recipe sets `maximum_productivity`; the importer tags one that does.
 - Space Age conditions: recipe and building `surface_conditions` (which planet or space), spoilage and spoil results, plant seeds and growth times, the fluid uranium mining needs, and belt stacking.
-- Quality of buildings, modules and beacons (their bonuses), and per-item quality limits (`affected_by_quality`, ingredient `quality_min` …), which no 2.1.14 recipe uses.
+- Per-item quality limits (`affected_by_quality`, ingredient `quality_min` …), which no 2.1.14 recipe uses.
 - Mining rates: resource `mining_time` and drill `mining_speed` are only kept as the drill's `speed`.

@@ -1379,6 +1379,24 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
     epic: { type: "quality", name: "epic", level: 3, next: "legendary", next_probability: 1, chain_probability: 0.1 },
     legendary: { type: "quality", name: "legendary", level: 5 },
   },
+  technology: {
+    "steel-plate-productivity": {
+      type: "technology",
+      name: "steel-plate-productivity",
+      effects: [
+        { type: "change-recipe-productivity", recipe: "steel-plate", change: 0.1 },
+        { type: "change-recipe-productivity", recipe: "casting-steel", change: 0.1 },
+      ],
+      prerequisites: ["production-science-pack"],
+      max_level: "infinite",
+      upgrade: true,
+    },
+    automation: {
+      type: "technology",
+      name: "automation",
+      effects: [{ type: "unlock-recipe", recipe: "assembling-machine-1" }],
+    },
+  },
   pipe: {
     pipe: {
       type: "pipe",

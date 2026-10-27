@@ -642,6 +642,158 @@ describe("power generation", () => {
   });
 });
 
+describe("productivity research", () => {
+  // Infinite research (the technologies' `change-recipe-productivity` effects, 2.1.14 dump) adds 10 % per level to
+  // the recipes it names, beside modules and wherever modules can't go; the total stops at the recipe's
+  // `maximum_productivity`, +300 % (EffectReceiver, lua-api.factorio.com).
+
+  it("adds 10 % per level to the recipes it improves: steel at level 5 comes out 50 % more", async () => {
+    const run = await factory(
+      { steel: recipeNode("steel-plate", "electric-furnace") },
+      { "steel-plate-productivity": 5 },
+    );
+    // Crafting speed 2 over 16 s: 0.125 crafts a second of 5 plates.
+    expect(run.node("steel")).toMatchObject({
+      in: { "iron-plate": close(0.625) },
+      out: { "steel-plate": close(0.1875) },
+    });
+    expect(run.problems).toEqual([]);
+  });
+
+  it("stops at the recipe's maximum productivity, +300 %", async () => {
+    const run = await factory(
+      { steel: recipeNode("steel-plate", "electric-furnace") },
+      { "steel-plate-productivity": 35 },
+    );
+    expect(run.node("steel").out).toEqual({ "steel-plate": close(0.5) });
+  });
+
+  it("counts where modules can't add productivity: scrap recycling in a recycler", async () => {
+    const plain = await factory({ scrap: recipeNode("scrap-recycling", "recycler") });
+    const researched = await factory(
+      { scrap: recipeNode("scrap-recycling", "recycler") },
+      { "scrap-recycling-productivity": 10 },
+    );
+    for (const [item, amount] of Object.entries(plain.node("scrap").out)) {
+      expect(researched.node("scrap").out[item]).toBeCloseTo(amount * 2, 9);
+    }
+  });
+
+  it("is a save setting per research, in levels", () => {
+    expect(plugin.settingsFields?.({ pack, settings: {} })).toMatchObject({
+      "steel-plate-productivity": {
+        kind: "number",
+        label: "Steel plate productivity",
+        min: 0,
+        max: 30,
+        step: 1,
+        unit: "levels",
+        default: 0,
+      },
+      "scrap-recycling-productivity": { label: "Scrap recycling productivity" },
+    });
+  });
+});
+
+describe("quality of machines, modules and beacons", () => {
+  // Each quality level (uncommon 1, rare 2, epic 3, legendary 5) adds 30 % crafting speed, 30 % to the positive
+  // effects of modules (rounded down to 1 %, to 0.1 % for quality), 30 % to what boilers, engines, turbines and
+  // reactors make and burn, and 0.2 to a beacon's distribution effectivity, whose power falls by a sixth (the
+  // Factorio wiki's Quality page, read 2026-10-27; `distribution_effectivity_bonus_per_quality_level` and
+  // `beacon_power_usage_multiplier` in the 2.1.14 dump).
+
+  it("speeds a legendary Assembling machine 3 up 150 % for the same power", async () => {
+    const run = await factory({
+      gears: recipeNode("iron-gear-wheel", "assembling-machine-3", { machineQuality: "legendary" }),
+    });
+    expect(run.node("gears")).toEqual({
+      machines: close(1),
+      in: { "iron-plate": close(12.5) },
+      out: { "iron-gear-wheel": close(6.25) },
+      derived: { power: close(0.3875) },
+    });
+  });
+
+  it("strengthens only what modules are for: legendary speed modules 3 add 125 % each, cost as much power", async () => {
+    const run = await factory({
+      gears: recipeNode("iron-gear-wheel", "assembling-machine-3", {
+        speedModules: 4,
+        moduleTier: "3",
+        moduleQuality: "legendary",
+      }),
+    });
+    // 1.25 × 6 = 7.5 crafts a second; consumption +280 % as at normal quality.
+    expect(run.node("gears")).toMatchObject({
+      out: { "iron-gear-wheel": close(15) },
+      derived: { power: close(1.4375) },
+    });
+  });
+
+  it("rounds stronger modules down: productivity 1 at uncommon gives 5 %, quality 3 at uncommon 3.2 %", async () => {
+    const run = await factory({
+      plates: recipeNode("iron-plate", "electric-furnace", {
+        productivityModules: 2,
+        moduleTier: "1",
+        moduleQuality: "uncommon",
+      }),
+      gears: recipeNode("iron-gear-wheel", "assembling-machine-3", {
+        qualityModules: 4,
+        moduleTier: "3",
+        moduleQuality: "uncommon",
+      }),
+    });
+    // 4 % × 1.3 = 5.2 %, rounded down to 5 %; their -5 % speed stays. 2 × 0.9 / 3.2 crafts a second.
+    expect(run.node("plates").out).toEqual({ "iron-plate": close(0.5625 * 1.1) });
+    // 2.5 % × 1.3 = 3.25 %, rounded down to 3.2 %: Q = 12.8 %.
+    expect(run.node("gears").out).toMatchObject({
+      "iron-gear-wheel": close(2 * 0.872),
+      "iron-gear-wheel@uncommon": close(2 * 0.128 * 0.9),
+    });
+  });
+
+  it("makes a legendary beacon pass on 2.5 times its modules' effects, for a sixth of the power", async () => {
+    const run = await factory({
+      gears: recipeNode("iron-gear-wheel", "assembling-machine-3", {
+        beacons: 1,
+        beaconSpeedModules: 2,
+        beaconModuleTier: "3",
+        beaconQuality: "legendary",
+      }),
+    });
+    // 2 × 50 % × 2.5 = +250 % speed: 1.25 × 3.5 / 0.5 crafts a second. 480 kW ÷ 6.
+    expect(run.node("gears")).toMatchObject({
+      out: { "iron-gear-wheel": close(8.75) },
+      derived: { beaconPower: close(0.08) },
+    });
+  });
+
+  it("makes generators make and burn 30 % more per level: an uncommon boiler, a legendary heating tower", async () => {
+    const run = await factory({
+      boiler: recipeNode("boiler-steam", "boiler", { machineQuality: "uncommon" }),
+      tower: recipeNode("heating-tower-heat", "heating-tower", { machineQuality: "legendary" }),
+      turbine: recipeNode("steam-turbine-electricity@500", "steam-turbine", { machineQuality: "rare" }),
+    });
+    expect(run.node("boiler")).toMatchObject({
+      in: { water: close(7.8), coal: close(0.585) },
+      out: { "steam@165": close(78) },
+    });
+    // 100 MW of heat from 40 MW of coal.
+    expect(run.node("tower")).toMatchObject({ in: { coal: close(10) }, out: { heat: close(100) } });
+    expect(run.node("turbine")).toMatchObject({
+      in: { "steam@500": close(96) },
+      out: { electricity: close(9.312) },
+    });
+  });
+
+  it("warns without Space Age", async () => {
+    const run = await factory(
+      { gears: recipeNode("iron-gear-wheel", "assembling-machine-3", { machineQuality: "rare" }) },
+      { spaceAge: false },
+    );
+    expect(run.problems).toEqual([{ kind: "warning", node: "gears", message: "Quality needs Space Age" }]);
+  });
+});
+
 describe("the Space Age setting", () => {
   it("is on by default: expansion recipes and buildings plan without warnings", async () => {
     const run = await factory({
@@ -678,12 +830,13 @@ describe("plugin description", () => {
     return plugin.nodeFields?.(found, { pack, settings: {} }) ?? {};
   };
   const tier = (label: string) => ({ kind: "choice", label, options: ["1", "2", "3"], default: "3" });
-  const quality = {
+  const ofQuality = (label: string) => ({
     kind: "choice",
-    label: "Quality",
+    label,
     options: ["normal", "uncommon", "rare", "epic", "legendary"],
     default: "normal",
-  };
+  });
+  const quality = ofQuality("Quality");
 
   it("offers module counts up to the slots, beacons, and the quality a node crafts at", () => {
     const count = (label: string, max: number) => ({ kind: "number", label, min: 0, max, step: 1, default: 0 });
@@ -693,11 +846,15 @@ describe("plugin description", () => {
       efficiencyModules: count("Efficiency modules", 4),
       qualityModules: count("Quality modules", 4),
       moduleTier: tier("Module tier"),
+      moduleQuality: ofQuality("Module quality"),
       beacons: count("Beacons in range", 100),
       beaconSpeedModules: count("Speed modules per beacon", 2),
       beaconEfficiencyModules: count("Efficiency modules per beacon", 2),
       beaconModuleTier: tier("Beacon module tier"),
+      beaconModuleQuality: ofQuality("Beacon module quality"),
+      beaconQuality: ofQuality("Beacon quality"),
       machinesPerBeacon: { kind: "number", label: "Machines per beacon", min: 1, max: 12, step: 1, default: 1 },
+      machineQuality: ofQuality("Machine quality"),
       quality,
     });
   });
@@ -705,7 +862,7 @@ describe("plugin description", () => {
   it("offers only the modules a building takes, and no modules where it has no slots", () => {
     expect(Object.keys(fields("recycler"))).not.toContain("productivityModules");
     expect(Object.keys(fields("oil-refinery"))).not.toContain("qualityModules");
-    expect(fields("assembling-machine-1")).toEqual({ quality });
+    expect(fields("assembling-machine-1")).toEqual({ machineQuality: ofQuality("Machine quality"), quality });
     expect(fields("stone-furnace")).toEqual({
       fuel: {
         kind: "choice",
@@ -713,12 +870,13 @@ describe("plugin description", () => {
         options: expect.arrayContaining(["coal", "wood", "solid-fuel", "rocket-fuel", "nuclear-fuel"]),
         default: "coal",
       },
+      machineQuality: ofQuality("Machine quality"),
       quality,
     });
   });
 
   it("offers the Space Age setting and the power metrics", () => {
-    expect(plugin.settingsFields?.({ pack, settings: {} })).toEqual({
+    expect(plugin.settingsFields?.({ pack, settings: {} })).toMatchObject({
       spaceAge: { kind: "toggle", label: "Space Age", default: true },
     });
     expect(plugin.metrics).toEqual({

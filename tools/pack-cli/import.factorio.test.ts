@@ -169,6 +169,20 @@ describe("the Factorio importer", () => {
     });
   });
 
+  it("tags recipes with the productivity research that improves them, per level", () => {
+    const { recipes } = run().data;
+    expect(find(recipes, "steel-plate").tags).toEqual(["productivity", "research:steel-plate-productivity=0.1"]);
+    expect(find(recipes, "iron-plate").tags).toEqual(["productivity"]);
+  });
+
+  it("tags a recipe's maximum productivity when it isn't the default +300 %", () => {
+    const dump = structuredClone(dumpExcerpt);
+    const steel = dump.recipe?.["steel-plate"];
+    if (!steel) throw new Error("The fixture lost its steel plate recipe");
+    steel.maximum_productivity = 1.5;
+    expect(find(run(gameFiles(dump)).data.recipes, "steel-plate").tags).toContain("maximum-productivity:1.5");
+  });
+
   it("leaves out parameters, hidden recipes other than recycling, and what no machine makes", () => {
     const { data } = run();
     const recipeIds = data.recipes?.map((recipe) => recipe.id);

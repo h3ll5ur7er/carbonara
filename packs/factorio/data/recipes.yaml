@@ -40,7 +40,7 @@ recipes:
     time: 5
     in: { carbonic-asteroid-chunk: 1 }
     out: { carbon: 5, sulfur: 2, carbonic-asteroid-chunk: 0.1 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:asteroid-productivity=0.1]
   - id: advanced-circuit
     name: Advanced circuit
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3, electromagnetic-plant]
@@ -61,7 +61,7 @@ recipes:
     time: 5
     in: { metallic-asteroid-chunk: 1 }
     out: { iron-ore: 10, copper-ore: 4, metallic-asteroid-chunk: 0.1 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:asteroid-productivity=0.1]
   - id: advanced-oil-processing
     name: Advanced oil processing
     buildings: [oil-refinery]
@@ -75,7 +75,7 @@ recipes:
     time: 5
     in: { oxide-asteroid-chunk: 1 }
     out: { ice: 3, calcite: 2, oxide-asteroid-chunk: 0.1 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:asteroid-productivity=0.1]
   - id: advanced-thruster-fuel
     name: Advanced thruster fuel
     buildings: [chemical-plant]
@@ -124,7 +124,7 @@ recipes:
     time: 10
     in: { solid-fuel: 10, water: 50, ammonia: 500 }
     out: { rocket-fuel: 1 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:rocket-fuel-productivity=0.1]
   - id: ammoniacal-solution-separation
     name: Ammoniacal solution separation
     buildings: [chemical-plant, cryogenic-plant]
@@ -483,7 +483,7 @@ recipes:
     time: 2
     in: { bioflux: 1, yumako-mash: 4 }
     out: { plastic-bar: 3 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:plastic-bar-productivity=0.1]
   - id: biosulfur
     name: Biosulfur
     buildings: [biochamber]
@@ -686,7 +686,7 @@ recipes:
     time: 2
     in: { carbonic-asteroid-chunk: 1 }
     out: { carbon: 10, carbonic-asteroid-chunk: 0.3 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:asteroid-productivity=0.1]
   - id: carbonic-asteroid-reprocessing
     name: Carbonic asteroid reprocessing
     buildings: [crusher]
@@ -775,7 +775,7 @@ recipes:
     time: 15
     in: { molten-iron: 80, molten-copper: 250, plastic-bar: 5 }
     out: { low-density-structure: 1 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:low-density-structure-productivity=0.1]
   - id: casting-pipe
     name: Casting pipe
     buildings: [foundry]
@@ -796,7 +796,7 @@ recipes:
     time: 3.2
     in: { molten-iron: 30 }
     out: { steel-plate: 1 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:steel-plate-productivity=0.1]
   - id: centrifuge
     name: Centrifuge
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3]
@@ -2344,7 +2344,7 @@ recipes:
     time: 15
     in: { steel-plate: 2, copper-plate: 20, plastic-bar: 5 }
     out: { low-density-structure: 1 }
-    tags: [productivity]
+    tags: [productivity, research:low-density-structure-productivity=0.1]
   - id: low-density-structure-recycling
     name: Low density structure recycling
     buildings: [recycler]
@@ -2413,7 +2413,7 @@ recipes:
     time: 2
     in: { metallic-asteroid-chunk: 1 }
     out: { iron-ore: 20, metallic-asteroid-chunk: 0.3 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:asteroid-productivity=0.1]
   - id: metallic-asteroid-reprocessing
     name: Metallic asteroid reprocessing
     buildings: [crusher]
@@ -2639,7 +2639,7 @@ recipes:
     time: 2
     in: { oxide-asteroid-chunk: 1 }
     out: { ice: 5, oxide-asteroid-chunk: 0.3 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:asteroid-productivity=0.1]
   - id: oxide-asteroid-reprocessing
     name: Oxide asteroid reprocessing
     buildings: [crusher]
@@ -2793,7 +2793,7 @@ recipes:
     time: 1
     in: { petroleum-gas: 20, coal: 1 }
     out: { plastic-bar: 2 }
-    tags: [productivity]
+    tags: [productivity, research:plastic-bar-productivity=0.1]
   - id: plastic-bar-recycling
     name: Plastic bar recycling
     buildings: [recycler]
@@ -2869,7 +2869,7 @@ recipes:
     time: 10
     in: { electronic-circuit: 20, advanced-circuit: 2, sulfuric-acid: 5 }
     out: { processing-unit: 1 }
-    tags: [productivity]
+    tags: [productivity, research:processing-unit-productivity=0.1]
   - id: processing-unit-recycling
     name: Processing unit recycling
     buildings: [recycler]
@@ -3273,14 +3273,14 @@ recipes:
     time: 15
     in: { solid-fuel: 10, light-oil: 10 }
     out: { rocket-fuel: 1 }
-    tags: [productivity]
+    tags: [productivity, research:rocket-fuel-productivity=0.1]
   - id: rocket-fuel-from-jelly
     name: Rocket fuel from jelly
     buildings: [biochamber]
     time: 10
     in: { water: 30, jelly: 30, bioflux: 2 }
     out: { rocket-fuel: 1 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, research:rocket-fuel-productivity=0.1]
   - id: rocket-fuel-recycling
     name: Rocket fuel recycling
     buildings: [recycler]
@@ -3307,7 +3307,7 @@ recipes:
     time: 3
     in: { processing-unit: 1, low-density-structure: 1, rocket-fuel: 1 }
     out: { rocket-part: 1 }
-    tags: [productivity]
+    tags: [productivity, research:rocket-part-productivity=0.1]
   - id: rocket-recycling
     name: Rocket recycling
     buildings: [recycler]
@@ -3360,7 +3360,7 @@ recipes:
       processing-unit: 0.02
       low-density-structure: 0.01
       holmium-ore: 0.01
-    tags: [recycler, space-age, recycling]
+    tags: [recycler, space-age, recycling, research:scrap-recycling-productivity=0.1]
   - id: selector-combinator
     name: Selector combinator
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3]
@@ -3737,7 +3737,7 @@ recipes:
     time: 16
     in: { iron-plate: 5 }
     out: { steel-plate: 1 }
-    tags: [productivity]
+    tags: [productivity, research:steel-plate-productivity=0.1]
   - id: steel-plate-recycling
     name: Steel plate recycling
     buildings: [recycler]

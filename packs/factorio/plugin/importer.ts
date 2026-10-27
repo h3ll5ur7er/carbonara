@@ -60,6 +60,8 @@ const DEFAULT_DRAIN = 1 / 30;
 /** A building that doesn't list its allowed effects takes modules of every effect. */
 const ALL_EFFECTS = ["consumption", "speed", "productivity", "pollution", "quality"];
 const DEFAULT_CRAFT_SECONDS = 0.5;
+/** RecipePrototype's default `maximum_productivity`: +300 %. */
+const DEFAULT_MAXIMUM_PRODUCTIVITY = 3;
 
 type Prototype = Record<string, unknown> & { name: string };
 type Dump = Record<string, Record<string, Prototype> | undefined>;
@@ -247,6 +249,16 @@ export function importDump(files: Record<string, Uint8Array>): {
     return fluid && hottest !== undefined ? clean(generatorMW(entity, fluid, hottest)) : undefined;
   }
 
+  // Productivity research: technologies that change recipes' productivity, by how much per level.
+  const research = new Map<string, [string, number][]>();
+  for (const technology of prototypes("technology")) {
+    for (const effect of (Array.isArray(technology.effects) ? technology.effects : []) as Record<string, unknown>[]) {
+      const change = number(effect.change);
+      if (effect.type !== "change-recipe-productivity" || typeof effect.recipe !== "string" || !change) continue;
+      research.set(effect.recipe, [...(research.get(effect.recipe) ?? []), [technology.name, change]]);
+    }
+  }
+
   /** Each recipe's ingredients as the dump gives them, for their temperature limits. */
   const limits = new Map<string, Amount[]>();
   const crafted = Object.values(dump.recipe ?? {}).flatMap((entry): Recipe[] => {
@@ -283,10 +295,13 @@ export function importDump(files: Record<string, Uint8Array>): {
     const makerMods = makers.map(modOf);
     if (!makerMods.includes("base")) for (const mod of makerMods) mods.add(mod);
     mods.delete("base");
+    const maximum = number(entry.maximum_productivity);
     const tags = [
       ...[...mods].sort(),
       ...(categories.includes("recycling") ? ["recycling"] : []),
       ...(entry.allow_productivity === true ? ["productivity", ...ignoredByProductivity(entry)] : []),
+      ...(research.get(entry.name) ?? []).map(([technology, change]) => `research:${technology}=${change}`),
+      ...(maximum !== undefined && maximum !== DEFAULT_MAXIMUM_PRODUCTIVITY ? [`maximum-productivity:${maximum}`] : []),
       ...(entry.allow_quality === false ? ["no-quality"] : []),
     ];
     const recipe: Recipe = {
