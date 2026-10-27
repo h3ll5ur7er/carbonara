@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import templatePlugin from "../../packs/_template/plugin/index";
 import { createMemoryDocumentStore } from "../access/documents/memory";
@@ -58,7 +58,7 @@ const defaults: PlanOptions = { objective: "resources", alternates: true, exclud
 
 async function plan(targets: PlanTarget[], options: Partial<PlanOptions> = {}, document = factory()) {
   const result = await setUp(document).planProduction({
-    documentId: "doc",
+    documentId: document.id,
     targets,
     options: { ...defaults, ...options },
   });
@@ -282,5 +282,53 @@ describe("comparing recipes", () => {
     expect(result.value.map((comparison) => comparison.recipe)).toEqual(["dry-sludge"]);
     expect(result.value[0]?.summary.raw.coal).toBeUndefined();
     expect(result.value[0]?.summary.buildings).toMatchObject({ furnace: 6, purifier: 12, washer: 24 });
+  });
+});
+
+/**
+ * The `planner` scene (src/client/scenes/planner.tsx) shows a real proposal next to a small copper line. Scenes
+ * can't call managers, so the scene reads this fixture; it fails here when the planner's answer changes.
+ * Regenerate it with `UPDATE_FIXTURES=1 pnpm vitest run src/managers/planning.test.ts`.
+ */
+describe("the planner scene's fixture", () => {
+  const file = new URL("../client/scenes/planner.fixture.json", import.meta.url);
+
+  function copperLine(): Document {
+    const document = factory(
+      {
+        nodes: {
+          ore: { kind: "source", item: "cuprite-ore" },
+          plates: { kind: "recipe", recipe: "copper-plate" },
+          wire: { kind: "recipe", recipe: "copper-wire" },
+          slag: { kind: "sink", item: "slag" },
+          out: { kind: "sink", item: "copper-wire", targetPerSecond: 2 },
+        },
+        edges: {
+          "ore-plates": { from: "ore", to: "plates", item: "cuprite-ore", logistics: "conveyor-1" },
+          "plates-wire": { from: "plates", to: "wire", item: "copper-plate", logistics: "conveyor-1" },
+          "plates-slag": { from: "plates", to: "slag", item: "slag", logistics: "conveyor-1" },
+          "wire-out": { from: "wire", to: "out", item: "copper-wire", logistics: "conveyor-1" },
+        },
+      },
+      {
+        root: {
+          ore: { x: 0, y: 72 },
+          plates: { x: 360, y: 0 },
+          wire: { x: 768, y: 0 },
+          slag: { x: 768, y: 216 },
+          out: { x: 1176, y: 72 },
+        },
+      },
+    );
+    return { ...document, id: "scene-planner", name: "Copper works", settings: { rateUnit: "per_minute" } };
+  }
+
+  it("is what the planner proposes for 15 motors a minute beside a copper line", async () => {
+    const document = copperLine();
+    const results = await analyse(document);
+    const proposal = await plan([{ item: "motor", perSecond: 0.25 }], {}, document);
+    const fixture = JSON.parse(JSON.stringify({ document, results, proposal })) as unknown;
+    if (process.env.UPDATE_FIXTURES || !existsSync(file)) writeFileSync(file, `${JSON.stringify(fixture, null, 2)}\n`);
+    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual(fixture);
   });
 });

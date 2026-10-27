@@ -40,6 +40,8 @@ export const scenes: SceneRegistry = {
   gallery: { title: "Primitives gallery", load: () => import("./gallery") },
   inspector: { title: "Side panels and the inspector", load: () => import("./inspector") },
   palette: { title: "Command palette with quick-add", load: () => import("./palette") },
+  // Features.
+  planner: { title: "The goal planner's proposal as a ghost", load: () => import("./planner") },
 };
 
 export type ScenePick =

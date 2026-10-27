@@ -4,6 +4,7 @@
 import type { ComponentType } from "react";
 import type { LocalId } from "../../contracts/document";
 import type { Id, RateUnit } from "../../contracts/pack";
+import type { GhostView } from "./ghost/ghost";
 import type { ResultSlots } from "./model/result-slots";
 import type { CanvasScene } from "./model/scene";
 
@@ -53,6 +54,12 @@ export interface CanvasViewProps {
   onViewCentre(centre: Point): void;
   /** The selected nodes changed. */
   onSelectionChange(nodeIds: LocalId[]): void;
+  /** A preview to draw over the scene (ghost/ghost.ts); its numbers are in `results` under ghost ids. */
+  ghost?: GhostView | undefined;
+  /** The ghost was dragged to, or clicked down at, this offset from its positions. */
+  onGhostPlace?(offset: Point): void;
+  /** Escape while the ghost follows the pointer. */
+  onGhostCancel?(): void;
 }
 
 /** A renderer of the factory canvas. */
