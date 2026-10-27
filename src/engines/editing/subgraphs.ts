@@ -298,9 +298,12 @@ function toOf(edge: Edge, named = (id: LocalId) => id): Pick<Edge, "to" | "toPor
   return { to: named(edge.to), ...(edge.toPort !== undefined && { toPort: edge.toPort }) };
 }
 
-/** A plain copy of part of the document, which may be an Immer draft. */
+/**
+ * A plain, unfrozen copy of part of the document, which may be an Immer draft. Not `current()` alone: for a part
+ * that wasn't changed it returns the frozen original, which a later command in the same batch couldn't edit.
+ */
 function copy<T>(value: T): T {
-  return isDraft(value) ? (current(value as object) as T) : structuredClone(value);
+  return structuredClone(isDraft(value) ? (current(value as object) as T) : value);
 }
 
 function logistics(belt: string | undefined): Pick<Edge, "logistics"> {

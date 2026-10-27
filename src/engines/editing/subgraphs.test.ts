@@ -1,3 +1,4 @@
+import { freeze } from "immer";
 import { describe, expect, it } from "vitest";
 import { Document } from "../../contracts/document";
 import { exampleDocument } from "../../contracts/document.fixture";
@@ -169,6 +170,18 @@ describe("collapsing nodes into a subgraph", () => {
 });
 
 describe("expanding a subgraph instance", () => {
+  it("leaves the expanded nodes editable in the same batch, though the document is frozen", () => {
+    // Every document after the first edit is one Immer froze; the copies must not be those frozen originals.
+    const frozen = freeze(structuredClone(document), true);
+    const next = edit(
+      frozen,
+      { type: "expand", graph: "root", id: "rods" },
+      { type: "setNodeFields", graph: "root", id: "make", fields: { clock: 150 } },
+    );
+    expect(next.graph.nodes["make"]).toMatchObject({ kind: "recipe", fields: { clock: 150 } });
+    expect(frozen.blueprints["rods"]?.graph.nodes["make"]).not.toHaveProperty("fields");
+  });
+
   it("undoes a collapse exactly", () => {
     for (const [start, ids] of [
       [document, ["smelt", "split"]],
