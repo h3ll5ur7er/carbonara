@@ -15,6 +15,7 @@ export type SceneRegistry = Record<string, Scene>;
 
 export const scenes: SceneRegistry = {
   gallery: { title: "Primitives gallery", load: () => import("./gallery") },
+  inspector: { title: "Side panels and the inspector", load: () => import("./inspector") },
 };
 
 export type ScenePick =

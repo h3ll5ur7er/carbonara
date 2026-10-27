@@ -38,7 +38,7 @@ export interface IconButtonProps extends Omit<ComponentProps<"button">, "childre
   /** Names the action for screen readers and in the tooltip. */
   label: string;
   /** Keys shown in the tooltip, as `Kbd` renders them. */
-  shortcut?: string[];
+  shortcut?: string[] | undefined;
   icon: ReactNode;
   variant?: Exclude<ButtonVariant, "primary">;
   size?: ButtonSize;

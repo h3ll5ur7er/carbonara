@@ -1,7 +1,12 @@
-// The app's top bar: wordmark, open documents, global controls.
+// The app's top bar: wordmark, open documents, panel toggles and global controls.
+import { PanelLeft, PanelRight } from "lucide-react";
+import { togglePanel, usePanels } from "./shell/panels";
 import { ThemeToggle } from "./ui/theme-toggle";
+import { Toggle } from "./ui/toggle";
 
 export function TopBar() {
+  const leftOpen = usePanels((panels) => panels.left.open);
+  const rightOpen = usePanels((panels) => panels.right.open);
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface-1 px-3">
       <Wordmark />
@@ -13,7 +18,15 @@ export function TopBar() {
           Untitled factory
         </span>
       </nav>
-      <div className="ml-auto flex items-center">
+      <div className="ml-auto flex items-center gap-1">
+        <Toggle label="Library" pressed={leftOpen} onPressedChange={() => togglePanel("left")} icon={<PanelLeft />} />
+        <Toggle
+          label="Inspector"
+          pressed={rightOpen}
+          onPressedChange={() => togglePanel("right")}
+          icon={<PanelRight />}
+        />
+        <div className="mx-1 h-5 w-px bg-line" aria-hidden />
         <ThemeToggle />
       </div>
     </header>

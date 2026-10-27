@@ -53,6 +53,14 @@ The design system lives in `src/client/ui/`, one file per primitive, built on Ra
 
 Popovers (menus, select lists) float on frosted glass (`popoverSurface`); dialogs sit on a solid surface over a blurred scrim. Number formatting and parsing (decimal comma, units typed after the number, no float noise) live in `number.ts`.
 
+## Shell
+
+The shell ([[src/client/app.tsx]], `src/client/shell/`) is a top bar over a full-bleed canvas, with side panels floating over the canvas on frosted glass and toasts at the bottom centre.
+
+- **Side panels:** the left one (Library, closed by default) and the right one (Inspector, open by default). Each has a close button and a resizable inner edge: drag it, or focus it and use the arrow keys (Shift for bigger steps), Home and End for the limits, Enter to close. The top bar toggles them. Open state and widths live in a session store (`shell/panels.ts`); the limits are in `shell/panel-layout.ts`.
+- **Inspector:** renders the selected node's plugin fields from their `FieldDescriptor`s ([[Architecture/Plugins]]), with no plugin UI code. `number` becomes a slider with a stepper and the unit, `choice` a select, `toggle` a switch. A value that is missing, of the wrong kind or out of range shows the default or the nearest allowed value. Each committed edit is one `setNodeFields` command to `editing.apply`, labelled for the undo history ("Set Clock speed to 150 %"); the control keeps the new value until the call returns, and a refused edit shows an error toast. The inspector itself only calls `onFieldEdit`; `InspectorPanel` does the wiring.
+- **Toasts:** `toast({ title, description, tone })` from anywhere in the client; `info` and `success` close after 4 s, `error` after 8 s. At most three show at once. Screen readers announce them and F8 jumps to them.
+
 ## Flows as the hero visual
 
 - Edge thickness grows with the log of throughput. Animated particles travel along edges, and their speed and density encode the rate. Animation turns off automatically when zoomed out or when the user prefers reduced motion.

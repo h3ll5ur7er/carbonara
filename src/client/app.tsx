@@ -1,7 +1,11 @@
-// The app shell: top bar over a full-bleed canvas, with slots for the side panels.
+// The app shell: top bar over a full-bleed canvas, side panels floating over it, toasts at the bottom.
 // In development, `?scene=<name>` renders a fixed scene instead (src/client/scenes/registry.ts).
-import { lazy, Suspense } from "react";
+import { Library } from "lucide-react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Canvas } from "./canvas/canvas";
+import { InspectorPanel, type InspectorPanelProps } from "./shell/inspector/inspector-panel";
+import { SidePanel } from "./shell/side-panel";
+import { Toaster } from "./shell/toaster";
 import { TopBar } from "./top-bar";
 import { TooltipProvider } from "./ui/tooltip";
 
@@ -17,27 +21,44 @@ export function App() {
       </Suspense>
     );
   }
+  return <AppShell />;
+}
+
+export interface AppShellProps {
+  /** The canvas and what sits on it; the empty canvas by default. Canvas scenes pass their own. */
+  canvas?: ReactNode;
+  /** What the inspector shows; nothing selected by default. */
+  selection?: InspectorPanelProps["selection"];
+}
+
+export function AppShell({ canvas = <EmptyCanvas />, selection = null }: AppShellProps) {
   return (
     <TooltipProvider>
-      <AppShell />
+      <div className="flex h-dvh w-dvw flex-col overflow-hidden bg-canvas font-sans text-fg">
+        <TopBar />
+        <main className="relative min-h-0 flex-1">
+          {canvas}
+          <SidePanel side="left" title="Library">
+            <LibraryPlaceholder />
+          </SidePanel>
+          <SidePanel side="right" title="Inspector">
+            <InspectorPanel selection={selection} />
+          </SidePanel>
+        </main>
+      </div>
+      <Toaster />
     </TooltipProvider>
   );
 }
 
-export function AppShell() {
+function EmptyCanvas() {
   return (
-    <div className="flex h-dvh w-dvw flex-col overflow-hidden bg-canvas font-sans text-fg">
-      <TopBar />
-      <main className="relative min-h-0 flex-1">
-        <div className="canvas-backdrop absolute inset-0">
-          <Canvas />
-        </div>
-        <EmptyState />
-        {/* Side panel slots, collapsed until panels exist. */}
-        <aside aria-label="Left panel" className="absolute inset-y-3 left-3 hidden" />
-        <aside aria-label="Right panel" className="absolute inset-y-3 right-3 hidden" />
-      </main>
-    </div>
+    <>
+      <div className="canvas-backdrop absolute inset-0">
+        <Canvas />
+      </div>
+      <EmptyState />
+    </>
   );
 }
 
@@ -66,5 +87,20 @@ function GhostNode() {
       <circle cx="8.5" cy="28" r="4" className="fill-canvas" stroke="currentColor" />
       <circle cx="79.5" cy="28" r="4.5" className="fill-accent" />
     </svg>
+  );
+}
+
+/** Until the pack library exists: says what the panel is for. */
+function LibraryPlaceholder() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 px-8 pb-12 text-center">
+      <span className="grid size-10 place-items-center rounded-xl bg-surface-3 text-fg-subtle inset-ring inset-ring-line-subtle">
+        <Library className="size-4.5" aria-hidden />
+      </span>
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-medium text-fg-muted">Library</p>
+        <p className="text-xs text-fg-subtle">The pack’s items and recipes will be listed here.</p>
+      </div>
+    </div>
   );
 }
