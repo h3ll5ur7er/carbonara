@@ -21,7 +21,9 @@ export async function openInApp(page: Page, spec: SceneSpec, colorScheme: "dark"
   await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
   const scene = buildScene(NO_PACK, spec);
   await page.goto(`/#doc=${writeShareLink(scene.document)}`);
-  await expect(page.locator(".react-flow__node")).toHaveCount(Object.keys(spec.nodes).length);
+  // The app's start (the dev server's first module compile, the backend worker, the solver's WebAssembly) can take
+  // longer than an assertion's default 5 s on a loaded runner; what the specs test starts after it.
+  await expect(page.locator(".react-flow__node")).toHaveCount(Object.keys(spec.nodes).length, { timeout: 30_000 });
   await page.evaluate(() => document.fonts.ready);
 }
 
