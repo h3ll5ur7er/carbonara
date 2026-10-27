@@ -75,11 +75,12 @@
   /* Translucent panels over the canvas; pair with `backdrop-blur-glass`. */
   --color-glass: light-dark(oklch(0.99 0.002 255 / 0.72), oklch(0.2 0.009 260 / 0.7));
 
-  /* Text and icons, from primary to disabled. */
+  /* Text and icons, from primary to faint. Every one is text: each keeps 4.5:1 (WCAG AA) on every surface up to
+   * surface-3 (fg-subtle up to surface-4), so a faint label or placeholder is still legible. */
   --color-fg: light-dark(oklch(0.24 0.015 260), oklch(0.95 0.004 260));
   --color-fg-muted: light-dark(oklch(0.44 0.015 260), oklch(0.76 0.01 260));
-  --color-fg-subtle: light-dark(oklch(0.56 0.014 260), oklch(0.6 0.012 260));
-  --color-fg-faint: light-dark(oklch(0.7 0.01 260), oklch(0.44 0.012 260));
+  --color-fg-subtle: light-dark(oklch(0.49 0.014 260), oklch(0.68 0.012 260));
+  --color-fg-faint: light-dark(oklch(0.52 0.01 260), oklch(0.65 0.012 260));
   /* Text on an accent fill. Pack accents are warm and light, so this is a dark ink. */
   --color-on-accent: oklch(0.2 0.02 60);
 

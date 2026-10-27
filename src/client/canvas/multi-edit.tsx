@@ -21,7 +21,7 @@ export interface MultiEditProps {
 
 const trigger =
   "flex h-7 items-center gap-1 rounded-md px-2 text-xs text-fg-muted hover:bg-surface-3 hover:text-fg " +
-  "focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:outline-none data-[state=open]:bg-surface-3";
+  "focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none data-[state=open]:bg-surface-3";
 
 export function MultiEdit(props: MultiEditProps) {
   return (
