@@ -23,8 +23,9 @@ import {
   type OnConnectEnd,
   type OnNodeDrag,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { CanvasViewProps, Insets, Point } from "../adapter";
+import type { Move } from "../model/tween";
 import { connectionItem } from "../model/connect";
 import { particlesShown } from "../model/flow-style";
 import { lodTier } from "../model/lod";
@@ -42,16 +43,21 @@ import { LassoArea } from "./lasso";
 import { handleBounds } from "./port-handle";
 import { RecipeNode } from "./recipe-node";
 import { SnapMarks, useSnapping } from "./snapping";
+import { useAltHeld, useInsertTarget } from "./edge-gestures";
 import { SinkNode, SourceNode } from "./terminal-nodes";
+import { toPng, toSvg } from "html-to-image";
+import { imageFrame } from "../model/image-frame";
+import { withTag } from "./tag-badge";
+import { motionDurations, useMoveTween } from "./tween";
 import type { FlowEdge as FlowEdgeType, FlowNode } from "./types";
 
 const nodeTypes = {
-  recipe: RecipeNode,
-  source: SourceNode,
-  sink: SinkNode,
-  junction: JunctionNode,
-  note: NoteNode,
-  frame: FrameNode,
+  recipe: withTag(RecipeNode),
+  source: withTag(SourceNode),
+  sink: withTag(SinkNode),
+  junction: withTag(JunctionNode),
+  note: withTag(NoteNode),
+  frame: withTag(FrameNode),
   placeholder: PlaceholderNode,
   ghostFrame: GhostFrameNode,
 } as NodeTypes;
@@ -76,6 +82,7 @@ function FlowCanvas({
   insets,
   results,
   rateUnit,
+  machineGroups,
   onMoveNodes,
   onConnect,
   onViewCentre,
@@ -85,26 +92,70 @@ function FlowCanvas({
   onGhostPlace = ignore,
   onGhostCancel = ignore,
   overlay,
+  onInsert,
+  onRewire,
+  onDelete,
+  onEditText,
+  onResize,
+  onViewSettled,
 }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
   const [shownScene, setShownScene] = useState(scene);
+  /** Where the canvas put nodes itself (a drop, a nudge), until the document says the same. */
+  const pending = useRef(new Map<string, Point>());
   if (shownScene !== scene) {
     // A new document version: adopt it, keeping what only the canvas knows (selection, a drag in progress).
+    // Nodes that moved keep their place for now and glide to the new one (below).
     setShownScene(scene);
     setNodes((current) => mergeNodes(scene, current));
     setEdges((current) => mergeEdges(scene, current));
   }
+  const glide = useMoveTween(setNodes);
+  /** While a picture is taken: every node drawn. */
+  const [exporting, setExporting] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
 
   // One subscriber to the zoom for the whole canvas: nodes re-render only when the tier changes.
   const lod = useStore((state) => lodTier(state.transform[2]));
   const particles = useStore((state) => particlesShown(state.transform[2]));
-  const context = useMemo(() => ({ results, rateUnit, lod }), [results, rateUnit, lod]);
+  const context = useMemo(
+    () => ({ results, rateUnit, machineGroups, lod, editText: onEditText, resize: onResize }),
+    [results, rateUnit, machineGroups, lod, onEditText, onResize],
+  );
 
   const store = useStoreApi<FlowNode, FlowEdgeType>();
+  // Once per adopted scene. It reads `nodes`: React Flow's store catches up with them in an effect of its own.
+  const glided = useRef(shownScene);
+  useLayoutEffect(() => {
+    if (glided.current === shownScene) return;
+    glided.current = shownScene;
+    const moves = new Map<string, Move>();
+    for (const node of nodes) {
+      const to = node.data.view.position;
+      const local = pending.current.get(node.id);
+      if (local) {
+        // A newer local move is on its way to the document: don't pull the node back meanwhile.
+        if (local.x === to.x && local.y === to.y) pending.current.delete(node.id);
+        continue;
+      }
+      if (!node.dragging && (node.position.x !== to.x || node.position.y !== to.y)) {
+        moves.set(node.id, { from: node.position, to });
+      }
+    }
+    glide(moves);
+  }, [shownScene, nodes, glide]);
+  const moveLocally = useCallback(
+    (moved: Record<string, Point>) => {
+      for (const [id, position] of Object.entries(moved)) pending.current.set(id, position);
+      onMoveNodes(moved);
+    },
+    [onMoveNodes],
+  );
+
   const snapping = useSnapping();
   const { snapChanges } = snapping;
-  const { screenToFlowPosition, fitView } = useReactFlow<FlowNode, FlowEdgeType>();
+  const { screenToFlowPosition, fitView, setViewport } = useReactFlow<FlowNode, FlowEdgeType>();
   const { getNodesBounds } = useReactFlow<FlowNode, FlowEdgeType>();
   // Shows a new ghost, with the graph around it while cards stay readable at the zoom that takes.
   const reveal = useCallback(
@@ -132,12 +183,51 @@ function FlowCanvas({
     (changes: EdgeChange<FlowEdgeType>[]) => setEdges((current) => applyEdgeChanges(changes, current)),
     [],
   );
-  const { onNodeDragEnd } = snapping;
+  const insert = useInsertTarget(scene);
+  const { onNodeDrag: snapDrag, onNodeDragEnd } = snapping;
+  const { follow: followInsert, end: endInsert } = insert;
+  const onNodeDrag: OnNodeDrag<FlowNode> = useCallback(
+    (event, node, dragged) => {
+      snapDrag(event, node, dragged);
+      if (!isGhost(node.id)) followInsert(dragged);
+    },
+    [snapDrag, followInsert],
+  );
   const onNodeDragStop: OnNodeDrag<FlowNode> = useCallback(
     (_event, node, dragged) => {
-      if (!isGhost(node.id)) onMoveNodes(onNodeDragEnd(dragged));
+      if (isGhost(node.id)) return;
+      const dropped = onNodeDragEnd(dragged);
+      const edge = endInsert();
+      const position = dropped[node.id];
+      if (edge && position && dragged.length === 1) {
+        pending.current.set(node.id, position);
+        onInsert(node.id, edge, position);
+      } else moveLocally(dropped);
     },
-    [onMoveNodes, onNodeDragEnd],
+    [moveLocally, onNodeDragEnd, endInsert, onInsert],
+  );
+  // The flow a dragged node would be inserted into stands out.
+  const shownEdges = useMemo(
+    () =>
+      insert.target === undefined
+        ? edges
+        : edges.map((edge) => (edge.id === insert.target ? { ...edge, className: "is-insert-target" } : edge)),
+    [edges, insert.target],
+  );
+
+  const altHeld = useAltHeld();
+  const onReconnect = useCallback(
+    (old: FlowEdgeType, connection: Connection) => {
+      const item = connectionItem(normalise(connection));
+      const unchanged =
+        old.source === connection.source &&
+        old.target === connection.target &&
+        old.sourceHandle === connection.sourceHandle &&
+        old.targetHandle === connection.targetHandle;
+      if (!item || item !== old.data?.view.item || unchanged) return;
+      onRewire(old.id, { from: connection.source, to: connection.target, item });
+    },
+    [onRewire],
   );
   const { onNodeDragStart: startSnapping } = snapping;
   const onNodeDragStart: OnNodeDrag<FlowNode> = useCallback(
@@ -188,20 +278,90 @@ function FlowCanvas({
     if (width > 0) onViewCentre(visibleCentre({ x, y, zoom }, { width, height }, insets));
   }, [store, insets, onViewCentre]);
   useEffect(reportCentre, [reportCentre]);
+  const onMoveEnd = useCallback(() => {
+    reportCentre();
+    const { transform, width, height } = store.getState();
+    const [x, y, zoom] = transform;
+    if (width > 0) onViewSettled({ x, y, zoom }, { width, height });
+  }, [reportCentre, store, onViewSettled]);
 
   useEffect(() => {
+    // Moves made here settle without React Flow saying so: report them, for back and forward.
+    const settled = () => onMoveEnd();
     const fit = (nodes?: FlowNode[]) =>
       // The whole graph shows at most at 100%; a selection may be zoomed in on up to the canvas maximum.
-      void fitView({ ...fitOptions(insets), ...(nodes && { nodes, maxZoom: MAX_ZOOM }), duration: motionDuration() });
+      void fitView({
+        ...fitOptions(insets),
+        ...(nodes && { nodes, maxZoom: MAX_ZOOM }),
+        duration: motionDuration(),
+      }).then(settled);
     setCanvasActions({
       zoomToFit: () => fit(),
       zoomToSelection: () => {
         const selected = store.getState().nodes.filter((node) => node.selected);
         fit(selected.length > 0 ? selected : undefined);
       },
+      focus: (ids) => {
+        const chosen = new Set(ids);
+        setNodes((current) =>
+          current.map((node) =>
+            node.selected === chosen.has(node.id) ? node : { ...node, selected: chosen.has(node.id) },
+          ),
+        );
+        const targets = store.getState().nodes.filter((node) => chosen.has(node.id));
+        // Close enough to read the cards, never closer than real size.
+        if (targets.length > 0) {
+          void fitView({ ...fitOptions(insets), nodes: targets, duration: motionDuration() }).then(settled);
+        }
+      },
+      image: async (format) => {
+        // Every node has to be drawn for the picture, so culling stops while it's taken.
+        setExporting(true);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        try {
+          const viewport = root.current?.querySelector<HTMLElement>(".react-flow__viewport");
+          if (!viewport) throw new Error("The canvas isn't on screen");
+          const frame = imageFrame(getNodesBounds(store.getState().nodes), FIT_MARGIN, MAX_IMAGE_SIDE);
+          const { x, y, zoom } = frame.viewport;
+          const options = {
+            backgroundColor: backgroundOf(root.current),
+            width: frame.width,
+            height: frame.height,
+            pixelRatio: 1,
+            style: {
+              width: `${frame.width}px`,
+              height: `${frame.height}px`,
+              transform: `translate(${x}px, ${y}px) scale(${zoom})`,
+            },
+          };
+          return await (format === "png" ? toPng(viewport, options) : toSvg(viewport, options));
+        } finally {
+          setExporting(false);
+        }
+      },
+      select: (nodeIds, edgeIds = []) => {
+        const nodesChosen = new Set(nodeIds);
+        const edgesChosen = new Set(edgeIds);
+        setNodes((current) =>
+          current.map((node) =>
+            node.selected === nodesChosen.has(node.id) ? node : { ...node, selected: nodesChosen.has(node.id) },
+          ),
+        );
+        setEdges((current) =>
+          current.map((edge) =>
+            edge.selected === edgesChosen.has(edge.id) ? edge : { ...edge, selected: edgesChosen.has(edge.id) },
+          ),
+        );
+      },
+      goTo: (viewport) => void setViewport(viewport, { duration: motionDuration() }).then(settled),
+      view: () => {
+        const { transform, width, height } = store.getState();
+        const [x, y, zoom] = transform;
+        return { viewport: { x, y, zoom }, size: { width, height } };
+      },
     });
     return () => setCanvasActions(undefined);
-  }, [fitView, insets, store]);
+  }, [fitView, getNodesBounds, setViewport, insets, store, onMoveEnd]);
 
   const onLasso = useCallback(
     (polygon: Point[], additive: boolean) => {
@@ -228,8 +388,14 @@ function FlowCanvas({
       const offset = nudgeOffset(event.key, event, GRID);
       const editable =
         event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable]");
+      if (event.key === "Backspace" && !editable) {
+        // The Delete key's command, for keyboards without one; with Mod+Shift, delete and bridge.
+        event.preventDefault();
+        onDelete((event.ctrlKey || event.metaKey) && event.shiftKey);
+        return;
+      }
       if (!offset || editable) return;
-      const selected = store.getState().nodes.filter((node) => node.selected);
+      const selected = store.getState().nodes.filter((node) => node.selected && !node.data.view.locked);
       if (selected.length === 0) return;
       event.preventDefault();
       event.stopPropagation();
@@ -242,46 +408,54 @@ function FlowCanvas({
           return position ? { ...node, position } : node;
         }),
       );
-      onMoveNodes(moved);
+      moveLocally(moved);
     },
-    [store, onMoveNodes, ghostKeyDown],
+    [store, moveLocally, onDelete, ghostKeyDown],
   );
 
   // React Flow wants this handler stable; it reports every selection change, including box and lasso.
   const reportSelection = useCallback(
-    ({ nodes: selected }: { nodes: FlowNode[] }) => onSelectionChange(selected.map((node) => node.id)),
+    ({ nodes: selected, edges: selectedEdges }: { nodes: FlowNode[]; edges: FlowEdgeType[] }) =>
+      onSelectionChange(
+        selected.map((node) => node.id),
+        selectedEdges.map((edge) => edge.id),
+      ),
     [onSelectionChange],
   );
 
   return (
     <CanvasContext value={context}>
-      <div className="size-full" onKeyDownCapture={onKeyDownCapture}>
+      <div ref={root} className={`size-full ${altHeld ? "alt-held" : ""}`} onKeyDownCapture={onKeyDownCapture}>
         <LassoArea onLasso={onLasso}>
           <ReactFlow<FlowNode, FlowEdgeType>
             nodes={ghostLayer.nodes.length > 0 ? [...nodes, ...ghostLayer.nodes] : nodes}
-            edges={ghostLayer.edges.length > 0 ? [...edges, ...ghostLayer.edges] : edges}
+            edges={ghostLayer.edges.length > 0 ? [...shownEdges, ...ghostLayer.edges] : shownEdges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeDragStart={onNodeDragStart}
-            onNodeDrag={snapping.onNodeDrag}
+            onNodeDrag={onNodeDrag}
             onNodeDragStop={onNodeDragStop}
+            // Alt-drag an end of a flow to another port; without Alt, the ends belong to the ports.
+            edgesReconnectable={altHeld}
+            onReconnect={onReconnect}
+            reconnectRadius={RECONNECT_RADIUS}
             selectionOnDrag
             selectionMode={SelectionMode.Partial}
             selectionKeyCode={null}
             multiSelectionKeyCode="Shift"
             panOnDrag={PAN_BUTTONS}
             panOnScroll
-            // Deleting waits for delete commands (Editor QoL); React Flow's would only hide nodes locally.
+            // Deleting is the Edit commands' job (one undoable edit); React Flow's would only hide nodes locally.
             deleteKeyCode={null}
             onConnect={handleConnect}
             onConnectEnd={onConnectEnd}
             onPaneMouseMove={ghostLayer.onPaneMouseMove}
             onPaneClick={ghostLayer.onPaneClick}
             onSelectionChange={reportSelection}
-            onInit={reportCentre}
-            onMoveEnd={reportCentre}
+            onInit={onMoveEnd}
+            onMoveEnd={onMoveEnd}
             // Bottom centre is the one place the floating side panels never cover.
             attributionPosition="bottom-center"
             isValidConnection={isValidConnection}
@@ -293,7 +467,7 @@ function FlowCanvas({
             className={`lod-${lod} ${particles ? "" : "particles-off"} ${ghostLayer.following ? "ghost-following" : ""}`}
             // Culling pays off while part of the graph is on screen. At chip zoom most of it is, and mounting
             // and unmounting chips at the screen edges on every pan frame costs more than drawing them all.
-            onlyRenderVisibleElements={lod !== "chip"}
+            onlyRenderVisibleElements={lod !== "chip" && !exporting}
           >
             <Background
               id="minor"
@@ -322,18 +496,33 @@ function FlowCanvas({
 
 const ignore = () => undefined;
 
+/** How close to a flow's end, in screen pixels, an Alt-drag picks it up. */
+const RECONNECT_RADIUS = 14;
+
 /** Middle and right mouse buttons pan; the left one selects. */
 const PAN_BUTTONS = [1, 2];
 
 /** The slow motion token in milliseconds: 0 when the user prefers reduced motion. */
 function motionDuration(): number {
-  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--duration-slow")) || 0;
+  return motionDurations().slow;
 }
 
 /** Room around a fitted graph, in screen pixels, on top of what the panels cover. */
 const FIT_MARGIN = 48;
 
 const MAX_ZOOM = 2;
+
+/** The colour behind the canvas: of the nearest element that paints one (the canvas backdrop). */
+function backgroundOf(element: Element | null): string {
+  for (let current = element; current; current = current.parentElement) {
+    const colour = getComputedStyle(current).backgroundColor;
+    if (colour && colour !== "transparent" && colour !== "rgba(0, 0, 0, 0)") return colour;
+  }
+  return getComputedStyle(document.body).backgroundColor;
+}
+
+/** Exported pictures stay this size or smaller along their longest side, in pixels. */
+const MAX_IMAGE_SIDE = 8192;
 
 function fitOptions(insets: Insets): FitViewOptions {
   return {
@@ -367,7 +556,8 @@ function toFlowNode(view: NodeView, previous?: FlowNode): FlowNode {
   return {
     id: view.id,
     type: view.kind,
-    position: previous?.dragging ? previous.position : view.position,
+    // An existing node keeps its place: a drag goes on, and a moved node glides there (see the layout effect).
+    position: previous ? previous.position : view.position,
     width: view.width,
     height: view.height,
     // Known sizes count as measured, so culled nodes that were never drawn still take part in fitting.
@@ -375,6 +565,7 @@ function toFlowNode(view: NodeView, previous?: FlowNode): FlowNode {
     handles: view.ports.map(handleBounds),
     data: { view },
     ...(view.kind === "frame" && { zIndex: -1 }),
+    ...(view.locked && { draggable: false, className: "is-locked" }),
     ...(previous?.selected && { selected: true }),
     ...(previous?.dragging && { dragging: true }),
   };

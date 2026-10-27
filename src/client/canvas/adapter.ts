@@ -3,8 +3,9 @@
 // it never talks to managers or knows about commands. See docs/Architecture.md, "How the canvas is drawn".
 import type { ComponentType, ReactNode } from "react";
 import type { LocalId } from "../../contracts/document";
-import type { Id, RateUnit } from "../../contracts/pack";
+import type { Id } from "../../contracts/pack";
 import type { GhostView } from "./ghost/ghost";
+import type { MachineGroups, RateDisplay } from "./model/format";
 import type { ResultSlots } from "./model/result-slots";
 import type { CanvasScene } from "./model/scene";
 
@@ -42,8 +43,10 @@ export interface CanvasViewProps {
   /** Screen pixels at the left and right edges that floating panels cover; fitting keeps the graph clear of them. */
   insets: Insets;
   results: ResultSlots;
-  /** The unit rates are shown in. */
-  rateUnit: RateUnit;
+  /** How rates are shown: the document's unit, and its belt for the items that belt carries. */
+  rateUnit: RateDisplay;
+  /** How machine counts read: "fill" (4 × 100% + 1 × 37.5%) or "even" (5 × 87.5%). */
+  machineGroups: MachineGroups;
   /** Nodes were dropped at new positions (top-left corners, flow units). */
   onMoveNodes(positions: Record<LocalId, Point>): void;
   /** The user connected two ports. */
@@ -52,8 +55,20 @@ export interface CanvasViewProps {
   onPortDropped(drop: PortDrop): void;
   /** The view settled; `centre` is the flow position in the middle of the visible canvas. */
   onViewCentre(centre: Point): void;
-  /** The selected nodes changed. */
-  onSelectionChange(nodeIds: LocalId[]): void;
+  /** The selected nodes or flows changed. */
+  onSelectionChange(nodeIds: LocalId[], edgeIds: LocalId[]): void;
+  /** A node without flows was dropped onto a flow, at `position` (top-left, flow units). */
+  onInsert(node: LocalId, edge: LocalId, position: Point): void;
+  /** One end of a flow was dragged (with Alt) to another port. */
+  onRewire(edge: LocalId, to: { from: LocalId; to: LocalId; item: Id }): void;
+  /** The view came to rest (after a pan, a zoom, a jump), on a canvas of this size in screen pixels. */
+  onViewSettled(viewport: Viewport, size: { width: number; height: number }): void;
+  /** A note's text or a frame's label was edited in place. */
+  onEditText(node: LocalId, text: string): void;
+  /** A note or frame was resized (top-left corner and size, flow units). */
+  onResize(node: LocalId, rect: { x: number; y: number; width: number; height: number }): void;
+  /** Backspace on the canvas: delete the selection (and bridge, with Mod+Shift), as the Delete key's command does. */
+  onDelete(bridge: boolean): void;
   /** A preview to draw over the scene (ghost/ghost.ts); its numbers are in `results` under ghost ids. */
   ghost?: GhostView | undefined;
   /** The ghost was dragged to, or clicked down at, this offset from its positions. */

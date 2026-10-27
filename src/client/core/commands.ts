@@ -12,6 +12,11 @@ export interface CommandDefinition {
   group: string;
   /** As `matchesShortcut` reads it: "Mod+Shift+K". */
   shortcut?: string;
+  /**
+   * Whether its shortcut also runs while a text field has focus (only shortcuts with a modifier ever do).
+   * False leaves the field its own meaning of the keys, as with undo. True when left out.
+   */
+  inTextFields?: boolean;
   /** Other words people may search for. */
   keywords?: string[];
   icon?: ComponentType<{ className?: string }>;
@@ -53,9 +58,9 @@ export function createCommandRegistry(definitions: CommandDefinition[]): Command
     },
     forKey(press, platform, editable) {
       return definitions.find(
-        ({ shortcut }) =>
+        ({ shortcut, inTextFields = true }) =>
           shortcut !== undefined &&
-          (!editable || parseShortcut(shortcut).mod) &&
+          (!editable || (inTextFields && parseShortcut(shortcut).mod)) &&
           matchesShortcut(shortcut, press, platform),
       );
     },

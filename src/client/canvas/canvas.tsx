@@ -14,9 +14,24 @@ import { errorMessage, toast } from "../shell/toasts";
 import type { CanvasAdapter, CanvasViewProps, Insets, Point, PortDrop, Viewport } from "./adapter";
 import "./canvas.css";
 import { ghostContent, withGhostResults, type Ghost } from "./ghost/ghost";
+import { freeSpot, obstaclesOf } from "./model/free-spot";
+import { rateDisplayOf, type RateDisplay } from "./model/format";
+import { GRID } from "./model/geometry";
 import { createResultSlots } from "./model/result-slots";
-import { createSceneBuilder, type CanvasScene } from "./model/scene";
+import { insertCommands } from "./model/insert";
+import { createSceneBuilder, type CanvasScene, type NodeView } from "./model/scene";
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
+import { CanvasContextMenu } from "./context-menu";
+import { SelectionToolbar } from "./selection-toolbar";
+import { UnitsPicker } from "./units-picker";
+import { MultiEdit } from "./multi-edit";
+import { canvasActions } from "./viewport";
+import { FindPanel } from "../features/find/find-panel";
+import { recipeChangeCommands, type FindResult } from "../features/find/find";
+import { useFind } from "../features/find/find-store";
+import type { Id } from "../../contracts/pack";
+import { useEditActions, type Selection } from "./use-edit-actions";
+import { useNavigation } from "./use-navigation";
 import { setViewportCentre } from "./viewport";
 
 /** The renderer in use; the only place that names it. */
@@ -69,6 +84,7 @@ export function Canvas({
 }
 
 const EMPTY_SCENE: CanvasScene = { nodes: [], edges: [] };
+const EMPTY_RATES: RateDisplay = { unit: "per_minute" };
 
 /** The side panels float `inset-3` (12 px) from the canvas edges (src/client/shell/side-panel.tsx). */
 const PANEL_MARGIN = 12;
@@ -91,10 +107,17 @@ function EmptyCanvas() {
       scene={EMPTY_SCENE}
       insets={insets}
       results={results}
-      rateUnit="per_minute"
+      rateUnit={EMPTY_RATES}
+      machineGroups="fill"
       onMoveNodes={ignore}
       onConnect={ignore}
       onPortDropped={ignore}
+      onInsert={ignore}
+      onRewire={ignore}
+      onDelete={ignore}
+      onEditText={ignore}
+      onResize={ignore}
+      onViewSettled={ignore}
       onViewCentre={setViewportCentre}
       onSelectionChange={ignore}
     />
@@ -186,6 +209,93 @@ function DocumentCanvas({
     [apply, graph],
   );
 
+  const selection = useRef<Selection>({ nodes: [], edges: [] });
+  /** Whether several nodes are selected: the selection toolbar shows then. */
+  const [several, setSeveral] = useState(false);
+  const onSelection: CanvasViewProps["onSelectionChange"] = useCallback(
+    (nodes, edges) => {
+      selection.current = { nodes, edges };
+      setSeveral(nodes.length >= 2);
+      onSelectionChange(nodes);
+    },
+    [onSelectionChange],
+  );
+  const navigation = useNavigation(document.id);
+  const actions = useEditActions({ document, pack, graph, scene, selection, apply, navigation: navigation.actions });
+  const onDelete: CanvasViewProps["onDelete"] = useCallback((bridge) => actions.deleteSelection(bridge), [actions]);
+  const onInsert: CanvasViewProps["onInsert"] = useCallback(
+    (nodeId, edgeId, point) => {
+      const edge = shown?.edges[edgeId];
+      const views = new Map(scene.nodes.map((view) => [view.id, view]));
+      const node = views.get(nodeId);
+      const consumer = edge && views.get(edge.to);
+      const position = { ...layout?.[nodeId], ...point };
+      const commands = edge && node && consumer && insertCommands(graph, edgeId, edge, node, consumer, position);
+      if (commands) void apply(commands, `Insert ${nodeTitle(node)}`);
+      else onMoveNodes({ [nodeId]: point });
+    },
+    [apply, graph, layout, scene, shown, onMoveNodes],
+  );
+  const onRewire: CanvasViewProps["onRewire"] = useCallback(
+    (edgeId, to) => {
+      const old = shown?.edges[edgeId];
+      if (!old) return;
+      // The flow keeps its belt and share; a port it leaves no longer applies.
+      const { fromPort, toPort, ...kept } = old;
+      const edge = {
+        ...kept,
+        ...to,
+        ...(fromPort !== undefined && to.from === old.from && { fromPort }),
+        ...(toPort !== undefined && to.to === old.to && { toPort }),
+      };
+      void apply(
+        [
+          { type: "disconnect", graph, ids: [edgeId] },
+          { type: "connect", graph, edge },
+        ],
+        "Rewire",
+      );
+    },
+    [apply, graph, shown],
+  );
+
+  const onEditText: CanvasViewProps["onEditText"] = useCallback(
+    (id, text) => {
+      const kind = shown?.nodes[id]?.kind;
+      void apply([{ type: "setText", graph, id, text }], kind === "frame" ? "Rename frame" : "Edit note");
+    },
+    [apply, graph, shown],
+  );
+  const onResize: CanvasViewProps["onResize"] = useCallback(
+    (id, rect) =>
+      void apply([{ type: "moveNodes", graph, positions: { [id]: { ...layout?.[id], ...rect } } }], "Resize"),
+    [apply, graph, layout],
+  );
+
+  const finding = useFind((state) => state.open);
+  const onJump = useCallback((result: FindResult) => canvasActions()?.focus([result.nodeId]), []);
+  const onReplace = useCallback(
+    (from: Id, to: Id) => {
+      const running: Record<string, LocalId[]> = {};
+      const graphs = [
+        ["root", document.graph] as const,
+        ...Object.entries(document.blueprints).map(([id, b]) => [id, b.graph] as const),
+      ];
+      for (const [scope, { nodes }] of graphs) {
+        const ids = Object.entries(nodes).flatMap(([id, node]) =>
+          node.kind === "recipe" && node.recipe === from ? [id] : [],
+        );
+        if (ids.length > 0) running[scope] = ids;
+      }
+      const name = (id: Id) => pack.recipes.find((recipe) => recipe.id === id)?.name ?? id;
+      void apply(
+        recipeChangeCommands(document, pack, running, to),
+        `Replace ${name(from)} with ${name(to)} everywhere`,
+      );
+    },
+    [apply, document, pack],
+  );
+
   // The recipe picker, while a connection dropped in empty space waits for its other end.
   const [drop, setDrop] = useState<(PortDrop & { bounds: { left: number; right: number; height: number } }) | null>(
     null,
@@ -201,41 +311,69 @@ function DocumentCanvas({
   );
   const usage = useMemo(() => (shown ? recipeUsage(shown) : {}), [shown]);
   const request = useMemo(() => drop && { item: drop.item, side: drop.side }, [drop]);
-  const rateUnit = document.settings.rateUnit ?? pack.units.rate;
+  const rateUnit = useMemo(() => rateDisplayOf(document.settings, pack), [document.settings, pack]);
   const onPick = useCallback(
     (entry: PickerEntry) => {
       if (!drop) return;
       setDrop(null);
       const pick = { graph, from: drop, entry, drop: drop.flow, id: newNodeId(entry) };
-      void apply(pickCommands(pack, pick), `Add ${entry.title}`);
+      void apply(clearOfOthers(pickCommands(pack, pick), scene, pack), `Add ${entry.title}`);
     },
-    [apply, drop, graph, pack],
+    [apply, drop, graph, pack, scene],
   );
 
   return (
     <div ref={container} className="relative size-full">
-      <Renderer
-        scene={scene}
-        {...(viewport && { initialViewport: viewport })}
-        insets={insets}
-        results={slots}
-        rateUnit={rateUnit}
-        onMoveNodes={onMoveNodes}
-        onConnect={onConnect}
-        onPortDropped={onPortDropped}
-        onViewCentre={setViewportCentre}
-        onSelectionChange={onSelectionChange}
-        ghost={ghostScene}
-        {...(onGhostPlace && { onGhostPlace })}
-        {...(onGhostCancel && { onGhostCancel })}
-        overlay={overlay}
-      />
+      <CanvasContextMenu>
+        <Renderer
+          scene={scene}
+          {...(viewport && { initialViewport: viewport })}
+          insets={insets}
+          results={slots}
+          rateUnit={rateUnit}
+          machineGroups={document.settings.machineGroups ?? "fill"}
+          onMoveNodes={onMoveNodes}
+          onConnect={onConnect}
+          onPortDropped={onPortDropped}
+          onViewCentre={setViewportCentre}
+          onSelectionChange={onSelection}
+          onInsert={onInsert}
+          onRewire={onRewire}
+          onDelete={onDelete}
+          onEditText={onEditText}
+          onResize={onResize}
+          onViewSettled={navigation.onViewSettled}
+          ghost={ghostScene}
+          {...(onGhostPlace && { onGhostPlace })}
+          {...(onGhostCancel && { onGhostCancel })}
+          overlay={overlay}
+        />
+      </CanvasContextMenu>
+      {several && !finding && (
+        <SelectionToolbar
+          left={insets.left}
+          right={insets.right}
+          multiEdit={<MultiEdit document={document} pack={pack} graph={graph} selection={selection} apply={apply} />}
+        />
+      )}
+      {finding && (
+        <FindPanel
+          document={document}
+          pack={pack}
+          graph={graph}
+          left={insets.left}
+          right={insets.right}
+          onJump={onJump}
+          onReplace={onReplace}
+        />
+      )}
+      <UnitsPicker settings={document.settings} pack={pack} left={insets.left} actions={actions} />
       {drop && request && (
         <RecipePicker
           pack={pack}
           request={request}
           usage={usage}
-          rateUnit={rateUnit}
+          rateUnit={rateUnit.unit}
           at={drop.screen}
           bounds={drop.bounds}
           onPick={onPick}
@@ -250,6 +388,32 @@ function DocumentCanvas({
 function newNodeId(entry: PickerEntry): LocalId {
   const base = entry.kind === "recipe" ? entry.id : `${entry.kind}-${entry.item.id}`;
   return `${base}-${crypto.randomUUID().slice(0, 6)}`;
+}
+
+/** How a node is named in the history: "Insert Iron Plate". */
+function nodeTitle(view: NodeView): string {
+  switch (view.kind) {
+    case "recipe":
+      return view.title;
+    case "source":
+    case "sink":
+      return view.item.name;
+    case "junction":
+      return "junction";
+    default:
+      return "node";
+  }
+}
+
+/** Moves the nodes the commands add off the nodes already there, as little as it takes. */
+function clearOfOthers(commands: CommandInput[], scene: CanvasScene, pack: PackData): CommandInput[] {
+  const obstacles = obstaclesOf(scene.nodes);
+  return commands.map((command) => {
+    if (command.type !== "addNode") return command;
+    const [view] = createSceneBuilder()({ nodes: { new: command.node }, edges: {} }, undefined, pack).nodes;
+    const wanted = { ...command.position, width: view?.width ?? 0, height: view?.height ?? 0 };
+    return { ...command, position: { ...command.position, ...freeSpot(wanted, obstacles, GRID) } };
+  });
 }
 
 function issuesText(issues: Issue[]): string {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formatMachines, formatRate } from "./format";
+import { templatePack } from "../../scenes/template-pack";
+import { choiceOf, formatMachines, formatRate, rateChoices, rateDisplayOf, settingsFor } from "./format";
 
 describe("formatRate", () => {
   it("converts items per second to the display unit", () => {
@@ -39,5 +40,59 @@ describe("formatMachines", () => {
 
   it("calls a node without machines idle", () => {
     expect(formatMachines(0)).toEqual({ text: "Idle", efficiency: 0, count: "0" });
+  });
+});
+
+describe("rates in belts", () => {
+  const display = {
+    unit: "per_minute" as const,
+    belt: { name: "Fast Conveyor", form: "solid" as const, perSecond: 0.5 },
+  };
+
+  it("counts the belts of the document's chosen tier that the rate fills", () => {
+    expect(formatRate(1, display, "solid")).toEqual({ value: "2", unit: " × Fast Conveyor" });
+    expect(formatRate(0.125, display, "solid")).toEqual({ value: "0.25", unit: " × Fast Conveyor" });
+  });
+
+  it("takes the belt's capacity from the pack, in the pack's unit", () => {
+    expect(rateDisplayOf({ belt: "conveyor-2" }, templatePack)).toEqual({
+      unit: "per_second",
+      belt: { name: "Fast Conveyor", form: "solid", perSecond: 30 },
+    });
+    expect(rateDisplayOf({ rateUnit: "per_hour", belt: "gone" }, templatePack)).toEqual({ unit: "per_hour" });
+  });
+
+  it("keeps the rate unit for items the belt doesn't carry, or when the item's form isn't known", () => {
+    expect(formatRate(1, display, "fluid")).toEqual({ value: "60", unit: "/min" });
+    expect(formatRate(1, display)).toEqual({ value: "60", unit: "/min" });
+  });
+});
+
+describe("choosing the unit", () => {
+  it("offers the rate units and every belt and pipe of the pack", () => {
+    expect(rateChoices(templatePack).map((choice) => choice.label)).toEqual([
+      "/s",
+      "/min",
+      "/h",
+      "× Conveyor",
+      "× Fast Conveyor",
+      "× Pipe",
+    ]);
+  });
+
+  it("turns a choice into settings and back", () => {
+    expect(settingsFor("per_hour")).toEqual({ rateUnit: "per_hour", belt: null });
+    expect(settingsFor("belt:conveyor-2")).toEqual({ belt: "conveyor-2" });
+    expect(choiceOf({ rateUnit: "per_hour" }, templatePack)).toBe("per_hour");
+    expect(choiceOf({ belt: "pipe" }, templatePack)).toBe("belt:pipe");
+    expect(choiceOf({}, templatePack)).toBe("per_second");
+  });
+});
+
+describe("machines rounded to buildable", () => {
+  it("spreads the work evenly over the machines that have to be built", () => {
+    expect(formatMachines(4.375, "even")).toEqual({ text: "5 × 87.5%", efficiency: 0.875, count: "4.38" });
+    expect(formatMachines(4, "even").text).toBe("4 × 100%");
+    expect(formatMachines(0.5, "even").text).toBe("1 × 50%");
   });
 });

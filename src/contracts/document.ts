@@ -63,11 +63,17 @@ export type Graph = z.infer<typeof Graph>;
 export const Blueprint = z.object({ name: z.string().min(1), graph: Graph });
 export type Blueprint = z.infer<typeof Blueprint>;
 
+/** The colours a node can be tagged with. */
+export const TagColour = z.enum(["red", "orange", "yellow", "green", "blue", "purple"]);
+export type TagColour = z.infer<typeof TagColour>;
+
 export const Position = z.object({
   x: z.number(),
   y: z.number(),
   width: z.number().positive().optional(),
   height: z.number().positive().optional(),
+  locked: z.literal(true).optional().describe("Locked nodes stay put: dragging, nudging and arranging leave them."),
+  tag: TagColour.optional().describe("A colour tag the user gave the node."),
 });
 export type Position = z.infer<typeof Position>;
 
@@ -87,6 +93,13 @@ export const Document = z.object({
   settings: z
     .object({
       rateUnit: RateUnit.optional(),
+      belt: Id.optional().describe(
+        'Show the rates of items this belt or pipe carries as multiples of its capacity ("2 × Fast Conveyor").',
+      ),
+      machineGroups: z
+        .enum(["fill", "even"])
+        .optional()
+        .describe("How machine counts read: 4 × 100% + 1 × 37.5% (fill, the default) or 5 × 87.5% (even)."),
       plugin: z
         .record(z.string(), z.unknown())
         .optional()

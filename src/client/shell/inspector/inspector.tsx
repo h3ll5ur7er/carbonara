@@ -3,6 +3,7 @@
 import { CircleAlert, Factory, MousePointerClick, TriangleAlert } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import type { FieldDescriptor, FieldValue } from "../../../contracts/plugin";
+import { Button } from "../../ui/button";
 import { NumberInput } from "../../ui/number-input";
 import { formatNumber, nudgeIncrement } from "../../ui/number";
 import { Select } from "../../ui/select";
@@ -240,7 +241,38 @@ function ProductionSection({ production, onEdit }: { production: Production; onE
           </button>
         )}
       </div>
+      {production.fits && (
+        <div role="group" aria-label="Balance" className="flex gap-2">
+          <FitButton label="Fit to demand" machines={production.fits.demand} onFit={(count) => void commit(count)} />
+          <FitButton label="Fit to supply" machines={production.fits.supply} onFit={(count) => void commit(count)} />
+        </div>
+      )}
     </section>
+  );
+}
+
+/** Pins the machine count that fits the neighbours; disabled when nothing sets one. */
+function FitButton({
+  label,
+  machines,
+  onFit,
+}: {
+  label: string;
+  machines: number | undefined;
+  onFit(count: number): void;
+}) {
+  const count = machines === undefined ? undefined : Number(machines.toFixed(4));
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      className="flex-1 justify-between"
+      disabled={count === undefined}
+      onClick={() => count !== undefined && onFit(count)}
+    >
+      <span>{label}</span>
+      <span className="font-mono text-fg-subtle tabular-nums">{count === undefined ? "—" : formatNumber(count)}</span>
+    </Button>
   );
 }
 

@@ -84,6 +84,53 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       id: fc.constantFrom("ore", "out", ...pools.recipes),
       perSecond: fc.option(fc.double({ min: 0, max: 100, noNaN: true }), { nil: null }),
     }),
+    fc.record({
+      type: fc.constant("setRecipe" as const),
+      graph,
+      ids: fc.uniqueArray(recipeId, { minLength: 1, maxLength: 2 }),
+      recipe: fc.constantFrom("iron-ingot", "iron-alloy"),
+    }),
+    fc.record({
+      type: fc.constant("setText" as const),
+      graph,
+      // A note and a frame, plus nodes the command must refuse.
+      id: fc.constantFrom("hint", "area", ...pools.nodes.slice(0, 1)),
+      text: fc.string(),
+    }),
+    fc.record({
+      type: fc.constant("setTag" as const),
+      graph,
+      ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),
+      tag: fc.constantFrom("red" as const, "blue" as const, null),
+    }),
+    fc.record({
+      type: fc.constant("setLogistics" as const),
+      graph,
+      ids: fc.uniqueArray(edgeId, { minLength: 1, maxLength: 2 }),
+      logistics: fc.constantFrom("belt-mk1", "belt-mk2", null),
+    }),
+    fc.record({
+      type: fc.constant("setSettings" as const),
+      settings: fc.record(
+        {
+          rateUnit: fc.constantFrom("per_second" as const, "per_minute" as const, null),
+          belt: fc.constantFrom("belt-mk1", "pipe", null),
+          machineGroups: fc.constantFrom("fill" as const, "even" as const, null),
+        },
+        { requiredKeys: [] },
+      ),
+    }),
+    fc.record({
+      type: fc.constant("removeAndBridge" as const),
+      graph,
+      ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),
+    }),
+    fc.record({
+      type: fc.constant("setLocked" as const),
+      graph,
+      ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),
+      locked: fc.boolean(),
+    }),
   );
 }
 

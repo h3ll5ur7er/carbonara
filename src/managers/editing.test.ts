@@ -1,3 +1,4 @@
+import ELK from "elkjs/lib/elk.bundled.js";
 import { describe, expect, it } from "vitest";
 import { createMemoryDocumentStore } from "../access/documents/memory";
 import { Command, type CommandInput } from "../contracts/commands";
@@ -16,7 +17,7 @@ function setup() {
   const changes: Events["documentChanged"][] = [];
   events.subscribe("documentChanged", (change) => changes.push(change));
   let ids = 0;
-  const editing = createEditingManager({ documents, events, newId: () => `id-${++ids}` });
+  const editing = createEditingManager({ documents, events, newId: () => `id-${++ids}`, layout: new ELK() });
   /** Calls `apply` with arguments as the dispatcher passes them: validated, defaults filled in. */
   const apply = (commands: CommandInput[], label?: string) =>
     editing.apply({
@@ -151,5 +152,64 @@ describe("the editing manager", () => {
     documents.put(original);
     await editing.undo({ documentId: "doc-1" });
     expect(await current()).toEqual(original);
+  });
+});
+
+describe("arranging", () => {
+  const shapes = {
+    ore: { width: 264, height: 72, ports: [{ side: "out" as const, item: "iron-ore", x: 264, y: 36 }] },
+    smelt: {
+      width: 312,
+      height: 156,
+      ports: [
+        { side: "in" as const, item: "iron-ore", x: 0, y: 108 },
+        { side: "out" as const, item: "iron-ingot", x: 312, y: 136 },
+      ],
+    },
+  };
+
+  it("moves the nodes in one step labelled Arrange, keeping their other layout fields", async () => {
+    const { editing, changes, current } = setup();
+    const result = await editing.arrange({ documentId: "doc-1", graph: "root", direction: "right", shapes });
+    expect(result).toMatchObject({ ok: true, value: { version: 2 } });
+    const layout = (await current()).layout["root"] ?? {};
+    // The ore feeds the smelter, so it sits to its left; their frame fits around both.
+    expect(layout["ore"]?.x ?? 0).toBeLessThan(layout["smelt"]?.x ?? 0);
+    const area = layout["area"] ?? { x: 0, y: 0 };
+    expect(area.x).toBeLessThan(layout["ore"]?.x ?? 0);
+    expect(area.x + (area.width ?? 0)).toBeGreaterThan((layout["smelt"]?.x ?? 0) + 312);
+    expect(changes.map((change) => change.label)).toEqual(["Arrange"]);
+    await editing.undo({ documentId: "doc-1" });
+    expect(await current()).toEqual(original);
+  });
+
+  it("arranges only the nodes asked for", async () => {
+    const { editing, current } = setup();
+    await editing.arrange({
+      documentId: "doc-1",
+      graph: "root",
+      direction: "right",
+      shapes,
+      nodeIds: ["split", "out"],
+    });
+    const layout = (await current()).layout["root"] ?? {};
+    expect(layout["ore"]).toEqual({ x: 0, y: 0 });
+    expect(layout["smelt"]).toEqual({ x: 240, y: 0 });
+    expect(layout).toHaveProperty("split");
+  });
+
+  it("refuses unknown documents and graphs", async () => {
+    const { editing, changes } = setup();
+    await expect(editing.arrange({ documentId: "ghost", graph: "root", direction: "right", shapes })).resolves.toEqual({
+      ok: false,
+      error: [{ path: ["documentId"], message: "Unknown document ghost" }],
+    });
+    await expect(
+      editing.arrange({ documentId: "doc-1", graph: "nope", direction: "down", shapes: {} }),
+    ).resolves.toEqual({
+      ok: false,
+      error: [{ path: ["graph"], message: "Unknown graph nope" }],
+    });
+    expect(changes).toEqual([]);
   });
 });

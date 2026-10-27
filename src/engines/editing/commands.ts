@@ -3,7 +3,7 @@
 // batch with them. Pure: ids of new nodes and edges arrive with the commands; the manager chooses them.
 import { applyPatches as applyImmerPatches, enablePatches, produceWithPatches } from "immer";
 import type { Command } from "../../contracts/commands";
-import type { Document, Graph, Node } from "../../contracts/document";
+import type { Document, Edge, Graph, Node } from "../../contracts/document";
 import type { Issue } from "../../contracts/issues";
 import type { Patch } from "../../contracts/patches";
 import { fail, ok, type Result } from "../../contracts/result";
@@ -52,6 +52,13 @@ const LABELS: Record<Command["type"], string> = {
   setPin: "Change pin",
   setPluginSettings: "Change save profile",
   setRate: "Change rate",
+  setLocked: "Lock nodes",
+  removeAndBridge: "Delete and bridge",
+  setSettings: "Change settings",
+  setRecipe: "Change recipe",
+  setLogistics: "Change belt",
+  setText: "Change text",
+  setTag: "Tag nodes",
 };
 
 /** A name for the history when the caller gives none. */
@@ -68,6 +75,15 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     for (const [key, value] of Object.entries(command.settings)) {
       if (value === null) Reflect.deleteProperty(settings, key);
       else settings[key] = structuredClone(value);
+    }
+    return;
+  }
+  if (command.type === "setSettings") {
+    for (const [key, value] of Object.entries(command.settings)) {
+      if (value === null) Reflect.deleteProperty(document.settings, key);
+      else if (value !== undefined && document.settings[key as keyof Document["settings"]] !== value) {
+        Object.assign(document.settings, { [key]: value });
+      }
     }
     return;
   }
@@ -89,6 +105,16 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
         if (!graph.nodes[id]) return issue(["ids", index], `Unknown node ${id}`);
       }
       removeNodes(document, scope, graph, new Set(command.ids));
+      return;
+    }
+    case "removeAndBridge": {
+      for (const [index, id] of command.ids.entries()) {
+        if (!graph.nodes[id]) return issue(["ids", index], `Unknown node ${id}`);
+      }
+      const removed = new Set(command.ids);
+      const bridges = bridgesAround(graph, removed);
+      removeNodes(document, scope, graph, removed);
+      for (const [id, edge] of bridges) graph.edges[freeId(graph, id)] = edge;
       return;
     }
     case "connect": {
@@ -142,6 +168,67 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
       else Object.assign(node, { [key]: command.perSecond });
       return;
     }
+    case "setRecipe": {
+      for (const [index, id] of command.ids.entries()) {
+        const node = graph.nodes[id];
+        if (!node) return issue(["ids", index], `Unknown node ${id}`);
+        if (node.kind !== "recipe") return issue(["ids", index], `${id} is not a recipe node`);
+      }
+      for (const id of command.ids) {
+        const node = graph.nodes[id];
+        if (node?.kind !== "recipe") continue;
+        node.recipe = command.recipe;
+        if (command.building !== undefined) node.building = command.building;
+        else delete node.building;
+      }
+      return;
+    }
+    case "setText": {
+      const node = graph.nodes[command.id];
+      if (!node) return issue(["id"], `Unknown node ${command.id}`);
+      if (node.kind === "note") node.text = command.text;
+      else if (node.kind === "frame") node.label = command.text;
+      else return issue(["id"], `${command.id} is neither a note nor a frame`);
+      return;
+    }
+    case "setTag": {
+      for (const [index, id] of command.ids.entries()) {
+        if (!graph.nodes[id]) return issue(["ids", index], `Unknown node ${id}`);
+      }
+      for (const id of command.ids) {
+        const position = document.layout[scope]?.[id];
+        if (command.tag === null) {
+          if (position?.tag !== undefined) delete position.tag;
+        } else if (position?.tag !== command.tag) {
+          (document.layout[scope] ??= {})[id] = { ...(position ?? { x: 0, y: 0 }), tag: command.tag };
+        }
+      }
+      return;
+    }
+    case "setLogistics": {
+      for (const [index, id] of command.ids.entries()) {
+        if (!graph.edges[id]) return issue(["ids", index], `Unknown edge ${id}`);
+      }
+      for (const id of command.ids) {
+        const edge = graph.edges[id];
+        if (!edge) continue;
+        if (command.logistics === null) delete edge.logistics;
+        else edge.logistics = command.logistics;
+      }
+      return;
+    }
+    case "setLocked": {
+      for (const [index, id] of command.ids.entries()) {
+        if (!graph.nodes[id]) return issue(["ids", index], `Unknown node ${id}`);
+      }
+      for (const id of command.ids) {
+        const position = document.layout[scope]?.[id];
+        if (command.locked && !position?.locked) {
+          (document.layout[scope] ??= {})[id] = { ...(position ?? { x: 0, y: 0 }), locked: true };
+        } else if (!command.locked && position?.locked) Reflect.deleteProperty(position, "locked");
+      }
+      return;
+    }
   }
 }
 
@@ -177,6 +264,66 @@ function removeNodes(document: Document, scope: string, graph: Graph, ids: Set<s
       if (throughFrom || throughTo) Reflect.deleteProperty(outer.edges, id);
     }
   }
+}
+
+/**
+ * The flows that keep a graph connected once `removed` is gone: per item, every flow into a group of removed
+ * nodes joined by that item's flows, connected to every flow out of it. Never a duplicate or a loop.
+ */
+function bridgesAround(graph: Graph, removed: Set<string>): [string, Edge][] {
+  const entries = Object.entries(graph.edges);
+  // The removed node each removed node's group is named after, per item: a small union-find.
+  const groups = new Map<string, string>();
+  const groupOf = (item: string, node: string): string => {
+    const key = `${item}\u0000${node}`;
+    const parent = groups.get(key) ?? node;
+    if (parent === node) return node;
+    const root = groupOf(item, parent);
+    groups.set(key, root);
+    return root;
+  };
+  for (const [, edge] of entries) {
+    if (removed.has(edge.from) && removed.has(edge.to)) {
+      groups.set(`${edge.item}\u0000${groupOf(edge.item, edge.from)}`, groupOf(edge.item, edge.to));
+    }
+  }
+
+  const exists = (edge: Edge) =>
+    Object.values(graph.edges).some(
+      (other) =>
+        other.from === edge.from &&
+        other.to === edge.to &&
+        other.item === edge.item &&
+        other.fromPort === edge.fromPort &&
+        other.toPort === edge.toPort,
+    );
+  const bridges: [string, Edge][] = [];
+  for (const [inId, into] of entries) {
+    if (removed.has(into.from) || !removed.has(into.to)) continue;
+    for (const [outId, out] of entries) {
+      if (!removed.has(out.from) || removed.has(out.to) || out.item !== into.item) continue;
+      if (groupOf(into.item, into.to) !== groupOf(out.item, out.from)) continue;
+      if (into.from === out.to) continue;
+      const bridge: Edge = {
+        from: into.from,
+        to: out.to,
+        ...(into.fromPort !== undefined && { fromPort: into.fromPort }),
+        ...(out.toPort !== undefined && { toPort: out.toPort }),
+        item: into.item,
+        ...(into.logistics !== undefined && into.logistics === out.logistics && { logistics: into.logistics }),
+      };
+      const duplicate = exists(bridge) || bridges.some(([, other]) => JSON.stringify(other) === JSON.stringify(bridge));
+      if (!duplicate) bridges.push([`${inId}+${outId}`, bridge]);
+    }
+  }
+  return bridges;
+}
+
+/** `id`, or `id~2`, `id~3` … when it's taken. */
+function freeId(graph: Graph, id: string): string {
+  let candidate = id;
+  for (let suffix = 2; graph.edges[candidate]; suffix++) candidate = `${id}~${suffix}`;
+  return candidate;
 }
 
 function graphOf(document: Document, scope: string): Graph | undefined {

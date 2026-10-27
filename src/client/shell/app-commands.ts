@@ -1,12 +1,25 @@
 // The app's commands. Register every new action here (or in a registry built from these), so the palette,
 // the menus and the keyboard all reach it.
-import { Bot, Command, Download, FilePlus, FolderOpen, Link, PanelLeft, PanelRight, SunMoon, X } from "lucide-react";
+import {
+  Bot,
+  Command,
+  Download,
+  Keyboard,
+  FilePlus,
+  FolderOpen,
+  Link,
+  PanelLeft,
+  PanelRight,
+  SunMoon,
+  X,
+} from "lucide-react";
 import { canvasCommands } from "../canvas/commands";
+import type { CommandDefinition } from "../core/commands";
 import { plannerCommands } from "../features/planner/commands";
 import { totalsCommands } from "../features/totals/commands";
 import { sankeyCommands } from "../features/sankey/commands";
 import { heatmapCommands } from "../features/heatmap/commands";
-import { createCommandRegistry, type CommandDefinition } from "../core/commands";
+import { customisableRegistry, setCheatSheetOpen, useShortcuts } from "../features/shortcuts/store";
 import { paletteCommandId } from "../features/command-palette/command-palette";
 import { documentActions } from "../features/documents/actions";
 import { setMcpDialogOpen } from "../features/mcp/host-store";
@@ -111,6 +124,16 @@ export const appCommands: CommandDefinition[] = [
     icon: Bot,
     run: () => setMcpDialogOpen(true),
   },
+  {
+    id: "help.shortcuts",
+    title: "Keyboard shortcuts",
+    group: "Help",
+    shortcut: "?",
+    keywords: ["keys", "cheat sheet", "customise", "customize", "rebind", "help"],
+    icon: Keyboard,
+    run: () => setCheatSheetOpen(!useShortcuts.getState().cheatSheetOpen),
+  },
 ];
 
-export const appRegistry = createCommandRegistry(appCommands);
+/** The registry the app uses: the commands above, with the shortcuts the person chose. */
+export const appRegistry = customisableRegistry(appCommands);

@@ -16,6 +16,7 @@ import { DocumentTabs } from "./features/documents/document-tabs";
 import { sharedDocumentIn } from "./features/documents/links";
 import { NewDocumentDialog } from "./features/documents/new-document-dialog";
 import { useFactoryOverlays } from "./features/planner/factory-overlays";
+import { CheatSheet } from "./features/shortcuts/cheat-sheet";
 import { Welcome } from "./features/documents/welcome";
 import { McpHost } from "./features/mcp/host";
 import { errorMessage, toast } from "./shell/toasts";
@@ -57,6 +58,7 @@ export function LiveApp() {
       />
       <NewDocumentDialog />
       <McpHost />
+      <CheatSheet />
     </>
   );
 }

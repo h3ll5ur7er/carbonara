@@ -1,6 +1,6 @@
 // Hides how a document graph and its pack become what the canvas draws: renderer-neutral node and edge
 // views with names resolved from the pack and fixed geometry. Every CanvasAdapter draws from these.
-import type { Graph, LocalId, Node, Position } from "../../../contracts/document";
+import type { Graph, LocalId, Node, Position, TagColour } from "../../../contracts/document";
 import type { Id, Item, ItemForm, PackData, Recipe } from "../../../contracts/pack";
 import {
   FRAME_SIZE,
@@ -37,6 +37,10 @@ interface NodeViewBase {
   width: number;
   height: number;
   ports: PortView[];
+  /** Locked nodes can't be dragged, nudged or arranged. */
+  locked?: true;
+  /** The colour tag the user gave it. */
+  tag?: TagColour;
 }
 
 export type NodeView = NodeViewBase &
@@ -134,7 +138,7 @@ export function createSceneBuilder() {
         cached.pack === pack &&
         cached.junctionItem === junctionItem
           ? cached.view
-          : nodeView(id, node, position, index, junctionItem);
+          : decorated(position, nodeView(id, node, position, index, junctionItem));
       next.set(id, { node, position, pack, junctionItem, view });
       (view.kind === "frame" ? frames : others).push(view);
     }
@@ -279,6 +283,12 @@ function nodeView(
         ports: [],
       };
   }
+}
+
+/** What the user set on the position besides where it is: a lock, a colour tag. */
+function decorated(position: Position | undefined, view: NodeView): NodeView {
+  if (!position?.locked && !position?.tag) return view;
+  return { ...view, ...(position.locked && { locked: true }), ...(position.tag && { tag: position.tag }) };
 }
 
 function port(direction: PortDirection, item: ItemView, x: number, y: number): PortView {

@@ -9,6 +9,7 @@
 //   (planning manager);
 // - accepting runs the proposal's commands through edit_graph until apply_proposal exists (CARB-46).
 import { readdirSync, readFileSync } from "node:fs";
+import ELK from "elkjs/lib/elk.bundled.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import factorioPlugin from "../packs/factorio/plugin/index";
 import { createMcpAccess } from "../src/client/features/mcp/access";
@@ -79,7 +80,7 @@ function carbonara() {
   const newId = () => `id-${nextId++}`;
   const dispatch = createDispatcher(contracts, {
     workspace: createWorkspaceManager({ documents, packs, events: bus, newId }),
-    editing: createEditingManager({ documents, events: bus, newId }),
+    editing: createEditingManager({ documents, events: bus, newId, layout: new ELK() }),
     analysis: createAnalysisManager({ bus, documents, packs }),
     packs: { listPacks: async () => [factorio.info], getPackData: async () => factorio.data },
     planning: createPlanningManager({ documents, packs }),

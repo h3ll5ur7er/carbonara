@@ -1,13 +1,17 @@
 // What node and edge components read besides their own props: their result slot and the display unit.
 import { createContext, useCallback, useContext, useSyncExternalStore } from "react";
 import type { LocalId } from "../../../contracts/document";
-import type { RateUnit } from "../../../contracts/pack";
+import type { MachineGroups, RateDisplay } from "../model/format";
 import type { LodTier } from "../model/lod";
 import type { EdgeSlot, NodeSlot, ResultSlots } from "../model/result-slots";
 
 export interface CanvasContextValue {
   results: ResultSlots;
-  rateUnit: RateUnit;
+  rateUnit: RateDisplay;
+  machineGroups: MachineGroups;
+  /** Notes and frames report in-place edits and resizes through these. */
+  editText(node: LocalId, text: string): void;
+  resize(node: LocalId, rect: { x: number; y: number; width: number; height: number }): void;
   /** How much of each node to draw at the current zoom. */
   lod: LodTier;
 }
@@ -20,8 +24,19 @@ function useCanvasContext(): CanvasContextValue {
   return value;
 }
 
-export function useRateUnit(): RateUnit {
+/** How rates are shown: the unit, and the belt for the items it carries. */
+export function useRateUnit(): RateDisplay {
   return useCanvasContext().rateUnit;
+}
+
+export function useMachineGroups(): MachineGroups {
+  return useCanvasContext().machineGroups;
+}
+
+/** How notes and frames report edits made on the canvas. */
+export function useAnnotationEdits(): Pick<CanvasContextValue, "editText" | "resize"> {
+  const { editText, resize } = useCanvasContext();
+  return { editText, resize };
 }
 
 export function useLod(): LodTier {

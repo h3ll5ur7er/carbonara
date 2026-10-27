@@ -46,6 +46,13 @@ export function createSceneBackend(
 }
 
 function apply(draft: Draft<Document>, command: Command, newId: () => string) {
+  if (command.type === "setSettings") {
+    for (const [key, value] of Object.entries(command.settings)) {
+      if (value === null) Reflect.deleteProperty(draft.settings, key);
+      else if (value !== undefined) Object.assign(draft.settings, { [key]: value });
+    }
+    return;
+  }
   const graph = command.graph === "root" ? draft.graph : draft.blueprints[command.graph]?.graph;
   if (!graph) return;
   const layout = (draft.layout[command.graph] ??= {});
@@ -62,8 +69,42 @@ function apply(draft: Draft<Document>, command: Command, newId: () => string) {
     case "moveNodes":
       Object.assign(layout, command.positions);
       return;
+    case "removeNodes": {
+      const removed = new Set(command.ids);
+      for (const id of removed) {
+        Reflect.deleteProperty(graph.nodes, id);
+        Reflect.deleteProperty(layout, id);
+      }
+      for (const [id, edge] of Object.entries(graph.edges)) {
+        if (removed.has(edge.from) || removed.has(edge.to)) Reflect.deleteProperty(graph.edges, id);
+      }
+      return;
+    }
+    case "disconnect":
+      for (const id of command.ids) Reflect.deleteProperty(graph.edges, id);
+      return;
+    case "setText": {
+      const node = graph.nodes[command.id];
+      if (node?.kind === "note") node.text = command.text;
+      if (node?.kind === "frame") node.label = command.text;
+      return;
+    }
+    case "setTag":
+      for (const id of command.ids) {
+        const position = (layout[id] ??= { x: 0, y: 0 });
+        if (command.tag) position.tag = command.tag;
+        else delete position.tag;
+      }
+      return;
+    case "setLocked":
+      for (const id of command.ids) {
+        const position = (layout[id] ??= { x: 0, y: 0 });
+        if (command.locked) position.locked = true;
+        else delete position.locked;
+      }
+      return;
     default:
-      // The scenes only add, connect and move; other edits wait for the editing engine (CARB-32).
+      // Scenes only follow the edits that change what their canvas shows; the editing engine has the full rules.
       return;
   }
 }

@@ -209,6 +209,195 @@ describe("moving nodes", () => {
   });
 });
 
+describe("deleting and bridging", () => {
+  /** A bus: two smelters merge into a junction, which feeds the sink and the rods; an extra splitter after it. */
+  const bus = Document.parse({
+    ...exampleDocument,
+    graph: {
+      nodes: {
+        a: { kind: "recipe", recipe: "iron-ingot" },
+        b: { kind: "recipe", recipe: "iron-ingot" },
+        merge: { kind: "junction" },
+        split: { kind: "junction" },
+        out: { kind: "sink", item: "iron-ingot" },
+        other: { kind: "sink", item: "iron-ingot" },
+        rods: { kind: "instance", blueprint: "rods" },
+      },
+      edges: {
+        a1: { from: "a", to: "merge", item: "iron-ingot", logistics: "belt-mk2" },
+        b1: { from: "b", to: "merge", item: "iron-ingot", logistics: "belt-mk2" },
+        m1: { from: "merge", to: "split", item: "iron-ingot", logistics: "belt-mk2" },
+        s1: { from: "split", to: "out", item: "iron-ingot", logistics: "belt-mk1" },
+        s2: { from: "split", to: "rods", toPort: "in", item: "iron-ingot" },
+        direct: { from: "a", to: "other", item: "iron-ingot" },
+      },
+    },
+    layout: { root: { merge: { x: 0, y: 0 }, split: { x: 100, y: 0 } } },
+  });
+
+  function bridged(ids: string[]) {
+    const result = applyCommands(bus, [{ type: "removeAndBridge", graph: "root", ids }]);
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    return result.value.document;
+  }
+
+  it("connects what flowed in to what flowed out, keeping ports, and the belt where both sides agree", () => {
+    const next = bridged(["split"]);
+    expect(next.graph.nodes).not.toHaveProperty("split");
+    expect(next.layout["root"]).not.toHaveProperty("split");
+    expect(Object.values(next.graph.edges)).toEqual(
+      expect.arrayContaining([
+        { from: "merge", to: "out", item: "iron-ingot" },
+        { from: "merge", to: "rods", toPort: "in", item: "iron-ingot" },
+      ]),
+    );
+    expect(Object.keys(next.graph.edges)).toEqual(["a1", "b1", "direct", "m1+s1", "m1+s2"]);
+  });
+
+  it("bridges through a chain of removed nodes, every source to every destination", () => {
+    const next = bridged(["merge", "split"]);
+    const pairs = Object.values(next.graph.edges).map((edge) => `${edge.from}>${edge.to}`);
+    expect(pairs.sort()).toEqual(["a>other", "a>out", "a>rods", "b>out", "b>rods"]);
+  });
+
+  it("keeps the belt when both sides of the bridge use the same one", () => {
+    const next = bridged(["merge"]);
+    expect(next.graph.edges["a1+m1"]).toEqual({ from: "a", to: "split", item: "iron-ingot", logistics: "belt-mk2" });
+  });
+
+  it("doesn't duplicate a flow that already exists, or connect a node to itself", () => {
+    const looped = Document.parse({
+      ...exampleDocument,
+      graph: {
+        nodes: { a: { kind: "junction" }, j: { kind: "junction" }, z: { kind: "junction" } },
+        edges: {
+          in: { from: "a", to: "j", item: "x" },
+          out: { from: "j", to: "z", item: "x" },
+          back: { from: "j", to: "a", item: "x" },
+          there: { from: "a", to: "z", item: "x" },
+        },
+      },
+      layout: {},
+    });
+    const result = applyCommands(looped, [{ type: "removeAndBridge", graph: "root", ids: ["j"] }]);
+    expect(result.ok && result.value.document.graph.edges).toEqual({ there: { from: "a", to: "z", item: "x" } });
+  });
+
+  it("only removes a node whose inputs and outputs are different items", () => {
+    const result = applyCommands(document, [{ type: "removeAndBridge", graph: "root", ids: ["smelt"] }]);
+    expect(result.ok && Object.keys(result.value.document.graph.edges)).toEqual(["e3", "e4"]);
+  });
+
+  it("rejects unknown nodes", () => {
+    expect(rejection({ type: "removeAndBridge", graph: "root", ids: ["ghost"] })).toEqual([
+      { path: ["commands", 0, "ids", 0], message: "Unknown node ghost" },
+    ]);
+  });
+});
+
+describe("changing recipes and belts", () => {
+  it("swaps the recipe of recipe nodes, keeping their fields and pin, and drops a building the caller doesn't name", () => {
+    const { document: next } = edit({ type: "setRecipe", graph: "root", ids: ["smelt"], recipe: "iron-alloy" });
+    expect(next.graph.nodes["smelt"]).toEqual({
+      kind: "recipe",
+      recipe: "iron-alloy",
+      fields: { clock: 150 },
+      pin: { type: "machines", count: 4 },
+    });
+    const built = edit({
+      type: "setRecipe",
+      graph: "rods",
+      ids: ["make"],
+      recipe: "iron-rod",
+      building: "constructor",
+    });
+    expect(built.document.blueprints["rods"]?.graph.nodes["make"]).toMatchObject({ building: "constructor" });
+  });
+
+  it("refuses nodes that don't run a recipe", () => {
+    expect(rejection({ type: "setRecipe", graph: "root", ids: ["smelt", "ore"], recipe: "x" })).toEqual([
+      { path: ["commands", 0, "ids", 1], message: "ore is not a recipe node" },
+    ]);
+  });
+
+  it("sets and clears the belt of flows", () => {
+    const { document: next } = edit({ type: "setLogistics", graph: "root", ids: ["e1", "e2"], logistics: "belt-mk3" });
+    expect(next.graph.edges["e1"]?.logistics).toBe("belt-mk3");
+    expect(next.graph.edges["e2"]?.logistics).toBe("belt-mk3");
+    const cleared = applyCommands(next, [{ type: "setLogistics", graph: "root", ids: ["e1"], logistics: null }]);
+    expect(cleared.ok && cleared.value.document.graph.edges["e1"]).toEqual({
+      from: "ore",
+      to: "smelt",
+      item: "iron-ore",
+    });
+  });
+
+  it("refuses unknown flows", () => {
+    expect(rejection({ type: "setLogistics", graph: "root", ids: ["ghost"], logistics: null })).toEqual([
+      { path: ["commands", 0, "ids", 0], message: "Unknown edge ghost" },
+    ]);
+  });
+});
+
+describe("notes, frames and colour tags", () => {
+  it("changes a note's text and a frame's label", () => {
+    const { document: next } = edit(
+      { type: "setText", graph: "root", id: "hint", text: "Upgrade to Mk.2" },
+      { type: "setText", graph: "root", id: "area", text: "Iron" },
+    );
+    expect(next.graph.nodes["hint"]).toEqual({ kind: "note", text: "Upgrade to Mk.2" });
+    expect(next.graph.nodes["area"]).toMatchObject({ kind: "frame", label: "Iron" });
+  });
+
+  it("refuses text on nodes that have none", () => {
+    expect(rejection({ type: "setText", graph: "root", id: "ore", text: "x" })).toEqual([
+      { path: ["commands", 0, "id"], message: "ore is neither a note nor a frame" },
+    ]);
+  });
+
+  it("tags nodes with a colour on their position, and removes it", () => {
+    const { document: tagged } = edit({ type: "setTag", graph: "root", ids: ["ore", "split"], tag: "blue" });
+    expect(tagged.layout["root"]?.["ore"]).toEqual({ x: 0, y: 0, tag: "blue" });
+    expect(tagged.layout["root"]?.["split"]).toEqual({ x: 0, y: 0, tag: "blue" });
+    const cleared = applyCommands(tagged, [{ type: "setTag", graph: "root", ids: ["ore"], tag: null }]);
+    expect(cleared.ok && cleared.value.document.layout["root"]?.["ore"]).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe("changing the display settings", () => {
+  it("sets the ones given, clears the ones set to null and keeps the rest", () => {
+    const { document: next } = edit({ type: "setSettings", settings: { belt: "belt-mk3", machineGroups: "even" } });
+    expect(next.settings).toEqual({ rateUnit: "per_minute", belt: "belt-mk3", machineGroups: "even" });
+    const cleared = applyCommands(next, [{ type: "setSettings", settings: { rateUnit: null, belt: null } }]);
+    expect(cleared.ok && cleared.value.document.settings).toEqual({ machineGroups: "even" });
+  });
+
+  it("changes nothing when the settings are as asked", () => {
+    expect(edit({ type: "setSettings", settings: { rateUnit: "per_minute", belt: null } }).patches).toEqual([]);
+  });
+});
+
+describe("locking nodes", () => {
+  it("marks their positions locked, and unlocks them again", () => {
+    const { document: locked } = edit({ type: "setLocked", graph: "root", ids: ["ore", "split"], locked: true });
+    expect(locked.layout["root"]?.["ore"]).toEqual({ x: 0, y: 0, locked: true });
+    // A node without a position yet gets one where the canvas draws it: the origin.
+    expect(locked.layout["root"]?.["split"]).toEqual({ x: 0, y: 0, locked: true });
+    const result = applyCommands(locked, [{ type: "setLocked", graph: "root", ids: ["ore"], locked: false }]);
+    expect(result.ok && result.value.document.layout["root"]?.["ore"]).toEqual({ x: 0, y: 0 });
+  });
+
+  it("changes nothing when the nodes already are as asked", () => {
+    expect(edit({ type: "setLocked", graph: "root", ids: ["smelt"], locked: false }).patches).toEqual([]);
+  });
+
+  it("rejects unknown nodes", () => {
+    expect(rejection({ type: "setLocked", graph: "root", ids: ["ghost"], locked: true })).toEqual([
+      { path: ["commands", 0, "ids", 0], message: "Unknown node ghost" },
+    ]);
+  });
+});
+
 describe("setting fields and pins", () => {
   it("merges fields into a recipe node", () => {
     const { document: next, patches } = edit({
