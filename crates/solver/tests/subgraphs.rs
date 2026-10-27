@@ -60,6 +60,11 @@ fn designed(machines: f64) -> Blueprint {
     blueprint
 }
 
+#[track_caller]
+fn assert_same_flows(actual: &Solution, expected: &Solution) {
+    assert_all_close(&actual.flow, &expected.flow);
+}
+
 /// What each objective tier scores: pin misses, deficits, cost (inside instances too) and surplus.
 fn scores(model: &Model, solution: &Solution) -> [f64; 4] {
     fn inside_cost(model: &Model, blueprint: u32, instance: &InstanceSolution) -> f64 {
@@ -275,6 +280,187 @@ mod caching {
         assert_eq!(solver.cached_summaries(), 2);
         // 2 ingots/s from a design of 3 ingots/s.
         assert_close(solution.activity[2], 2.0 / 3.0);
+    }
+}
+
+mod several_ways_of_running {
+    use super::*;
+
+    /// Ingots from ore (1 → 1) or from coal (2 → 1), merged into one ingot port.
+    fn two_recipes() -> Blueprint {
+        Blueprint {
+            nodes: vec![
+                port_in(ORE),
+                port_in(COAL),
+                process(&[(ORE, -1.0), (INGOT, 1.0)]),
+                process(&[(COAL, -2.0), (INGOT, 1.0)]),
+                junction(),
+                port_out(INGOT),
+            ],
+            edges: vec![
+                edge(0, 2, ORE),
+                edge(1, 3, COAL),
+                edge(2, 4, INGOT),
+                edge(3, 4, INGOT),
+                edge(4, 5, INGOT),
+            ],
+            constraints: vec![],
+            ports: vec![0, 1, 5],
+        }
+    }
+
+    #[test]
+    fn the_lp_around_combines_the_modes_of_a_blueprint() {
+        // Ore is cheaper per ingot but only 1/s exists; coal makes up the rest of the 3 ingots/s.
+        let model = Model {
+            blueprints: vec![two_recipes()],
+            ..model(
+                4,
+                vec![
+                    limited(source(ORE), 1.0),
+                    source(COAL),
+                    instance(0),
+                    pinned(sink(INGOT), 3.0),
+                ],
+                vec![
+                    into_port(0, 2, ORE, 0),
+                    into_port(1, 2, COAL, 1),
+                    out_of_port(2, 3, INGOT, 2),
+                ],
+            )
+        };
+        let solution = solved(&model);
+        assert!(solution.inlined.is_empty());
+        assert_all_close(&solution.flow, &[1.0, 4.0, 3.0]);
+        assert_all_close(&solution.instances[0].activity[2..4], &[1.0, 2.0]);
+        assert_same_flows(&solution, &inlined(&model));
+    }
+
+    #[test]
+    fn a_bus_passes_through_a_blueprint_that_also_draws_from_it() {
+        // water port → junction → water port, and the junction feeds a washer making clean ore.
+        let (water, clean) = (SLAG, INGOT);
+        let blueprint = Blueprint {
+            nodes: vec![
+                port_in(water),
+                junction(),
+                process(&[(water, -1.0), (ORE, -1.0), (clean, 1.0)]),
+                port_out(water),
+                port_in(ORE),
+                port_out(clean),
+            ],
+            edges: vec![
+                edge(0, 1, water),
+                edge(1, 2, water),
+                edge(1, 3, water),
+                edge(4, 2, ORE),
+                edge(2, 5, clean),
+            ],
+            constraints: vec![],
+            ports: vec![0, 3, 4, 5],
+        };
+        let model = Model {
+            blueprints: vec![blueprint],
+            ..model(
+                4,
+                vec![
+                    source(water),
+                    source(ORE),
+                    instance(0),
+                    pinned(sink(water), 2.0),
+                    pinned(sink(clean), 1.0),
+                ],
+                vec![
+                    into_port(0, 2, water, 0),
+                    into_port(1, 2, ORE, 2),
+                    out_of_port(2, 3, water, 1),
+                    out_of_port(2, 4, clean, 3),
+                ],
+            )
+        };
+        let solution = solved(&model);
+        assert!(solution.inlined.is_empty());
+        assert_all_close(&solution.flow, &[3.0, 1.0, 2.0, 1.0]);
+        assert_all_close(&solution.instances[0].ports, &[3.0, 2.0, 1.0, 1.0]);
+        assert!(solution.deficit.is_empty() && solution.surplus.is_empty());
+        assert_same_flows(&solution, &inlined(&model));
+    }
+
+    #[test]
+    fn of_two_equally_cheap_modes_the_one_that_wastes_less_wins() {
+        // Found by proptest. Items pass through, or a machine inside makes them with a byproduct it
+        // dumps, at the same cost as the source outside; passing through wastes nothing.
+        let (byproduct, product) = (1, 3);
+        let blueprint = Blueprint {
+            nodes: vec![
+                Node {
+                    cost: 1.0,
+                    ..process(&[(product, 1.0), (byproduct, 2.0)])
+                },
+                junction(),
+                port_in(product),
+                port_out(product),
+            ],
+            edges: vec![
+                edge(0, 1, product),
+                edge(2, 1, product),
+                edge(1, 3, product),
+            ],
+            constraints: vec![],
+            ports: vec![2, 3],
+        };
+        let model = placed(&blueprint, &[Some(0.5)]);
+        let solution = solved(&model);
+        assert!(solution.surplus.is_empty(), "{:?}", solution.surplus);
+        assert_same_flows(&solution, &inlined(&model));
+    }
+
+    #[test]
+    fn a_blueprint_with_too_many_independent_ways_is_inlined_and_says_so() {
+        // Five unrelated machines, each from its own input port to its own output port.
+        let lines = 5;
+        let mut blueprint = Blueprint {
+            nodes: vec![],
+            edges: vec![],
+            constraints: vec![],
+            ports: vec![],
+        };
+        let mut model = model(2 * lines, vec![instance(0)], vec![]);
+        for line in 0..lines {
+            let (input, output) = (2 * line, 2 * line + 1);
+            let at = blueprint.nodes.len() as u32;
+            blueprint.nodes.extend([
+                port_in(input),
+                process(&[(input, -1.0), (output, 1.0)]),
+                port_out(output),
+            ]);
+            blueprint
+                .edges
+                .extend([edge(at, at + 1, input), edge(at + 1, at + 2, output)]);
+            blueprint.ports.extend([at, at + 2]);
+            let root = model.nodes.len() as u32;
+            model
+                .nodes
+                .extend([source(input), pinned(sink(output), f64::from(line + 1))]);
+            model.edges.extend([
+                into_port(root, 0, input, 2 * line),
+                out_of_port(0, root + 1, output, 2 * line + 1),
+            ]);
+        }
+        model.blueprints.push(blueprint);
+        let solution = solved(&model);
+        assert_eq!(
+            solution.inlined,
+            vec![Inlined {
+                blueprint: 0,
+                freedom: 5
+            }]
+        );
+        assert_all_close(
+            &solution.instances[0].ports,
+            &[1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0],
+        );
+        assert_same_flows(&solution, &inlined(&model));
     }
 }
 

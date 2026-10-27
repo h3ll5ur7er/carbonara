@@ -7,7 +7,7 @@ import type { AnalysisResults, Diagnostic, EdgeResult, NodeResult } from "../../
 import type { Solution, Unsolvable } from "../../contracts/solver";
 import { clean } from "../../utilities/numbers";
 import type { Compiled } from "./compile";
-import { addBoundaryFlows, addInsideTotals } from "./instances";
+import { addBoundaryFlows, addInsideTotals, inlineHints } from "./instances";
 
 const UNSOLVABLE: Record<Unsolvable, string> = {
   infeasible: "The pack's constraints contradict each other; nothing could be solved",
@@ -98,6 +98,7 @@ export function toResults(
       node: node(miss.node),
       difference: miss.difference * (compiled.info[miss.node]?.pinRate ?? 1),
     })),
+    ...inlineHints(compiled, solution),
   ];
 
   const raw: Record<Id, number> = {};

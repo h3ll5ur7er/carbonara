@@ -147,4 +147,17 @@ describe("mapping instances back to the document", () => {
     const results = toResults(compiled, ok(solution), noPlugin, 1);
     expect(results.totals).toEqual({ raw: { "clean-ferrite": 2 }, buildings: { furnace: 6 } });
   });
+
+  it("hints at blueprints solved inline", () => {
+    const inlined = { ...solution, inlined: [{ blueprint: 0, freedom: 6 }] };
+    expect(toResults(compiled, ok(inlined), noPlugin, 1).diagnostics).toEqual([
+      {
+        kind: "hint",
+        node: "module",
+        message:
+          'Blueprint "Plates" can run in 6 independent ways, so it is solved inline, which is slower. ' +
+          "Pin machines inside it to fix their ratios, and it compiles into a macro recipe.",
+      },
+    ]);
+  });
 });

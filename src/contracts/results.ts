@@ -24,7 +24,9 @@ export type Diagnostic =
   | { kind: "deficit" | "surplus"; node: LocalId; item: Id; perSecond: number }
   | { kind: "overflow"; edge: LocalId; perSecond: number }
   | { kind: "pinMiss"; node: LocalId; difference: number }
-  | { kind: "error"; message: string; node?: LocalId };
+  | { kind: "error"; message: string; node?: LocalId }
+  /** Not a problem with the plan: advice, such as how to make a blueprint solve faster. */
+  | { kind: "hint"; message: string; node?: LocalId };
 
 export interface Totals {
   /** Net raw inputs taken from sources, by item. */

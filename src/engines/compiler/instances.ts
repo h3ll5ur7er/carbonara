@@ -4,6 +4,7 @@
 // join into one model with one numbering of items. How blueprints are summarised is the solver's business.
 import type { Blueprint, Document, Edge, Graph, LocalId, Node } from "../../contracts/document";
 import type { Id } from "../../contracts/pack";
+import type { Diagnostic } from "../../contracts/results";
 import type { InstanceSolution, Solution } from "../../contracts/solver";
 import { clean } from "../../utilities/numbers";
 import type { CompileInput, Compiled, Compiling, Draft, NodeInfo } from "./compile";
@@ -231,4 +232,19 @@ export function addInsideTotals(
     if (body) visit(body, inside);
   };
   for (const inside of solution.instances ?? []) placed(compiled, inside);
+}
+
+/** Blueprints the solver had to inline, with a hint how to make them compile. */
+export function inlineHints(compiled: Compiled, solution: Solution): Diagnostic[] {
+  return (solution.inlined ?? []).map(({ blueprint, freedom }): Diagnostic => {
+    const name = compiled.blueprints?.[blueprint]?.name ?? String(blueprint);
+    const instance = compiled.info.findIndex((info) => info.kind === "instance" && info.blueprint === blueprint);
+    return {
+      kind: "hint",
+      message:
+        `Blueprint "${name}" can run in ${freedom} independent ways, so it is solved inline, which is slower. ` +
+        "Pin machines inside it to fix their ratios, and it compiles into a macro recipe.",
+      ...(instance >= 0 && { node: compiled.nodes[instance] as LocalId }),
+    };
+  });
 }
