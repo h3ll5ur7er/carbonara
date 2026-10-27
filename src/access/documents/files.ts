@@ -5,7 +5,7 @@ import type { Document } from "../../contracts/document";
 import { fail, type Result } from "../../contracts/result";
 import { upgradeDocument } from "./migrations";
 
-export function writeDocumentFile(document: Document): Uint8Array {
+export function writeDocumentFile(document: Document): Uint8Array<ArrayBuffer> {
   return gzipSync(strToU8(JSON.stringify(document)));
 }
 

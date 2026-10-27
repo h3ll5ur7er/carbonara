@@ -18,7 +18,7 @@ The `editing` manager: command pipeline, history with labels (incl. "AI: …" fo
 - [x] Events
 - [x] Client read model applies patches
 
-Built in [[src/managers/editing.ts]] (use-case tests in [[src/managers/editing.test.ts]]) and [[src/client/core/read-model.ts]] (tests with a fake backend in [[src/client/core/read-model.test.ts]]). Wired into [[src/shells/web/backend.ts]] with the autosaved document store from [[CARB-34]]; [[src/shells/web/backend.test.ts]] drives random edits, undos and redos through the real backend over a message channel and checks the read model against `getDocument`. The browser e2e test comes with [[CARB-35]], which can create documents. See [[Architecture/Documents]] (Editing, Read model).
+Built in [[src/managers/editing.ts]] (use-case tests in [[src/managers/editing.test.ts]]) and [[src/client/core/read-model.ts]] (tests with a fake backend in [[src/client/core/read-model.test.ts]]). Wired into [[src/shells/web/backend.ts]] with the autosaved document store from [[CARB-34]]; [[src/shells/web/backend.test.ts]] drives random edits, undos and redos through the real backend over a message channel and checks the read model against `getDocument`. In the browser, [[e2e/documents.spec.ts]] (added with [[CARB-35]], which can open documents) checks the same through a real backend worker. See [[Architecture/Documents]] (Editing, Read model).
 
 Decisions:
 

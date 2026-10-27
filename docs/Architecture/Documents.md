@@ -80,10 +80,27 @@ Because patches keep unchanged parts by identity, components subscribe with the 
 The documents access component ([[src/access/documents/autosave.ts]], [[src/access/documents/files.ts]]) holds the documents open in this session and saves them.
 
 - **Autosave.** The web backend's `DocumentStore` writes each changed document through to IndexedDB in the background, so a reload never loses work. A burst of changes (a drag, a paste) is written once, with its latest state. On start it restores the documents that were open, upgraded to the current version; documents it can't load (from a newer Carbonara) are reported and stay saved, untouched. Closing a document deletes its autosave.
-- **Files.** A `.carbonara` file is the document as gzipped UTF-8 JSON. Reading also accepts plain JSON, so a file someone unzipped and edited by hand opens too. Damaged files are refused as values ("Not a Carbonara document").
+- **Files.** A `.carbonara` file is the document as gzipped UTF-8 JSON. `workspace.exportDocument` returns those bytes (a `Uint8Array`, not a string: gzip is binary, and bytes cross the worker boundary as they are) and `workspace.importDocument` takes them. Reading also accepts plain JSON, so a file someone unzipped and edited by hand opens too. Damaged files are refused as values ("Not a Carbonara document").
+- **Share links.** A share link carries the whole `.carbonara` file in the URL fragment, in base64url ([[src/access/documents/share-links.ts]]). The fragment never reaches a server, so nothing is uploaded anywhere. Very large documents make long URLs; there's no size limit yet.
 - **Platform port.** IndexedDB hides behind the `KeyValueStorage` port ([[src/contracts/platform.ts]]), implemented for the web by [[src/platforms/web/indexeddb.ts]]; Tauri and Node implement the same port later. Every port implementation passes [[src/contracts/platform.contract.ts]], and every `DocumentStore` (memory, autosaved) passes [[src/access/documents/store.contract.ts]].
 
 Versions count changes within a session: a document restored from autosave or opened from a file starts at version 1.
+
+## Workspace
+
+The `workspace` manager ([[src/managers/workspace.ts]]) owns the set of open documents, which the UI shows as tabs. Which tab is active is the client's business, not the backend's.
+
+| Method | Does |
+| --- | --- |
+| `createDocument({ name, packId })` | An empty document for an installed pack, recording the pack's version and hash |
+| `listDocuments()` | The open documents in the order they were opened |
+| `importDocument({ bytes })` | Opens a `.carbonara` file (or plain JSON); a `Result`, since files can be broken |
+| `exportDocument({ documentId })` | The document as `.carbonara` bytes |
+| `closeDocument({ documentId })` | Closes it and deletes its autosave; closing a closed document does nothing |
+| `createShareLink({ documentId })` | The URL fragment (without `#`) that opens a copy of the document |
+| `openShareLink({ fragment })` | Opens the document in a fragment; a `Result` |
+
+Every change to the set publishes `documentsChanged` with the new list. A document opened while one with the same id is open (the same file twice, your own share link) becomes a copy under a new id, so the two edit separately. Until the packs access component exists ([[CARB-25]]) the web backend knows no packs, so `createDocument` refuses every pack there; importing works.
 
 ## Versions and migrations
 

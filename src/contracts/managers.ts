@@ -63,9 +63,14 @@ export const managers = {
       group: "read",
       description: "List the open factory documents.",
     }),
-    importDocument: method<Result<DocumentInfo>>()(z.object({ text: z.string() })),
-    exportDocument: method<string>()(documentRef),
+    /** Opens a `.carbonara` file (gzipped JSON, or plain JSON). A document whose id is open already gets a new id. */
+    importDocument: method<Result<DocumentInfo>>()(z.object({ bytes: z.instanceof(Uint8Array) })),
+    /** The document as a `.carbonara` file: gzipped JSON. */
+    exportDocument: method<Uint8Array<ArrayBuffer>>()(documentRef),
     closeDocument: method<undefined>()(documentRef),
+    /** The URL fragment (without `#`) that opens a copy of the document: the compressed document itself. */
+    createShareLink: method<string>()(documentRef),
+    openShareLink: method<Result<DocumentInfo>>()(z.object({ fragment: z.string() })),
   },
   editing: {
     /** The document with its version, so a client knows which `documentChanged` events the snapshot includes. */
