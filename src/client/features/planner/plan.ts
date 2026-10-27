@@ -32,6 +32,12 @@ export function goalsOf(targets: PlanTarget[], unit: RateUnit, key: () => number
   }));
 }
 
+/** The graph a proposal adds to (its commands name it): `root`, or the blueprint it was planned inside. */
+export function proposalGraph(proposal: Pick<Proposal, "commands">): string {
+  const [first] = proposal.commands;
+  return first && "graph" in first ? first.graph : "root";
+}
+
 /** The proposal as a ghost: the nodes and flows it adds, where it adds them, moved by `offset`. */
 export function proposalGhost(proposal: Proposal, offset: Point): Ghost {
   const graph: Graph = { nodes: {}, edges: {} };

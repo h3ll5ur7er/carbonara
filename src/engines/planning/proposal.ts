@@ -9,7 +9,7 @@ import type { Proposal, ProposalSummary } from "../../contracts/managers";
 import type { Id, PackData } from "../../contracts/pack";
 import type { AnalysisResults, EdgeResult, NodeResult } from "../../contracts/results";
 import { clean } from "../../utilities/numbers";
-import { addTo } from "../../utilities/records";
+import { addTo, own } from "../../utilities/records";
 import { toPerSecond } from "../../utilities/units";
 import type { Role, Superstructure } from "./superstructure";
 
@@ -18,8 +18,10 @@ export interface ProposeInput {
   /** The superstructure's solve. */
   results: AnalysisResults;
   pack: PackData;
-  /** The document as it is now: the plan avoids its ids. */
+  /** The document as it is now: the plan avoids the ids of the graph it goes into. */
   document: Document;
+  /** The graph it goes into: `root`, or a blueprint id. */
+  graph: string;
 }
 
 /** The canvas's grid pitch (src/client/canvas/model/geometry.ts); the plan's corner lands on it. */
@@ -36,9 +38,9 @@ interface Planned {
 type Point = { x: number; y: number };
 
 /** The proposal, with every node at the origin until it's laid out (`proposalLayout`, `placeBeside`). */
-export function propose({ superstructure, results, pack, document }: ProposeInput): Omit<Proposal, "id"> {
+export function propose({ superstructure, results, pack, document, graph }: ProposeInput): Omit<Proposal, "id"> {
   const { roles, document: candidates } = superstructure;
-  const fresh = idsBeside(document);
+  const fresh = idsBeside(graphIn(document, graph));
   const planned = new Map<LocalId, Planned>();
   const activity = (id: LocalId) => clean(results.nodes[id]?.activity ?? 0);
 
@@ -76,7 +78,7 @@ export function propose({ superstructure, results, pack, document }: ProposeInpu
   const commands: Command[] = [];
   const nodeResults: Record<LocalId, NodeResult> = {};
   for (const entry of planned.values()) {
-    commands.push({ type: "addNode", graph: "root", id: entry.id, node: entry.node, position: { x: 0, y: 0 } });
+    commands.push({ type: "addNode", graph, id: entry.id, node: entry.node, position: { x: 0, y: 0 } });
     nodeResults[entry.id] = entry.result;
   }
   const edgeResults: Record<LocalId, EdgeResult> = {};
@@ -87,7 +89,7 @@ export function propose({ superstructure, results, pack, document }: ProposeInpu
     const id = fresh(`${from}-${to}`);
     const logistics = carriers(flow.item, flow.perSecond);
     const edge: Edge = { from, to, item: flow.item, ...(logistics !== undefined && { logistics }) };
-    commands.push({ type: "connect", graph: "root", id, edge });
+    commands.push({ type: "connect", graph, id, edge });
     edgeResults[id] = { perSecond: flow.perSecond };
   }
 
@@ -119,18 +121,20 @@ export function proposalLayout(
 }
 
 /**
- * The proposal laid out at `at` (by node id, as `arrange` answers), moved as a block beside the document's
- * factory: right of it with a gap, level with its top, or at the origin in an empty document.
+ * The proposal laid out at `at` (by node id, as `arrange` answers), moved as a block beside the nodes of the graph
+ * it goes into (`root` or a blueprint id): right of them with a gap, level with their top, or at the origin in an
+ * empty graph.
  */
 export function placeBeside<P extends Pick<Proposal, "commands">>(
   proposal: P,
   at: Record<LocalId, Point>,
   document: Document,
   pack: PackData,
+  graph: string,
 ): P {
   const laid = Object.values(at);
   const corner = { x: Math.min(...laid.map(({ x }) => x)), y: Math.min(...laid.map(({ y }) => y)) };
-  const offset = placement(document, pack);
+  const offset = placement(graphIn(document, graph), own(document.layout, graph) ?? {}, pack);
   return {
     ...proposal,
     commands: proposal.commands.map((command) => {
@@ -225,9 +229,15 @@ function match(
   return flows;
 }
 
-/** Ids not yet used by the document's nodes and edges (nor by the plan): `smelt`, then `smelt-2` … */
-function idsBeside(document: Document): (base: string) => LocalId {
-  const taken = new Set([...Object.keys(document.graph.nodes), ...Object.keys(document.graph.edges)]);
+/** The graph a plan goes into: the root graph, or a blueprint's (none when there's no such blueprint). */
+function graphIn(document: Document, scope: string): Graph {
+  const graph = scope === "root" ? document.graph : own(document.blueprints, scope)?.graph;
+  return graph ?? { nodes: {}, edges: {} };
+}
+
+/** Ids not yet used by the graph's nodes and edges (nor by the plan): `smelt`, then `smelt-2` … */
+function idsBeside(graph: Graph): (base: string) => LocalId {
+  const taken = new Set([...Object.keys(graph.nodes), ...Object.keys(graph.edges)]);
   return (base) => {
     let id = base;
     for (let suffix = 2; taken.has(id); suffix++) id = `${base}-${suffix}`;
@@ -236,11 +246,10 @@ function idsBeside(document: Document): (base: string) => LocalId {
   };
 }
 
-/** Where the plan's top-left corner goes: right of the factory, level with its top; the origin when empty. */
-function placement(document: Document, pack: PackData): Point {
-  const layout = document.layout.root ?? {};
-  const rects = Object.entries(document.graph.nodes).flatMap(([id, node]) => {
-    const position = layout[id];
+/** Where the plan's top-left corner goes: right of the graph's nodes, level with their top; the origin when empty. */
+function placement(graph: Graph, layout: Record<LocalId, Position>, pack: PackData): Point {
+  const rects = Object.entries(graph.nodes).flatMap(([id, node]) => {
+    const position = own(layout, id);
     return position ? [{ ...position, ...shapeOf(node, pack, position) }] : [];
   });
   if (rects.length === 0) return { x: 0, y: 0 };

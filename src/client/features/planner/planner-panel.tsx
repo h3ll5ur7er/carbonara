@@ -36,6 +36,7 @@ import {
   planLabel,
   preferBuilding,
   proposalGhost,
+  proposalGraph,
   targetsPerSecond,
   type GoalRow,
 } from "./plan";
@@ -50,18 +51,24 @@ const ORIGIN = { x: 0, y: 0 };
 
 export interface PlannerTarget {
   document: { id: string; name: string };
+  /** The graph on screen, which plans go into: `root`, or a blueprint id. */
+  graph?: string | undefined;
   pack: PackData;
   rateUnit: RateUnit;
 }
 
-/** What the canvas needs from the planner: the proposal's ghost, its moves, and the room the card takes. */
-export function usePlannerCanvas(documentId: string | undefined) {
+/**
+ * What the canvas needs from the planner: the proposal's ghost (on the graph it goes into), its moves, and the room
+ * the card takes.
+ */
+export function usePlannerCanvas(documentId: string | undefined, graph = "root") {
   const planner = usePlanner();
   // Goals and proposals belong to one document; another one starts afresh.
   useEffect(() => {
     if (documentId !== undefined && planner.documentId !== documentId) resetPlanner(documentId);
   }, [documentId, planner.documentId]);
-  const proposal = planner.open && planner.documentId === documentId ? planner.proposal : null;
+  const shown = planner.open && planner.documentId === documentId ? planner.proposal : null;
+  const proposal = shown && proposalGraph(shown) === graph ? shown : null;
   const { offset } = planner;
   // The ghost's content follows the proposal, its placement the offset, so moving it doesn't rebuild it.
   const content = useMemo(() => (proposal ? proposalGhost(proposal, ORIGIN) : undefined), [proposal]);
@@ -86,7 +93,7 @@ function useDiscard() {
   };
 }
 
-export function PlannerPanel({ document, pack, rateUnit }: PlannerTarget) {
+export function PlannerPanel({ document, graph, pack, rateUnit }: PlannerTarget) {
   const planner = usePlanner();
   const discard = useDiscard();
   const library = usePanels((panels) => panels.left);
@@ -116,13 +123,13 @@ export function PlannerPanel({ document, pack, rateUnit }: PlannerTarget) {
       ) : planner.stage === "accepted" ? (
         <Accepted document={document} />
       ) : (
-        <GoalsForm planner={planner} document={document} pack={pack} rateUnit={rateUnit} />
+        <GoalsForm planner={planner} document={document} graph={graph} pack={pack} rateUnit={rateUnit} />
       )}
     </section>
   );
 }
 
-function GoalsForm({ planner, document, pack, rateUnit }: PlannerTarget & { planner: PlannerState }) {
+function GoalsForm({ planner, document, graph = "root", pack, rateUnit }: PlannerTarget & { planner: PlannerState }) {
   const connector = useConnector();
   const objectiveId = useId();
   const alternatesId = useId();
@@ -141,7 +148,7 @@ function GoalsForm({ planner, document, pack, rateUnit }: PlannerTarget & { plan
     }
     usePlanner.setState({ stage: "planning", error: null });
     try {
-      const result = await connector.planning.planProduction({ documentId: document.id, targets, options });
+      const result = await connector.planning.planProduction({ documentId: document.id, graph, targets, options });
       if (result.ok) usePlanner.setState({ stage: "proposal", proposal: result.value, offset: { x: 0, y: 0 } });
       else usePlanner.setState({ stage: "goals", error: result.error.map((issue) => issue.message).join(" ") });
     } catch (failure) {

@@ -29,6 +29,7 @@ import {
 } from "../engines/planning";
 import { solve } from "../engines/solver";
 import type { EventBus } from "../utilities/events";
+import { own } from "../utilities/records";
 
 export interface PlanningDependencies {
   documents: Pick<DocumentStore, "get">;
@@ -82,6 +83,7 @@ export function createPlanningManager({
     options: PlanOptions,
     ruledOut: ReadonlySet<Id>,
     rates: ReadonlyMap<Id, RecipeRates>,
+    graph: string,
     via?: Id,
   ): Promise<Result<Omit<Proposal, "id">>> {
     const runtime = runtimeOf(pack);
@@ -99,21 +101,24 @@ export function createPlanningManager({
     const solved = await solve(weigh(compiled.model, options, compiled.items));
     if (!solved.ok) return fail([{ path: [], message: `The pack's constraints can't be met (${solved.error})` }]);
     const results = await compiled.results(solved, version);
-    return ok(propose({ superstructure: built.value, results, pack: pack.data, document }));
+    return ok(propose({ superstructure: built.value, results, pack: pack.data, document, graph }));
   }
 
   return {
-    async planProduction({ documentId, targets, options }) {
+    async planProduction({ documentId, graph, targets, options }) {
       const found = await context(documentId);
       if (!found.ok) return found;
+      if (graph !== "root" && !own(found.value.document.blueprints, graph)) {
+        return fail([{ path: ["graph"], message: `Unknown graph ${graph}` }]);
+      }
       const ruledOut = await unavailable(runtimeOf(found.value.pack), found.value.document);
       const rates = await asRun(found.value, ruledOut, options);
-      const planned = await plan(found.value, targets, options, ruledOut, rates);
+      const planned = await plan(found.value, targets, options, ruledOut, rates, graph);
       if (!planned.ok) return planned;
       const { document, pack } = found.value;
-      const { graph, shapes } = proposalLayout(planned.value, pack.data);
-      const at = await arrange({ graph, positions: {}, shapes, direction: "right" }, layout);
-      const laidOut = placeBeside(planned.value, at, document, pack.data);
+      const drawn = proposalLayout(planned.value, pack.data);
+      const at = await arrange({ graph: drawn.graph, positions: {}, shapes: drawn.shapes, direction: "right" }, layout);
+      const laidOut = placeBeside(planned.value, at, document, pack.data, graph);
 
       for (const earlier of proposals.pending(documentId)) {
         proposals.settle(earlier.id, "replaced");
@@ -131,7 +136,7 @@ export function createPlanningManager({
       const ruledOut = await unavailable(runtimeOf(pack), document);
       const rates = await asRun(found.value, ruledOut, options);
       for (const recipe of rivals(pack.data, ruledOut, options, item)) {
-        const planned = await plan(found.value, [{ item, perSecond }], options, ruledOut, rates, recipe);
+        const planned = await plan(found.value, [{ item, perSecond }], options, ruledOut, rates, "root", recipe);
         if (!planned.ok) return planned;
         comparisons.push({ recipe, summary: planned.value.summary });
       }

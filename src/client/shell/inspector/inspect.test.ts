@@ -133,6 +133,87 @@ describe("inspectNode", () => {
   it("shows nothing for a node that isn't there", () => {
     expect(inspect("ghost")).toBeNull();
   });
+
+  describe("a subgraph instance", () => {
+    const placed = Document.parse({
+      ...document,
+      graph: {
+        nodes: { line: { kind: "instance", blueprint: "cell" }, line2: { kind: "instance", blueprint: "cell" } },
+        edges: {},
+      },
+      blueprints: {
+        cell: {
+          name: "Copper cell",
+          graph: {
+            nodes: {
+              "in-ore": { kind: "port", direction: "in", item: "ore" },
+              smelt: { kind: "recipe", recipe: "copper-plate" },
+              "out-plate": { kind: "port", direction: "out", item: "plate" },
+            },
+            edges: {},
+          },
+        },
+        // Places the cell once more, out of sight of the root graph.
+        bigger: { name: "Bigger", graph: { nodes: { inner: { kind: "instance", blueprint: "cell" } }, edges: {} } },
+      },
+    });
+    const solved: AnalysisResults = {
+      ...results,
+      nodes: { line: { activity: 2.5, inputs: { ore: 4 }, outputs: { plate: 2 } } },
+      diagnostics: [{ kind: "error", node: "line", message: "Blueprint Copper cell places itself" }],
+    };
+
+    it("shows its blueprint's name, how often it's placed, its scale and its ports' rates", () => {
+      expect(inspectNode({ document: placed, pack, results: solved, nodeId: "line" })).toMatchObject({
+        title: "Copper cell",
+        subtitle: "Subgraph · placed 3 times",
+        fields: {},
+        problems: [{ kind: "error", message: "Blueprint Copper cell places itself" }],
+        instance: {
+          blueprint: "cell",
+          name: "Copper cell",
+          rateUnit: "per_minute",
+          scale: 2.5,
+          solved: true,
+          siblings: ["line", "line2"],
+          ports: [
+            { port: "in-ore", direction: "in", item: { id: "ore", name: "Cuprite Ore" }, perSecond: 4 },
+            { port: "out-plate", direction: "out", item: { id: "plate", name: "Copper Plate" }, perSecond: 2 },
+          ],
+        },
+      });
+    });
+
+    it("has no scale while it does what its ports need, and no rates before the solve", () => {
+      const sized = { ...solved, nodes: { line: { activity: 0, inputs: {}, outputs: {} } } };
+      expect(inspectNode({ document: placed, pack, results: sized, nodeId: "line" })?.instance).toMatchObject({
+        scale: undefined,
+        solved: true,
+      });
+      const unsolved = inspectNode({ document: placed, pack, results: null, nodeId: "line" })?.instance;
+      expect(unsolved).toMatchObject({ solved: false, scale: undefined });
+      expect(unsolved?.ports.map((port) => port.perSecond)).toEqual([undefined, undefined]);
+    });
+
+    it("counts instances in the whole factory when the document is scoped to a blueprint", () => {
+      const scoped = { ...placed, graph: placed.blueprints.bigger?.graph ?? placed.graph };
+      expect(inspectNode({ document: scoped, factory: placed, pack, results: null, nodeId: "inner" })).toMatchObject({
+        subtitle: "Subgraph · placed 3 times",
+        instance: { siblings: ["inner"] },
+      });
+    });
+
+    it("says when it's the only one", () => {
+      const once = Document.parse({
+        ...placed,
+        graph: { nodes: { line: placed.graph.nodes.line }, edges: {} },
+        blueprints: { cell: placed.blueprints.cell },
+      });
+      expect(inspectNode({ document: once, pack, results: null, nodeId: "line" })?.subtitle).toBe(
+        "Subgraph · placed once",
+      );
+    });
+  });
 });
 
 describe("inspectSelection", () => {

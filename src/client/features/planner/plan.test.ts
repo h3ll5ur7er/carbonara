@@ -9,6 +9,7 @@ import {
   planLabel,
   preferBuilding,
   proposalGhost,
+  proposalGraph,
   targetsPerSecond,
 } from "./plan";
 
@@ -76,6 +77,13 @@ describe("planning in the client", () => {
     expect(ghost.positions["copper-plate"]).toEqual({ x: 360, y: 0 });
     expect(ghost.results).toBe(proposal.results);
     expect(ghost.placement).toEqual({ mode: "fixed", offset: { x: 48, y: 0 } });
+  });
+
+  it("knows the graph a proposal adds to from its commands", () => {
+    expect(proposalGraph(proposal)).toBe("root");
+    const inside = proposal.commands.map((command) => ({ ...command, graph: "cell" }));
+    expect(proposalGraph({ commands: inside })).toBe("cell");
+    expect(proposalGraph({ commands: [] })).toBe("root");
   });
 
   it("turns a proposal's targets back into goals in the document's unit, to adjust them", () => {

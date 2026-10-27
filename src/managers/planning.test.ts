@@ -72,9 +72,10 @@ function setUp(document = factory(), pack: PackStore = packs) {
 
 const defaults: PlanOptions = DEFAULT_PLAN_OPTIONS;
 
-async function plan(targets: PlanTarget[], options: Partial<PlanOptions> = {}, document = factory()) {
+async function plan(targets: PlanTarget[], options: Partial<PlanOptions> = {}, document = factory(), graph = "root") {
   const result = await setUp(document).planProduction({
     documentId: document.id,
+    graph,
     targets,
     options: { ...defaults, ...options },
   });
@@ -226,6 +227,40 @@ describe("planning production", () => {
     expect(() => accept(proposal, existing)).not.toThrow();
   });
 
+  it("plans inside a subgraph: into its blueprint, beside its nodes, with ids its graph doesn't use", async () => {
+    const nested: Document = {
+      ...factory(
+        // The factory around is far to the right: the plan goes beside the blueprint's nodes, not beside it.
+        { nodes: { cell1: { kind: "instance", blueprint: "cell" }, far: { kind: "junction" } }, edges: {} },
+        { root: { cell1: { x: 0, y: 0 }, far: { x: 9600, y: 0 } }, cell: { "iron-plate": { x: 240, y: 96 } } },
+      ),
+      blueprints: {
+        cell: { name: "Cell", graph: { nodes: { "iron-plate": { kind: "recipe", recipe: "iron-plate" } }, edges: {} } },
+      },
+    };
+    const proposal = await plan([{ item: "iron-plate", perSecond: 1 }], {}, nested, "cell");
+    expect(new Set(proposal.commands.map((command) => "graph" in command && command.graph))).toEqual(new Set(["cell"]));
+    expect(added(proposal).map((command) => command.id)).toContain("iron-plate-2");
+    for (const command of added(proposal)) {
+      expect(command.position.x).toBeGreaterThan(240 + 312);
+      expect(command.position.x).toBeLessThan(9600);
+    }
+    expect(Math.min(...added(proposal).map((command) => command.position.y))).toBe(96);
+    const accepted = accept(proposal, nested);
+    expect(Object.keys(accepted.blueprints.cell?.graph.nodes ?? {})).toContain("iron-plate-2");
+    expect(accepted.graph).toEqual(nested.graph);
+  });
+
+  it("refuses to plan into a graph the document doesn't have", async () => {
+    const result = await setUp().planProduction({
+      documentId: "doc",
+      graph: "nowhere",
+      targets: [{ item: "iron-plate", perSecond: 1 }],
+      options: defaults,
+    });
+    expect(result).toMatchObject({ ok: false, error: [{ path: ["graph"] }] });
+  });
+
   it("starts at the origin in an empty document", async () => {
     const proposal = await plan([{ item: "iron-plate", perSecond: 1 }]);
     expect(Math.min(...added(proposal).map((command) => command.position.x))).toBe(0);
@@ -258,6 +293,7 @@ describe("planning production", () => {
     const planning = setUp(factory(), { list: packs.list, get: async () => ({ ...template, data }) });
     const result = await planning.planProduction({
       documentId: "doc",
+      graph: "root",
       targets: [{ item: "iron-plate", perSecond: 1 }],
       options: defaults,
     });
@@ -276,6 +312,7 @@ describe("planning production", () => {
     const planning = setUp(factory(), { list: packs.list, get: async () => ({ ...template, plugin: burning }) });
     const result = await planning.planProduction({
       documentId: "doc",
+      graph: "root",
       targets: [{ item: "iron-plate", perSecond: 1 }],
       options: defaults,
     });
@@ -298,6 +335,7 @@ describe("planning production", () => {
     expect(
       await planning.planProduction({
         documentId: "nope",
+        graph: "root",
         targets: [{ item: "iron-plate", perSecond: 1 }],
         options: defaults,
       }),
@@ -305,6 +343,7 @@ describe("planning production", () => {
     expect(
       await planning.planProduction({
         documentId: "doc",
+        graph: "root",
         targets: [{ item: "gold", perSecond: 1 }],
         options: defaults,
       }),
@@ -346,6 +385,7 @@ describe("smarter plans", () => {
     const planning = setUp(factory(), pack);
     const result = await planning.planProduction({
       documentId: "doc",
+      graph: "root",
       targets: [{ item: "iron-plate", perSecond: 1 }],
       options: defaults,
     });
@@ -389,7 +429,12 @@ describe("smarter plans", () => {
 });
 
 describe("proposals", () => {
-  const steel = { documentId: "doc", targets: [{ item: "iron-plate", perSecond: 1 }], options: defaults };
+  const steel = {
+    documentId: "doc",
+    graph: "root",
+    targets: [{ item: "iron-plate", perSecond: 1 }],
+    options: defaults,
+  };
 
   it("are kept as pending under an id, and published for the UI to show", async () => {
     const planning = setUp();

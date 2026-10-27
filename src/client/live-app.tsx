@@ -2,6 +2,7 @@
 // (Scenes render `AppShell` with fixed data instead.)
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas } from "./canvas/canvas";
+import { canvasActions } from "./canvas/viewport";
 import { formatShortcut, platformOf } from "./core/commands-shortcuts";
 import { paletteCommandId } from "./features/command-palette/command-palette";
 import { appRegistry } from "./shell/app-commands";
@@ -125,7 +126,7 @@ function DocumentCanvas({
 }) {
   const { graph, results, viewport, motion, onOpenSubgraph, header } = subgraph;
   const shown = useMemo(() => document && scopedTo(document, graph), [document, graph]);
-  const overlays = useFactoryOverlays({ info, document: shown, pack: packData, results });
+  const overlays = useFactoryOverlays({ info, document: shown, pack: packData, results, graph });
   const empty = !shown || Object.keys(shown.graph.nodes).length === 0;
   return (
     <>
@@ -178,7 +179,7 @@ function WelcomeCanvas({ loaded }: { loaded: boolean }) {
  */
 function useInspected(
   { info, document, packData }: ActiveDocument,
-  { graph, results }: SubgraphView,
+  { graph, results, onOpenSubgraph }: SubgraphView,
   selection: Selection | null,
 ): InspectorPanelProps["selection"] {
   const plugin = usePluginDescription(info?.packId, document?.settings.plugin);
@@ -205,8 +206,16 @@ function useInspected(
       const [first] = nodeIds;
       return node && first ? { target: { documentId: info.id, nodeId: first, nodeIds, graph }, node } : null;
     }
-    const node = inspectNode({ document: shown, pack: packData, results: results ?? undefined, nodeId, plugin });
+    const node = inspectNode({
+      document: shown,
+      factory: document,
+      pack: packData,
+      results: results ?? undefined,
+      nodeId,
+      plugin,
+    });
     if (!node) return null;
+    const siblings = node.instance?.siblings;
     return {
       target: { documentId: info.id, nodeId, graph },
       node,
@@ -214,8 +223,14 @@ function useInspected(
         const edit = productionEdit(shown, packData, nodeId, value);
         return edit && { ...edit, commands: edit.commands.map((command) => ({ ...command, graph })) };
       },
+      ...(siblings && {
+        subgraph: {
+          open: () => onOpenSubgraph(nodeId),
+          selectSiblings: () => canvasActions()?.select(siblings),
+        },
+      }),
     };
-  }, [selection, info, document, packData, results, plugin, graph]);
+  }, [selection, info, document, packData, results, plugin, graph, onOpenSubgraph]);
 }
 
 /** Opens the document of a share link the page was opened with, then removes it from the address bar. */

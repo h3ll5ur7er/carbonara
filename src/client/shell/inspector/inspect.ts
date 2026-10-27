@@ -7,9 +7,12 @@ import type { PackData, RateUnit } from "../../../contracts/pack";
 import type { FieldValue, PluginDescription } from "../../../contracts/plugin";
 import type { AnalysisResults } from "../../../contracts/results";
 import { clean, formatMachines, formatNumber } from "../../../utilities/numbers";
+import { own } from "../../../utilities/records";
 import { fromPerSecond, rateSuffix, toPerSecond } from "../../../utilities/units";
+import { boundaryPorts, type ItemView } from "../../canvas/model/scene";
+import { instancesOf } from "../../features/subgraphs/path";
 import { balanceMachines, type Balance } from "./balance";
-import type { InspectedNode } from "./inspector";
+import type { InspectedNode, InstanceDetails } from "./inspector";
 
 /** A recipe's machine count, a sink's target or a source's supply limit, in the units the user sees. */
 export interface Production {
@@ -32,16 +35,33 @@ export interface InspectInput {
   nodeId: string;
   /** The pack plugin's fields and metrics; without it, recipe nodes show no plugin fields. */
   plugin?: PluginDescription | undefined;
+  /**
+   * The whole document when `document` is scoped to a blueprint (`scopedTo`), so that instances are counted in
+   * every graph; `document` itself when left out.
+   */
+  factory?: Document | undefined;
 }
 
 const rateUnitOf = (document: Document, pack: PackData): RateUnit => document.settings.rateUnit ?? pack.units.rate;
 
-export function inspectNode({ document, pack, results, nodeId, plugin }: InspectInput): InspectedNode | null {
+export function inspectNode({
+  document,
+  pack,
+  results,
+  nodeId,
+  plugin,
+  factory = document,
+}: InspectInput): InspectedNode | null {
   const node = document.graph.nodes[nodeId];
   if (!node) return null;
   const unit = rateUnitOf(document, pack);
   const activity = results?.nodes[nodeId]?.activity;
   const base = { fields: {}, values: {} };
+  const problems = (results?.diagnostics ?? []).flatMap((diagnostic) =>
+    (diagnostic.kind === "warning" || diagnostic.kind === "error") && diagnostic.node === nodeId
+      ? [{ kind: diagnostic.kind, message: diagnostic.message }]
+      : [],
+  );
 
   switch (node.kind) {
     case "recipe": {
@@ -61,11 +81,7 @@ export function inspectNode({ document, pack, results, nodeId, plugin }: Inspect
             value: `${formatNumber(value, 2)}${metric?.unit ? ` ${metric.unit}` : ""}`,
           };
         }),
-        problems: (results?.diagnostics ?? []).flatMap((diagnostic) =>
-          (diagnostic.kind === "warning" || diagnostic.kind === "error") && diagnostic.node === nodeId
-            ? [{ kind: diagnostic.kind, message: diagnostic.message }]
-            : [],
-        ),
+        problems,
         title: recipeName(pack, node.recipe),
         subtitle: `${building?.name ?? buildingId ?? "Unknown building"}${running}`,
         production: {
@@ -94,9 +110,60 @@ export function inspectNode({ document, pack, results, nodeId, plugin }: Inspect
         },
       };
     }
+    case "instance": {
+      const instance = instanceDetails(factory, pack, results, nodeId, node.blueprint, document.graph, unit);
+      const placed = instancesOf(factory, node.blueprint);
+      return {
+        ...base,
+        title: instance.name,
+        subtitle: `Subgraph · placed ${placed === 1 ? "once" : `${placed} times`}`,
+        problems,
+        instance,
+      };
+    }
     default:
       return { ...base, title: KIND_TITLES[node.kind] };
   }
+}
+
+/**
+ * An instance's blueprint, its scale and what crosses its ports (by item, as its card shows it), and the
+ * instances of the same blueprint in the graph on screen.
+ */
+function instanceDetails(
+  factory: Document,
+  pack: PackData,
+  results: AnalysisResults | null | undefined,
+  nodeId: string,
+  blueprintId: string,
+  shown: Document["graph"],
+  rateUnit: RateUnit,
+): InstanceDetails {
+  const blueprint = own(factory.blueprints, blueprintId);
+  const result = results ? own(results.nodes, nodeId) : undefined;
+  const itemView = (id: string): ItemView => {
+    const item = pack.items.find((candidate) => candidate.id === id);
+    return { id, name: item?.name ?? id, form: item?.form ?? "solid" };
+  };
+  const ports = (["in", "out"] as const).flatMap((direction) =>
+    boundaryPorts(blueprint, own(factory.layout, blueprintId), direction).map(({ portId, node }) => ({
+      port: portId,
+      direction,
+      item: itemView(node.item),
+      perSecond: result && own(direction === "in" ? result.inputs : result.outputs, node.item),
+    })),
+  );
+  return {
+    blueprint: blueprintId,
+    name: blueprint?.name ?? blueprintId,
+    rateUnit,
+    scale: result && result.activity > 0 ? result.activity : undefined,
+    solved: result !== undefined,
+    ports,
+    siblings: Object.entries(shown.nodes).flatMap(([id, other]) =>
+      other.kind === "instance" && other.blueprint === blueprintId ? [id] : [],
+    ),
+  };
 }
 
 export interface InspectSelectionInput extends Omit<InspectInput, "nodeId"> {
@@ -151,9 +218,8 @@ export function inspectSelection({ document, pack, nodeIds, plugin }: InspectSel
   };
 }
 
-const KIND_TITLES: Record<Exclude<Node["kind"], "recipe" | "source" | "sink">, string> = {
+const KIND_TITLES: Record<Exclude<Node["kind"], "recipe" | "source" | "sink" | "instance">, string> = {
   junction: "Junction",
-  instance: "Blueprint",
   port: "Port",
   note: "Note",
   frame: "Frame",

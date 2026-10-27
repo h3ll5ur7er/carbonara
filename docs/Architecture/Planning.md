@@ -16,7 +16,7 @@ sequenceDiagram
   participant K as compiler engine (plugin runtime)
   participant S as solver engine
   participant L as layout engine
-  C->>M: planProduction(documentId, targets, options)
+  C->>M: planProduction(documentId, graph, targets, options)
   M->>K: runtimeOf(pack).unavailableRecipes(document's plugin settings)
   K-->>M: recipes the save rules out
   M->>P: probeDocument(document, allowed recipes, preferred buildings)
@@ -93,7 +93,8 @@ The manager compiles through the pack's plugin runtime (`runtimeOf`), so third-p
 - **Flows:** the hubs dissolve. Each hub's producers are matched to its consumers in order (users, then the target, then the spill) by the north-west corner rule, so a hub with *p* producers and *c* consumers becomes at most *p + c − 1* direct edges.
 - **Belts and pipes:** each flow goes on the smallest logistics of its item's form (solid or fluid) whose capacity carries it alone, so the accepted factory reads like a built one (and its belts show their load). A flow no single belt or pipe carries stays without one.
 - **Layout:** the layout engine's `arrange` (ELK, layered, left to right, [[CARB-49]]), the same as auto-arrange, with node shapes from `proposalLayout`: sizes and port positions that approximate the canvas geometry, which the engines can't import. Raw inputs take the first layer.
-- **Placement** (`placeBeside`): the laid-out block right of the document's factory with an 8-grid gap, level with its top; at the origin in an empty document.
+- **Placement** (`placeBeside`): the laid-out block right of the graph's nodes with an 8-grid gap, level with their top; at the origin in an empty graph.
+- **Which graph:** `planProduction`'s `graph` (`root` by default, or a blueprint id: the subgraph open on the canvas, [[Architecture/Subgraphs]]). Ids are free in that graph, the block goes beside its nodes, and every command names it. The superstructure is planned on its own either way; only where the plan lands changes. The client reads a proposal's graph from its commands (`proposalGraph`) and draws its ghost only there.
 - **Commands:** `addNode` for each node, then `connect` for each flow, for one batch (one undo step) when accepted.
 - **Preview results** under the commands' ids (machine counts, rates, flows) for the ghost, and a **summary**: buildings (rounded up per node), raw inputs, byproducts, shortfalls (deficits, e.g. when a raw input hits its map limit) and power (the plugin's derived `power`, Satisfactory's metric in MW, or `powerMW`; else the building's `power.consume` × machines).
 

@@ -1357,6 +1357,12 @@
               }
             }
           },
+          "graph": {
+            "default": "root",
+            "description": "Where the plan goes: root (the factory), or a blueprint id to plan inside that subgraph.",
+            "type": "string",
+            "minLength": 1
+          },
           "targets": {
             "minItems": 1,
             "type": "array",
