@@ -6,6 +6,7 @@ import type { ProposalSummary } from "../../../contracts/managers";
 import type { Id, Item, PackData } from "../../../contracts/pack";
 import type { AnalysisResults } from "../../../contracts/results";
 import { toPerSecond } from "../../../utilities/units";
+import { addTo } from "../../../utilities/records";
 
 export interface SummaryFacts {
   /** Buildings to build, all kinds together. */
@@ -58,16 +59,13 @@ export interface FactorySummary extends ProposalSummary {
 export function factorySummary(document: Document, pack: PackData, results: AnalysisResults): FactorySummary {
   const recipes = new Map(pack.recipes.map((recipe) => [recipe.id, recipe]));
   const buildings = new Map(pack.buildings.map((building) => [building.id, building]));
-  // Own keys only: an id such as "constructor" would otherwise start from Object.prototype's.
-  const add = (amounts: Record<Id, number>, item: Id, perSecond: number) =>
-    (amounts[item] = (Object.hasOwn(amounts, item) ? (amounts[item] ?? 0) : 0) + perSecond);
 
   let powerMW = 0;
   const outputs: Record<Id, number> = {};
   for (const [id, node] of Object.entries(document.graph.nodes)) {
     const result = results.nodes[id];
     if (!result) continue;
-    if (node.kind === "sink") add(outputs, node.item, result.activity);
+    if (node.kind === "sink") addTo(outputs, node.item, result.activity);
     if (node.kind !== "recipe") continue;
     // The plugin's power (in MW) where it derives one, else the building's draw at 100% per machine.
     const building = buildings.get(node.building ?? recipes.get(node.recipe)?.buildings[0] ?? "");
@@ -77,8 +75,8 @@ export function factorySummary(document: Document, pack: PackData, results: Anal
   const byproducts: Record<Id, number> = {};
   const shortfalls: Record<Id, number> = {};
   for (const diagnostic of results.diagnostics) {
-    if (diagnostic.kind === "surplus") add(byproducts, diagnostic.item, diagnostic.perSecond);
-    if (diagnostic.kind === "deficit") add(shortfalls, diagnostic.item, diagnostic.perSecond);
+    if (diagnostic.kind === "surplus") addTo(byproducts, diagnostic.item, diagnostic.perSecond);
+    if (diagnostic.kind === "deficit") addTo(shortfalls, diagnostic.item, diagnostic.perSecond);
   }
 
   return {

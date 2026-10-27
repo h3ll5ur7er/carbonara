@@ -9,6 +9,7 @@ import type { PlanOptions, PlanTarget } from "../../contracts/managers";
 import type { Id, PackData, Recipe } from "../../contracts/pack";
 import type { Plugin } from "../../contracts/plugin";
 import { fail, ok, type Result } from "../../contracts/result";
+import { own } from "../../utilities/records";
 import { toPerSecond } from "../../utilities/units";
 
 export interface SuperstructureInput {
@@ -166,10 +167,10 @@ export function allowedRecipes(
 
 /** Whether the recipe makes more of the item than it uses. */
 export function makes(recipe: Recipe, item: Id): boolean {
-  return (recipe.out[item] ?? 0) > (recipe.in[item] ?? 0);
+  return (own(recipe.out, item) ?? 0) > (own(recipe.in, item) ?? 0);
 }
 
 /** Whether the recipe uses more of the item than it makes. */
 function uses(recipe: Recipe, item: Id): boolean {
-  return (recipe.in[item] ?? 0) > (recipe.out[item] ?? 0);
+  return (own(recipe.in, item) ?? 0) > (own(recipe.out, item) ?? 0);
 }

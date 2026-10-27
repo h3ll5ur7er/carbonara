@@ -7,6 +7,7 @@ import type { Document, Edge, Graph, Node } from "../../contracts/document";
 import type { Issue } from "../../contracts/issues";
 import type { Patch } from "../../contracts/patches";
 import { fail, ok, type Result } from "../../contracts/result";
+import { own } from "../../utilities/records";
 
 // Immer's patch support is opt-in; enabling it twice is harmless.
 enablePatches();
@@ -93,7 +94,7 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
 
   switch (command.type) {
     case "addNode": {
-      if (graph.nodes[command.id]) return issue(["id"], `Node ${command.id} already exists`);
+      if (own(graph.nodes, command.id)) return issue(["id"], `Node ${command.id} already exists`);
       const problem = checkNode(document, scope, command.node);
       if (problem) return problem;
       graph.nodes[command.id] = structuredClone(command.node);
@@ -102,14 +103,14 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     }
     case "removeNodes": {
       for (const [index, id] of command.ids.entries()) {
-        if (!graph.nodes[id]) return issue(["ids", index], `Unknown node ${id}`);
+        if (!own(graph.nodes, id)) return issue(["ids", index], `Unknown node ${id}`);
       }
       removeNodes(document, scope, graph, new Set(command.ids));
       return;
     }
     case "removeAndBridge": {
       for (const [index, id] of command.ids.entries()) {
-        if (!graph.nodes[id]) return issue(["ids", index], `Unknown node ${id}`);
+        if (!own(graph.nodes, id)) return issue(["ids", index], `Unknown node ${id}`);
       }
       const removed = new Set(command.ids);
       const bridges = bridgesAround(graph, removed);
@@ -119,14 +120,17 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     }
     case "connect": {
       const { id, edge } = command;
-      if (graph.edges[id]) return issue(["id"], `Edge ${id} already exists`);
+      if (own(graph.edges, id)) return issue(["id"], `Edge ${id} already exists`);
       for (const end of ["from", "to"] as const) {
-        if (!graph.nodes[edge[end]]) return issue(["edge", end], `Unknown node ${edge[end]}`);
+        if (!own(graph.nodes, edge[end])) return issue(["edge", end], `Unknown node ${edge[end]}`);
       }
-      if (edge.fromPort !== undefined && !portsOf(document, graph.nodes[edge.from], "out").includes(edge.fromPort)) {
+      if (
+        edge.fromPort !== undefined &&
+        !portsOf(document, own(graph.nodes, edge.from), "out").includes(edge.fromPort)
+      ) {
         return issue(["edge", "fromPort"], `${edge.from} has no out port ${edge.fromPort}`);
       }
-      if (edge.toPort !== undefined && !portsOf(document, graph.nodes[edge.to], "in").includes(edge.toPort)) {
+      if (edge.toPort !== undefined && !portsOf(document, own(graph.nodes, edge.to), "in").includes(edge.toPort)) {
         return issue(["edge", "toPort"], `${edge.to} has no in port ${edge.toPort}`);
       }
       graph.edges[id] = structuredClone(edge);
@@ -134,7 +138,7 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     }
     case "disconnect": {
       for (const [index, id] of command.ids.entries()) {
-        if (!graph.edges[id]) return issue(["ids", index], `Unknown edge ${id}`);
+        if (!own(graph.edges, id)) return issue(["ids", index], `Unknown edge ${id}`);
       }
       for (const id of command.ids) Reflect.deleteProperty(graph.edges, id);
       return;
@@ -142,14 +146,14 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     case "moveNodes": {
       const positions = Object.entries(command.positions);
       for (const [id] of positions) {
-        if (!graph.nodes[id]) return issue(["positions", id], `Unknown node ${id}`);
+        if (!own(graph.nodes, id)) return issue(["positions", id], `Unknown node ${id}`);
       }
       for (const [id, position] of positions) (document.layout[scope] ??= {})[id] = structuredClone(position);
       return;
     }
     case "setNodeFields":
     case "setPin": {
-      const node = graph.nodes[command.id];
+      const node = own(graph.nodes, command.id);
       if (!node) return issue(["id"], `Unknown node ${command.id}`);
       if (node.kind !== "recipe") return issue(["id"], `${command.id} is not a recipe node`);
       if (command.type === "setNodeFields") Object.assign((node.fields ??= {}), command.fields);
@@ -158,7 +162,7 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
       return;
     }
     case "setRate": {
-      const node = graph.nodes[command.id];
+      const node = own(graph.nodes, command.id);
       if (!node) return issue(["id"], `Unknown node ${command.id}`);
       if (node.kind !== "source" && node.kind !== "sink") {
         return issue(["id"], `${command.id} is neither a source nor a sink`);
@@ -170,12 +174,12 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     }
     case "setRecipe": {
       for (const [index, id] of command.ids.entries()) {
-        const node = graph.nodes[id];
+        const node = own(graph.nodes, id);
         if (!node) return issue(["ids", index], `Unknown node ${id}`);
         if (node.kind !== "recipe") return issue(["ids", index], `${id} is not a recipe node`);
       }
       for (const id of command.ids) {
-        const node = graph.nodes[id];
+        const node = own(graph.nodes, id);
         if (node?.kind !== "recipe") continue;
         node.recipe = command.recipe;
         if (command.building !== undefined) node.building = command.building;
@@ -184,7 +188,7 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
       return;
     }
     case "setText": {
-      const node = graph.nodes[command.id];
+      const node = own(graph.nodes, command.id);
       if (!node) return issue(["id"], `Unknown node ${command.id}`);
       if (node.kind === "note") node.text = command.text;
       else if (node.kind === "frame") node.label = command.text;
@@ -193,7 +197,7 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     }
     case "setTag": {
       for (const [index, id] of command.ids.entries()) {
-        if (!graph.nodes[id]) return issue(["ids", index], `Unknown node ${id}`);
+        if (!own(graph.nodes, id)) return issue(["ids", index], `Unknown node ${id}`);
       }
       for (const id of command.ids) {
         const position = document.layout[scope]?.[id];
@@ -207,10 +211,10 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     }
     case "setLogistics": {
       for (const [index, id] of command.ids.entries()) {
-        if (!graph.edges[id]) return issue(["ids", index], `Unknown edge ${id}`);
+        if (!own(graph.edges, id)) return issue(["ids", index], `Unknown edge ${id}`);
       }
       for (const id of command.ids) {
-        const edge = graph.edges[id];
+        const edge = own(graph.edges, id);
         if (!edge) continue;
         if (command.logistics === null) delete edge.logistics;
         else edge.logistics = command.logistics;
@@ -219,7 +223,7 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     }
     case "setLocked": {
       for (const [index, id] of command.ids.entries()) {
-        if (!graph.nodes[id]) return issue(["ids", index], `Unknown node ${id}`);
+        if (!own(graph.nodes, id)) return issue(["ids", index], `Unknown node ${id}`);
       }
       for (const id of command.ids) {
         const position = document.layout[scope]?.[id];
@@ -235,7 +239,8 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
 function checkNode(document: Document, scope: string, node: Node): Issue | undefined {
   if (node.kind === "port" && scope === "root") return issue(["node", "kind"], "Ports only exist inside blueprints");
   if (node.kind !== "instance") return;
-  if (!document.blueprints[node.blueprint]) return issue(["node", "blueprint"], `Unknown blueprint ${node.blueprint}`);
+  if (!own(document.blueprints, node.blueprint))
+    return issue(["node", "blueprint"], `Unknown blueprint ${node.blueprint}`);
   if (contains(document, node.blueprint, scope, new Set())) {
     return issue(["node", "blueprint"], `Blueprint ${node.blueprint} can't contain itself`);
   }
@@ -243,7 +248,7 @@ function checkNode(document: Document, scope: string, node: Node): Issue | undef
 
 /** Removes the nodes with their positions and edges, including edges that reach a removed port from outside. */
 function removeNodes(document: Document, scope: string, graph: Graph, ids: Set<string>): void {
-  const ports = new Set([...ids].filter((id) => graph.nodes[id]?.kind === "port"));
+  const ports = new Set([...ids].filter((id) => own(graph.nodes, id)?.kind === "port"));
   for (const id of ids) {
     Reflect.deleteProperty(graph.nodes, id);
     const positions = document.layout[scope];
@@ -255,7 +260,7 @@ function removeNodes(document: Document, scope: string, graph: Graph, ids: Set<s
   if (ports.size === 0) return;
   for (const outer of allGraphs(document)) {
     const isInstance = (nodeId: string) => {
-      const node = outer.nodes[nodeId];
+      const node = own(outer.nodes, nodeId);
       return node?.kind === "instance" && node.blueprint === scope;
     };
     for (const [id, edge] of Object.entries(outer.edges)) {
@@ -322,12 +327,12 @@ function bridgesAround(graph: Graph, removed: Set<string>): [string, Edge][] {
 /** `id`, or `id~2`, `id~3` … when it's taken. */
 function freeId(graph: Graph, id: string): string {
   let candidate = id;
-  for (let suffix = 2; graph.edges[candidate]; suffix++) candidate = `${id}~${suffix}`;
+  for (let suffix = 2; own(graph.edges, candidate); suffix++) candidate = `${id}~${suffix}`;
   return candidate;
 }
 
 function graphOf(document: Document, scope: string): Graph | undefined {
-  return scope === "root" ? document.graph : document.blueprints[scope]?.graph;
+  return scope === "root" ? document.graph : own(document.blueprints, scope)?.graph;
 }
 
 function allGraphs(document: Document): Graph[] {
@@ -337,7 +342,7 @@ function allGraphs(document: Document): Graph[] {
 /** The ids of an instance node's ports in that direction; nothing for other nodes. */
 function portsOf(document: Document, node: Node | undefined, direction: "in" | "out"): string[] {
   if (node?.kind !== "instance") return [];
-  const nodes = document.blueprints[node.blueprint]?.graph.nodes ?? {};
+  const nodes = own(document.blueprints, node.blueprint)?.graph.nodes ?? {};
   return Object.keys(nodes).filter((id) => {
     const port = nodes[id];
     return port?.kind === "port" && port.direction === direction;
@@ -349,7 +354,7 @@ function contains(document: Document, blueprint: string, scope: string, seen: Se
   if (blueprint === scope) return true;
   if (seen.has(blueprint)) return false;
   seen.add(blueprint);
-  const nodes = Object.values(document.blueprints[blueprint]?.graph.nodes ?? {});
+  const nodes = Object.values(own(document.blueprints, blueprint)?.graph.nodes ?? {});
   return nodes.some((node) => node.kind === "instance" && contains(document, node.blueprint, scope, seen));
 }
 

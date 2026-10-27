@@ -60,6 +60,7 @@ How we write Carbonara. These rules apply to people and agents alike. When a rul
 - **Rust:** `cargo fmt`, `cargo clippy -- -D warnings`, no `unwrap()` outside tests.
 - **Errors:** expected failures (invalid pack, infeasible model, file not found) are values: `Result`, or `{ ok: false, error }` across RPC. Exceptions mean bugs.
 - **Naming:** spell names out (`machineCount`, not `mc`). Units go in names where they aren't typed (`ratePerMinute`).
+- **Records keyed by ids:** ids are the games' own names, and Satisfactory has a building called `constructor`, so `record[id]` on a plain object can find what it inherits from `Object.prototype` instead of nothing. Count into a `Map`, or read and add with `own` and `addTo` ([[src/utilities/records.ts]]); never `record[id] ?? 0` or `id in record`. The property tests in [[src/managers/analysis.prototype-keys.test.ts]] and [[src/managers/planning.prototype-keys.test.ts]] rename the template pack's ids to every `Object.prototype` key ([[CARB-83]]).
 - **Comments:** say *why*, not what. Public contracts get doc comments.
 - **UI:** design tokens only, no raw colours or pixel values in components; every interactive element is keyboard-reachable.
 

@@ -3,6 +3,7 @@
 import type { OpenDocument } from "../../../contracts/access";
 import type { McpView } from "../../../contracts/managers";
 import type { AnalysisResults } from "../../../contracts/results";
+import { addTo } from "../../../utilities/records";
 
 /** Graphs with more nodes than this are summarised: listing them would crowd out everything else. */
 export const GRAPH_LIST_LIMIT = 200;
@@ -26,7 +27,7 @@ export const views = {
     const recipes: Record<string, number> = {};
     const sources: Record<string, number> = {};
     const sinks: Record<string, number> = {};
-    const count = (tally: Record<string, number>, key: string) => (tally[key] = (tally[key] ?? 0) + 1);
+    const count = (tally: Record<string, number>, key: string) => addTo(tally, key, 1);
     for (const node of nodeList) {
       count(nodesByKind, node.kind);
       if (node.kind === "recipe") count(recipes, node.recipe);

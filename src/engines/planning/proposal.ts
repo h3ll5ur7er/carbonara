@@ -7,6 +7,7 @@ import type { Proposal, ProposalSummary } from "../../contracts/managers";
 import type { Id, PackData } from "../../contracts/pack";
 import type { AnalysisResults, EdgeResult, NodeResult } from "../../contracts/results";
 import { clean } from "../../utilities/numbers";
+import { addTo } from "../../utilities/records";
 import { layered, GRID, type LayoutNode } from "./layout";
 import type { Role, Superstructure } from "./superstructure";
 
@@ -132,17 +133,14 @@ function summarise(
     if (role?.kind !== "recipe" || entry.node.kind !== "recipe") continue;
     const buildingId = entry.node.building ?? recipes.get(role.recipe)?.buildings[0];
     if (buildingId === undefined) continue;
-    // Own keys only: an id such as Satisfactory's "constructor" would otherwise start from Object.prototype's.
-    const counted = Object.hasOwn(buildings, buildingId) ? (buildings[buildingId] ?? 0) : 0;
-    buildings[buildingId] = counted + Math.ceil(machines);
+    addTo(buildings, buildingId, Math.ceil(machines));
     // The plugin's power metric (Satisfactory's `power`, in MW) where it derives one.
     const derived = entry.result.derived?.power ?? entry.result.derived?.powerMW;
     powerMW += derived ?? (buildingsById.get(buildingId)?.power?.consume ?? 0) * machines;
   }
   const shortfalls: Record<Id, number> = {};
   for (const diagnostic of results.diagnostics) {
-    if (diagnostic.kind === "deficit")
-      shortfalls[diagnostic.item] = (shortfalls[diagnostic.item] ?? 0) + diagnostic.perSecond;
+    if (diagnostic.kind === "deficit") addTo(shortfalls, diagnostic.item, diagnostic.perSecond);
   }
   return { buildings, raw, byproducts, shortfalls, powerMW };
 }

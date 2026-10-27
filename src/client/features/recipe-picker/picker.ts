@@ -6,6 +6,7 @@ import type { Id, PackData, Recipe } from "../../../contracts/pack";
 import { GRID } from "../../canvas/model/geometry";
 import type { Connector } from "../../core/connector";
 import { createSceneBuilder, handleId, type ItemView } from "../../canvas/model/scene";
+import { addTo, own } from "../../../utilities/records";
 
 /** The item dragged out of a port, and that port's side: an output asks for consumers, an input for producers. */
 export interface PickerRequest {
@@ -42,7 +43,7 @@ export type PickerEntry =
 export function recipeUsage(graph: Graph): Record<Id, number> {
   const usage: Record<Id, number> = {};
   for (const node of Object.values(graph.nodes)) {
-    if (node.kind === "recipe") usage[node.recipe] = (usage[node.recipe] ?? 0) + 1;
+    if (node.kind === "recipe") addTo(usage, node.recipe, 1);
   }
   return usage;
 }
@@ -81,7 +82,7 @@ export function pickerEntries(pack: PackData, request: PickerRequest, usage: Rec
         title,
         building: buildingName,
         alternate,
-        uses: usage[recipe.id] ?? 0,
+        uses: own(usage, recipe.id) ?? 0,
         inputs,
         outputs,
         seconds,
@@ -107,7 +108,12 @@ type Rank = [uses: number, mainProduct: number, standard: number, title: string]
 
 function rank(recipe: Recipe, request: PickerRequest, usage: Record<Id, number>): Rank {
   const main = request.side === "in" ? Object.keys(recipe.out)[0] === request.item : true;
-  return [usage[recipe.id] ?? 0, main ? 1 : 0, recipe.tags?.includes("alternate") ? 0 : 1, recipe.name ?? recipe.id];
+  return [
+    own(usage, recipe.id) ?? 0,
+    main ? 1 : 0,
+    recipe.tags?.includes("alternate") ? 0 : 1,
+    recipe.name ?? recipe.id,
+  ];
 }
 
 function compareRanks(a: Rank, b: Rank): number {
