@@ -1,6 +1,6 @@
 // Edits a client can ask the editing manager for. Each command is undoable; a batch is one undo step.
 import { z } from "zod";
-import { Blueprint, Edge, LocalId, Node, Pin, Position, TagColour } from "./document";
+import { Blueprint, Edge, LocalId, Node, Pin, PlanningSettings, Position, TagColour } from "./document";
 import { Id, RateUnit } from "./pack";
 
 /** `root`, or the id of the blueprint whose graph the command edits. */
@@ -75,9 +75,15 @@ export const Command = z.discriminatedUnion("type", [
         rateUnit: RateUnit.nullable().optional(),
         belt: Id.nullable().optional(),
         machineGroups: z.enum(["fill", "even"]).nullable().optional(),
+        planning: PlanningSettings.nullable()
+          .optional()
+          .describe("The planner's preferred buildings and resource weights, replacing the saved ones."),
       }),
     })
-    .describe("Changes the document's display settings; null puts one back to its default, a missing one stays."),
+    .describe(
+      "Changes the document's display settings and the planner's defaults; null puts one back to its default, a " +
+        "missing one stays.",
+    ),
   z
     .object({ type: z.literal("renameDocument"), name: z.string().trim().min(1).max(120) })
     .describe("Renames the factory (its tab follows)."),

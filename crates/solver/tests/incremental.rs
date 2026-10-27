@@ -174,6 +174,17 @@ fn objectives(model: &Model, solution: &Solution) -> [f64; 5] {
     ]
 }
 
+/// How many of `objectives`' tiers every optimal solve agrees on. A slack tier (pin misses, deficits,
+/// overflow) whose optimum isn't zero may be met by several vertices with different slacks at zero, and the
+/// solver holds the zeros of the one it found (docs/Architecture/Solver.md, Objective tiers); the tiers after
+/// it then depend on that choice, from scratch as much as from a warm start (CARB-131).
+fn unique_tiers(tiers: &[f64; 5]) -> usize {
+    match tiers[..3].iter().position(|&slack| slack > 1e-9) {
+        Some(first_positive) => first_positive + 1,
+        None => tiers.len(),
+    }
+}
+
 proptest! {
     #[test]
     fn every_node_and_edge_belongs_to_exactly_one_component(factory in factory()) {
@@ -191,7 +202,7 @@ proptest! {
         let by_component = solve(&factory).map_err(|e| TestCaseError::fail(e.to_string()))?;
         let whole = solve_whole(&factory, &MicroLp).map_err(|e| TestCaseError::fail(e.to_string()))?;
         let (a, b) = (objectives(&factory, &by_component), objectives(&factory, &whole));
-        for tier in 0..5 {
+        for tier in 0..unique_tiers(&b) {
             prop_assert!((a[tier] - b[tier]).abs() <= 1e-6 * (1.0 + b[tier].abs()), "tier {tier}: {a:?} vs {b:?}");
         }
     }
@@ -231,7 +242,7 @@ proptest! {
             return Err(TestCaseError::fail("expected solutions"));
         };
         let (a, b) = (objectives(&edited, &warm), objectives(&edited, &cold));
-        for tier in 0..5 {
+        for tier in 0..unique_tiers(&b) {
             prop_assert!((a[tier] - b[tier]).abs() <= 1e-6 * (1.0 + b[tier].abs()), "tier {tier}: {a:?} vs {b:?}");
         }
         // Met pins are met exactly, as from scratch.

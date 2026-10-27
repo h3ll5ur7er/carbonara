@@ -6,7 +6,7 @@ import type { PluginRuntime } from "../../contracts/access";
 import type { PackData } from "../../contracts/pack";
 import type { PluginDescription } from "../../contracts/plugin";
 import { fail, ok, type Result } from "../../contracts/result";
-import type { AnalysisResults } from "../../contracts/results";
+import type { AnalysisResults, NodeItems } from "../../contracts/results";
 import type { CompileAnswer, SandboxCall, SandboxReply, SandboxRequest } from "./plugin-sandbox-protocol";
 
 /** One running sandbox, as a worker presents it. */
@@ -63,7 +63,7 @@ export async function isolatePlugin(
             outcome,
             version,
           })) as AnalysisResults;
-          return { ...results, documentId: document.id, version, graph: "root" };
+          return pinned(results, document.id, version, "root");
         },
         blueprints: blueprintIndices(answer.blueprints, answer.model.blueprints?.length ?? 0),
         async blueprintResults(graph, outcome, version) {
@@ -74,7 +74,7 @@ export async function isolatePlugin(
             outcome,
             version,
           })) as AnalysisResults;
-          return { ...results, documentId: document.id, version, graph };
+          return pinned(results, document.id, version, graph);
         },
       };
     },
@@ -96,6 +96,28 @@ export async function isolatePlugin(
     },
   };
   return ok(runtime);
+}
+
+/**
+ * The sandbox's results for the document, version and graph they were asked for. Their effective items become
+ * ports on the canvas: only lists of item ids are kept.
+ */
+function pinned(results: AnalysisResults, documentId: string, version: number, graph: string): AnalysisResults {
+  const { effectiveItems: answered, ...rest } = results;
+  const effectiveItems: Record<string, NodeItems> = {};
+  if (typeof answered === "object" && answered !== null) {
+    for (const [node, items] of Object.entries(answered as Record<string, unknown>)) {
+      const { in: inputs, out } = (items ?? {}) as Record<string, unknown>;
+      if (strings(inputs) && strings(out)) effectiveItems[node] = { in: inputs, out };
+    }
+  }
+  return {
+    ...rest,
+    documentId,
+    version,
+    graph,
+    ...(Object.keys(effectiveItems).length > 0 && { effectiveItems }),
+  };
 }
 
 function strings(value: unknown): value is string[] {

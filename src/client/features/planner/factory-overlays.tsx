@@ -63,6 +63,7 @@ export function useFactoryOverlays({
           graph={graph}
           pack={ready.pack}
           rateUnit={rateUnit}
+          planning={ready.document.settings.planning}
         />
         {heatmap && <HeatmapLegend left={left} right={right} />}
         <SankeyOverlay document={ready.document} pack={ready.pack} results={results} rateUnit={rateUnit} />

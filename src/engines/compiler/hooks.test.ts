@@ -72,6 +72,44 @@ describe("the effective recipe", () => {
   });
 });
 
+describe("the items a node's effective recipe uses", () => {
+  it("are listed for nodes whose effective recipe takes or makes other items than the pack's recipe", () => {
+    expect(compiled({ fields: { speed: 200 } }).effectiveItems).toEqual({
+      smelt: { in: ["clean-ferrite", "coal"], out: ["iron-plate"] },
+    });
+  });
+
+  it("are left out while every node uses its recipe's items, whatever the amounts", () => {
+    expect(compiled({ fields: { speed: 150, boosted: true } }).effectiveItems).toBeUndefined();
+    // The coal alternate burns coal already: more of it is no other item.
+    expect(compiled({ recipe: "iron-plate-from-ore", fields: { speed: 200 } }).effectiveItems).toBeUndefined();
+  });
+
+  it("leave out items the effective recipe takes or makes none of", () => {
+    const dropping = definePlugin({
+      id: "dropping",
+      effectiveRecipe: ({ recipe }) => ({ ...recipe, in: { ...recipe.in, "clean-ferrite": 0 } }),
+    });
+    const { effectiveItems } = compile({ document: smeltingWith({}), pack, plugin: dropping });
+    expect(effectiveItems?.smelt).toEqual({ in: [], out: ["iron-plate"] });
+  });
+
+  it("come with the results, solved or not", () => {
+    const fuelled = compiled({ fields: { speed: 200 } });
+    const solution: Solution = {
+      activity: fuelled.model.nodes.map(() => 1),
+      flow: fuelled.model.edges.map(() => 0),
+      surplus: [],
+      deficit: [],
+      overflow: [],
+      pinMisses: [],
+    };
+    const items = { smelt: { in: ["clean-ferrite", "coal"], out: ["iron-plate"] } };
+    expect(toResults(fuelled, ok(solution), plugin, 1).effectiveItems).toEqual(items);
+    expect(toResults(fuelled, { ok: false, error: "infeasible" }, plugin, 1).effectiveItems).toEqual(items);
+  });
+});
+
 describe("recipe availability", () => {
   it("warns about recipes the settings don't allow, and still solves them", () => {
     const locked = compiled({ recipe: "iron-plate-from-ore" });

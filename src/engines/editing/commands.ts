@@ -96,7 +96,8 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     for (const [key, value] of Object.entries(command.settings)) {
       if (value === null) Reflect.deleteProperty(document.settings, key);
       else if (value !== undefined && document.settings[key as keyof Document["settings"]] !== value) {
-        Object.assign(document.settings, { [key]: value });
+        // The planner's settings are an object: the document gets its own copy.
+        Object.assign(document.settings, { [key]: structuredClone(value) });
       }
     }
     return;

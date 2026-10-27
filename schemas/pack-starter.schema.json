@@ -696,6 +696,32 @@
             "type": "string"
           },
           "additionalProperties": {}
+        },
+        "planning": {
+          "description": "The planner's preferred buildings and resource weights for this save; plans use them unless they name others.",
+          "type": "object",
+          "properties": {
+            "buildings": {
+              "description": "Buildings to prefer: each recipe runs in the first of these it can, otherwise in its default building.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+              }
+            },
+            "resourceWeights": {
+              "description": "What one item per second of a raw resource weighs against the others, by item; 1 when not named.",
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+              },
+              "additionalProperties": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            }
+          }
         }
       }
     }

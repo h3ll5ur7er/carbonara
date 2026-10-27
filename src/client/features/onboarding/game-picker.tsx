@@ -8,6 +8,7 @@ import { useModels } from "../../core/models";
 import { errorMessage, toast } from "../../shell/toasts";
 import { Button } from "../../ui/button";
 import { cx } from "../../ui/cx";
+import { Mark } from "../../ui/mark";
 import { packAccentStyle } from "../../ui/theme";
 import { usePacks } from "../packs/use-packs";
 import { setPickingGame, skipTour, startTour, useTour } from "./tour-store";
@@ -47,11 +48,11 @@ export function GamePicker() {
         className="canvas-clearing flex max-w-3xl flex-col items-center gap-8 px-16 py-14 text-center"
       >
         <div className="flex flex-col items-center gap-3">
-          <Mark />
+          <Mark className="size-10" />
           <h1 id="game-picker-title" className="text-3xl font-semibold tracking-tight text-fg">
             {firstRun ? "Welcome to Carbonara" : "Take the tour"}
           </h1>
-          <p className="max-w-md text-base text-fg-muted">
+          <p className="max-w-md text-base text-balance text-fg-muted">
             Which game do you play? We’ll open a small starter factory for it and show you around — it takes a minute.
           </p>
         </div>
@@ -124,16 +125,4 @@ function monogram(name: string): string {
     .slice(0, 2)
     .map((word) => word[0]?.toUpperCase() ?? "")
     .join("");
-}
-
-/** The app's mark, as in the top bar, a size up. */
-function Mark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-10 drop-shadow-glow" aria-hidden>
-      <rect width="24" height="24" rx="6.5" className="fill-accent" />
-      <path d="M7 8.5C12 8.5 12 15.5 17 15.5" fill="none" strokeWidth="2" className="stroke-on-accent" />
-      <circle cx="7" cy="8.5" r="2.5" className="fill-on-accent" />
-      <circle cx="17" cy="15.5" r="2.5" className="fill-on-accent" />
-    </svg>
-  );
 }

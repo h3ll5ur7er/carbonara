@@ -21,13 +21,18 @@ export interface PlannerState {
   documentId: string | null;
   stage: PlannerStage;
   goals: GoalRow[];
-  options: PlanOptions;
+  /** The options of this session's plans; the buildings and resource weights are the document's (`settings.planning`). */
+  options: PlannerOptions;
   proposal: Proposal | null;
   /** How far the proposal's ghost was dragged from where the planner put it. */
   offset: Point;
   /** Why the last plan failed. */
   error: string | null;
 }
+
+export type PlannerOptions = Pick<PlanOptions, "objective" | "alternates" | "exclude">;
+
+const { objective, alternates, exclude } = DEFAULT_PLAN_OPTIONS;
 
 let nextKey = 1;
 
@@ -44,7 +49,7 @@ const fresh = (): Omit<PlannerState, "open"> => ({
   documentId: null,
   stage: "goals",
   goals: [newGoal()],
-  options: DEFAULT_PLAN_OPTIONS,
+  options: { objective, alternates, exclude },
   proposal: null,
   offset: { x: 0, y: 0 },
   error: null,

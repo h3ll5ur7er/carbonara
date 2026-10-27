@@ -1,9 +1,10 @@
 // The goal planner's rules in the client: goals in the document's unit become targets per second (and back), a
-// proposal becomes a ghost, and its undo step gets a name.
-import type { Graph } from "../../../contracts/document";
+// proposal becomes a ghost, and its undo step gets a name. The preferred buildings and resource weights are saved
+// with the document (`settings.planning`), each change one `setSettings` edit.
+import type { Graph, PlanningSettings } from "../../../contracts/document";
 import type { PlanTarget, Proposal } from "../../../contracts/managers";
 import type { Building, Id, Item, PackData, RateUnit } from "../../../contracts/pack";
-import { clean } from "../../../utilities/numbers";
+import { clean, formatNumber } from "../../../utilities/numbers";
 import { fromPerSecond, toPerSecond } from "../../../utilities/units";
 import type { Point } from "../../canvas/adapter";
 import type { Ghost } from "../../canvas/ghost/ghost";
@@ -104,6 +105,41 @@ export function preferBuilding(buildings: readonly Id[], family: BuildingFamily,
   const members = new Set(family.members.map((member) => member.id));
   const others = buildings.filter((building) => !members.has(building));
   return choice === family.base.id ? others : [...others, choice];
+}
+
+/** A change to the planner's defaults saved with the document, as one `setSettings` edit; null when none are left. */
+export interface PlanningEdit {
+  planning: PlanningSettings | null;
+  label: string;
+}
+
+/** The saved defaults with a family's building changed (`preferBuilding`). */
+export function buildingEdit(saved: PlanningSettings | undefined, family: BuildingFamily, choice: Id): PlanningEdit {
+  const buildings = preferBuilding(saved?.buildings ?? [], family, choice);
+  const name = family.members.find((member) => member.id === choice)?.name ?? choice;
+  return { planning: tidy({ ...saved, buildings }), label: `Run ${family.base.name} recipes in the ${name}` };
+}
+
+/** The saved defaults with a raw resource's weight changed; a weight of 1 is the default and isn't kept. */
+export function weightEdit(
+  saved: PlanningSettings | undefined,
+  pack: PackData,
+  item: Id,
+  weight: number,
+): PlanningEdit {
+  const others = Object.fromEntries(Object.entries(saved?.resourceWeights ?? {}).filter(([id]) => id !== item));
+  const resourceWeights = weight === 1 ? others : { ...others, [item]: weight };
+  const name = pack.items.find(({ id }) => id === item)?.name ?? item;
+  return { planning: tidy({ ...saved, resourceWeights }), label: `Weigh ${name} at ${formatNumber(weight)}` };
+}
+
+/** Planning settings without empty lists; null when nothing is left to save. */
+function tidy({ buildings, resourceWeights }: PlanningSettings): PlanningSettings | null {
+  const kept: PlanningSettings = {
+    ...(buildings && buildings.length > 0 && { buildings }),
+    ...(resourceWeights && Object.keys(resourceWeights).length > 0 && { resourceWeights }),
+  };
+  return Object.keys(kept).length > 0 ? kept : null;
 }
 
 /**

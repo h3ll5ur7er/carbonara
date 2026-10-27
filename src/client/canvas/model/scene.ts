@@ -1,7 +1,12 @@
 // Hides how a document graph and its pack become what the canvas draws: renderer-neutral node and edge
 // views with names resolved from the pack and fixed geometry. Every CanvasAdapter draws from these.
+// A recipe node's ports are the items it uses: its effective recipe's (the pack plugin's, from the analysis
+// results) where the results have them, else the pack recipe's, plus a stray port for each item a flow still
+// carries in or out that it no longer uses.
 import type { Blueprint, Document, Graph, LocalId, Node, Position, TagColour } from "../../../contracts/document";
 import type { Id, Item, ItemForm, PackData, Recipe } from "../../../contracts/pack";
+import type { AnalysisResults, NodeItems } from "../../../contracts/results";
+import { own } from "../../../utilities/records";
 import {
   COLLAPSED_FRAME_HEIGHT,
   FRAME_SIZE,
@@ -36,6 +41,8 @@ export interface PortView {
   x: number;
   y: number;
   side: PortSide;
+  /** A flow carries this item in or out, but the node's recipe doesn't use it (the solve reports the flow). */
+  stray?: true;
 }
 
 interface NodeViewBase {
@@ -89,10 +96,52 @@ export function handleId(direction: PortDirection, item: Id): string {
   return `${direction}:${item}`;
 }
 
+/**
+ * Recipe nodes whose effective recipe uses other items than the pack's recipe: the items it uses
+ * (`AnalysisResults.effectiveItems`). A node's view is rebuilt when its entry is another object.
+ */
+export type EffectiveItems = Record<LocalId, NodeItems>;
+
+/**
+ * Returns a function that turns each document's latest results into the effective items to draw, keeping the
+ * objects it gave before where they say the same (results are copies, every solve). While a document has no
+ * results yet, or none of the graph on screen, its last items stay, so ports don't drop back to the pack's
+ * recipe in between.
+ */
+export function createEffectiveItemsKeeper() {
+  let last: { documentId: string; items: EffectiveItems | undefined } | undefined;
+  return function keep(
+    documentId: string,
+    results: Pick<AnalysisResults, "effectiveItems"> | null,
+  ): EffectiveItems | undefined {
+    const before = last?.documentId === documentId ? last.items : undefined;
+    if (!results) {
+      last = { documentId, items: before };
+      return before;
+    }
+    let items: EffectiveItems | undefined;
+    let changed = Object.keys(before ?? {}).length !== Object.keys(results.effectiveItems ?? {}).length;
+    for (const [id, next] of Object.entries(results.effectiveItems ?? {})) {
+      const known = before && own(before, id);
+      const same = known && sameList(known.in, next.in) && sameList(known.out, next.out);
+      changed ||= !same;
+      (items ??= {})[id] = same ? known : next;
+    }
+    last = { documentId, items: changed ? items : before };
+    return last.items;
+  };
+}
+
+function sameList(a: Id[], b: Id[]): boolean {
+  return a.length === b.length && a.every((item, at) => b[at] === item);
+}
+
 interface PackIndex {
   items: Map<Id, Item>;
   recipes: Map<Id, Recipe>;
   buildings: Map<Id, string>;
+  /** The items of each recipe, as the pack has them; filled in as recipes are drawn. */
+  recipeItems: Map<Id, NodeItems>;
 }
 
 const packIndexes = new WeakMap<PackData, PackIndex>();
@@ -104,10 +153,21 @@ function indexPack(pack: PackData): PackIndex {
       items: new Map(pack.items.map((item) => [item.id, item])),
       recipes: new Map(pack.recipes.map((recipe) => [recipe.id, recipe])),
       buildings: new Map(pack.buildings.map((building) => [building.id, building.name])),
+      recipeItems: new Map(),
     };
     packIndexes.set(pack, index);
   }
   return index;
+}
+
+function packItems(index: PackIndex, recipeId: Id): NodeItems {
+  let items = index.recipeItems.get(recipeId);
+  if (!items) {
+    const recipe = index.recipes.get(recipeId);
+    items = { in: Object.keys(recipe?.in ?? {}), out: Object.keys(recipe?.out ?? {}) };
+    index.recipeItems.set(recipeId, items);
+  }
+  return items;
 }
 
 function itemView(index: PackIndex, id: Id): ItemView {
@@ -125,6 +185,9 @@ interface CacheEntry {
   position: Position | undefined;
   pack: PackData;
   junctionItem: Id | undefined;
+  /** For recipes: their effective items, and the items of their stray ports (`in:coal out:slag`). */
+  items: NodeItems | undefined;
+  strays: string | undefined;
   /** For instances: the blueprint and its layout the view was built from. */
   blueprint: Blueprint | undefined;
   blueprintLayout: Positions;
@@ -138,9 +201,15 @@ interface CacheEntry {
 export function createSceneBuilder() {
   let cache = new Map<LocalId, CacheEntry>();
 
-  return function buildScene(graph: Graph, positions: Positions, pack: PackData, subgraphs?: Subgraphs): CanvasScene {
+  return function buildScene(
+    graph: Graph,
+    positions: Positions,
+    pack: PackData,
+    subgraphs?: Subgraphs,
+    effective?: EffectiveItems,
+  ): CanvasScene {
     const index = indexPack(pack);
-    const junctionItems = junctionItemsOf(graph);
+    const { junctionItems, strays } = endsOf(graph, index, effective);
     const next = new Map<LocalId, CacheEntry>();
     const frames: NodeView[] = [];
     const others: NodeView[] = [];
@@ -148,6 +217,8 @@ export function createSceneBuilder() {
     for (const [id, node] of Object.entries(graph.nodes)) {
       const position = positions?.[id];
       const junctionItem = junctionItems.get(id);
+      const items = node.kind === "recipe" && effective ? own(effective, id) : undefined;
+      const stray = strays.get(id);
       const blueprint = node.kind === "instance" ? subgraphs?.blueprints[node.blueprint] : undefined;
       const blueprintLayout = node.kind === "instance" ? subgraphs?.layout[node.blueprint] : undefined;
       const cached = cache.get(id);
@@ -157,6 +228,8 @@ export function createSceneBuilder() {
         cached.position === position &&
         cached.pack === pack &&
         cached.junctionItem === junctionItem &&
+        cached.items === items &&
+        cached.strays === stray?.key &&
         cached.blueprint === blueprint &&
         cached.blueprintLayout === blueprintLayout
           ? cached.view
@@ -166,10 +239,20 @@ export function createSceneBuilder() {
                 position?.flow,
                 node.kind === "instance"
                   ? instanceView(id, node.blueprint, position, index, blueprint, blueprintLayout)
-                  : nodeView(id, node, position, index, junctionItem),
+                  : nodeView(id, node, position, index, junctionItem, items, stray),
               ),
             );
-      next.set(id, { node, position, pack, junctionItem, blueprint, blueprintLayout, view });
+      next.set(id, {
+        node,
+        position,
+        pack,
+        junctionItem,
+        items,
+        strays: stray?.key,
+        blueprint,
+        blueprintLayout,
+        view,
+      });
       (view.kind === "frame" ? frames : others).push(view);
     }
     cache = next;
@@ -203,15 +286,39 @@ function portFor(view: NodeView, direction: PortDirection, item: Id, port: Local
   )?.handle;
 }
 
-/** The item a junction carries: that of its first edge. */
-function junctionItemsOf(graph: Graph): Map<LocalId, Id> {
-  const items = new Map<LocalId, Id>();
+/** Items flows carry in or out of a recipe node that it doesn't use, and a key that changes with them. */
+interface Strays extends NodeItems {
+  key: string;
+}
+
+/**
+ * What a graph's flows say about the nodes at their ends: the item each junction carries (that of its first edge),
+ * and the stray items of recipe nodes.
+ */
+function endsOf(
+  graph: Graph,
+  index: PackIndex,
+  effective: EffectiveItems | undefined,
+): { junctionItems: Map<LocalId, Id>; strays: Map<LocalId, Strays> } {
+  const junctionItems = new Map<LocalId, Id>();
+  const strays = new Map<LocalId, Strays>();
+  const check = (id: LocalId, direction: PortDirection, item: Id) => {
+    const node = own(graph.nodes, id);
+    if (node?.kind === "junction" && !junctionItems.has(id)) junctionItems.set(id, item);
+    if (node?.kind !== "recipe") return;
+    const used = (effective && own(effective, id)) ?? packItems(index, node.recipe);
+    if (used[direction].includes(item)) return;
+    const known = strays.get(id) ?? { in: [], out: [], key: "" };
+    if (known[direction].includes(item)) return;
+    known[direction].push(item);
+    known.key += ` ${handleId(direction, item)}`;
+    strays.set(id, known);
+  };
   for (const edge of Object.values(graph.edges)) {
-    for (const end of [edge.from, edge.to]) {
-      if (graph.nodes[end]?.kind === "junction" && !items.has(end)) items.set(end, edge.item);
-    }
+    check(edge.from, "out", edge.item);
+    check(edge.to, "in", edge.item);
   }
-  return items;
+  return { junctionItems, strays };
 }
 
 function nodeView(
@@ -220,20 +327,31 @@ function nodeView(
   position: Position | undefined,
   index: PackIndex,
   junctionItem: Id | undefined,
+  items?: NodeItems,
+  strays?: NodeItems,
 ): NodeView {
   const at = { x: position?.x ?? 0, y: position?.y ?? 0 };
   switch (node.kind) {
     case "recipe": {
       const recipe = index.recipes.get(node.recipe);
       const buildingId = node.building ?? recipe?.buildings[0] ?? "";
-      const inputs = Object.keys(recipe?.in ?? {});
-      const outputs = Object.keys(recipe?.out ?? {});
-      const width = RECIPE_WIDTH;
-      const ports = [
-        ...inputs.map((item, row) => port("in", itemView(index, item), 0, portRowCentre(row))),
-        ...outputs.map((item, row) => port("out", itemView(index, item), width, portRowCentre(inputs.length + row))),
+      const used = items ?? packItems(index, node.recipe);
+      const side = (direction: PortDirection) => [
+        ...used[direction].map((item) => ({ item, stray: false })),
+        ...(strays?.[direction] ?? []).map((item) => ({ item, stray: true })),
       ];
-      const firstOutput = outputs[0];
+      const inputs = side("in");
+      const outputs = side("out");
+      const width = RECIPE_WIDTH;
+      const rowPort = (direction: PortDirection, item: Id, stray: boolean, row: number) => {
+        const view = port(direction, itemView(index, item), direction === "in" ? 0 : width, portRowCentre(row));
+        return stray ? { ...view, stray: true as const } : view;
+      };
+      const ports = [
+        ...inputs.map(({ item, stray }, row) => rowPort("in", item, stray, row)),
+        ...outputs.map(({ item, stray }, row) => rowPort("out", item, stray, inputs.length + row)),
+      ];
+      const firstOutput = Object.keys(recipe?.out ?? {})[0];
       const title = recipe?.name ?? (firstOutput ? itemView(index, firstOutput).name : node.recipe);
       return {
         id,

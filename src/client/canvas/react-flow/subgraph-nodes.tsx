@@ -84,7 +84,7 @@ export const InstanceNode = memo(function InstanceNode({ id, data: { view }, sel
         </header>
         <div
           style={{ height: MACHINE_STRIP }}
-          className="flex shrink-0 items-center gap-2 border-y border-line-subtle bg-surface-1 pr-1 pl-3 text-2xs text-fg-muted"
+          className="flex shrink-0 items-center gap-2 border-y border-line-subtle bg-surface-1 px-3 text-2xs text-fg-muted"
         >
           <span className="min-w-0 flex-1 truncate">
             {!slot ? (
@@ -101,10 +101,10 @@ export const InstanceNode = memo(function InstanceNode({ id, data: { view }, sel
             type="button"
             onClick={() => open(id)}
             title="Open subgraph"
-            className="nodrag nopan flex h-5 items-center gap-1 rounded-xs px-1.5 font-medium text-accent-fg transition-colors hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-accent"
+            className="nodrag nopan flex h-5 items-center gap-1 rounded-xs bg-accent-soft pr-1.5 pl-2 text-xs font-semibold text-accent-fg transition-colors hover:bg-accent-glow focus-visible:outline-2 focus-visible:outline-accent"
           >
             Open
-            <ArrowDownRight className="size-3" aria-hidden />
+            <ArrowDownRight className="size-3.5" aria-hidden />
           </button>
         </div>
         <ul style={{ paddingBlock: PORT_PADDING }} className="flex flex-col px-3">

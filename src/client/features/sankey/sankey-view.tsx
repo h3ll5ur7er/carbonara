@@ -63,7 +63,8 @@ function SankeyView({ document, pack, results, rateUnit }: SankeyOverlayProps) {
   return (
     <section
       aria-label="Sankey overview"
-      className="absolute inset-0 z-[5] animate-fade-in bg-canvas/95 backdrop-blur-scrim"
+      // Opaque: the canvas behind would show through the translucent bands.
+      className="absolute inset-0 z-[5] animate-fade-in bg-canvas"
     >
       <header
         style={{ left, right }}
@@ -76,10 +77,10 @@ function SankeyView({ document, pack, results, rateUnit }: SankeyOverlayProps) {
         <span className="text-xs text-fg-subtle">Bands as wide as their flow</span>
         <ul className="ml-auto flex items-center gap-3 text-2xs text-fg-subtle" aria-label="Legend">
           <li className="flex items-center gap-1.5">
-            <span className="h-2 w-4 rounded-full bg-flow-near-capacity/60" aria-hidden /> Near capacity
+            <span className="h-2 w-4 rounded-full bg-flow-near-capacity" aria-hidden /> Near capacity
           </li>
           <li className="flex items-center gap-1.5">
-            <span className="h-2 w-4 rounded-full bg-flow-over-capacity/70" aria-hidden /> Over capacity
+            <span className="h-2 w-4 rounded-full bg-flow-over-capacity" aria-hidden /> Over capacity
           </li>
         </ul>
         <IconButton label="Close the overview" shortcut={["S"]} icon={<X />} size="sm" onClick={toggleSankey} />
@@ -196,8 +197,8 @@ function Bar({
         y={node.labelAt.y}
         dominantBaseline="middle"
         textAnchor={node.labelAt.anchor}
-        // The layout keeps labels clear of the bands; a thin halo in the canvas colour softens a band's tip.
-        className="pointer-events-none fill-fg stroke-canvas text-2xs font-medium [paint-order:stroke] [stroke-linejoin:round] [stroke-width:2px]"
+        // The layout keeps labels clear of the bands; a halo in the canvas colour keeps a passing band's edge off the text.
+        className="pointer-events-none fill-fg stroke-canvas text-2xs font-medium [paint-order:stroke] [stroke-linejoin:round] [stroke-width:3px]"
       >
         {node.label}
         <tspan className="fill-fg-subtle font-mono" dx={6}>

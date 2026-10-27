@@ -60,7 +60,12 @@ export function toResults(
   version: number,
   memo: ResultsMemo = resultsMemo(),
 ): AnalysisResults {
-  const base = { documentId: compiled.documentId, version, graph: compiled.graph };
+  const base = {
+    documentId: compiled.documentId,
+    version,
+    graph: compiled.graph,
+    ...(compiled.effectiveItems && { effectiveItems: compiled.effectiveItems }),
+  };
   if (!outcome.ok) {
     return {
       ...base,

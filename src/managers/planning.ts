@@ -7,7 +7,14 @@
 // as a ghost whoever asked (the planner card or an MCP client).
 import type { DocumentStore, LoadedPack, PackStore, PluginRuntime, ProposalStore } from "../contracts/access";
 import type { Document } from "../contracts/document";
-import type { Events, ManagerImplementation, PlanOptions, PlanTarget, Proposal } from "../contracts/managers";
+import type {
+  Events,
+  ManagerImplementation,
+  PlanOptions,
+  PlanRequestOptions,
+  PlanTarget,
+  Proposal,
+} from "../contracts/managers";
 import type { Id } from "../contracts/pack";
 import { fail, ok, type Result } from "../contracts/result";
 import { runtimeOf } from "../engines/compiler";
@@ -58,6 +65,16 @@ export function createPlanningManager({
     proposals.keepOnly(new Set(open.map((document) => document.id)));
   });
 
+  /** The request's options, with the buildings and resource weights saved with the document where it names none. */
+  function withSaved(options: PlanRequestOptions, { document }: Context): PlanOptions {
+    const saved = document.settings.planning;
+    return {
+      ...options,
+      buildings: options.buildings ?? saved?.buildings ?? [],
+      resourceWeights: options.resourceWeights ?? saved?.resourceWeights ?? {},
+    };
+  }
+
   async function context(documentId: string): Promise<Result<Context>> {
     const open = documents.get(documentId);
     if (!open) return fail([{ path: ["documentId"], message: `Unknown document ${documentId}` }]);
@@ -105,12 +122,13 @@ export function createPlanningManager({
   }
 
   return {
-    async planProduction({ documentId, graph, targets, options }) {
+    async planProduction({ documentId, graph, targets, options: asked }) {
       const found = await context(documentId);
       if (!found.ok) return found;
       if (graph !== "root" && !own(found.value.document.blueprints, graph)) {
         return fail([{ path: ["graph"], message: `Unknown graph ${graph}` }]);
       }
+      const options = withSaved(asked, found.value);
       const ruledOut = await unavailable(runtimeOf(found.value.pack), found.value.document);
       const rates = await asRun(found.value, ruledOut, options);
       const planned = await plan(found.value, targets, options, ruledOut, rates, graph);
@@ -128,9 +146,10 @@ export function createPlanningManager({
       events.publish("proposalChanged", { proposal, status: "pending" });
       return ok(proposal);
     },
-    async compareRecipes({ documentId, item, perSecond, options }) {
+    async compareRecipes({ documentId, item, perSecond, options: asked }) {
       const found = await context(documentId);
       if (!found.ok) return found;
+      const options = withSaved(asked, found.value);
       const { document, pack } = found.value;
       const comparisons = [];
       const ruledOut = await unavailable(runtimeOf(pack), document);

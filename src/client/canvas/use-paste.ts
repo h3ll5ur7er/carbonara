@@ -9,8 +9,9 @@ import { useConnector } from "../core/connector";
 import { errorMessage, toast } from "../shell/toasts";
 import type { Point } from "./adapter";
 import type { Ghost } from "./ghost/ghost";
-import type { CanvasScene, Subgraphs } from "./model/scene";
+import type { CanvasScene, EffectiveItems, Subgraphs } from "./model/scene";
 import type { Clipboard } from "../../contracts/clipboard";
+import { own } from "../../utilities/records";
 import { canvasActions } from "./viewport";
 
 export interface PasteGhost {
@@ -19,7 +20,12 @@ export interface PasteGhost {
   onCancel(): void;
 }
 
-export function usePaste(document: Document, graph: string, scene: CanvasScene): PasteGhost {
+export function usePaste(
+  document: Document,
+  graph: string,
+  scene: CanvasScene,
+  effective: EffectiveItems | undefined,
+): PasteGhost {
   const connector = useConnector();
   const pending = useClipboard((state) =>
     state.pending?.documentId === document.id && state.pending.graph === graph ? state.pending : null,
@@ -33,20 +39,22 @@ export function usePaste(document: Document, graph: string, scene: CanvasScene):
     }
   }, [document.id, graph]);
 
-  const ghost = useMemo<Ghost | undefined>(
-    () =>
-      pending
-        ? {
-            graph: pending.clipboard.graph,
-            positions: pending.clipboard.layout,
-            placement: { mode: "pointer", ...(pending.at && { at: pending.at }) },
-            label: pending.label,
-            // The instances are drawn with the blueprints they came with, which the paste brings along.
-            subgraphs: subgraphsOf(pending.clipboard, document.id, document.blueprints),
-          }
-        : undefined,
-    [pending, document.id, document.blueprints],
-  );
+  // Copied from the graph on screen, the nodes keep their ids in the clipboard: their ports are those drawn here.
+  const copiedHere = pending?.clipboard.source.documentId === document.id && pending.clipboard.source.graph === graph;
+  const ghost = useMemo<Ghost | undefined>(() => {
+    if (!pending) return undefined;
+    const items = copiedHere ? effectiveOf(pending.clipboard.graph.nodes, effective) : undefined;
+    // The instances are drawn with the blueprints they came with, which the paste brings along.
+    const subgraphs = subgraphsOf(pending.clipboard, document.id, document.blueprints);
+    return {
+      graph: pending.clipboard.graph,
+      positions: pending.clipboard.layout,
+      placement: { mode: "pointer", ...(pending.at && { at: pending.at }) },
+      label: pending.label,
+      ...(items && { results: { nodes: {}, edges: {}, effectiveItems: items } }),
+      ...(subgraphs && { subgraphs }),
+    };
+  }, [pending, copiedHere, effective, document.id, document.blueprints]);
 
   // The new nodes are selected as soon as the canvas shows them (the change may arrive before or after the answer).
   const toSelect = useRef<string[] | null>(null);
@@ -102,13 +110,26 @@ export function usePaste(document: Document, graph: string, scene: CanvasScene):
 function subgraphsOf(
   { blueprints, source }: Clipboard,
   documentId: string,
-  own: Document["blueprints"],
+  existing: Document["blueprints"],
 ): Subgraphs | undefined {
   const here = source.documentId === documentId;
-  const entries = Object.entries(blueprints).filter(([id]) => !(here && Object.hasOwn(own, id)));
+  const entries = Object.entries(blueprints).filter(([id]) => !(here && Object.hasOwn(existing, id)));
   if (entries.length === 0) return undefined;
   return {
     blueprints: Object.fromEntries(entries.map(([id, { name, graph }]) => [id, { name, graph }])),
     layout: Object.fromEntries(entries.map(([id, { layout }]) => [id, layout])),
   };
+}
+
+/** The effective items of the copied nodes, by their ids; undefined when none has any. */
+function effectiveOf(
+  nodes: Record<string, unknown>,
+  effective: EffectiveItems | undefined,
+): EffectiveItems | undefined {
+  let items: EffectiveItems | undefined;
+  for (const id of Object.keys(nodes)) {
+    const used = effective && own(effective, id);
+    if (used) (items ??= {})[id] = used;
+  }
+  return items;
 }

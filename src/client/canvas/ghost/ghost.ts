@@ -3,7 +3,7 @@
 // own, its numbers sit next to the document's results, and it is placed by an offset, fixed or following
 // the pointer. The renderer draws it with the document's node and edge components (see use-ghost-layer.tsx).
 import type { Graph, LocalId, Position } from "../../../contracts/document";
-import type { AnalysisResults, EdgeResult, NodeResult } from "../../../contracts/results";
+import type { AnalysisResults, EdgeResult, NodeItems, NodeResult } from "../../../contracts/results";
 import type { Point } from "../adapter";
 import type { CanvasScene, Subgraphs } from "../model/scene";
 import { snapDrag, type Gap, type Guide, type SnapOptions } from "../model/snap";
@@ -13,8 +13,17 @@ export interface Ghost {
   graph: Graph;
   /** Where its nodes would go, in flow units, before the placement moves them. */
   positions: Record<LocalId, Position>;
-  /** Numbers to show on it (machine counts, rates, flows), by its own node and edge ids. */
-  results?: { nodes: Record<LocalId, NodeResult>; edges: Record<LocalId, EdgeResult> } | undefined;
+  /**
+   * Numbers to show on it (machine counts, rates, flows), by its own node and edge ids, and the items its recipe
+   * nodes' effective recipes use where they differ from the pack's (`AnalysisResults.effectiveItems`).
+   */
+  results?:
+    | {
+        nodes: Record<LocalId, NodeResult>;
+        edges: Record<LocalId, EdgeResult>;
+        effectiveItems?: Record<LocalId, NodeItems> | undefined;
+      }
+    | undefined;
   placement: GhostPlacement;
   /** What it is, on its frame: "Proposal", "Paste". */
   label: string;

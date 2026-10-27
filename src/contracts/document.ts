@@ -96,7 +96,20 @@ export type Position = z.infer<typeof Position>;
 export const Layout = z.record(z.string(), z.record(LocalId, Position));
 export type Layout = z.infer<typeof Layout>;
 
-/** How a document's rates and machine counts read, and its plugin settings. */
+/** What the goal planner starts from for this document, unless a plan asks otherwise (`PlanOptions`). */
+export const PlanningSettings = z.object({
+  buildings: z
+    .array(Id)
+    .optional()
+    .describe("Buildings to prefer: each recipe runs in the first of these it can, otherwise in its default building."),
+  resourceWeights: z
+    .record(Id, z.number().positive())
+    .optional()
+    .describe("What one item per second of a raw resource weighs against the others, by item; 1 when not named."),
+});
+export type PlanningSettings = z.infer<typeof PlanningSettings>;
+
+/** How a document's rates and machine counts read, its plugin settings and the planner's defaults. */
 export const DocumentSettings = z.object({
   rateUnit: RateUnit.optional(),
   belt: Id.optional().describe(
@@ -107,6 +120,9 @@ export const DocumentSettings = z.object({
     .optional()
     .describe("How machine counts read: 4 × 100% + 1 × 37.5% (fill, the default) or 5 × 87.5% (even)."),
   plugin: z.record(z.string(), z.unknown()).optional().describe("Settings of the pack's plugin, e.g. a save profile."),
+  planning: PlanningSettings.optional().describe(
+    "The planner's preferred buildings and resource weights for this save; plans use them unless they name others.",
+  ),
 });
 export type DocumentSettings = z.infer<typeof DocumentSettings>;
 

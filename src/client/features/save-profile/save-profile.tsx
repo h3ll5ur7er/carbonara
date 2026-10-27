@@ -1,8 +1,10 @@
 // The Save profile: what the document's save has, edited in the inspector while no node is selected. The pack
 // plugin's document settings (such as a somersloop budget) come as field descriptors; the unlocked alternates are
 // a checklist over the pack's alternate recipes. Every edit is one `setPluginSettings` command, so one undo step.
+// The planner's defaults (preferred buildings, resource weights) are here too, as in the planner card.
 import { BookMarked } from "lucide-react";
 import { useId, useState } from "react";
+import type { PlanningSettings } from "../../../contracts/document";
 import type { PackData } from "../../../contracts/pack";
 import type { FieldValue, PluginDescription } from "../../../contracts/plugin";
 import { useConnector } from "../../core/connector";
@@ -11,6 +13,8 @@ import { Field } from "../../shell/inspector/inspector";
 import { errorMessage, toast } from "../../shell/toasts";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import { buildingFamilies } from "../planner/plan";
+import { BuildingChoices, ResourceWeights, useSavePlanning } from "../planner/planning-defaults";
 import { alternatesOf, isUnlocked, nameOf, unlockEdit, unlockedCount, type UnlockChange } from "./profile";
 
 export interface SaveProfileProps {
@@ -20,12 +24,16 @@ export interface SaveProfileProps {
   settings: Record<string, unknown>;
   /** The plugin's settings fields; undefined while they load. */
   plugin: PluginDescription | undefined;
+  /** The planner's defaults saved with the document (`settings.planning`). */
+  planning?: PlanningSettings | undefined;
 }
 
-export function SaveProfile({ documentId, pack, settings, plugin }: SaveProfileProps) {
+export function SaveProfile({ documentId, pack, settings, plugin, planning }: SaveProfileProps) {
   const connector = useConnector();
+  const savePlanning = useSavePlanning(documentId);
   const fields = Object.entries(plugin?.settingsFields ?? {});
   const alternates = alternatesOf(pack);
+  const plans = pack.resources.length > 0 || buildingFamilies(pack).length > 0;
 
   async function apply(changes: Record<string, unknown>, label: string) {
     try {
@@ -65,6 +73,16 @@ export function SaveProfile({ documentId, pack, settings, plugin }: SaveProfileP
               onEdit={(value) => apply({ [key]: value }, fieldEditLabel(descriptor, value))}
             />
           ))}
+        </section>
+      )}
+      {plans && (
+        <section
+          aria-label="Planner defaults"
+          className="flex flex-col gap-3 border-t border-line-subtle px-4 pt-3.5 pb-5"
+        >
+          <h4 className="text-2xs font-medium tracking-wide text-fg-faint uppercase">Planner</h4>
+          <BuildingChoices pack={pack} saved={planning} onEdit={savePlanning} />
+          <ResourceWeights pack={pack} saved={planning} onEdit={savePlanning} />
         </section>
       )}
       {alternates.length > 0 && (
@@ -111,7 +129,7 @@ function Alternates({
         <h4 id={id} className="text-2xs font-medium tracking-wide text-fg-faint uppercase">
           Alternate recipes
         </h4>
-        <span className="font-mono text-xs text-fg-subtle tabular-nums">
+        <span className="text-xs text-fg-subtle tabular-nums">
           {unlockedCount(pack, settings)} of {alternates.length} unlocked
         </span>
       </div>

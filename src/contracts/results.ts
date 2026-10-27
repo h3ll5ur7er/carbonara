@@ -14,6 +14,12 @@ export interface NodeResult {
   derived?: Record<string, number>;
 }
 
+/** The items a recipe node takes and makes as its effective recipe has them: amounts above zero, in its order. */
+export interface NodeItems {
+  in: Id[];
+  out: Id[];
+}
+
 export interface EdgeResult {
   perSecond: number;
   /** Capacity of the edge's belt or pipe, when it has one. */
@@ -46,4 +52,11 @@ export interface AnalysisResults {
   edges: Record<LocalId, EdgeResult>;
   diagnostics: Diagnostic[];
   totals: Totals;
+  /**
+   * Recipe nodes whose effective recipe (after the pack plugin's `effectiveRecipe`) takes or makes other items than
+   * the pack's recipe, such as the fuel a furnace burns: the items it does use. The canvas draws these nodes' ports
+   * from them, every other recipe node's from the pack's recipe. Left out when no node differs; there even when
+   * nothing could be solved.
+   */
+  effectiveItems?: Record<LocalId, NodeItems>;
 }

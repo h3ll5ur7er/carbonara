@@ -63,7 +63,7 @@ export function EfficiencyRing({ efficiency, label }: { efficiency: number | und
   const circumference = 2 * Math.PI * radius;
   const filled = efficiency === undefined ? 0 : circumference * Math.min(efficiency, 1);
   return (
-    <span className="relative grid size-10 shrink-0 place-items-center">
+    <span className="relative grid size-11 shrink-0 place-items-center">
       <svg viewBox="0 0 36 36" className="absolute inset-0 size-full -rotate-90" aria-hidden>
         <circle cx="18" cy="18" r={radius} fill="none" strokeWidth="2.5" className="stroke-line" />
         <circle
@@ -77,15 +77,18 @@ export function EfficiencyRing({ efficiency, label }: { efficiency: number | und
           className="stroke-accent transition-[stroke-dasharray] duration-(--duration-base)"
         />
       </svg>
-      <span className="font-mono text-2xs font-medium text-fg">{label}</span>
+      {/* Long counts ("0.63") close up, so they keep clear of the ring. */}
+      <span className={`font-mono text-2xs font-medium text-fg ${label.length > 3 ? "tracking-tighter" : ""}`}>
+        {label}
+      </span>
     </span>
   );
 }
 
 /** Marks a port the node is short of; the shape carries the meaning, not only the colour. */
-export function ShortIcon() {
+export function ShortIcon({ label = "Short" }: { label?: string }) {
   return (
-    <svg viewBox="0 0 12 12" className="size-3 shrink-0 text-flow-over-capacity" aria-label="Short" role="img">
+    <svg viewBox="0 0 12 12" className="size-3 shrink-0 text-flow-over-capacity" aria-label={label} role="img">
       <path d="M6 1.5 11 10.5H1Z" fill="currentColor" />
       <path d="M6 5v2.5" stroke="var(--color-surface-2)" strokeWidth="1.3" strokeLinecap="round" />
       <circle cx="6" cy="9" r="0.7" fill="var(--color-surface-2)" />

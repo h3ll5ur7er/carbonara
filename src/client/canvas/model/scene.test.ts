@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Document, Graph } from "../../../contracts/document";
 import { PackData } from "../../../contracts/pack";
 import { COLLAPSED_FRAME_HEIGHT } from "./geometry";
-import { createSceneBuilder, handleId, type NodeView } from "./scene";
+import { createEffectiveItemsKeeper, createSceneBuilder, handleId, type NodeView } from "./scene";
 
 const pack = PackData.parse({
   units: { rate: "per_second" },
@@ -182,6 +182,53 @@ describe("buildScene", () => {
     expect(build(broken).edges).toEqual([]);
   });
 
+  describe("effective recipes", () => {
+    const portsOf = (scene: { nodes: NodeView[] }, id = "smelter") =>
+      scene.nodes.find((node) => node.id === id)?.ports.map((port) => `${port.handle}${port.stray ? " stray" : ""}`);
+    // The pack's plugin adds coal (fuel) and drops the water, as the results say.
+    const fuelled = { smelter: { in: ["ore", "coal"], out: ["plate", "slag"] } };
+
+    it("draws a node's ports from the items its effective recipe uses", () => {
+      const scene = createSceneBuilder()(graph, positions, pack, undefined, fuelled);
+      expect(portsOf(scene)).toEqual(["in:ore", "in:coal", "out:plate", "out:slag"]);
+      expect(scene.nodes.find((node) => node.id === "smelter")?.ports[1]?.item).toEqual({
+        id: "coal",
+        name: "coal",
+        form: "solid",
+      });
+    });
+
+    it("connects a flow to a port its effective recipe adds", () => {
+      const withCoal: Graph = {
+        nodes: { ...graph.nodes, coal: { kind: "source", item: "coal" } },
+        edges: { ...graph.edges, fuel: { from: "coal", to: "smelter", item: "coal" } },
+      };
+      const scene = createSceneBuilder()(withCoal, positions, pack, undefined, fuelled);
+      expect(scene.edges.find((edge) => edge.id === "fuel")).toMatchObject({ targetHandle: "in:coal" });
+    });
+
+    it("keeps a flow to an item the node no longer uses on a stray port, after the others", () => {
+      const watered: Graph = {
+        ...graph,
+        nodes: { ...graph.nodes, pump: { kind: "source", item: "water" } },
+        edges: { ...graph.edges, water: { from: "pump", to: "smelter", item: "water" } },
+      };
+      const scene = createSceneBuilder()(watered, positions, pack, undefined, fuelled);
+      expect(portsOf(scene)).toEqual(["in:ore", "in:coal", "in:water stray", "out:plate", "out:slag"]);
+      expect(scene.edges.find((edge) => edge.id === "water")).toMatchObject({ targetHandle: "in:water" });
+    });
+
+    it("reuses a node's view while its effective items stay the same objects", () => {
+      const builder = createSceneBuilder();
+      const smelter = (scene: { nodes: NodeView[] }) => scene.nodes.find((node) => node.id === "smelter");
+      const first = builder(graph, positions, pack, undefined, fuelled);
+      expect(smelter(builder(graph, positions, pack, undefined, { ...fuelled }))).toBe(smelter(first));
+      const changed = builder(graph, positions, pack, undefined, { smelter: { in: ["ore"], out: ["plate"] } });
+      expect(portsOf(changed)).toEqual(["in:ore", "out:plate"]);
+      expect(portsOf(builder(graph, positions, pack))).toEqual(["in:ore", "in:water", "out:plate", "out:slag"]);
+    });
+  });
+
   it("takes positions and frame sizes from the layout, and puts frames behind everything", () => {
     const nodes = build().nodes;
     expect(nodes[0]).toMatchObject({
@@ -290,5 +337,26 @@ describe("buildScene", () => {
       };
       expect(instanceOf(builder(placed, positions, pack, renamed).nodes)).toMatchObject({ title: "Plates" });
     });
+  });
+});
+
+describe("keeping effective items", () => {
+  const fuelled = { smelter: { in: ["ore", "coal"], out: ["plate"] } };
+
+  it("gives the same objects while the results say the same", () => {
+    const keep = createEffectiveItemsKeeper();
+    const first = keep("doc", { effectiveItems: fuelled });
+    expect(keep("doc", { effectiveItems: structuredClone(fuelled) })).toBe(first);
+    const more = keep("doc", { effectiveItems: { ...structuredClone(fuelled), mixer: { in: ["coal"], out: [] } } });
+    expect(more).not.toBe(first);
+    expect(more?.smelter).toBe(first?.smelter);
+    expect(keep("doc", {})).toBeUndefined();
+  });
+
+  it("keeps the last items until results come, but not for another document", () => {
+    const keep = createEffectiveItemsKeeper();
+    const first = keep("doc", { effectiveItems: fuelled });
+    expect(keep("doc", null)).toBe(first);
+    expect(keep("other", null)).toBeUndefined();
   });
 });
