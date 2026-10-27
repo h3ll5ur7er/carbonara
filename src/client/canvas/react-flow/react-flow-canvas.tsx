@@ -7,6 +7,7 @@ import {
   applyNodeChanges,
   Background,
   BackgroundVariant,
+  getViewportForBounds,
   ReactFlow,
   ReactFlowProvider,
   SelectionMode,
@@ -22,6 +23,7 @@ import {
   type NodeTypes,
   type OnConnectEnd,
   type OnNodeDrag,
+  type ReactFlowState,
 } from "@xyflow/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { CanvasViewProps, Insets, Point } from "../adapter";
@@ -32,6 +34,7 @@ import { lodTier } from "../model/lod";
 import { GRID } from "../model/geometry";
 import type { CanvasScene, EdgeView, NodeView } from "../model/scene";
 import { insideLasso, nudgeOffset } from "../model/selection";
+import { graphWindow, serves, windowAround, WINDOWED_ABOVE, type Box } from "../model/window";
 import { setCanvasActions } from "../viewport";
 import { visibleCentre } from "../model/view";
 import { GhostFrameNode, useGhostLayer } from "../ghost/use-ghost-layer";
@@ -125,6 +128,32 @@ function FlowCanvas({
   );
 
   const store = useStoreApi<FlowNode, FlowEdgeType>();
+  // A large graph reaches React Flow as the window around the view (model/window.ts), which moves only when
+  // the view leaves it: React Flow's own work per frame (culling, selection) scans every node it has.
+  const windowing = useMemo(
+    () => (shownScene.nodes.length > WINDOWED_ABOVE ? graphWindow(shownScene) : undefined),
+    [shownScene],
+  );
+  const [shownBox, setShownBox] = useState<Box>();
+  /** React Flow has the whole graph until its view is set up: fitting it on init needs every node. */
+  const [initialised, setInitialised] = useState(false);
+  useEffect(() => {
+    if (!windowing || !initialised) return;
+    let current: Box | undefined;
+    const follow = ({ transform: [x, y, zoom], width, height }: ReactFlowState<FlowNode, FlowEdgeType>) => {
+      if (width === 0) return;
+      const view = { x: -x / zoom, y: -y / zoom, width: width / zoom, height: height / zoom };
+      if (current && serves(current, view)) return;
+      setShownBox((current = windowAround(view)));
+    };
+    follow(store.getState());
+    return store.subscribe(follow);
+  }, [windowing, initialised, store]);
+  /** All nodes, for what has to see beyond the window. */
+  const allNodes = useRef(nodes);
+  useLayoutEffect(() => {
+    allNodes.current = nodes;
+  }, [nodes]);
   // Once per adopted scene. It reads `nodes`: React Flow's store catches up with them in an effect of its own.
   const glided = useRef(shownScene);
   useLayoutEffect(() => {
@@ -215,6 +244,15 @@ function FlowCanvas({
     [edges, insert.target],
   );
 
+  const shown = useMemo(() => {
+    if (!windowing || !shownBox || exporting) return { nodes, edges: shownEdges };
+    const inside = windowing.nodesIn(shownBox);
+    // What is selected or dragged stays, wherever it is: selections are kept and moved in React Flow.
+    const kept = nodes.filter((node) => inside.has(node.id) || node.selected || node.dragging);
+    const ids = new Set(kept.map((node) => node.id));
+    return { nodes: kept, edges: shownEdges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)) };
+  }, [windowing, shownBox, exporting, nodes, shownEdges]);
+
   const altHeld = useAltHeld();
   const onReconnect = useCallback(
     (old: FlowEdgeType, connection: Connection) => {
@@ -285,16 +323,33 @@ function FlowCanvas({
     if (width > 0) onViewSettled({ x, y, zoom }, { width, height });
   }, [reportCentre, store, onViewSettled]);
 
+  /** Fits nodes React Flow may not have (outside the window of a large graph). */
+  const fitTo = useCallback(
+    (nodes: FlowNode[], maxZoom: number, duration = motionDuration()) => {
+      const { width, height, minZoom } = store.getState();
+      const { padding } = fitOptions(insets);
+      const viewport = getViewportForBounds(getNodesBounds(nodes), width, height, minZoom, maxZoom, padding ?? 0);
+      return setViewport(viewport, { duration });
+    },
+    [store, insets, getNodesBounds, setViewport],
+  );
+  const onInit = useCallback(() => {
+    // A large graph is fitted here, before its window replaces the whole graph in React Flow.
+    if (windowing && !initialViewport && store.getState().width > 0) void fitTo(allNodes.current, 1, 0);
+    setInitialised(true);
+    onMoveEnd();
+  }, [windowing, initialViewport, fitTo, onMoveEnd, store]);
+
   useEffect(() => {
     // Moves made here settle without React Flow saying so: report them, for back and forward.
     const settled = () => onMoveEnd();
     const fit = (nodes?: FlowNode[]) =>
       // The whole graph shows at most at 100%; a selection may be zoomed in on up to the canvas maximum.
-      void fitView({
-        ...fitOptions(insets),
-        ...(nodes && { nodes, maxZoom: MAX_ZOOM }),
-        duration: motionDuration(),
-      }).then(settled);
+      void (
+        windowing
+          ? fitTo(nodes ?? allNodes.current, nodes ? MAX_ZOOM : 1)
+          : fitView({ ...fitOptions(insets), ...(nodes && { nodes, maxZoom: MAX_ZOOM }), duration: motionDuration() })
+      ).then(settled);
     setCanvasActions({
       zoomToFit: () => fit(),
       zoomToSelection: () => {
@@ -308,10 +363,13 @@ function FlowCanvas({
             node.selected === chosen.has(node.id) ? node : { ...node, selected: chosen.has(node.id) },
           ),
         );
-        const targets = store.getState().nodes.filter((node) => chosen.has(node.id));
+        const targets = (windowing ? allNodes.current : store.getState().nodes).filter((node) => chosen.has(node.id));
         // Close enough to read the cards, never closer than real size.
         if (targets.length > 0) {
-          void fitView({ ...fitOptions(insets), nodes: targets, duration: motionDuration() }).then(settled);
+          const fitted = windowing
+            ? fitTo(targets, 1)
+            : fitView({ ...fitOptions(insets), nodes: targets, duration: motionDuration() });
+          void fitted.then(settled);
         }
       },
       image: async (format) => {
@@ -361,7 +419,7 @@ function FlowCanvas({
       },
     });
     return () => setCanvasActions(undefined);
-  }, [fitView, getNodesBounds, setViewport, insets, store, onMoveEnd]);
+  }, [fitView, fitTo, setViewport, insets, store, onMoveEnd, windowing, getNodesBounds]);
 
   const onLasso = useCallback(
     (polygon: Point[], additive: boolean) => {
@@ -428,8 +486,8 @@ function FlowCanvas({
       <div ref={root} className={`size-full ${altHeld ? "alt-held" : ""}`} onKeyDownCapture={onKeyDownCapture}>
         <LassoArea onLasso={onLasso}>
           <ReactFlow<FlowNode, FlowEdgeType>
-            nodes={ghostLayer.nodes.length > 0 ? [...nodes, ...ghostLayer.nodes] : nodes}
-            edges={ghostLayer.edges.length > 0 ? [...shownEdges, ...ghostLayer.edges] : shownEdges}
+            nodes={ghostLayer.nodes.length > 0 ? [...shown.nodes, ...ghostLayer.nodes] : shown.nodes}
+            edges={ghostLayer.edges.length > 0 ? [...shown.edges, ...ghostLayer.edges] : shown.edges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
@@ -454,7 +512,7 @@ function FlowCanvas({
             onPaneMouseMove={ghostLayer.onPaneMouseMove}
             onPaneClick={ghostLayer.onPaneClick}
             onSelectionChange={reportSelection}
-            onInit={onMoveEnd}
+            onInit={onInit}
             onMoveEnd={onMoveEnd}
             // Bottom centre is the one place the floating side panels never cover.
             attributionPosition="bottom-center"
@@ -465,9 +523,10 @@ function FlowCanvas({
             maxZoom={MAX_ZOOM}
             aria-label="Factory canvas"
             className={`lod-${lod} ${particles ? "" : "particles-off"} ${ghostLayer.following ? "ghost-following" : ""}`}
-            // Culling pays off while part of the graph is on screen. At chip zoom most of it is, and mounting
-            // and unmounting chips at the screen edges on every pan frame costs more than drawing them all.
-            onlyRenderVisibleElements={lod !== "chip" && !exporting}
+            // Culling pays off while part of the graph is on screen. At chip zoom most of a graph that isn't
+            // windowed is, and mounting and unmounting chips at the screen edges on every pan frame costs more
+            // than drawing them all.
+            onlyRenderVisibleElements={(lod !== "chip" || windowing !== undefined) && !exporting}
           >
             <Background
               id="minor"

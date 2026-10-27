@@ -15,7 +15,7 @@ export interface Scene {
 
 export type SceneRegistry = Record<string, Scene>;
 
-function canvasScene(name: "chain" | "congested" | "perf"): Promise<{ default: ComponentType }> {
+function canvasScene(name: "chain" | "congested" | "perf" | "perf-50k"): Promise<{ default: ComponentType }> {
   return import("../canvas/scenes/scene-canvas").then((module) => ({ default: module.canvasScene(name) }));
 }
 
@@ -40,6 +40,7 @@ export const scenes: SceneRegistry = {
   "ghost-paste": placeholder("The ghost paste", "CARB-51"),
   // The canvas perf harness (e2e/canvas-perf.spec.ts): 1,000 nodes.
   perf: { title: "1,000 nodes for the perf harness", load: () => canvasScene("perf") },
+  "perf-50k": { title: "50,000 nodes for the perf harness", load: () => canvasScene("perf-50k") },
   // The design system and the shell.
   gallery: { title: "Primitives gallery", load: () => import("./gallery") },
   inspector: { title: "Side panels and the inspector", load: () => import("./inspector") },
