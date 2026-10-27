@@ -58,9 +58,12 @@ export function clipboardActions({
   const copySelection = (nodeIds: LocalId[], verb: "Copy" | "Cut"): Promise<Clipboard | undefined> => {
     const copied = copyOf(nodeIds);
     // Started while the key is down: browsers only allow writing the clipboard then.
-    void writeSystemText(copied.then(clipboardText));
-    return copied.then(
-      (clipboard) => {
+    const written = writeSystemText(copied.then(clipboardText));
+    const done = copied.then(
+      async (clipboard) => {
+        // Done once the system clipboard holds it too: a paste reads that first, and must not find what was there
+        // before (a refused write settles as false, and the copy this tab keeps serves instead).
+        await written;
         useClipboard.setState({ copied: clipboard });
         return clipboard;
       },
@@ -69,6 +72,11 @@ export function clipboardActions({
         return undefined;
       },
     );
+    useClipboard.setState({ copying: done });
+    void done.then(() => {
+      if (useClipboard.getState().copying === done) useClipboard.setState({ copying: null });
+    });
+    return done;
   };
 
   const startPaste = (clipboard: Clipboard, connections: boolean, label: string, at?: { x: number; y: number }) =>
@@ -104,7 +112,9 @@ export function clipboardActions({
       });
     },
     paste(connections) {
-      void readSystemText().then((text) => {
+      // A copy still on its way comes first: pressed right after Ctrl+C, Ctrl+V pastes that copy.
+      const copying = useClipboard.getState().copying ?? Promise.resolve();
+      void copying.then(readSystemText).then((text) => {
         const clipboard = (text !== null && clipboardFromText(text)) || useClipboard.getState().copied;
         if (!clipboard) {
           toast({ title: "Nothing to paste", description: "Copy some nodes first, here or in another factory." });

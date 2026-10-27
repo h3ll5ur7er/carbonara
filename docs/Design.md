@@ -131,6 +131,7 @@ The side panels float over the canvas, so the canvas reads which are open and tr
 - Dragging from a port into empty space opens a **recipe picker filtered by that item**, showing producers or consumers depending on the port direction. It's ranked by how often you use each recipe and previews alternates side by side.
   - An output offers the recipes that consume the item and an output (sink); an input offers the recipes that make it and a source, the source first when the item is a raw resource ([[src/client/features/recipe-picker/picker.ts]]).
   - Order: recipes used most in the document, then those making the item as their main product (alternates included) above byproduct makers, then standard before alternate, then by name. Usage is counted in the open document until preferences can remember picks across documents.
+  - From the keyboard: `Enter` twice on a focused port (Accessibility, Keyboard map below).
   - The panel opens beside the drop, on the side away from the port, clear of the side panels; typing narrows by every word (names, buildings, items, aliases, "alternate"); ↑↓ move and preview, Enter adds, Esc or a click outside cancels.
   - The new node's connecting port lands under the pointer (snapped to the grid horizontally), and adding plus connecting is one `editing.apply` batch, so it's one undo step.
 - A **command palette** (`Ctrl+K`) reaches every action. Typing "iron plate" quick-adds a node.
@@ -220,7 +221,39 @@ Before levels of detail and culling the full-card view took about 10 fps on the 
 
 ## Accessibility
 
-Full keyboard navigation (between nodes and ports), visible focus rings, ARIA on panels, reduced-motion support, and colour never as the only signal.
+Full keyboard navigation (between nodes and ports), visible focus rings, ARIA on panels, reduced-motion support, and colour never as the only signal ([[CARB-66]]).
+
+### Keyboard map
+
+Everything the mouse does on the canvas has a keyboard path. The commands (palette, menus, shortcuts) are in the Shell table above and on the cheat sheet (`?`); these are the keys that work on what has the focus:
+
+| Where | Keys | What happens |
+| --- | --- | --- |
+| Anywhere | `Tab`, `Shift+Tab` | The top bar and its tabs, then the canvas (its flows, then its nodes, each followed by its ports) and the panels |
+| Factory tab | `Delete` | Closes that factory; the focus moves to the next tab (the × button is for the pointer) |
+| Node | `Enter` / `Space`; `Shift+Enter`; `Escape` | Selects it (the inspector shows it); adds it to the selection; deselects |
+| Selection | Arrows (`Shift`: four steps) | Nudges it a grid step, one undo step per press |
+| Port | `Enter` / `Space` | Starts a connection from it ("Connecting from Output Copper Plate" is announced) |
+| Another port | `Enter` | Ends the connection there ("Connected Copper Plate", or why it can't) |
+| The same port again | `Enter` | Opens the recipe picker for it, as if a connection had been dropped beside it: the new node lands six grid steps out |
+| While connecting | `Escape` | Lets go of the connection |
+| Paste ghost | Arrows (`Shift`: four steps), `Enter`, `Escape` | Moves it a grid step, places it, cancels |
+| Subgraph instance | `Mod+↓`; `Mod+↑` inside | Opens it, the focus on its first node; leaves it, the focus back on the instance |
+
+### Guarantees
+
+- **The focus never drops to the page.** What the keyboard makes gets the focus once it's drawn: a node quick-added from the palette or picked in the recipe picker ([[src/client/canvas/focus.ts]]), the first node inside a subgraph, the instance after leaving it. Dialogs (Radix) hand it back to what opened them; the planner card, which isn't a dialog, does the same ([[src/client/ui/focus-return.ts]]); a recipe picker closed without a pick hands it back to its port. `Escape` in the planner's item field closes its list and keeps the focus there; a second `Escape` closes the card.
+- **Visible focus:** every focusable element shows an accent ring (2 px, `:focus-visible`), nodes an outline around the card, flows turn the accent, ports a ring. Rings and outlines are in the accent (fields add a soft halo around an accent hairline); the soft accent alone is never the focus ring, it is too faint to see.
+- **Names and roles:** nodes are named groups ("Copper Wire (Assembler)", "Motor output", [[src/client/canvas/model/node-label.ts]]); ports are buttons ("Input Copper Plate"); the factory tabs are a tab list of tabs only; a segmented choice without panels (the planner's *Use as few*) points at no panel.
+- **Contrast:** text tokens keep WCAG AA (4.5:1) on every surface up to `surface-3`, `fg-faint` included, so faint labels and placeholders are legible too (Tokens above).
+- **Announcements, without spam:** toasts are announced (errors assertively); the tour card's step is a polite live region; the planner's shortfall callout is an alert when a plan appears; connecting from the keyboard speaks through React Flow's live region. The totals say what the factory is short of and which raw resources it draws beyond the map in a polite status, in names only ([[src/client/features/totals/announcement.ts]]): it speaks when the problems change, not on every solve while a value is dragged, and says nothing while nothing is wrong.
+- **Reduced motion:** every duration is a token that drops to 0 with `prefers-reduced-motion`, camera moves (fit, zoom to selection, bookmarks, subgraph dives) take the same tokens, and the loops (flow particles, the ghost's and the tour ring's breathing) stop.
+
+### Tests
+
+- [[e2e/a11y-axe.spec.ts]] runs axe-core (WCAG 2.2 A and AA plus best practices) over every canonical scene in both themes and the live app's main states: the welcome and the game picker, the new-factory dialog, a factory with a node in the inspector, the library, the planner card, the totals, the Sankey overview, the command palette, the cheat sheet, a port's recipe picker and a tour step. A violation fails with axe's description; the full report is attached to the test. One exception: *target size* (WCAG 2.5.8) leaves out the canvas's ports, which are drawn in flow units (10 px at 100 %, smaller zoomed out, like a map's pins); dragging snaps to a port within 20 px and every port is a keyboard button.
+- [[e2e/a11y-keyboard.spec.ts]] goes through the core flows with no mouse event at all: create a factory, add recipes through the palette, connect their ports, add an output through a port's picker, set its target in the inspector, plan with `P` and accept, undo; copy and paste with the ghost (arrows and `Enter`), collapse into a subgraph, enter and leave it, undo, close the tab with `Delete`. Each step checks where the focus is.
+- [[e2e/a11y-motion.spec.ts]] emulates reduced motion and checks that nothing animates (`document.getAnimations()`) after opening the palette, planner, totals, Sankey and cheat sheet, while a paste ghost waits, and diving into a subgraph and back, and that camera moves end on the next frame; and, as a control, that flows do move without it.
 
 ## Visual QA
 

@@ -126,7 +126,7 @@ export function FindPanel({ document, pack, graph, leaves = false, left, right, 
                 key={alternative.id}
                 type="button"
                 onClick={() => onReplace(recipe, alternative.id)}
-                className="rounded-sm bg-surface-3 px-2 py-0.5 text-fg-muted hover:bg-accent-soft hover:text-fg focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:outline-none"
+                className="rounded-sm bg-surface-3 px-2 py-0.5 text-fg-muted hover:bg-accent-soft hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
               >
                 {recipeName(alternative.id)}
               </button>

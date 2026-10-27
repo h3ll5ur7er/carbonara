@@ -107,7 +107,7 @@ function RecentList({ documents, reopen }: ReturnType<typeof useRecent>) {
               className={
                 "group flex w-full items-baseline gap-3 rounded-md px-2.5 py-1.5 text-left transition-colors " +
                 "hover:bg-surface-3 focus-visible:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 " +
-                "focus-visible:ring-accent-soft"
+                "focus-visible:ring-accent"
               }
             >
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg-muted group-hover:text-fg">

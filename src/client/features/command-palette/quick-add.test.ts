@@ -81,4 +81,17 @@ describe("addRecipeNode", () => {
       label: "Add Iron Plate",
     });
   });
+
+  it("names the node when given an id, so the canvas can focus it once it's drawn", async () => {
+    const apply = vi.fn<Connector["editing"]["apply"]>().mockResolvedValue({
+      ok: true,
+      value: { id: "doc-1", name: "Factory", packId: "template", version: 3 },
+    });
+    const [plate] = quickAddEntries(pack);
+    if (!plate) throw new Error("no entry");
+    await addRecipeNode({ apply }, "doc-1", plate, { x: 0, y: 0 }, "iron-plate-1a2b3c");
+    expect(apply.mock.calls[0]?.[0].commands).toEqual([
+      expect.objectContaining({ type: "addNode", id: "iron-plate-1a2b3c" }),
+    ]);
+  });
 });

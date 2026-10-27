@@ -418,7 +418,7 @@ function ProductionSection({ production, onEdit }: { production: Production; onE
           <button
             type="button"
             onClick={() => void commit(null)}
-            className="rounded-sm text-accent-fg hover:underline focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:outline-none"
+            className="rounded-sm text-accent-fg hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
           >
             {UNSET[production.kind].action}
           </button>

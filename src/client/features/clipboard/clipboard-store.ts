@@ -1,5 +1,5 @@
-// The copy this tab made last (for when the system clipboard can't be read) and the paste whose ghost waits to
-// be placed on the canvas of its document and graph.
+// The copy this tab made last (for when the system clipboard can't be read), the copy still on its way (a paste
+// waits for it), and the paste whose ghost waits to be placed on the canvas of its document and graph.
 import { create } from "zustand";
 import type { Clipboard } from "../../../contracts/clipboard";
 import type { Point } from "../../canvas/adapter";
@@ -16,7 +16,13 @@ export interface PendingPaste {
   at?: Point;
 }
 
-export const useClipboard = create<{ copied: Clipboard | null; pending: PendingPaste | null }>(() => ({
+export const useClipboard = create<{
+  copied: Clipboard | null;
+  /** A copy or cut not yet on both clipboards: Ctrl+C then Ctrl+V at once must paste it, not what was there before. */
+  copying: Promise<unknown> | null;
+  pending: PendingPaste | null;
+}>(() => ({
   copied: null,
+  copying: null,
   pending: null,
 }));

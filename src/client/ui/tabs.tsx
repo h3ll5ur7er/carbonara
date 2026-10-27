@@ -28,10 +28,20 @@ export function TabsList({
   );
 }
 
-export function TabsTrigger({ value, children }: { value: string; children: ReactNode }) {
+export function TabsTrigger({
+  value,
+  children,
+  panel = true,
+}: {
+  value: string;
+  children: ReactNode;
+  /** False for a segmented choice with no panel to show: the tab then points at none (`aria-controls`). */
+  panel?: boolean;
+}) {
   return (
     <RadixTabs.Trigger
       value={value}
+      {...(!panel && { "aria-controls": undefined })}
       className={cx(
         "flex flex-1 items-center justify-center gap-1.5 rounded-sm px-2.5 text-xs font-medium whitespace-nowrap text-fg-subtle",
         "transition-[background-color,color,box-shadow] select-none hover:text-fg",

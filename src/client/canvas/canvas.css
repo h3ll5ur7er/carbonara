@@ -31,6 +31,7 @@
   }
 
   .react-flow__handle.port-handle:hover,
+  .react-flow__handle.port-handle.clickconnecting,
   .react-flow__handle.port-handle.connectingfrom,
   .react-flow__handle.port-handle.connectingto {
     background: var(--item-fg);
@@ -176,6 +177,11 @@
   .react-flow .react-flow__edge .flow[data-selected] .flow-line,
   .react-flow .react-flow__edge:hover .flow .flow-line {
     stroke: var(--flow);
+  }
+
+  /* A flow with the keyboard focus (Tab reaches flows before nodes): accent, like the focus ring elsewhere. */
+  .react-flow .react-flow__edge:focus-visible .flow .flow-line {
+    stroke: var(--color-accent);
   }
 
   /* The flow a dragged node would be inserted into: accent, and a little bolder. */

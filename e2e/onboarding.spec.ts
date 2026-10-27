@@ -107,7 +107,7 @@ test("a new player picks a game, gets a starter factory and completes the tour",
   // Done is done: neither the tour nor the game picker comes back.
   await page.reload();
   await expect(page.getByRole("tab", { name: "Copper wire" })).toBeVisible();
-  await page.getByRole("button", { name: "Close Copper wire" }).click();
+  await page.locator('button[aria-label="Close Copper wire"]').click();
   await expect(page.getByText("Plan your next factory")).toBeVisible();
   await expect(tourCard(page)).toBeHidden();
 });

@@ -51,9 +51,10 @@ export function ItemPicker({ pack, value, onValueChange, autoFocus, ...aria }: I
           }}
           onBlur={() => setQuery(null)}
           onKeyDown={(event) => {
+            // Closes the list and keeps the old item, with the focus kept here: a second Escape closes the card.
             if (event.key === "Escape" && open) {
               event.stopPropagation();
-              event.currentTarget.blur();
+              setQuery(null);
             }
           }}
           className="h-full min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-faint"

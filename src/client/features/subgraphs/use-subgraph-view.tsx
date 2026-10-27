@@ -7,6 +7,7 @@ import type { Document, LocalId } from "../../../contracts/document";
 import type { DocumentInfo } from "../../../contracts/managers";
 import type { AnalysisResults } from "../../../contracts/results";
 import type { Viewport } from "../../canvas/adapter";
+import { focusNodeWhenShown } from "../../canvas/focus";
 import { canvasActions, nextCanvasShown } from "../../canvas/viewport";
 import { useConnector } from "../../core/connector";
 import { useModels } from "../../core/models";
@@ -90,7 +91,9 @@ export function useSubgraphView({
       const shown = graph === "root" ? document?.graph : document?.blueprints[graph]?.graph;
       const node = shown?.nodes[instance];
       if (node?.kind !== "instance" || !document?.blueprints[node.blueprint]) return;
-      void dive({ instance, blueprint: node.blueprint });
+      // The canvas above goes away with the focus in it: the keyboard carries on inside, from the first node. (Find
+      // dives through `dive` too, and focuses the node it found itself.)
+      void dive({ instance, blueprint: node.blueprint }).then(() => focusNodeWhenShown());
     },
     [document, graph, dive],
   );
@@ -103,6 +106,8 @@ export function useSubgraphView({
       const remaining = current.slice(0, depth);
       setPath(documentId, remaining);
       setArrival({ documentId, graph: graphOf(remaining), kind: "leave", from: left.into, to: left.above });
+      // Back on the instance that was opened, as a dialog hands the focus back to what opened it.
+      focusNodeWhenShown(left.instance);
     },
     [documentId],
   );
