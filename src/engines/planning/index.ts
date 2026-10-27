@@ -13,3 +13,5 @@ export { weigh } from "./objective";
 export { GRID, placeBeside, placeProposal, proposalLayout, propose, type ProposeInput } from "./proposal";
 export { convertRate } from "./rates";
 export { rank, rivals } from "./compare";
+export { probeDocument, ratesOf, runningOnce, type RecipeRates } from "./probe";
+export { allowedRecipes } from "./superstructure";

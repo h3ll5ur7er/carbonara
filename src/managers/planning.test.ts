@@ -14,6 +14,7 @@ import {
   type PlanTarget,
   type Proposal,
 } from "../contracts/managers";
+import { definePlugin } from "../contracts/plugin";
 import { compile, toResults } from "../engines/compiler";
 import { templatePack } from "../engines/compiler/template.fixture";
 import { applyCommands, type ResolvedCommand } from "../engines/editing/commands";
@@ -261,6 +262,35 @@ describe("planning production", () => {
       options: defaults,
     });
     expect(result.ok && result.value.summary.buildings).toEqual({ constructor: 3, washer: 1, purifier: 1 });
+  });
+
+  it("plans what the plugin adds to recipes as nodes run them, such as the fuel a furnace burns", async () => {
+    // Furnaces burn a coal per craft and leave ash; neither is in the pack's recipes.
+    const burning = definePlugin({
+      id: "template",
+      effectiveRecipe: ({ recipe, building }) =>
+        building.id === "furnace"
+          ? { time: recipe.time, in: { ...recipe.in, coal: 1 }, out: { ...recipe.out, slag: 1 } }
+          : recipe,
+    });
+    const planning = setUp(factory(), { list: packs.list, get: async () => ({ ...template, plugin: burning }) });
+    const result = await planning.planProduction({
+      documentId: "doc",
+      targets: [{ item: "iron-plate", perSecond: 1 }],
+      options: defaults,
+    });
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    const { summary } = result.value;
+    expect(summary.shortfalls).toEqual({});
+    // A plate a second takes a craft a second: a coal from the map or from drying sludge, and a slag spare.
+    expect(summary.raw.coal ?? 0).toBeGreaterThan(0);
+    expect(summary.byproducts).toMatchObject({ slag: expect.closeTo(1, 9) });
+    const applied = accept(result.value);
+    const solved = await (async () => {
+      const compiled = compile({ document: applied, pack: template.data, plugin: burning });
+      return toResults(compiled, await solve(compiled.model), burning, 1);
+    })();
+    expect(solved.diagnostics.filter((diagnostic) => diagnostic.kind !== "surplus")).toEqual([]);
   });
 
   it("refuses unknown documents and items", async () => {

@@ -2,7 +2,7 @@
 id: CARB-75
 title: Rename a factory
 type: feature
-status: review
+status: done
 priority: low
 labels: [documents, ux]
 wave: "3"

@@ -2,7 +2,7 @@
 id: CARB-67
 title: Document pack and plugin authoring
 type: docs
-status: review
+status: done
 priority: medium
 labels: [docs, packs]
 wave: "3"

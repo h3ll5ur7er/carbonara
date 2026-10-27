@@ -19,7 +19,10 @@ sequenceDiagram
   C->>M: planProduction(documentId, targets, options)
   M->>K: runtimeOf(pack).unavailableRecipes(document's plugin settings)
   K-->>M: recipes the save rules out
-  M->>P: buildSuperstructure(document, pack, unavailable, targets, options)
+  M->>P: probeDocument(document, allowed recipes, preferred buildings)
+  M->>K: runtimeOf(pack).compile(probe), results(runningOnce)
+  M->>P: ratesOf(results): the recipes as nodes run them
+  M->>P: buildSuperstructure(document, pack, unavailable, targets, options, rates)
   P-->>M: superstructure (a document graph) + roles
   M->>K: runtimeOf(pack).compile(superstructure)
   K-->>M: model (+ results mapping)
@@ -61,6 +64,7 @@ stateDiagram-v2
 `buildSuperstructure` ([[src/engines/planning/superstructure.ts]]) builds every way the pack could make the targets as an ordinary document graph, so the compiler (and the pack's plugin hooks) treat it exactly like a document:
 
 - **Candidates:** walk upstream from the target items: every allowed recipe that makes an item (more out than in), then the items it uses. Downstream recipes (motor recycling for a motor goal) are left out unless they also make something needed.
+- **Recipes as nodes run them:** a pack's plugin may change what a recipe takes and makes (Factorio adds the fuel a stone furnace burns and the cells a reactor burns out, [[CARB-77]]). So before the walk the manager compiles a *probe* ([[src/engines/planning/probe.ts]]): one node per allowed recipe, in the building the plan would use, default fields, nothing connected; it maps "every node runs once" back through the runtime's results and passes the rates per recipe to `buildSuperstructure` (`rates`). The walk, the hubs' edges and the spills follow those rates, the pack's recipe order first. It costs one more compile per request (`compareRecipes` probes once for all its rivals), and works for isolated plugins too.
 - **Allowed:** not in `options.exclude`, not tagged `alternate` when `options.alternates` is off, and not ruled out by the pack plugin's `recipeAvailable` under the document's save profile. The manager asks the plugin runtime (`unavailableRecipes`), so the settings' defaults are filled in (a document without a profile plans like one at the defaults), and third-party packs are asked in their sandbox like built-in ones.
 - **Buildings:** each recipe runs in the first of `options.buildings` it allows (`steel-furnace`, `assembling-machine-3` …), else in its default building (the first of its `buildings`). One preference list covers every building family: a family is the set of buildings that recipes offer in place of one default building. The planner card shows one choice per family ([[Design]], Goal planner); MCP clients pass the ids.
 - **Hubs:** one junction per item joins all of its producers to all of its consumers, so the solver chooses the mix. Cycles such as the template's water loop need nothing special.
@@ -106,3 +110,5 @@ Accepting a proposal gives a document whose own solve has no deficits and the sa
 - The plan doesn't use what the existing factory already makes; it's planned on its own.
 - With Factorio's Space Age data, "fewest raw items" for steel prefers asteroid crushing and foundry casting (3.2 chunks/s) over 150 iron ore/s. Weighing the asteroid chunks up, excluding the foundry, crusher, electromagnetic plant and recycler recipes, or switching Space Age off in the save profile (the plugin's `recipeAvailable`) gives the ore plan. Resource weights live in the plan options, not yet in the save profile.
 - Planning the whole Factorio pack takes about 2 s (the superstructure reaches much of the pack through asteroid recipes); about 20 ms with Space Age excluded.
+- The probe costs about 60 ms for Factorio's recipes. 10 iron plates/s without Space Age: 32 stone furnaces burning 0.72 coal/s; 100 MW of `electricity`: nuclear reactors, heat exchangers and steam turbines.
+- An item nothing allowed makes is a raw input, whatever it is: with the reactors and heating towers excluded, Factorio's `heat` becomes one, and at a cost of 1 per MW it undercuts a boiler's coal and water unless its resource weight is raised.

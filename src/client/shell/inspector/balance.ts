@@ -4,6 +4,7 @@
 import type { Document, LocalId } from "../../../contracts/document";
 import type { Id, PackData } from "../../../contracts/pack";
 import type { AnalysisResults } from "../../../contracts/results";
+import { own } from "../../../utilities/records";
 
 export interface Balance {
   /** Machines that make exactly what the consumers want; undefined when nothing downstream wants a set amount. */
@@ -35,7 +36,7 @@ export function balanceMachines(
       case "sink":
         return target.targetPerSecond !== undefined ? Math.max(0, target.targetPerSecond - others) : flow(via);
       case "recipe":
-        return Math.max(0, (results?.nodes[consumer]?.inputs[item] ?? 0) - others);
+        return Math.max(0, (own(results?.nodes[consumer]?.inputs ?? {}, item) ?? 0) - others);
       case "junction": {
         if (seen.has(consumer)) return 0;
         seen.add(consumer);
@@ -59,7 +60,7 @@ export function balanceMachines(
       case "source":
         return source.maxPerSecond === undefined ? Infinity : Math.max(0, source.maxPerSecond - others);
       case "recipe":
-        return Math.max(0, (results?.nodes[producer]?.outputs[item] ?? 0) - others);
+        return Math.max(0, (own(results?.nodes[producer]?.outputs ?? {}, item) ?? 0) - others);
       case "junction": {
         if (seen.has(producer)) return 0;
         seen.add(producer);

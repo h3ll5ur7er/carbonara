@@ -2,7 +2,7 @@
 id: CARB-80
 title: Untangle the Sankey overview
 type: feature
-status: review
+status: done
 priority: medium
 labels: [planner, visual]
 wave: "3"

@@ -2,7 +2,7 @@
 id: CARB-39
 title: Collapse, enter and leave subgraphs
 type: feature
-status: review
+status: done
 priority: high
 labels: [canvas, subgraphs, ux]
 wave: "3"

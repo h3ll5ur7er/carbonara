@@ -10,11 +10,12 @@ import { useLod, useNodeSlot, useRateUnit } from "./context";
 import { PortHandle } from "./port-handle";
 import { cardRing } from "./recipe-node";
 import type { FlowNodeProps } from "./types";
+import { own } from "../../../utilities/records";
 
 export const SourceNode = memo(function SourceNode({ id, data: { view }, selected }: FlowNodeProps<"source">) {
   const slot = useNodeSlot(id);
   const unit = useRateUnit();
-  const supplied = slot?.result.outputs[view.item.id] ?? slot?.result.activity;
+  const supplied = (slot && own(slot.result.outputs, view.item.id)) ?? slot?.result.activity;
   const lod = useLod();
   if (lod !== "full") return <TerminalOverview view={view} lod={lod} selected={selected} short={false} />;
   return (
@@ -47,7 +48,7 @@ export const SourceNode = memo(function SourceNode({ id, data: { view }, selecte
 export const SinkNode = memo(function SinkNode({ id, data: { view }, selected }: FlowNodeProps<"sink">) {
   const slot = useNodeSlot(id);
   const unit = useRateUnit();
-  const delivered = slot?.result.inputs[view.item.id] ?? slot?.result.activity;
+  const delivered = (slot && own(slot.result.inputs, view.item.id)) ?? slot?.result.activity;
   const short = Object.keys(slot?.deficits ?? {}).length > 0;
   const lod = useLod();
   if (lod !== "full") return <TerminalOverview view={view} lod={lod} selected={selected} short={short} />;

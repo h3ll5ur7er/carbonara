@@ -79,7 +79,8 @@ describe("the Factorio importer", () => {
     expect(find(run(gameFiles(dumpExcerpt, {})).data.items, "iron-plate@rare").name).toBe("Iron plate (Rare)");
     const dump = structuredClone(dumpExcerpt);
     delete dump.quality;
-    expect(run(gameFiles(dump)).data.items?.some((item) => item.id.includes("@"))).toBe(false);
+    const qualities = /@(uncommon|rare|epic|legendary)$/;
+    expect(run(gameFiles(dump)).data.items?.some((item) => qualities.test(item.id))).toBe(false);
   });
 
   it("fills in localised names with parameters, and names buildings after their entity", () => {
@@ -168,6 +169,20 @@ describe("the Factorio importer", () => {
     });
   });
 
+  it("tags recipes with the productivity research that improves them, per level", () => {
+    const { recipes } = run().data;
+    expect(find(recipes, "steel-plate").tags).toEqual(["productivity", "research:steel-plate-productivity=0.1"]);
+    expect(find(recipes, "iron-plate").tags).toEqual(["productivity"]);
+  });
+
+  it("tags a recipe's maximum productivity when it isn't the default +300 %", () => {
+    const dump = structuredClone(dumpExcerpt);
+    const steel = dump.recipe?.["steel-plate"];
+    if (!steel) throw new Error("The fixture lost its steel plate recipe");
+    steel.maximum_productivity = 1.5;
+    expect(find(run(gameFiles(dump)).data.recipes, "steel-plate").tags).toContain("maximum-productivity:1.5");
+  });
+
   it("leaves out parameters, hidden recipes other than recycling, and what no machine makes", () => {
     const { data } = run();
     const recipeIds = data.recipes?.map((recipe) => recipe.id);
@@ -227,12 +242,16 @@ describe("the Factorio importer", () => {
     expect(find(buildings, "electric-mining-drill").fields).toEqual({
       modules: { slots: 3, effects: "consumption,speed,productivity,pollution,quality" },
     });
+    // Burner buildings draw no electricity: they burn their usage in fuel, from the fuels they take (MJ each),
+    // coal first, the default.
     expect(find(buildings, "stone-furnace")).toEqual({
       id: "stone-furnace",
       name: "Stone furnace",
       speed: 1,
-      power: { consume: 0.09 },
-      fields: { energy: { source: "burner", fuel: "chemical" } },
+      fields: {
+        energy: { source: "burner", fuel: "chemical", usage: 0.09 },
+        fuels: { coal: 4, "rocket-fuel": 100, "solid-fuel": 12, wood: 2 },
+      },
     });
     expect(find(buildings, "foundry").fields).toEqual({
       modules: { slots: 4, effects: "consumption,speed,productivity,pollution,quality" },
@@ -240,7 +259,10 @@ describe("the Factorio importer", () => {
       energy: { drain: 0.0833333333333 },
       mod: { name: "space-age" },
     });
-    expect(find(buildings, "biochamber").fields).toMatchObject({ energy: { source: "burner", fuel: "nutrients" } });
+    expect(find(buildings, "biochamber").fields).toMatchObject({
+      energy: { source: "burner", fuel: "nutrients", usage: 0.5 },
+      fuels: { nutrients: 2 },
+    });
   });
 
   it("lists resources with the buildings that extract them: ores, oil, tile fluids, plants and asteroids", () => {
@@ -320,6 +342,160 @@ describe("the Factorio importer", () => {
     const { data, icons } = run({ ...gameFiles(dump), "icons/yumako-fruit.webp": tree });
     expect(icons).toEqual({ "icons/yumako.webp": tree });
     expect(find(data.items, "yumako").icon).toBe("icons/yumako.webp");
+  });
+});
+
+describe("the Factorio importer's power generation", () => {
+  // Rates per second of one building: generated recipes take a second. Energy from the prototypes: a boiler heats
+  // 60 steam/s from 15 °C to 165 °C at 0.2 kJ/°C (1.8 MW) out of 6 water (2 kJ/°C, 2.0's heat-conserving 1:10).
+  const power = ["power", "no-quality"];
+
+  it("turns water into steam in boilers and heat exchangers, at their target temperature", () => {
+    const { recipes } = run().data;
+    expect(find(recipes, "boiler-steam")).toEqual({
+      id: "boiler-steam",
+      name: "Steam (Boiler)",
+      buildings: ["boiler"],
+      time: 1,
+      in: { water: 6 },
+      out: { "steam@165": 60 },
+      tags: power,
+    });
+    // 10 MW of heat over 485 °C: 103.09 steam/s, the wiki's number.
+    expect(find(recipes, "heat-exchanger-steam")).toEqual({
+      id: "heat-exchanger-steam",
+      name: "Steam (Heat exchanger)",
+      buildings: ["heat-exchanger"],
+      time: 1,
+      in: { water: 10.3092783505, heat: 10 },
+      out: { "steam@500": 103.092783505 },
+      tags: power,
+    });
+  });
+
+  it("makes electricity from each steam temperature, up to a generator's maximum", () => {
+    const { recipes } = run().data;
+    const electricity = (id: string) => {
+      const recipe = find(recipes, id);
+      return { buildings: recipe.buildings, in: recipe.in, out: recipe.out, tags: recipe.tags };
+    };
+    // A steam engine takes 30 steam/s and uses it up to 165 °C: 900 kW, whatever the steam's temperature.
+    expect(electricity("steam-engine-electricity@165")).toEqual({
+      buildings: ["steam-engine"],
+      in: { "steam@165": 30 },
+      out: { electricity: 0.9 },
+      tags: power,
+    });
+    expect(electricity("steam-engine-electricity@500").out).toEqual({ electricity: 0.9 });
+    // A steam turbine takes 60/s up to 500 °C: 1.8 MW from boiler steam, 5.82 MW from a heat exchanger's.
+    expect(electricity("steam-turbine-electricity@165")).toMatchObject({
+      in: { "steam@165": 60 },
+      out: { electricity: 1.8 },
+    });
+    expect(electricity("steam-turbine-electricity@500")).toMatchObject({
+      in: { "steam@500": 60 },
+      out: { electricity: 5.82 },
+    });
+    expect(find(recipes, "steam-turbine-electricity@500").name).toBe("Electricity (Steam turbine, Steam 500 °C)");
+  });
+
+  it("makes heat in reactors and heating towers", () => {
+    const { recipes } = run().data;
+    expect(find(recipes, "nuclear-reactor-heat")).toEqual({
+      id: "nuclear-reactor-heat",
+      name: "Heat (Nuclear reactor)",
+      buildings: ["nuclear-reactor"],
+      time: 1,
+      in: {},
+      out: { heat: 40 },
+      tags: power,
+    });
+    expect(find(recipes, "heating-tower-heat")).toMatchObject({ out: { heat: 40 }, tags: ["space-age", ...power] });
+  });
+
+  it("makes plasma in fusion reactors and electricity from it in fusion generators", () => {
+    const { recipes } = run().data;
+    // 4 fluoroketone/s become plasma at 1,000,000 °C, 25 J/°C: 100 MW of plasma, for two 50 MW generators.
+    expect(find(recipes, "fusion-reactor-plasma")).toMatchObject({
+      buildings: ["fusion-reactor"],
+      in: { "fluoroketone-cold": 4 },
+      out: { "fusion-plasma@1000000": 4 },
+      tags: ["space-age", ...power],
+    });
+    expect(find(recipes, "fusion-generator-electricity")).toMatchObject({
+      buildings: ["fusion-generator"],
+      in: { "fusion-plasma@1000000": 2 },
+      out: { electricity: 50, "fluoroketone-hot": 2 },
+    });
+  });
+
+  it("splits fluids that generators burn for their heat into a variant per temperature they're made at", () => {
+    const { items, recipes } = run().data;
+    const ids = items?.map((item) => item.id) ?? [];
+    expect(ids.filter((id) => id.startsWith("steam"))).toEqual(["steam@165", "steam@500"]);
+    expect(find(items, "steam@165")).toEqual({ id: "steam@165", name: "Steam (165 °C)", form: "fluid" });
+    // Plasma from fusion reactors with 0 to 8 neighbours.
+    expect(ids.filter((id) => id.startsWith("fusion-plasma"))).toEqual(
+      [1, 2, 3, 4, 5, 6, 7, 8, 9].map((millions) => `fusion-plasma@${millions}000000`),
+    );
+    expect(find(items, "fusion-plasma@2000000").name).toBe("Plasma (2,000,000 °C)");
+    expect(find(items, "electricity")).toEqual({ id: "electricity", name: "Electricity", form: "fluid" });
+    expect(find(items, "heat")).toEqual({ id: "heat", name: "Heat", form: "fluid" });
+    // Recipes make them at their result's temperature, and take any temperature unless they set limits.
+    expect(find(recipes, "acid-neutralisation").out).toEqual({ "steam@500": 1000 });
+    expect(find(recipes, "steam-condensation@165")).toMatchObject({
+      name: "Steam condensation (Steam 165 °C)",
+      in: { "steam@165": 1000 },
+      out: { water: 90 },
+    });
+    expect(find(recipes, "steam-condensation@500").in).toEqual({ "steam@500": 1000 });
+    expect(recipes?.map((recipe) => recipe.id)).not.toContain("steam-condensation");
+  });
+
+  it("keeps what the mechanics need: fuels, burnt results, the neighbour bonus and what each generator makes", () => {
+    const { buildings } = run().data;
+    expect(find(buildings, "boiler")).toEqual({
+      id: "boiler",
+      name: "Boiler",
+      speed: 1,
+      fields: {
+        energy: { source: "burner", fuel: "chemical", usage: 1.8 },
+        fuels: { coal: 4, "rocket-fuel": 100, "solid-fuel": 12, wood: 2 },
+      },
+    });
+    expect(find(buildings, "heat-exchanger").fields).toEqual({ energy: { source: "heat" } });
+    // A heating tower turns its fuel into 2.5 times the heat: 16 MW of fuel for 40 MW.
+    expect(find(buildings, "heating-tower").fields).toMatchObject({
+      energy: { source: "burner", fuel: "chemical", usage: 40, effectivity: 2.5 },
+      mod: { name: "space-age" },
+    });
+    expect(find(buildings, "nuclear-reactor").fields).toEqual({
+      energy: { source: "burner", fuel: "nuclear", usage: 40 },
+      fuels: { "uranium-fuel-cell": 8000 },
+      burnt: { "uranium-fuel-cell": "depleted-uranium-fuel-cell" },
+      reactor: { "neighbour-bonus": 1, neighbours: 4, boosts: "heat" },
+    });
+    // The fusion reactor draws 10 MW of electricity whenever it's built, and burns 100 MW of fusion power cells.
+    expect(find(buildings, "fusion-reactor")).toMatchObject({
+      power: { consume: 10 },
+      fields: {
+        energy: { drain: 10, source: "burner", fuel: "fusion", usage: 100 },
+        fuels: { "fusion-power-cell": 40000 },
+        reactor: { "neighbour-bonus": 1, neighbours: 8, boosts: "temperature" },
+      },
+    });
+    expect(find(buildings, "fusion-generator")).toMatchObject({
+      power: { produce: 50 },
+      fields: { generator: { fluid: "fusion-plasma" } },
+    });
+    expect(find(buildings, "steam-engine").power).toEqual({ produce: 0.9 });
+    expect(find(buildings, "steam-turbine").power).toEqual({ produce: 5.82 });
+    expect(buildings?.map((building) => building.id)).not.toContain("burner-generator"); // hidden
+  });
+
+  it("lists fuels and what they burn into as items", () => {
+    const ids = run().data.items?.map((item) => item.id) ?? [];
+    expect(ids).toEqual(expect.arrayContaining(["wood", "uranium-fuel-cell", "depleted-uranium-fuel-cell"]));
   });
 });
 

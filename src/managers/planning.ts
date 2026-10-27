@@ -13,13 +13,18 @@ import { fail, ok, type Result } from "../contracts/result";
 import { runtimeOf } from "../engines/compiler";
 import { arrange, type ElkRunner } from "../engines/layout/arrange";
 import {
+  allowedRecipes,
   buildSuperstructure,
   convertRate,
   placeBeside,
+  probeDocument,
   propose,
   proposalLayout,
   rank,
+  ratesOf,
+  type RecipeRates,
   rivals,
+  runningOnce,
   weigh,
 } from "../engines/planning";
 import { solve } from "../engines/solver";
@@ -60,21 +65,34 @@ export function createPlanningManager({
     return ok({ document: open.document, version: open.version, pack });
   }
 
+  /**
+   * The candidates as nodes run them, in the buildings the plan would use: the plugin may add inputs and outputs
+   * (fuel) the pack's recipes don't list.
+   */
+  async function asRun({ document, version, pack }: Context, ruledOut: ReadonlySet<Id>, options: PlanOptions) {
+    const candidates = allowedRecipes(pack.data, ruledOut, options);
+    const probe = await runtimeOf(pack).compile(probeDocument(document, candidates, options.buildings));
+    return ratesOf(await probe.results(ok(runningOnce(probe.model)), version), candidates);
+  }
+
   /** The plan, its nodes still at the origin. */
   async function plan(
     { document, version, pack }: Context,
     targets: PlanTarget[],
     options: PlanOptions,
+    ruledOut: ReadonlySet<Id>,
+    rates: ReadonlyMap<Id, RecipeRates>,
     via?: Id,
   ): Promise<Result<Omit<Proposal, "id">>> {
     const runtime = runtimeOf(pack);
     const built = buildSuperstructure({
       document,
       pack: pack.data,
-      unavailable: await unavailable(runtime, document),
+      unavailable: ruledOut,
       targets,
       options,
       ...(via !== undefined && { via }),
+      rates,
     });
     if (!built.ok) return built;
     const compiled = await runtime.compile(built.value.document);
@@ -88,7 +106,9 @@ export function createPlanningManager({
     async planProduction({ documentId, targets, options }) {
       const found = await context(documentId);
       if (!found.ok) return found;
-      const planned = await plan(found.value, targets, options);
+      const ruledOut = await unavailable(runtimeOf(found.value.pack), found.value.document);
+      const rates = await asRun(found.value, ruledOut, options);
+      const planned = await plan(found.value, targets, options, ruledOut, rates);
       if (!planned.ok) return planned;
       const { document, pack } = found.value;
       const { graph, shapes } = proposalLayout(planned.value, pack.data);
@@ -109,8 +129,9 @@ export function createPlanningManager({
       const { document, pack } = found.value;
       const comparisons = [];
       const ruledOut = await unavailable(runtimeOf(pack), document);
+      const rates = await asRun(found.value, ruledOut, options);
       for (const recipe of rivals(pack.data, ruledOut, options, item)) {
-        const planned = await plan(found.value, [{ item, perSecond }], options, recipe);
+        const planned = await plan(found.value, [{ item, perSecond }], options, ruledOut, rates, recipe);
         if (!planned.ok) return planned;
         comparisons.push({ recipe, summary: planned.value.summary });
       }

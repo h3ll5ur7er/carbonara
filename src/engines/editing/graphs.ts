@@ -2,9 +2,10 @@
 // blueprint would contain itself, free ids.
 import type { Document, Graph, Node } from "../../contracts/document";
 import type { Issue } from "../../contracts/issues";
+import { own } from "../../utilities/records";
 
 export function graphOf(document: Document, scope: string): Graph | undefined {
-  return scope === "root" ? document.graph : document.blueprints[scope]?.graph;
+  return scope === "root" ? document.graph : own(document.blueprints, scope)?.graph;
 }
 
 export function allGraphs(document: Document): Graph[] {
@@ -14,7 +15,7 @@ export function allGraphs(document: Document): Graph[] {
 /** The ids of an instance node's ports in that direction; nothing for other nodes. */
 export function portsOf(document: Document, node: Node | undefined, direction: "in" | "out"): string[] {
   if (node?.kind !== "instance") return [];
-  const nodes = document.blueprints[node.blueprint]?.graph.nodes ?? {};
+  const nodes = own(document.blueprints, node.blueprint)?.graph.nodes ?? {};
   return Object.keys(nodes).filter((id) => {
     const port = nodes[id];
     return port?.kind === "port" && port.direction === direction;
@@ -26,7 +27,7 @@ export function contains(document: Document, blueprint: string, scope: string, s
   if (blueprint === scope) return true;
   if (seen.has(blueprint)) return false;
   seen.add(blueprint);
-  const nodes = Object.values(document.blueprints[blueprint]?.graph.nodes ?? {});
+  const nodes = Object.values(own(document.blueprints, blueprint)?.graph.nodes ?? {});
   return nodes.some((node) => node.kind === "instance" && contains(document, node.blueprint, scope, seen));
 }
 

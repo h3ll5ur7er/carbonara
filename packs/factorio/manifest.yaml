@@ -2,7 +2,7 @@
 # with `pnpm pack:import factorio` (see README.md); the sources and their terms are in CREDITS.md.
 id: factorio
 name: Factorio
-version: 1.0.0
+version: 2.0.0
 engine: ^1.1
 game: { name: Factorio, version: "2.1" }
 data: data/

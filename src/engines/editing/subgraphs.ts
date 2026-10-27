@@ -6,6 +6,7 @@ import type { Command } from "../../contracts/commands";
 import type { Document, Edge, Graph, LocalId, Node, Position } from "../../contracts/document";
 import type { Issue } from "../../contracts/issues";
 import { allGraphs, contains, freeId, issue } from "./graphs";
+import { own } from "../../utilities/records";
 
 type Collapse = Omit<Extract<Command, { type: "collapse" }>, "blueprint" | "instance"> & {
   blueprint: LocalId;
@@ -40,10 +41,10 @@ interface Crossing {
 export function collapse(document: Document, scope: string, graph: Graph, command: Collapse): Issue | undefined {
   const { blueprint, instance } = command;
   if (blueprint === "root") return issue(["blueprint"], "A blueprint can't be called root");
-  if (document.blueprints[blueprint]) return issue(["blueprint"], `Blueprint ${blueprint} already exists`);
-  if (graph.nodes[instance]) return issue(["instance"], `Node ${instance} already exists`);
+  if (own(document.blueprints, blueprint)) return issue(["blueprint"], `Blueprint ${blueprint} already exists`);
+  if (own(graph.nodes, instance)) return issue(["instance"], `Node ${instance} already exists`);
   for (const [index, id] of command.ids.entries()) {
-    const node = graph.nodes[id];
+    const node = own(graph.nodes, id);
     if (!node) return issue(["ids", index], `Unknown node ${id}`);
     if (node.kind === "port") return issue(["ids", index], "Ports can't be collapsed into a subgraph");
   }
@@ -80,7 +81,7 @@ export function collapse(document: Document, scope: string, graph: Graph, comman
     groups.forEach((group, row) => {
       const [first] = group;
       if (!first) return;
-      const port = freeId((id) => id in inside.nodes, `${direction}-${first.edge.item}`);
+      const port = freeId((id) => Object.hasOwn(inside.nodes, id), `${direction}-${first.edge.item}`);
       inside.nodes[port] = { kind: "port", direction, item: first.edge.item };
       insideLayout[port] = { x: snap(column), y: snap(top + row * (PORT.height + GRID)) };
       for (const [id, edge] of halves(group, direction, port, instance, "inside")) inside.edges[id] = edge;
@@ -104,12 +105,12 @@ export function collapse(document: Document, scope: string, graph: Graph, comman
 
 /** Expands the instance `command.id` of `graph` (the `scope`) into a copy of its blueprint's nodes and flows. */
 export function expand(document: Document, scope: string, graph: Graph, command: Expand): Issue | undefined {
-  const instance = graph.nodes[command.id];
+  const instance = own(graph.nodes, command.id);
   if (instance?.kind !== "instance") {
     return issue(["id"], instance ? `${command.id} is not a subgraph instance` : `Unknown node ${command.id}`);
   }
   const blueprintId = instance.blueprint;
-  const blueprint = document.blueprints[blueprintId];
+  const blueprint = own(document.blueprints, blueprintId);
   if (!blueprint) return issue(["id"], `Unknown blueprint ${blueprintId}`);
   const body = blueprint.graph;
   for (const node of Object.values(body.nodes)) {
@@ -118,7 +119,7 @@ export function expand(document: Document, scope: string, graph: Graph, command:
     }
   }
 
-  const isPort = (id: LocalId) => body.nodes[id]?.kind === "port";
+  const isPort = (id: LocalId) => own(body.nodes, id)?.kind === "port";
   const inner = sortedEntries(body.nodes).filter(([id]) => !isPort(id));
   const innerLayout = document.layout[blueprintId] ?? {};
   const positions = (document.layout[scope] ??= {});
@@ -134,14 +135,14 @@ export function expand(document: Document, scope: string, graph: Graph, command:
 
   const names = new Map<LocalId, LocalId>();
   for (const [id, node] of inner) {
-    const name = freeId((taken) => taken in graph.nodes, id);
+    const name = freeId((taken) => Object.hasOwn(graph.nodes, taken), id);
     names.set(id, name);
     graph.nodes[name] = copy(node);
     const position = innerLayout[id];
     if (position) positions[name] = { ...copy(position), x: position.x + offset.x, y: position.y + offset.y };
   }
   const add = (id: LocalId, edge: Edge) => {
-    graph.edges[freeId((taken) => taken in graph.edges, id)] = edge;
+    graph.edges[freeId((taken) => Object.hasOwn(graph.edges, taken), id)] = edge;
   };
   const named = (id: LocalId) => names.get(id) ?? id;
 

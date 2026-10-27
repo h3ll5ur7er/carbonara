@@ -2,7 +2,7 @@
 id: CARB-40
 title: Reuse blueprints from a library
 type: feature
-status: review
+status: done
 priority: medium
 labels: [subgraphs, ux]
 wave: "3"
