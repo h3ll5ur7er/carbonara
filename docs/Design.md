@@ -108,8 +108,8 @@ The flow colours come from the runtime `--flow-*` inputs, so `data-palette="colo
 | Source / sink | Pill, so the silhouette alone sets them apart from machines | Item chip, item name, rate; a source adds its limit, a sink a progress bar towards its target |
 | Junction | Circle | The chip of the item it carries, its throughput below |
 | Note | Sticky card with an accent edge | The text |
-| Frame | Dashed, tinted area behind everything | Its label |
-| Subgraph instance | A machine card with a second card peeking out behind it | Header: a stack icon, the blueprint's name, its scale. A strip with how it runs and an *Open* button. One row per port of the blueprint, as for a recipe |
+| Frame | Dashed, tinted area behind everything | Its label, which grows as the cards shrink but always fits in the two grid steps above the frame's nodes |
+| Subgraph instance | A machine card with a second card peeking out behind it | Header: a stack icon, the blueprint's name, its scale. A strip with how it runs and an *Open* button (an accent pill). One row per port of the blueprint, as for a recipe |
 | Port (inside a blueprint) | Pill with a dashed accent edge | Item chip, item name, rate, and "Input" or "Output" |
 
 - **Geometry is fixed** per node kind and port count ([[src/client/canvas/model/geometry.ts]]), so ports, and so edges, sit in the same place at every level of detail and in any renderer, and edges of nodes that were never on screen still have their ends.
