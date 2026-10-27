@@ -191,6 +191,21 @@ describe("the analysis manager", () => {
       [{ type: "setRate", graph: "root", id: "plates", perSecond: 3 }],
       paste,
       [{ type: "setRate", graph: "root", id: "plates", perSecond: 1 }],
+      // A paste from another factory, bringing the blueprint its instance places along.
+      (document: Document): ResolvedCommand[] => {
+        const elsewhere = applyCommands(document, [
+          { type: "collapse", graph: "root", ids: ["smelt"], blueprint: "far", instance: "far1", name: "Far" },
+        ]);
+        if (!elsewhere.ok) throw new Error(JSON.stringify(elsewhere.error));
+        const copied = copyNodes({ ...elsewhere.value.document, id: "doc-far" }, "root", ["far1"]);
+        if (!copied.ok) throw new Error(JSON.stringify(copied.error));
+        const options = { offset: { x: 0, y: 600 }, connections: false };
+        const made = pasteCommands(document, "root", copied.value, options, () => `pasted${pasted++}`);
+        if (!made.ok) throw new Error(JSON.stringify(made.error));
+        expect(made.value.commands[0]?.type).toBe("addBlueprint");
+        return made.value.commands;
+      },
+      [{ type: "setRate", graph: "root", id: "plates", perSecond: 0.5 }],
     ];
     for (const step of edits) {
       const current = documents.get("doc-water")?.document as Document;

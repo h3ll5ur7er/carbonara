@@ -186,13 +186,25 @@ function DocumentCanvas({
     label: ghostLabel,
     placement,
     results: ghostResults,
+    subgraphs: ghostSubgraphs,
   } = shownGhost ?? {};
+  // A paste from another factory brings blueprints of its own: its instances are drawn with those.
+  const placedByGhost = useMemo(
+    () =>
+      ghostSubgraphs
+        ? {
+            blueprints: { ...subgraphs.blueprints, ...ghostSubgraphs.blueprints },
+            layout: { ...subgraphs.layout, ...ghostSubgraphs.layout },
+          }
+        : subgraphs,
+    [subgraphs, ghostSubgraphs],
+  );
   const content = useMemo(
     () =>
       ghostGraph &&
       ghostPositions &&
-      ghostContent(buildGhostScene(ghostGraph, ghostPositions, pack, subgraphs), ghostLabel ?? ""),
-    [buildGhostScene, ghostGraph, ghostPositions, ghostLabel, pack, subgraphs],
+      ghostContent(buildGhostScene(ghostGraph, ghostPositions, pack, placedByGhost), ghostLabel ?? ""),
+    [buildGhostScene, ghostGraph, ghostPositions, ghostLabel, pack, placedByGhost],
   );
   const ghostScene = useMemo(() => content && placement && { ...content, placement }, [content, placement]);
 

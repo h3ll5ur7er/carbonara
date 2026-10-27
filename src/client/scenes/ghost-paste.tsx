@@ -26,6 +26,7 @@ function copyOf(document: Document, ids: string[]): Clipboard {
     },
     layout: pick(document.layout.root ?? {}, (id) => chosen.has(id)),
     connections: {},
+    blueprints: {},
   };
 }
 

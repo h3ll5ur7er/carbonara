@@ -2,10 +2,14 @@
 // what they were connected to. It travels as JSON text on the system clipboard, so a setup pasted into a chat
 // can be pasted back into another factory (docs/Design/Editor-quality-of-life.md, Clipboard and ghost placement).
 import { z } from "zod";
-import { Edge, Graph, LocalId, Position } from "./document";
+import { Blueprint, Edge, Graph, LocalId, Position } from "./document";
 import { Id } from "./pack";
 
 export const CLIPBOARD_FORMAT = "carbonara-clipboard";
+
+/** A blueprint a copy carries along: the blueprint and its layout. */
+export const CopiedBlueprint = Blueprint.extend({ layout: z.record(LocalId, Position).default({}) });
+export type CopiedBlueprint = z.infer<typeof CopiedBlueprint>;
 
 export const Clipboard = z.object({
   format: z.literal(CLIPBOARD_FORMAT),
@@ -20,6 +24,11 @@ export const Clipboard = z.object({
   layout: z.record(LocalId, Position),
   /** Flows between a copied node and one that wasn't copied, by their ids in the source graph. */
   connections: z.record(LocalId, Edge).default({}),
+  /**
+   * The blueprints the copied instances place, directly or deeper, by their ids in the source document, with where
+   * their nodes sit inside: a paste adds the ones the target lacks.
+   */
+  blueprints: z.record(LocalId, CopiedBlueprint).default({}),
 });
 export type Clipboard = z.infer<typeof Clipboard>;
 export type ClipboardInput = z.input<typeof Clipboard>;

@@ -5,7 +5,7 @@
 import type { Graph, LocalId, Position } from "../../../contracts/document";
 import type { AnalysisResults, EdgeResult, NodeResult } from "../../../contracts/results";
 import type { Point } from "../adapter";
-import type { CanvasScene } from "../model/scene";
+import type { CanvasScene, Subgraphs } from "../model/scene";
 import { snapDrag, type Gap, type Guide, type SnapOptions } from "../model/snap";
 
 /** What to preview, and where. */
@@ -18,6 +18,8 @@ export interface Ghost {
   placement: GhostPlacement;
   /** What it is, on its frame: "Proposal", "Paste". */
   label: string;
+  /** The blueprints its instances place where they aren't the document's (a paste from another factory). */
+  subgraphs?: Subgraphs | undefined;
 }
 
 /**

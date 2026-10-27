@@ -3,6 +3,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { chain } from "../src/client/canvas/scenes/chain";
 import { congested } from "../src/client/canvas/scenes/congested";
+import { subgraphScene } from "../src/client/canvas/scenes/subgraph";
+import { writeShareLink } from "../src/access/documents/share-links";
 import { flowPosition, openInApp } from "./qol-helpers";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
@@ -185,6 +187,42 @@ test("a copy pastes into another factory, in another tab", async ({ page, contex
   await expect(ghostNodes(other)).toHaveCount(2);
   await other.keyboard.press("Enter");
   await expect(documentNodes(other)).toHaveCount(Object.keys(chain.nodes).length + 2);
+});
+
+test("a copied subgraph brings its blueprint into another factory, as one undo step", async ({ page, context }) => {
+  const { document } = subgraphScene({
+    units: { rate: "per_second" },
+    items: [],
+    buildings: [],
+    recipes: [],
+    logistics: [],
+    resources: [],
+    starters: [],
+  });
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  await page.goto(`/#doc=${writeShareLink(document)}`);
+  await page.locator('.react-flow__node[data-id="line-a"] header').click();
+  await page.keyboard.press("ControlOrMeta+C");
+  await expect(page.getByText("Copied 1 node", { exact: true })).toBeVisible();
+
+  // The chain has no blueprints: the ghost shows the instance with the one it brings along all the same.
+  const other = await context.newPage();
+  await openInApp(other, chain);
+  await other.keyboard.press("ControlOrMeta+V");
+  await expect(ghostNodes(other)).toContainText("Copper Wire line");
+  await other.keyboard.press("Enter");
+  const instance = other.locator(".react-flow__node-instance:not(.ghost)");
+  await expect(instance).toContainText("Copper Wire line");
+  // Close enough to read its ports.
+  await other.keyboard.press("Shift+F");
+  await expect(instance.locator("li")).toHaveText([/Cuprite Ore/, /Copper Wire/, /Slag/]);
+  await other.keyboard.press("ControlOrMeta+B");
+  const library = other.getByRole("complementary", { name: "Library" });
+  await expect(library.getByRole("button", { name: /^Copper Wire line/ })).toContainText("Placed once");
+
+  await other.keyboard.press("ControlOrMeta+Z");
+  await expect(instance).toHaveCount(0);
+  await expect(library).toContainText("No blueprints yet");
 });
 
 test("pasting nodes from another pack warns about what doesn't exist here", async ({ page }) => {

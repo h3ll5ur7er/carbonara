@@ -9,7 +9,8 @@ import { useConnector } from "../core/connector";
 import { errorMessage, toast } from "../shell/toasts";
 import type { Point } from "./adapter";
 import type { Ghost } from "./ghost/ghost";
-import type { CanvasScene } from "./model/scene";
+import type { CanvasScene, Subgraphs } from "./model/scene";
+import type { Clipboard } from "../../contracts/clipboard";
 import { canvasActions } from "./viewport";
 
 export interface PasteGhost {
@@ -40,9 +41,11 @@ export function usePaste(document: Document, graph: string, scene: CanvasScene):
             positions: pending.clipboard.layout,
             placement: { mode: "pointer", ...(pending.at && { at: pending.at }) },
             label: pending.label,
+            // The instances are drawn with the blueprints they came with, which the paste brings along.
+            subgraphs: subgraphsOf(pending.clipboard, document.id, document.blueprints),
           }
         : undefined,
-    [pending],
+    [pending, document.id, document.blueprints],
   );
 
   // The new nodes are selected as soon as the canvas shows them (the change may arrive before or after the answer).
@@ -93,4 +96,19 @@ export function usePaste(document: Document, graph: string, scene: CanvasScene):
   const onCancel = useCallback(() => useClipboard.setState({ pending: null }), []);
 
   return { ghost, onPlace, onCancel };
+}
+
+/** The blueprints a paste brings along; one from this document places those it has, as they are now. */
+function subgraphsOf(
+  { blueprints, source }: Clipboard,
+  documentId: string,
+  own: Document["blueprints"],
+): Subgraphs | undefined {
+  const here = source.documentId === documentId;
+  const entries = Object.entries(blueprints).filter(([id]) => !(here && Object.hasOwn(own, id)));
+  if (entries.length === 0) return undefined;
+  return {
+    blueprints: Object.fromEntries(entries.map(([id, { name, graph }]) => [id, { name, graph }])),
+    layout: Object.fromEntries(entries.map(([id, { layout }]) => [id, layout])),
+  };
 }
