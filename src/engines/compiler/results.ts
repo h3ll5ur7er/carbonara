@@ -9,6 +9,7 @@ import type { Result } from "../../contracts/result";
 import type { AnalysisResults, Diagnostic, EdgeResult, NodeResult } from "../../contracts/results";
 import type { InstanceSolution, ModelEdge, ModelNode, Solution, Unsolvable } from "../../contracts/solver";
 import { clean } from "../../utilities/numbers";
+import { addTo } from "../../utilities/records";
 import type { Compiled, NodeInfo } from "./compile";
 import { addBoundaryFlows, addInsideTotals, inlineHints, type InsideMemo } from "./instances";
 
@@ -147,14 +148,15 @@ export function toResults(
       const inside = insideOf[index];
       const inputs: Record<Id, number> = {};
       const outputs: Record<Id, number> = {};
-      const add = (amounts: Record<Id, number>, id: Id, amount: number) => (amounts[id] = (amounts[id] ?? 0) + amount);
       for (const rate of modelNode.rates) {
-        if (rate.perSecond < 0) add(inputs, item(rate.item), -rate.perSecond * activity);
-        else add(outputs, item(rate.item), rate.perSecond * activity);
+        if (rate.perSecond < 0) addTo(inputs, item(rate.item), -rate.perSecond * activity);
+        else addTo(outputs, item(rate.item), rate.perSecond * activity);
       }
       if (modelNode.kind === "junction") {
-        for (const e of incoming.get(index) ?? []) add(inputs, item(model.edges[e]?.item ?? 0), solution.flow[e] ?? 0);
-        for (const e of outgoing.get(index) ?? []) add(outputs, item(model.edges[e]?.item ?? 0), solution.flow[e] ?? 0);
+        for (const e of incoming.get(index) ?? [])
+          addTo(inputs, item(model.edges[e]?.item ?? 0), solution.flow[e] ?? 0);
+        for (const e of outgoing.get(index) ?? [])
+          addTo(outputs, item(model.edges[e]?.item ?? 0), solution.flow[e] ?? 0);
       }
       if (inside) addBoundaryFlows(info ?? { kind: "instance" }, inside, inputs, outputs);
       const context = info?.context;
@@ -202,13 +204,10 @@ export function toResults(
     const activity = solution.activity[index] ?? 0;
     if (activity <= 0) return;
     if (info?.kind === "source") {
-      for (const rate of modelNode.rates) raw[item(rate.item)] = (raw[item(rate.item)] ?? 0) + activity;
+      for (const rate of modelNode.rates) addTo(raw, item(rate.item), activity);
     }
     if (info?.context) {
-      const building = info.context.building.id;
-      // Own keys only: an id such as "constructor" would otherwise start from Object.prototype's.
-      const counted = Object.hasOwn(buildings, building) ? (buildings[building] ?? 0) : 0;
-      buildings[building] = counted + (nodeMemos[index] as NodeMemo).machines;
+      addTo(buildings, info.context.building.id, (nodeMemos[index] as NodeMemo).machines);
     }
   });
   addInsideTotals(compiled, solution, raw, buildings, memo.inside);

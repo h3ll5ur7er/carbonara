@@ -17,11 +17,22 @@ export interface Point {
 export interface PortDrop {
   node: LocalId;
   item: Id;
+  /** The blueprint port, when the drag started from a subgraph instance's port. */
+  port?: LocalId;
   /** The side of the port the drag started from. */
   side: "in" | "out";
   /** Where it was dropped: in flow units, and in pixels from the canvas's top-left corner. */
   flow: Point;
   screen: Point;
+}
+
+/** Two ports the user joined, as the flow between them. */
+export interface Connected {
+  from: LocalId;
+  to: LocalId;
+  item: Id;
+  fromPort?: LocalId;
+  toPort?: LocalId;
 }
 
 export interface Insets {
@@ -49,8 +60,8 @@ export interface CanvasViewProps {
   machineGroups: MachineGroups;
   /** Nodes were dropped at new positions (top-left corners, flow units). */
   onMoveNodes(positions: Record<LocalId, Point>): void;
-  /** The user connected two ports. */
-  onConnect(edge: { from: LocalId; to: LocalId; item: Id }): void;
+  /** The user connected two ports (an instance's through one of its blueprint's ports). */
+  onConnect(edge: Connected): void;
   /** A connection from a port was dropped in empty space: time to offer what could go there. */
   onPortDropped(drop: PortDrop): void;
   /** The view settled; `centre` is the flow position in the middle of the visible canvas. */
@@ -60,13 +71,15 @@ export interface CanvasViewProps {
   /** A node without flows was dropped onto a flow, at `position` (top-left, flow units). */
   onInsert(node: LocalId, edge: LocalId, position: Point): void;
   /** One end of a flow was dragged (with Alt) to another port. */
-  onRewire(edge: LocalId, to: { from: LocalId; to: LocalId; item: Id }): void;
+  onRewire(edge: LocalId, to: Connected): void;
   /** The view came to rest (after a pan, a zoom, a jump), on a canvas of this size in screen pixels. */
   onViewSettled(viewport: Viewport, size: { width: number; height: number }): void;
   /** A note's text or a frame's label was edited in place. */
   onEditText(node: LocalId, text: string): void;
   /** A note or frame was resized (top-left corner and size, flow units). */
   onResize(node: LocalId, rect: { x: number; y: number; width: number; height: number }): void;
+  /** A subgraph instance was double-clicked, or its open button pressed. */
+  onOpenSubgraph?(node: LocalId): void;
   /** Backspace on the canvas: delete the selection (and bridge, with Mod+Shift), as the Delete key's command does. */
   onDelete(bridge: boolean): void;
   /** A preview to draw over the scene (ghost/ghost.ts); its numbers are in `results` under ghost ids. */

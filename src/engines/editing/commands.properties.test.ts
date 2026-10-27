@@ -121,6 +121,10 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       ),
     }),
     fc.record({
+      type: fc.constant("renameDocument" as const),
+      name: fc.constantFrom("Iron", "Iron works", "Steel"),
+    }),
+    fc.record({
       type: fc.constant("removeAndBridge" as const),
       graph,
       ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),
@@ -130,6 +134,21 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       graph,
       ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),
       locked: fc.boolean(),
+    }),
+    fc.record({
+      type: fc.constant("collapse" as const),
+      graph,
+      ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 3 }),
+      // Fresh most of the time; sometimes taken (or `root`), which the engine must refuse.
+      blueprint: fc.constantFrom("sub1", "sub2", "rods", "root"),
+      instance: newNodeId,
+      name: fc.constantFrom("Sub", "Smelting"),
+    }),
+    fc.record({ type: fc.constant("expand" as const), graph, id: fc.constantFrom("rods", "n1", "n2", ...pools.nodes) }),
+    fc.record({
+      type: fc.constant("renameBlueprint" as const),
+      blueprint: fc.constantFrom("rods", "sub1", "nope"),
+      name: fc.constantFrom("A", "B"),
     }),
   );
 }
@@ -178,6 +197,12 @@ function run(commandBatches: ResolvedCommand[][]): { states: Document[]; edits: 
   return { states, edits };
 }
 
+function freshId(taken: string[], base: string): string {
+  let id = base;
+  for (let suffix = 2; taken.includes(id); suffix++) id = `${base}${suffix}`;
+  return id;
+}
+
 function graphs(document: Document): [string, Graph][] {
   const blueprints = Object.entries(document.blueprints).map(([id, blueprint]): [string, Graph] => [
     id,
@@ -196,6 +221,30 @@ function portsOf(document: Document, graph: Graph, nodeId: string, direction: "i
 }
 
 describe("the editing engine (property tests)", () => {
+  it("expanding what a collapse made gives back the document: expand(collapse(x)) = x", () => {
+    const states = batches.map((commandBatches) => run(commandBatches).states.at(-1) ?? start);
+    const scopes = fc.constantFrom("root", "rods");
+    let collapsed = 0;
+    fc.assert(
+      fc.property(states, scopes, fc.array(fc.nat(), { minLength: 1, maxLength: 5 }), (document, scope, picks) => {
+        const graph = scope === "root" ? document.graph : document.blueprints[scope]?.graph;
+        const candidates = Object.keys(graph?.nodes ?? {}).filter((id) => graph?.nodes[id]?.kind !== "port");
+        if (candidates.length === 0) return;
+        const ids = [...new Set(picks.map((pick) => candidates[pick % candidates.length] ?? ""))];
+        const blueprint = freshId(Object.keys(document.blueprints), "made");
+        const instance = freshId(Object.keys(graph?.nodes ?? {}), "placed");
+        const collapse = { type: "collapse", graph: scope, ids, blueprint, instance, name: "Made" } as const;
+        const made = applyCommands(document, [collapse]);
+        if (!made.ok) throw new Error(JSON.stringify(made.error));
+        collapsed++;
+        const expanded = applyCommands(made.value.document, [{ type: "expand", graph: scope, id: instance }]);
+        if (!expanded.ok) throw new Error(JSON.stringify(expanded.error));
+        expect(expanded.value.document).toEqual(document);
+      }),
+    );
+    expect(collapsed).toBeGreaterThan(50);
+  });
+
   it("accepts enough of the generated edits to be meaningful", () => {
     const samples = fc.sample(batches, { seed: 1, numRuns: 300 });
     const total = samples.reduce((sum, commandBatches) => sum + commandBatches.length, 0);

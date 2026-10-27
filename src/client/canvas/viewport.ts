@@ -11,10 +11,14 @@ export interface CanvasActions {
   select(nodeIds: string[], edgeIds?: string[]): void;
   /** Selects these nodes and brings them into view (find's jump). */
   focus(nodeIds: string[]): void;
-  /** Moves the view there, animated (bookmarks, back and forward). */
-  goTo(viewport: Viewport): void;
+  /** Moves the view there, animated (bookmarks, back and forward); resolves once it's there. */
+  goTo(viewport: Viewport): Promise<void>;
+  /** Dives into a node: zooms in until it fills the view, animated; resolves with the view it arrives at. */
+  zoomInto(nodeId: string): Promise<Viewport>;
   /** A picture of the whole graph as a data URL. */
   image(format: "png" | "svg"): Promise<string>;
+  /** The flow position under a point on screen (client pixels). */
+  toFlow(screen: Point): Point;
   /** Where the view is now, and the canvas's size in screen pixels. */
   view(): { viewport: Viewport; size: { width: number; height: number } };
 }

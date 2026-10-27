@@ -1,9 +1,11 @@
 // The goal planner: a card floating at the canvas's top-left. Write goals (items and rates in the document's
 // unit) and options, plan, and the proposal appears on the canvas as a ghost while the card sums it up
 // (machines, power, raw inputs against the map, byproducts, shortfalls). Accept adds it as one undo step,
-// Adjust goes back to the goals with the ghost still shown, Discard drops it.
-import { Check, Plus, Recycle, Undo2, WandSparkles, X } from "lucide-react";
-import { useEffect, useId, useMemo } from "react";
+// Adjust goes back to the goals (the proposal's) with the ghost still shown, Discard drops it. Proposals an MCP
+// client makes open here too (`followProposals`).
+import { Check, ChevronRight, Plus, Recycle, Undo2, WandSparkles, X } from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
+import type { PlanOptions } from "../../../contracts/managers";
 import type { PackData, RateUnit } from "../../../contracts/pack";
 import type { Point } from "../../canvas/adapter";
 import type { Ghost } from "../../canvas/ghost/ghost";
@@ -14,6 +16,7 @@ import { errorMessage, toast } from "../../shell/toasts";
 import { Button, IconButton } from "../../ui/button";
 import { cx } from "../../ui/cx";
 import { NumberInput } from "../../ui/number-input";
+import { Select } from "../../ui/select";
 import { Tabs, TabsList, TabsTrigger } from "../../ui/tabs";
 import { Switch } from "../../ui/toggle";
 import { ItemPicker } from "./item-picker";
@@ -27,8 +30,16 @@ import {
   SummaryList,
   SummaryStats,
 } from "../totals/summary-view";
-import { acceptedCommands, planLabel, proposalGhost, targetsPerSecond, type GoalRow } from "./plan";
-import { closePlanner, newGoal, resetPlanner, usePlanner, type PlannerState } from "./planner-store";
+import {
+  buildingFamilies,
+  goalsOf,
+  planLabel,
+  preferBuilding,
+  proposalGhost,
+  targetsPerSecond,
+  type GoalRow,
+} from "./plan";
+import { closePlanner, newGoal, newGoalKey, resetPlanner, usePlanner, type PlannerState } from "./planner-store";
 import { fromPerSecond, rateSuffix } from "../../../utilities/units";
 
 /** The card's width, in pixels; the canvas keeps fitted graphs clear of it. */
@@ -65,8 +76,19 @@ export function usePlannerCanvas(documentId: string | undefined) {
   };
 }
 
+/** Closes the planner, discarding its proposal if it has one: the planning manager stops waiting for it. */
+function useDiscard() {
+  const connector = useConnector();
+  return () => {
+    const { proposal } = usePlanner.getState();
+    closePlanner();
+    if (proposal) void connector.planning.discardProposal({ proposalId: proposal.id }).catch(() => undefined);
+  };
+}
+
 export function PlannerPanel({ document, pack, rateUnit }: PlannerTarget) {
   const planner = usePlanner();
+  const discard = useDiscard();
   const library = usePanels((panels) => panels.left);
   if (!planner.open || planner.documentId !== document.id) return null;
   const left = library.open ? library.width + 2 * MARGIN : MARGIN;
@@ -79,7 +101,7 @@ export function PlannerPanel({ document, pack, rateUnit }: PlannerTarget) {
         "backdrop-blur-glass backdrop-saturate-150",
       )}
       onKeyDown={(event) => {
-        if (event.key === "Escape" && !event.defaultPrevented) closePlanner();
+        if (event.key === "Escape" && !event.defaultPrevented) discard();
       }}
     >
       <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line-subtle pr-1.5 pl-4">
@@ -87,7 +109,7 @@ export function PlannerPanel({ document, pack, rateUnit }: PlannerTarget) {
         <h2 className="flex-1 truncate text-xs font-semibold tracking-wide text-fg-muted uppercase">
           {planner.stage === "proposal" ? "Proposal" : "Plan production"}
         </h2>
-        <IconButton label="Close planner" icon={<X />} size="sm" onClick={closePlanner} />
+        <IconButton label="Close planner" icon={<X />} size="sm" onClick={discard} />
       </header>
       {planner.stage === "proposal" && planner.proposal ? (
         <ProposalCard planner={planner} pack={pack} rateUnit={rateUnit} />
@@ -129,80 +151,84 @@ function GoalsForm({ planner, document, pack, rateUnit }: PlannerTarget & { plan
 
   return (
     <form
-      className="flex flex-col"
+      className="flex min-h-0 flex-col"
       onSubmit={(event) => {
         event.preventDefault();
         void plan();
       }}
     >
-      <div className="flex flex-col gap-2.5 px-4 pt-3.5 pb-4">
-        <SectionTitle>Goals</SectionTitle>
-        {goals.map((goal, index) => (
-          <div key={goal.key} className="relative flex items-center gap-1.5">
-            <ItemPicker
-              pack={pack}
-              value={goal.item}
-              aria-label={`Goal ${index + 1} item`}
-              autoFocus={index === 0 && goal.item === null}
-              onValueChange={(item) =>
-                setGoal(goal.key, { item, rate: goal.rate > 0 ? goal.rate : fromPerSecond(1, rateUnit) })
-              }
-            />
-            <NumberInput
-              aria-label={`Goal ${index + 1} rate`}
-              className="w-28 shrink-0"
-              value={goal.rate}
-              min={0}
-              max={1e9}
-              unit={unit}
-              onValueChange={(rate) => setGoal(goal.key, { rate })}
-            />
-            {goals.length > 1 && (
-              <IconButton
-                label={`Remove goal ${index + 1}`}
-                icon={<X />}
-                size="sm"
-                onClick={() => usePlanner.setState({ goals: goals.filter((other) => other.key !== goal.key) })}
+      <div className="flex min-h-0 flex-col overflow-y-auto">
+        <div className="flex flex-col gap-2.5 px-4 pt-3.5 pb-4">
+          <SectionTitle>Goals</SectionTitle>
+          {goals.map((goal, index) => (
+            <div key={goal.key} className="relative flex items-center gap-1.5">
+              <ItemPicker
+                pack={pack}
+                value={goal.item}
+                aria-label={`Goal ${index + 1} item`}
+                autoFocus={index === 0 && goal.item === null}
+                onValueChange={(item) =>
+                  setGoal(goal.key, { item, rate: goal.rate > 0 ? goal.rate : fromPerSecond(1, rateUnit) })
+                }
               />
-            )}
-          </div>
-        ))}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="self-start"
-          onClick={() => usePlanner.setState({ goals: [...goals, newGoal()] })}
-        >
-          <Plus /> Add a goal
-        </Button>
-      </div>
-      <div className="flex flex-col gap-3 border-t border-line-subtle px-4 pt-3.5 pb-4">
-        <SectionTitle>Options</SectionTitle>
-        <div className="flex items-center justify-between gap-3">
-          <span id={objectiveId} className="text-sm text-fg-muted">
-            Use as few
-          </span>
-          <Tabs
-            value={options.objective}
-            onValueChange={(objective) =>
-              usePlanner.setState({ options: { ...options, objective: objective as typeof options.objective } })
-            }
+              <NumberInput
+                aria-label={`Goal ${index + 1} rate`}
+                className="w-28 shrink-0"
+                value={goal.rate}
+                min={0}
+                max={1e9}
+                unit={unit}
+                onValueChange={(rate) => setGoal(goal.key, { rate })}
+              />
+              {goals.length > 1 && (
+                <IconButton
+                  label={`Remove goal ${index + 1}`}
+                  icon={<X />}
+                  size="sm"
+                  onClick={() => usePlanner.setState({ goals: goals.filter((other) => other.key !== goal.key) })}
+                />
+              )}
+            </div>
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="self-start"
+            onClick={() => usePlanner.setState({ goals: [...goals, newGoal()] })}
           >
-            <TabsList aria-label="Use as few" className="w-44">
-              <TabsTrigger value="resources">Resources</TabsTrigger>
-              <TabsTrigger value="buildings">Buildings</TabsTrigger>
-            </TabsList>
-          </Tabs>
+            <Plus /> Add a goal
+          </Button>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor={alternatesId} className="text-sm text-fg-muted">
-            Alternate recipes
-          </label>
-          <Switch
-            id={alternatesId}
-            checked={options.alternates}
-            onCheckedChange={(alternates) => usePlanner.setState({ options: { ...options, alternates } })}
-          />
+        <div className="flex flex-col gap-3 border-t border-line-subtle px-4 pt-3.5 pb-4">
+          <SectionTitle>Options</SectionTitle>
+          <div className="flex items-center justify-between gap-3">
+            <span id={objectiveId} className="text-sm text-fg-muted">
+              Use as few
+            </span>
+            <Tabs
+              value={options.objective}
+              onValueChange={(objective) =>
+                usePlanner.setState({ options: { ...options, objective: objective as typeof options.objective } })
+              }
+            >
+              <TabsList aria-label="Use as few" className="w-44">
+                <TabsTrigger value="resources">Resources</TabsTrigger>
+                <TabsTrigger value="buildings">Buildings</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor={alternatesId} className="text-sm text-fg-muted">
+              Alternate recipes
+            </label>
+            <Switch
+              id={alternatesId}
+              checked={options.alternates}
+              onCheckedChange={(alternates) => usePlanner.setState({ options: { ...options, alternates } })}
+            />
+          </div>
+          <BuildingChoices pack={pack} options={options} />
+          <ResourceWeights pack={pack} options={options} />
         </div>
       </div>
       <footer className="flex items-center gap-2 border-t border-line-subtle px-4 py-3">
@@ -222,8 +248,96 @@ function GoalsForm({ planner, document, pack, rateUnit }: PlannerTarget & { plan
   );
 }
 
+/** Which building each family's recipes run in (`PlanOptions.buildings`): one row per family with a choice. */
+function BuildingChoices({ pack, options }: { pack: PackData; options: PlanOptions }) {
+  const families = useMemo(() => buildingFamilies(pack), [pack]);
+  return families.map((family) => {
+    const chosen = family.members.find((member) => options.buildings.includes(member.id)) ?? family.base;
+    const label = `Recipes for the ${family.base.name} run in`;
+    return (
+      <div key={family.base.id} className="flex items-center justify-between gap-3">
+        <span className="min-w-0 truncate text-sm text-fg-muted">{family.base.name}</span>
+        <Select
+          aria-label={label}
+          size="sm"
+          className="w-44 shrink-0"
+          value={chosen.id}
+          options={family.members.map((member) => ({ value: member.id, label: member.name }))}
+          onValueChange={(choice) =>
+            usePlanner.setState({
+              options: { ...options, buildings: preferBuilding(options.buildings, family, choice) },
+            })
+          }
+        />
+      </div>
+    );
+  });
+}
+
+/**
+ * How much one item per second of each raw resource weighs against the others (`PlanOptions.resourceWeights`),
+ * folded away until it's wanted: most plans need none.
+ */
+function ResourceWeights({ pack, options }: { pack: PackData; options: PlanOptions }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const items = new Map(pack.items.map((item) => [item.id, item]));
+  const changed = Object.keys(options.resourceWeights).length;
+  if (pack.resources.length === 0) return null;
+  const setWeight = (item: string, weight: number) => {
+    const { [item]: _dropped, ...others } = options.resourceWeights;
+    usePlanner.setState({
+      options: { ...options, resourceWeights: weight === 1 ? others : { ...others, [item]: weight } },
+    });
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        className={cx(
+          "-mx-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-left text-sm text-fg-muted",
+          "outline-none hover:text-fg focus-visible:ring-2 focus-visible:ring-accent",
+        )}
+        onClick={() => setOpen(!open)}
+      >
+        <ChevronRight className={cx("size-3.5 transition-transform", open && "rotate-90")} aria-hidden />
+        <span className="flex-1">Resource weights</span>
+        <span className="text-xs text-fg-subtle">{changed > 0 ? `${changed} changed` : "all 1"}</span>
+      </button>
+      {open && (
+        <ul id={panelId} aria-label="Resource weights" className="flex flex-col gap-1.5">
+          {pack.resources.map(({ item: id }) => {
+            const item = items.get(id) ?? { id, name: id, form: "solid" as const };
+            return (
+              <li key={id} className="flex items-center gap-2">
+                <ItemChip item={item} size="sm" />
+                <span className="min-w-0 flex-1 truncate text-sm text-fg">{item.name}</span>
+                <NumberInput
+                  aria-label={`Weight of ${item.name}`}
+                  className="w-24 shrink-0"
+                  value={options.resourceWeights[id] ?? 1}
+                  min={0.01}
+                  max={1000}
+                  step={0.5}
+                  onValueChange={(weight) => setWeight(id, weight)}
+                />
+              </li>
+            );
+          })}
+          <li className="text-xs text-fg-subtle">
+            Each item a second costs its weight; plans use as little weight as they can.
+          </li>
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ProposalCard({ planner, pack, rateUnit }: { planner: PlannerState; pack: PackData; rateUnit: RateUnit }) {
   const connector = useConnector();
+  const discard = useDiscard();
   const proposal = planner.proposal;
   if (!proposal) return null;
   const facts = summaryFacts(proposal.summary, pack);
@@ -233,11 +347,7 @@ function ProposalCard({ planner, pack, rateUnit }: { planner: PlannerState; pack
     if (!proposal) return;
     const label = planLabel(proposal.targets, pack, rateUnit);
     try {
-      const result = await connector.editing.apply({
-        documentId: proposal.documentId,
-        commands: acceptedCommands(proposal, planner.offset),
-        label,
-      });
+      const result = await connector.editing.applyProposal({ proposalId: proposal.id, label, offset: planner.offset });
       if (result.ok) usePlanner.setState({ stage: "accepted", proposal: null, offset: { x: 0, y: 0 } });
       else
         toast({
@@ -285,10 +395,15 @@ function ProposalCard({ planner, pack, rateUnit }: { planner: PlannerState; pack
         )}
       </div>
       <footer className="flex shrink-0 items-center gap-2 border-t border-line-subtle px-4 py-3">
-        <Button variant="ghost" onClick={closePlanner}>
+        <Button variant="ghost" onClick={discard}>
           Discard
         </Button>
-        <Button className="ml-auto" onClick={() => usePlanner.setState({ stage: "goals" })}>
+        <Button
+          className="ml-auto"
+          onClick={() =>
+            usePlanner.setState({ stage: "goals", goals: goalsOf(proposal.targets, rateUnit, newGoalKey) })
+          }
+        >
           Adjust
         </Button>
         <Button variant="primary" autoFocus onClick={() => void accept()}>

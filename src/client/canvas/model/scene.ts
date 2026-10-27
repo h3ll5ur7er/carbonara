@@ -1,6 +1,6 @@
 // Hides how a document graph and its pack become what the canvas draws: renderer-neutral node and edge
 // views with names resolved from the pack and fixed geometry. Every CanvasAdapter draws from these.
-import type { Graph, LocalId, Node, Position, TagColour } from "../../../contracts/document";
+import type { Blueprint, Document, Graph, LocalId, Node, Position, TagColour } from "../../../contracts/document";
 import type { Id, Item, ItemForm, PackData, Recipe } from "../../../contracts/pack";
 import {
   FRAME_SIZE,
@@ -24,6 +24,8 @@ export interface ItemView {
 export interface PortView {
   /** Unique within the node; edges attach to it. */
   handle: string;
+  /** On a subgraph instance: the blueprint's port node it stands for (edges name it as `fromPort` / `toPort`). */
+  port?: LocalId;
   direction: PortDirection;
   item: ItemView;
   /** Where the port sits on the node's border, relative to its top-left corner. */
@@ -51,8 +53,10 @@ export type NodeView = NodeViewBase &
     | { kind: "junction"; item?: ItemView }
     | { kind: "note"; text: string }
     | { kind: "frame"; label: string; tone?: string }
-    /** Kinds the canvas does not draw yet (subgraph instances and ports). */
-    | { kind: "placeholder"; label: string }
+    /** A placed blueprint, drawn like a machine: its ports are the blueprint's port nodes. */
+    | { kind: "instance"; blueprint: LocalId; title: string }
+    /** Inside a blueprint, where an item crosses its boundary: an input passes its item on into the blueprint. */
+    | { kind: "port"; direction: PortDirection; item: ItemView }
   );
 
 export type NodeViewKind = NodeView["kind"];
@@ -105,11 +109,17 @@ function itemView(index: PackIndex, id: Id): ItemView {
 
 type Positions = Record<LocalId, Position> | undefined;
 
+/** What instances need from their document: the blueprints, and where their port nodes sit inside. */
+export type Subgraphs = Pick<Document, "blueprints" | "layout">;
+
 interface CacheEntry {
   node: Node;
   position: Position | undefined;
   pack: PackData;
   junctionItem: Id | undefined;
+  /** For instances: the blueprint and its layout the view was built from. */
+  blueprint: Blueprint | undefined;
+  blueprintLayout: Positions;
   view: NodeView;
 }
 
@@ -120,7 +130,7 @@ interface CacheEntry {
 export function createSceneBuilder() {
   let cache = new Map<LocalId, CacheEntry>();
 
-  return function buildScene(graph: Graph, positions: Positions, pack: PackData): CanvasScene {
+  return function buildScene(graph: Graph, positions: Positions, pack: PackData, subgraphs?: Subgraphs): CanvasScene {
     const index = indexPack(pack);
     const junctionItems = junctionItemsOf(graph);
     const next = new Map<LocalId, CacheEntry>();
@@ -130,16 +140,25 @@ export function createSceneBuilder() {
     for (const [id, node] of Object.entries(graph.nodes)) {
       const position = positions?.[id];
       const junctionItem = junctionItems.get(id);
+      const blueprint = node.kind === "instance" ? subgraphs?.blueprints[node.blueprint] : undefined;
+      const blueprintLayout = node.kind === "instance" ? subgraphs?.layout[node.blueprint] : undefined;
       const cached = cache.get(id);
       const view =
         cached &&
         cached.node === node &&
         cached.position === position &&
         cached.pack === pack &&
-        cached.junctionItem === junctionItem
+        cached.junctionItem === junctionItem &&
+        cached.blueprint === blueprint &&
+        cached.blueprintLayout === blueprintLayout
           ? cached.view
-          : decorated(position, nodeView(id, node, position, index, junctionItem));
-      next.set(id, { node, position, pack, junctionItem, view });
+          : decorated(
+              position,
+              node.kind === "instance"
+                ? instanceView(id, node.blueprint, position, index, blueprint, blueprintLayout)
+                : nodeView(id, node, position, index, junctionItem),
+            );
+      next.set(id, { node, position, pack, junctionItem, blueprint, blueprintLayout, view });
       (view.kind === "frame" ? frames : others).push(view);
     }
     cache = next;
@@ -149,8 +168,8 @@ export function createSceneBuilder() {
     for (const [id, edge] of Object.entries(graph.edges)) {
       const source = views.get(edge.from);
       const target = views.get(edge.to);
-      const sourceHandle = source && portFor(source, "out", edge.item);
-      const targetHandle = target && portFor(target, "in", edge.item);
+      const sourceHandle = source && portFor(source, "out", edge.item, edge.fromPort);
+      const targetHandle = target && portFor(target, "in", edge.item, edge.toPort);
       if (!sourceHandle || !targetHandle) continue;
       edges.push({ id, source: edge.from, target: edge.to, sourceHandle, targetHandle, item: edge.item });
     }
@@ -158,9 +177,14 @@ export function createSceneBuilder() {
   };
 }
 
-function portFor(view: NodeView, direction: PortDirection, item: Id): string | undefined {
+function portFor(view: NodeView, direction: PortDirection, item: Id, port: LocalId | undefined): string | undefined {
   if (view.kind === "junction") return direction;
-  return view.ports.find((port) => port.direction === direction && port.item.id === item)?.handle;
+  return view.ports.find(
+    (candidate) =>
+      candidate.direction === direction &&
+      candidate.item.id === item &&
+      (view.kind !== "instance" || candidate.port === port),
+  )?.handle;
 }
 
 /** The item a junction carries: that of its first edge. */
@@ -271,18 +295,69 @@ function nodeView(
         height: position?.height ?? FRAME_SIZE.height,
         ports: [],
       };
-    case "instance":
-    case "port":
+    case "port": {
+      const item = itemView(index, node.item);
+      // An input passes the item on into the blueprint (a port on its right edge); an output takes it in.
+      const passes: PortDirection = node.direction === "in" ? "out" : "in";
       return {
         id,
-        kind: "placeholder",
-        label: node.kind === "instance" ? node.blueprint : node.item,
+        kind: "port",
+        direction: node.direction,
+        item,
         position: at,
         width: TERMINAL_WIDTH,
         height: TERMINAL_HEIGHT,
-        ports: [],
+        ports: [port(passes, item, passes === "out" ? TERMINAL_WIDTH : 0, TERMINAL_HEIGHT / 2)],
       };
+    }
+    case "instance":
+      return instanceView(id, node.blueprint, position, index, undefined, undefined);
   }
+}
+
+/**
+ * A subgraph instance: a card like a machine's, with one row per port of its blueprint, inputs first. Ports keep
+ * the order they have inside, top to bottom, so the card reads like the blueprint's boundary.
+ */
+function instanceView(
+  id: LocalId,
+  blueprintId: LocalId,
+  position: Position | undefined,
+  index: PackIndex,
+  blueprint: Blueprint | undefined,
+  inside: Positions,
+): NodeView {
+  const inputs = boundaryPorts(blueprint, inside, "in");
+  const outputs = boundaryPorts(blueprint, inside, "out");
+  const width = RECIPE_WIDTH;
+  const instancePort = (direction: PortDirection, portId: LocalId, item: Id, row: number): PortView => {
+    const view = port(direction, itemView(index, item), direction === "in" ? 0 : width, portRowCentre(row));
+    return { ...view, handle: `${view.handle}#${portId}`, port: portId };
+  };
+  return {
+    id,
+    kind: "instance",
+    blueprint: blueprintId,
+    title: blueprint?.name ?? blueprintId,
+    position: { x: position?.x ?? 0, y: position?.y ?? 0 },
+    width,
+    height: recipeHeight(inputs.length + outputs.length),
+    ports: [
+      ...inputs.map(({ portId, node }, row) => instancePort("in", portId, node.item, row)),
+      ...outputs.map(({ portId, node }, row) => instancePort("out", portId, node.item, inputs.length + row)),
+    ],
+  };
+}
+
+/** A blueprint's port nodes in one direction, top to bottom as they sit inside it (by id where they tie). */
+export function boundaryPorts(
+  blueprint: Blueprint | undefined,
+  inside: Positions,
+  direction: PortDirection,
+): { portId: LocalId; node: Extract<Node, { kind: "port" }> }[] {
+  return Object.entries(blueprint?.graph.nodes ?? {})
+    .flatMap(([portId, node]) => (node.kind === "port" && node.direction === direction ? [{ portId, node }] : []))
+    .sort((a, b) => (inside?.[a.portId]?.y ?? 0) - (inside?.[b.portId]?.y ?? 0) || (a.portId < b.portId ? -1 : 1));
 }
 
 /** What the user set on the position besides where it is: a lock, a colour tag. */

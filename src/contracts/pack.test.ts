@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PackData, PackDataFile, PackManifest } from "./pack";
+import { Id, PackData, PackDataFile, PackManifest } from "./pack";
 
 const manifest = {
   id: "satisfactory",
@@ -79,6 +79,7 @@ describe("PackData", () => {
       recipes: [],
       logistics: [],
       resources: [],
+      starters: [],
     });
   });
 
@@ -113,5 +114,14 @@ describe("PackData", () => {
 describe("PackDataFile", () => {
   it("accepts a file with only some sections", () => {
     expect(PackDataFile.parse({ items: data.items })).toEqual({ items: PackData.parse(data).items });
+  });
+});
+
+describe("Id", () => {
+  // CARB-83: ids are the games' own names, so the format keeps `constructor` (Satisfactory's building) and the code
+  // reads records by own keys only. The pattern refuses every other key a plain object inherits anyway.
+  it("allows constructor, the only Object.prototype key that fits the pattern", () => {
+    const allowed = Object.getOwnPropertyNames(Object.prototype).filter((key) => Id.safeParse(key).success);
+    expect(allowed).toEqual(["constructor"]);
   });
 });

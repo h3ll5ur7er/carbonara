@@ -7,7 +7,6 @@ import {
   applyNodeChanges,
   Background,
   BackgroundVariant,
-  getViewportForBounds,
   ReactFlow,
   ReactFlowProvider,
   SelectionMode,
@@ -23,23 +22,22 @@ import {
   type NodeTypes,
   type OnConnectEnd,
   type OnNodeDrag,
-  type ReactFlowState,
 } from "@xyflow/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import type { CanvasViewProps, Insets, Point } from "../adapter";
+import type { CanvasViewProps, Connected, Insets, Point } from "../adapter";
 import type { Move } from "../model/tween";
-import { connectionItem } from "../model/connect";
+import { connectionItem, portOf } from "../model/connect";
 import { particlesShown } from "../model/flow-style";
 import { lodTier } from "../model/lod";
 import { GRID } from "../model/geometry";
 import type { CanvasScene, EdgeView, NodeView } from "../model/scene";
 import { insideLasso, nudgeOffset } from "../model/selection";
-import { graphWindow, serves, windowAround, WINDOWED_ABOVE, type Box } from "../model/window";
 import { setCanvasActions } from "../viewport";
 import { visibleCentre } from "../model/view";
 import { GhostFrameNode, useGhostLayer } from "../ghost/use-ghost-layer";
 import { isGhost } from "../ghost/ghost";
-import { FrameNode, JunctionNode, NoteNode, PlaceholderNode } from "./annotation-nodes";
+import { FrameNode, JunctionNode, NoteNode } from "./annotation-nodes";
+import { InstanceNode, PortNode } from "./subgraph-nodes";
 import { CanvasContext } from "./context";
 import { FlowEdge } from "./flow-edge";
 import { LassoArea } from "./lasso";
@@ -51,6 +49,7 @@ import { SinkNode, SourceNode } from "./terminal-nodes";
 import { toPng, toSvg } from "html-to-image";
 import { imageFrame } from "../model/image-frame";
 import { withTag } from "./tag-badge";
+import { useGraphWindow } from "./graph-window";
 import { motionDurations, useMoveTween } from "./tween";
 import type { FlowEdge as FlowEdgeType, FlowNode } from "./types";
 
@@ -61,7 +60,8 @@ const nodeTypes = {
   junction: withTag(JunctionNode),
   note: withTag(NoteNode),
   frame: withTag(FrameNode),
-  placeholder: PlaceholderNode,
+  instance: withTag(InstanceNode),
+  port: withTag(PortNode),
   ghostFrame: GhostFrameNode,
 } as NodeTypes;
 
@@ -101,6 +101,7 @@ function FlowCanvas({
   onEditText,
   onResize,
   onViewSettled,
+  onOpenSubgraph = ignore,
 }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
@@ -123,37 +124,19 @@ function FlowCanvas({
   const lod = useStore((state) => lodTier(state.transform[2]));
   const particles = useStore((state) => particlesShown(state.transform[2]));
   const context = useMemo(
-    () => ({ results, rateUnit, machineGroups, lod, editText: onEditText, resize: onResize }),
-    [results, rateUnit, machineGroups, lod, onEditText, onResize],
+    () => ({
+      results,
+      rateUnit,
+      machineGroups,
+      lod,
+      editText: onEditText,
+      resize: onResize,
+      openSubgraph: onOpenSubgraph,
+    }),
+    [results, rateUnit, machineGroups, lod, onEditText, onResize, onOpenSubgraph],
   );
 
   const store = useStoreApi<FlowNode, FlowEdgeType>();
-  // A large graph reaches React Flow as the window around the view (model/window.ts), which moves only when
-  // the view leaves it: React Flow's own work per frame (culling, selection) scans every node it has.
-  const windowing = useMemo(
-    () => (shownScene.nodes.length > WINDOWED_ABOVE ? graphWindow(shownScene) : undefined),
-    [shownScene],
-  );
-  const [shownBox, setShownBox] = useState<Box>();
-  /** React Flow has the whole graph until its view is set up: fitting it on init needs every node. */
-  const [initialised, setInitialised] = useState(false);
-  useEffect(() => {
-    if (!windowing || !initialised) return;
-    let current: Box | undefined;
-    const follow = ({ transform: [x, y, zoom], width, height }: ReactFlowState<FlowNode, FlowEdgeType>) => {
-      if (width === 0) return;
-      const view = { x: -x / zoom, y: -y / zoom, width: width / zoom, height: height / zoom };
-      if (current && serves(current, view)) return;
-      setShownBox((current = windowAround(view)));
-    };
-    follow(store.getState());
-    return store.subscribe(follow);
-  }, [windowing, initialised, store]);
-  /** All nodes, for what has to see beyond the window. */
-  const allNodes = useRef(nodes);
-  useLayoutEffect(() => {
-    allNodes.current = nodes;
-  }, [nodes]);
   // Once per adopted scene. It reads `nodes`: React Flow's store catches up with them in an effect of its own.
   const glided = useRef(shownScene);
   useLayoutEffect(() => {
@@ -244,14 +227,14 @@ function FlowCanvas({
     [edges, insert.target],
   );
 
-  const shown = useMemo(() => {
-    if (!windowing || !shownBox || exporting) return { nodes, edges: shownEdges };
-    const inside = windowing.nodesIn(shownBox);
-    // What is selected or dragged stays, wherever it is: selections are kept and moved in React Flow.
-    const kept = nodes.filter((node) => inside.has(node.id) || node.selected || node.dragging);
-    const ids = new Set(kept.map((node) => node.id));
-    return { nodes: kept, edges: shownEdges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)) };
-  }, [windowing, shownBox, exporting, nodes, shownEdges]);
+  const graphWindow = useGraphWindow({
+    scene: shownScene,
+    nodes,
+    edges: shownEdges,
+    exporting,
+    padding: fitOptions(insets).padding ?? 0,
+  });
+  const { windowed } = graphWindow;
 
   const altHeld = useAltHeld();
   const onReconnect = useCallback(
@@ -263,7 +246,7 @@ function FlowCanvas({
         old.sourceHandle === connection.sourceHandle &&
         old.targetHandle === connection.targetHandle;
       if (!item || item !== old.data?.view.item || unchanged) return;
-      onRewire(old.id, { from: connection.source, to: connection.target, item });
+      onRewire(old.id, connected(connection, item));
     },
     [onRewire],
   );
@@ -281,7 +264,7 @@ function FlowCanvas({
   const handleConnect = useCallback(
     (connection: Connection) => {
       const item = connectionItem(normalise(connection));
-      if (item) onConnect({ from: connection.source, to: connection.target, item });
+      if (item) onConnect(connected(connection, item));
     },
     [onConnect],
   );
@@ -302,6 +285,7 @@ function FlowCanvas({
       onPortDropped({
         node: view.id,
         item,
+        ...(port.port !== undefined && { port: port.port }),
         side: port.direction,
         flow: screenToFlowPosition({ x: point.clientX, y: point.clientY }),
         screen: { x: point.clientX - bounds.left, y: point.clientY - bounds.top },
@@ -323,22 +307,11 @@ function FlowCanvas({
     if (width > 0) onViewSettled({ x, y, zoom }, { width, height });
   }, [reportCentre, store, onViewSettled]);
 
-  /** Fits nodes React Flow may not have (outside the window of a large graph). */
-  const fitTo = useCallback(
-    (nodes: FlowNode[], maxZoom: number, duration = motionDuration()) => {
-      const { width, height, minZoom } = store.getState();
-      const { padding } = fitOptions(insets);
-      const viewport = getViewportForBounds(getNodesBounds(nodes), width, height, minZoom, maxZoom, padding ?? 0);
-      return setViewport(viewport, { duration });
-    },
-    [store, insets, getNodesBounds, setViewport],
-  );
+  const { start: startWindow, fitTo, allNodes } = graphWindow;
   const onInit = useCallback(() => {
-    // A large graph is fitted here, before its window replaces the whole graph in React Flow.
-    if (windowing && !initialViewport && store.getState().width > 0) void fitTo(allNodes.current, 1, 0);
-    setInitialised(true);
+    startWindow(!initialViewport);
     onMoveEnd();
-  }, [windowing, initialViewport, fitTo, onMoveEnd, store]);
+  }, [startWindow, initialViewport, onMoveEnd]);
 
   useEffect(() => {
     // Moves made here settle without React Flow saying so: report them, for back and forward.
@@ -346,8 +319,8 @@ function FlowCanvas({
     const fit = (nodes?: FlowNode[]) =>
       // The whole graph shows at most at 100%; a selection may be zoomed in on up to the canvas maximum.
       void (
-        windowing
-          ? fitTo(nodes ?? allNodes.current, nodes ? MAX_ZOOM : 1)
+        windowed
+          ? fitTo(nodes, nodes ? MAX_ZOOM : 1, motionDuration())
           : fitView({ ...fitOptions(insets), ...(nodes && { nodes, maxZoom: MAX_ZOOM }), duration: motionDuration() })
       ).then(settled);
     setCanvasActions({
@@ -363,11 +336,11 @@ function FlowCanvas({
             node.selected === chosen.has(node.id) ? node : { ...node, selected: chosen.has(node.id) },
           ),
         );
-        const targets = (windowing ? allNodes.current : store.getState().nodes).filter((node) => chosen.has(node.id));
+        const targets = (windowed ? allNodes() : store.getState().nodes).filter((node) => chosen.has(node.id));
         // Close enough to read the cards, never closer than real size.
         if (targets.length > 0) {
-          const fitted = windowing
-            ? fitTo(targets, 1)
+          const fitted = windowed
+            ? fitTo(targets, 1, motionDuration())
             : fitView({ ...fitOptions(insets), nodes: targets, duration: motionDuration() });
           void fitted.then(settled);
         }
@@ -411,7 +384,21 @@ function FlowCanvas({
           ),
         );
       },
-      goTo: (viewport) => void setViewport(viewport, { duration: motionDuration() }).then(settled),
+      goTo: (viewport) => setViewport(viewport, { duration: motionDuration() }).then(settled),
+      zoomInto: async (nodeId) => {
+        const nodes = store.getState().nodes.filter((node) => node.id === nodeId);
+        // Closer than any fit: the card fills the view, as if the canvas were about to pass through it.
+        await fitView({
+          ...fitOptions(insets),
+          nodes,
+          minZoom: MAX_ZOOM,
+          maxZoom: MAX_ZOOM,
+          duration: motionDuration(),
+        });
+        const [x, y, zoom] = store.getState().transform;
+        return { x, y, zoom };
+      },
+      toFlow: (screen) => screenToFlowPosition(screen),
       view: () => {
         const { transform, width, height } = store.getState();
         const [x, y, zoom] = transform;
@@ -419,7 +406,7 @@ function FlowCanvas({
       },
     });
     return () => setCanvasActions(undefined);
-  }, [fitView, fitTo, setViewport, insets, store, onMoveEnd, windowing, getNodesBounds]);
+  }, [fitView, fitTo, allNodes, windowed, getNodesBounds, setViewport, screenToFlowPosition, insets, store, onMoveEnd]);
 
   const onLasso = useCallback(
     (polygon: Point[], additive: boolean) => {
@@ -443,7 +430,8 @@ function FlowCanvas({
   const onKeyDownCapture = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (ghostKeyDown(event)) return;
-      const offset = nudgeOffset(event.key, event, GRID);
+      // With Ctrl or Cmd, arrows are shortcuts (into and out of subgraphs), not nudges.
+      const offset = event.ctrlKey || event.metaKey ? undefined : nudgeOffset(event.key, event, GRID);
       const editable =
         event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable]");
       if (event.key === "Backspace" && !editable) {
@@ -471,6 +459,13 @@ function FlowCanvas({
     [store, moveLocally, onDelete, ghostKeyDown],
   );
 
+  const onNodeDoubleClick = useCallback(
+    (_event: unknown, node: FlowNode) => {
+      if (node.type === "instance" && !isGhost(node.id)) onOpenSubgraph(node.id);
+    },
+    [onOpenSubgraph],
+  );
+
   // React Flow wants this handler stable; it reports every selection change, including box and lasso.
   const reportSelection = useCallback(
     ({ nodes: selected, edges: selectedEdges }: { nodes: FlowNode[]; edges: FlowEdgeType[] }) =>
@@ -486,8 +481,8 @@ function FlowCanvas({
       <div ref={root} className={`size-full ${altHeld ? "alt-held" : ""}`} onKeyDownCapture={onKeyDownCapture}>
         <LassoArea onLasso={onLasso}>
           <ReactFlow<FlowNode, FlowEdgeType>
-            nodes={ghostLayer.nodes.length > 0 ? [...shown.nodes, ...ghostLayer.nodes] : shown.nodes}
-            edges={ghostLayer.edges.length > 0 ? [...shown.edges, ...ghostLayer.edges] : shown.edges}
+            nodes={ghostLayer.nodes.length > 0 ? [...graphWindow.nodes, ...ghostLayer.nodes] : graphWindow.nodes}
+            edges={ghostLayer.edges.length > 0 ? [...graphWindow.edges, ...ghostLayer.edges] : graphWindow.edges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
@@ -509,6 +504,7 @@ function FlowCanvas({
             deleteKeyCode={null}
             onConnect={handleConnect}
             onConnectEnd={onConnectEnd}
+            onNodeDoubleClick={onNodeDoubleClick}
             onPaneMouseMove={ghostLayer.onPaneMouseMove}
             onPaneClick={ghostLayer.onPaneClick}
             onSelectionChange={reportSelection}
@@ -526,7 +522,7 @@ function FlowCanvas({
             // Culling pays off while part of the graph is on screen. At chip zoom most of a graph that isn't
             // windowed is, and mounting and unmounting chips at the screen edges on every pan frame costs more
             // than drawing them all.
-            onlyRenderVisibleElements={(lod !== "chip" || windowing !== undefined) && !exporting}
+            onlyRenderVisibleElements={(lod !== "chip" || windowed) && !exporting}
           >
             <Background
               id="minor"
@@ -600,6 +596,19 @@ function fitOptions(insets: Insets): FitViewOptions {
 /** React Flow shifts dots by half a gap; this offset puts their centres on multiples of the gap instead. */
 function centredOnGrid(gap: number, size: number) {
   return size / 2 - gap / 2;
+}
+
+/** The flow two handles make, with the blueprint ports of the instances they belong to. */
+function connected(connection: Connection, item: string): Connected {
+  const fromPort = portOf(connection.sourceHandle);
+  const toPort = portOf(connection.targetHandle);
+  return {
+    from: connection.source,
+    to: connection.target,
+    item,
+    ...(fromPort !== undefined && { fromPort }),
+    ...(toPort !== undefined && { toPort }),
+  };
 }
 
 function normalise(connection: Connection | FlowEdgeType) {

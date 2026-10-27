@@ -12,6 +12,8 @@ export interface CanvasContextValue {
   /** Notes and frames report in-place edits and resizes through these. */
   editText(node: LocalId, text: string): void;
   resize(node: LocalId, rect: { x: number; y: number; width: number; height: number }): void;
+  /** A subgraph instance asks to be opened (its card's button). */
+  openSubgraph(node: LocalId): void;
   /** How much of each node to draw at the current zoom. */
   lod: LodTier;
 }
@@ -37,6 +39,11 @@ export function useMachineGroups(): MachineGroups {
 export function useAnnotationEdits(): Pick<CanvasContextValue, "editText" | "resize"> {
   const { editText, resize } = useCanvasContext();
   return { editText, resize };
+}
+
+/** How a subgraph instance asks to be opened. */
+export function useOpenSubgraph(): CanvasContextValue["openSubgraph"] {
+  return useCanvasContext().openSubgraph;
 }
 
 export function useLod(): LodTier {

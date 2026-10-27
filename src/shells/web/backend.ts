@@ -3,6 +3,8 @@
 import builtInPacks from "virtual:built-in-packs";
 import { createAutosavedDocumentStore } from "../../access/documents/autosave";
 import { createPackLibrary, type IsolatePlugin } from "../../access/packs/library";
+import { createMemoryProposalStore } from "../../access/proposals/memory";
+import { createPreferenceStore } from "../../access/preferences/preferences";
 import type { Issue } from "../../contracts/issues";
 import type { KeyValueStorage } from "../../contracts/platform";
 import type { ElkRunner } from "../../engines/layout/arrange";
@@ -32,7 +34,7 @@ export function startBackend(
   const bus = createEventBus<Events>();
   bus.subscribeAll((event, payload) => transport.send({ event, payload } satisfies EventMessage));
 
-  const documents = createAutosavedDocumentStore(storage("carbonara-documents"));
+  const documents = createAutosavedDocumentStore(storage("carbonara-documents"), storage("carbonara-recent"));
   // Reopen last session's documents before answering. Without storage (IndexedDB in private windows) we start empty;
   // documents that can't be loaded stay saved, and `workspace.getRestoreProblems` reports them.
   let restoreProblems: Issue[] = [];
@@ -51,12 +53,23 @@ export function startBackend(
     ...(isolate && { isolate }),
   });
 
+  // The planner's proposals: made by the planning manager, accepted by the editing manager.
+  const proposals = createMemoryProposalStore();
+  const layout = elkInWorker();
+
   const dispatch = createDispatcher(managers, {
-    workspace: createWorkspaceManager({ documents, packs, events: bus, newId, restoreProblems: () => restoreProblems }),
-    editing: createEditingManager({ documents, events: bus, newId, layout: elkInWorker() }),
+    workspace: createWorkspaceManager({
+      documents,
+      packs,
+      preferences: createPreferenceStore(storage("carbonara-preferences")),
+      events: bus,
+      newId,
+      restoreProblems: () => restoreProblems,
+    }),
+    editing: createEditingManager({ documents, events: bus, newId, layout, proposals }),
     packs: createPacksManager({ library: packs, bus }),
     analysis: createAnalysisManager({ bus, documents, packs }),
-    planning: createPlanningManager({ documents, packs }),
+    planning: createPlanningManager({ documents, packs, proposals, events: bus, layout }),
   });
   transport.listen(async (message) => {
     await restored;

@@ -4,14 +4,21 @@
 import type { PackData } from "../../contracts/pack";
 import type { ModuleLoader } from "../../contracts/platform";
 import type { Plugin } from "../../contracts/plugin";
-import { compile, describePlugin, toResults, type Compiled } from "../../engines/compiler";
+import {
+  compile,
+  describePlugin,
+  findBlueprint,
+  toResults,
+  unavailableRecipes,
+  type Compiled,
+} from "../../engines/compiler";
 import type { CompileAnswer, SandboxCall, SandboxReply, SandboxRequest } from "./plugin-sandbox-protocol";
 
 /** Answers one call at a time. Expected failures (a plugin that doesn't load) are errors in the reply. */
 export function createSandboxRuntime(loadModule: ModuleLoader): (request: SandboxRequest) => Promise<SandboxReply> {
   let loaded: { plugin: Plugin; data: PackData } | undefined;
   let nextCompile = 1;
-  /** Compiles waiting for their results; only the latest per document. */
+  /** The latest compile of each document: its results, and its blueprints' insides, may still be asked for. */
   const compiles = new Map<number, Compiled>();
   const latest = new Map<string, number>();
 
@@ -30,17 +37,27 @@ export function createSandboxRuntime(loadModule: ModuleLoader): (request: Sandbo
         if (before !== undefined) compiles.delete(before);
         latest.set(compiled.documentId, compileId);
         compiles.set(compileId, compiled);
-        return { compileId, model: compiled.model } satisfies CompileAnswer;
+        const blueprints = Object.fromEntries((compiled.blueprints ?? []).map(({ graph }, index) => [graph, index]));
+        return { compileId, model: compiled.model, items: compiled.items, blueprints } satisfies CompileAnswer;
       }
-      case "results": {
-        const compiled = compiles.get(call.compileId);
-        if (!compiled) throw new Error("That compile is no longer kept");
-        compiles.delete(call.compileId);
-        return toResults(compiled, call.outcome, plugin, call.version);
+      case "results":
+        return toResults(kept(call.compileId), call.outcome, plugin, call.version);
+      case "blueprintResults": {
+        const blueprint = findBlueprint(kept(call.compileId), call.graph);
+        if (!blueprint) throw new Error(`Unknown blueprint ${call.graph}`);
+        return toResults(blueprint.compiled, call.outcome, plugin, call.version);
       }
       case "describe":
         return describePlugin(data, plugin, call.settings);
+      case "unavailable":
+        return unavailableRecipes(data, plugin, call.settings);
     }
+  }
+
+  function kept(compileId: number): Compiled {
+    const compiled = compiles.get(compileId);
+    if (!compiled) throw new Error("That compile is no longer kept");
+    return compiled;
   }
 
   return async ({ id, ...call }) => {

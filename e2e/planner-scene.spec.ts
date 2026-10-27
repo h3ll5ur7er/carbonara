@@ -23,6 +23,10 @@ for (const colorScheme of ["dark", "light"] as const) {
     await planner.getByRole("button", { name: "Adjust" }).click();
     await planner.getByRole("button", { name: "Add a goal" }).click();
     await expect(planner.getByLabel("Goal 2 item")).toBeVisible();
+    // The options: the building the assembler's recipes run in, and the raw resources' weights.
+    await expect(planner.getByLabel("Recipes for the Assembler run in")).toHaveText(/Assembler/);
+    await planner.getByRole("button", { name: /Resource weights/ }).click();
+    await expect(planner.getByLabel("Weight of Water")).toBeVisible();
     await expect(page).toHaveScreenshot(`goals-${colorScheme}.png`, { animations: "disabled" });
   });
 }

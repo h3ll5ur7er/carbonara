@@ -1,11 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import templatePlugin from "../../../packs/_template/plugin/index";
 import { CURRENT_DOCUMENT_VERSION, type Document } from "../../contracts/document";
 import { PlanOptions, type PlanTarget } from "../../contracts/managers";
 import { PackData } from "../../contracts/pack";
-import type { Plugin } from "../../contracts/plugin";
 import { buildSuperstructure, type Superstructure } from "./superstructure";
 
 /** The template pack's data; its files hold different sections, so merging them is a plain spread. */
@@ -26,11 +24,11 @@ const empty: Document = {
   settings: { plugin: { save: "early game" } },
 };
 
-function build(targets: PlanTarget[], options: Partial<PlanOptions> = {}, plugin: Plugin = templatePlugin) {
+function build(targets: PlanTarget[], options: Partial<PlanOptions> = {}, unavailable = new Set<string>()) {
   const result = buildSuperstructure({
     document: empty,
     pack,
-    plugin,
+    unavailable,
     targets,
     options: PlanOptions.parse(options),
   });
@@ -126,7 +124,6 @@ describe("the superstructure", () => {
     const built = buildSuperstructure({
       document: empty,
       pack,
-      plugin: templatePlugin,
       targets: [{ item: "coal", perSecond: 1 }],
       options: PlanOptions.parse({}),
       via: "dry-sludge",
@@ -150,18 +147,20 @@ describe("the superstructure", () => {
     expect(rawOf(built)).toEqual(["iron-plate"]);
   });
 
-  it("asks the pack's plugin which recipes are available, with the document's settings", () => {
-    const seen: unknown[] = [];
-    const plugin: Plugin = {
-      id: "template",
-      recipeAvailable: (recipe, context) => {
-        seen.push(context.settings);
-        return recipe.id !== "wash-ferrite";
-      },
-    };
-    const built = build([{ item: "iron-plate", perSecond: 1 }], {}, plugin);
+  it("leaves out the recipes the pack's plugin rules out", () => {
+    const built = build([{ item: "iron-plate", perSecond: 1 }], {}, new Set(["wash-ferrite"]));
     expect(recipesOf(built)).not.toContain("wash-ferrite");
-    expect(seen[0]).toEqual({ save: "early game" });
+  });
+
+  it("runs each recipe in the first preferred building it allows, else in its default one", () => {
+    const built = build([{ item: "motor", perSecond: 0.25 }], { buildings: ["washer", "fast-assembler"] });
+    const node = (recipe: string) => built.document.graph.nodes[`recipe:${recipe}`];
+    // The motor can run in the fast assembler; iron plates only in the furnace.
+    expect(node("motor")).toEqual({ kind: "recipe", recipe: "motor", building: "fast-assembler" });
+    expect(node("iron-plate")).toEqual({ kind: "recipe", recipe: "iron-plate" });
+    // Preferring the default building changes nothing.
+    const plain = build([{ item: "motor", perSecond: 0.25 }], { buildings: ["assembler"] });
+    expect(plain.document.graph.nodes["recipe:motor"]).toEqual({ kind: "recipe", recipe: "motor" });
   });
 
   it("keeps the document's id, pack and plugin settings, so it compiles like the document", () => {
@@ -173,7 +172,6 @@ describe("the superstructure", () => {
     const result = buildSuperstructure({
       document: empty,
       pack,
-      plugin: templatePlugin,
       targets: [{ item: "unobtainium", perSecond: 1 }],
       options: PlanOptions.parse({}),
     });

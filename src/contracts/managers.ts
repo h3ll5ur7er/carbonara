@@ -6,8 +6,9 @@ import { ArrangeOptions } from "./layout";
 import type { OpenDocument } from "./access";
 import type { Patch } from "./patches";
 import type { Issue } from "./issues";
-import { Id, type PackData, type PackManifest } from "./pack";
+import { Id, type PackData, type PackManifest, type RateUnit } from "./pack";
 import type { PluginDescription } from "./plugin";
+import { Preferences } from "./preferences";
 import type { AnalysisResults, EdgeResult, NodeResult } from "./results";
 import type { Result } from "./result";
 
@@ -54,6 +55,15 @@ export interface DocumentInfo {
   version: number;
 }
 
+/** A document closed recently, which `workspace.openRecent` opens again. */
+export interface RecentDocument {
+  id: string;
+  name: string;
+  packId: string;
+  /** When it was closed, in milliseconds since 1970. */
+  closedAt: number;
+}
+
 export interface PackInfo {
   manifest: PackManifest;
   hash: string;
@@ -81,8 +91,25 @@ export const PlanOptions = z.object({
     .describe("What to use as little of: raw resources, or buildings."),
   alternates: z.boolean().default(true).describe("Whether alternate recipes may be used."),
   exclude: z.array(Id).default([]).describe("Recipes the plan must not use."),
+  buildings: z
+    .array(Id)
+    .default([])
+    .describe(
+      "Buildings to prefer, such as steel-furnace or assembling-machine-3: each recipe runs in the first of " +
+        "these it can, otherwise in its default building (the first of its buildings).",
+    ),
+  resourceWeights: z
+    .record(Id, z.number().positive())
+    .default({})
+    .describe(
+      "What one item per second of a raw resource weighs against the others, by item; 1 when not named. " +
+        "Weigh scarce or unwanted resources higher.",
+    ),
 });
 export type PlanOptions = z.output<typeof PlanOptions>;
+
+/** The options as they are when nobody chose any. */
+export const DEFAULT_PLAN_OPTIONS: PlanOptions = PlanOptions.parse({});
 
 /** What a proposal adds up to. All rates are items per second. */
 export interface ProposalSummary {
@@ -100,6 +127,8 @@ export interface ProposalSummary {
 
 /** A planned factory, not yet part of the document: shown as a ghost until it's accepted or discarded. */
 export interface Proposal {
+  /** Names the proposal to `editing.applyProposal` and `planning.discardProposal`: `proposal-1`, `proposal-2` … */
+  id: string;
   documentId: string;
   targets: PlanTarget[];
   /**
@@ -112,6 +141,21 @@ export interface Proposal {
   summary: ProposalSummary;
 }
 
+/**
+ * Where a proposal stands. It's `pending` (a ghost on the canvas) until it's accepted, discarded, or `replaced` by a
+ * newer plan for its document.
+ */
+export type ProposalStatus = "pending" | "accepted" | "discarded" | "replaced";
+
+/** A rate converted into items per second, with what it was converted from. */
+export interface RateConversion {
+  perSecond: number;
+  /** The same rate in the document's unit. */
+  inDocumentUnit: { rate: number; unit: RateUnit };
+  /** How it was converted, e.g. "2 × Transport belt (15/s each)". */
+  explanation: string;
+}
+
 /** One recipe for an item, planned on its own. */
 export interface RecipeComparison {
   recipe: Id;
@@ -120,13 +164,16 @@ export interface RecipeComparison {
 
 const planRequest = z.object({
   documentId: z.string().min(1),
-  options: PlanOptions.default({ objective: "resources", alternates: true, exclude: [] }),
+  options: PlanOptions.default(DEFAULT_PLAN_OPTIONS),
 });
 
 export const managers = {
   workspace: {
     ping: method<"pong">()(none),
-    createDocument: method<DocumentInfo>()(z.object({ name: z.string(), packId: z.string().min(1) })),
+    /** An empty document for a pack, or a copy of one of its starter factories (`PackData.starters`, by id). */
+    createDocument: method<DocumentInfo>()(
+      z.object({ name: z.string(), packId: z.string().min(1), starter: Id.optional() }),
+    ),
     listDocuments: method<DocumentInfo[]>()(none, {
       tool: "list_documents",
       group: "read",
@@ -136,9 +183,17 @@ export const managers = {
     importDocument: method<Result<DocumentInfo>>()(z.object({ bytes: z.instanceof(Uint8Array) })),
     /** The document as a `.carbonara` file: gzipped JSON. */
     exportDocument: method<Uint8Array<ArrayBuffer>>()(documentRef),
+    /** Closes a document; it stays among the recent documents (a few, newest first) to open again. */
     closeDocument: method<undefined>()(documentRef),
+    listRecent: method<RecentDocument[]>()(none),
+    /** Opens a recently closed document again (under a new id if one with its id is open). */
+    openRecent: method<Result<DocumentInfo>>()(documentRef),
     /** Problems restoring last session's documents (e.g. made with a newer Carbonara); they stay saved. */
     getRestoreProblems: method<Issue[]>()(none),
+    /** What Carbonara remembers about the person across sessions. */
+    getPreferences: method<Preferences>()(none),
+    /** Changes the preferences given (the others stay) and answers them all. */
+    setPreferences: method<Preferences>()(z.object({ preferences: Preferences })),
     /** The URL fragment (without `#`) that opens a copy of the document: the compressed document itself. */
     createShareLink: method<string>()(documentRef),
     openShareLink: method<Result<DocumentInfo>>()(z.object({ fragment: z.string() })),
@@ -164,6 +219,33 @@ export const managers = {
           'label saying what it does, such as "Add steel smelting". Nodes connect by item; recipe nodes take ' +
           "recipe ids from get_pack_data. Positions are canvas pixels: lay nodes out left to right along the flow, " +
           "about 320 apart. Answers the document's new version, or the problems that stopped the batch.",
+      },
+    ),
+    /**
+     * Adds a pending proposal (`planning.planProduction`) to its document as one undo step, its nodes moved by
+     * `offset` (where its ghost was left); the proposal is then accepted. Proposals that aren't pending any more
+     * fail with why: the person accepted or discarded them, or a newer plan replaced them.
+     */
+    applyProposal: method<Result<DocumentInfo>>()(
+      z.object({
+        proposalId: z.string().min(1).describe("The id of a proposal from plan_production."),
+        label: z
+          .string()
+          .min(1)
+          .describe('How the step reads in the undo history, such as "Steel for 2 yellow belts".'),
+        offset: z
+          .object({ x: z.number(), y: z.number() })
+          .default({ x: 0, y: 0 })
+          .describe("How far to move the proposal from where it was planned, in canvas pixels."),
+      }),
+      {
+        tool: "apply_proposal",
+        group: "edit",
+        description:
+          "Accept a proposal from plan_production: add its nodes and flows to its document as one step in the " +
+          "undo history. The person sees every proposal as a ghost in Carbonara and may accept or discard it " +
+          "there first: if they discarded it, or a newer plan replaced it, this fails and says so; then ask what " +
+          "to change and plan again. Answers the document's new version.",
       },
     ),
     undo: method<DocumentInfo>()(documentRef, {
@@ -213,7 +295,9 @@ export const managers = {
         "Plan a production chain that makes the target items at the given rates (items per second) with the " +
         "document's pack, using as few raw resources (or buildings) as possible. Returns a proposal: the nodes " +
         "and flows to add next to the existing factory, a summary (buildings, raw inputs, byproducts, power) and " +
-        "anything that can't be met. Nothing changes until the proposal's commands are applied.",
+        "anything that can't be met. The person sees it in Carbonara as a ghost beside the factory, with Accept, " +
+        "Adjust and Discard. Nothing changes until it's accepted there or with apply_proposal (by its id); a " +
+        "newer plan for the same document replaces it.",
     }),
     compareRecipes: method<Result<RecipeComparison[]>>()(planRequest.extend(PlanTarget.shape), {
       tool: "compare_recipes",
@@ -222,6 +306,28 @@ export const managers = {
         "Compare the recipes that make an item: plan the item at the given rate (items per second) once with " +
         "each recipe and report each plan's buildings, raw inputs, byproducts and power, best first.",
     }),
+    /** Drops a pending proposal (the planner's Discard); a settled one stays as it is. */
+    discardProposal: method<Result<undefined>>()(z.object({ proposalId: z.string().min(1) })),
+    convertRate: method<Result<RateConversion>>()(
+      documentRef.extend({
+        amount: z.number().positive().describe("How many of the unit, such as 2 for two full belts."),
+        unit: z
+          .string()
+          .min(1)
+          .describe(
+            'A belt or pipe of the pack by id, name or alias ("yellow belt", "transport-belt"), meaning its full ' +
+              'capacity; or a rate unit: "per_second", "per_minute", "per_hour" (or "/s", "/min", "/h").',
+          ),
+      }),
+      {
+        tool: "convert_rate",
+        group: "read",
+        description:
+          'Convert a rate such as "2 full yellow belts" or "1800 per minute" into items per second, the unit ' +
+          "plan_production and the other tools use, with the document's pack (its belt and pipe capacities). " +
+          "Also gives the rate in the document's unit.",
+      },
+    ),
   },
   packs: {
     listPacks: method<PackInfo[]>()(none, {
@@ -278,4 +384,6 @@ export interface Events {
   documentsChanged: { documents: DocumentInfo[] };
   resultsChanged: AnalysisResults;
   packsChanged: { packs: PackInfo[] };
+  /** A proposal was made, or it was accepted, discarded or replaced. */
+  proposalChanged: { proposal: Proposal; status: ProposalStatus };
 }

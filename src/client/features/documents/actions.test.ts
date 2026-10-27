@@ -6,6 +6,7 @@ import type { Connector } from "../../core/connector";
 import type { WorkspaceModel } from "../../core/workspace-model";
 import { useToasts } from "../../shell/toasts";
 import { createDocumentActions, setFileAccess } from "./actions";
+import { useRenaming } from "./new-document-store";
 
 const iron: DocumentInfo = { id: "doc-1", name: "Iron" } as DocumentInfo;
 const file: PickedFile = { name: "Iron.carbonara", bytes: new Uint8Array([1, 2]) };
@@ -14,14 +15,15 @@ function setUp(files: Partial<FileAccess>) {
   setFileAccess({ open: async () => undefined, save: async () => undefined, ...files });
   const importDocument = vi.fn(async () => ok(iron));
   const exportDocument = vi.fn(async () => new Uint8Array([7]));
-  const connector = { workspace: { importDocument, exportDocument } } as unknown as Connector;
+  const apply = vi.fn(async () => ok(iron));
+  const connector = { workspace: { importDocument, exportDocument }, editing: { apply } } as unknown as Connector;
   const activate = vi.fn();
   const workspace = {
     store: { getState: () => ({ documents: [iron], activeId: iron.id, loaded: true }) },
     ready: Promise.resolve(),
     activate,
   } as unknown as WorkspaceModel;
-  return { actions: createDocumentActions(connector, workspace), importDocument, exportDocument, activate };
+  return { actions: createDocumentActions(connector, workspace), importDocument, exportDocument, activate, apply };
 }
 
 const toastTitles = () => useToasts.getState().toasts.map((toast) => toast.title);
@@ -64,5 +66,34 @@ describe("the File actions on a platform's files", () => {
     await vi.waitFor(() => expect(save).toHaveBeenCalled());
     await Promise.resolve();
     expect(toastTitles()).toEqual([]);
+  });
+});
+
+describe("renaming a factory", () => {
+  afterEach(() => useRenaming.setState({ documentId: null }));
+
+  it("starts editing the name of the factory on screen", () => {
+    const { actions } = setUp({});
+    actions.renameDocument();
+    expect(useRenaming.getState().documentId).toBe("doc-1");
+  });
+
+  it("renames with one editing command, trimmed, and stops editing", async () => {
+    const { actions, apply } = setUp({});
+    useRenaming.setState({ documentId: "doc-1" });
+    actions.commitRename("doc-1", "  Iron works ");
+    expect(useRenaming.getState().documentId).toBeNull();
+    expect(apply).toHaveBeenCalledWith({
+      documentId: "doc-1",
+      commands: [{ type: "renameDocument", name: "Iron works" }],
+      label: "Rename to Iron works",
+    });
+  });
+
+  it("keeps the old name when the new one is empty or the same", () => {
+    const { actions, apply } = setUp({});
+    actions.commitRename("doc-1", "   ");
+    actions.commitRename("doc-1", "Iron");
+    expect(apply).not.toHaveBeenCalled();
   });
 });

@@ -146,6 +146,24 @@ describe("applyPick", () => {
 });
 
 describe("pickCommands", () => {
+  it("connects through the port of the subgraph instance it was dragged from", () => {
+    const [gears] = pickerEntries(pack, { item: "plate", side: "out" }, {});
+    const [smelt] = pickerEntries(pack, { item: "ore", side: "in" }, {});
+    if (!gears || !smelt) throw new Error("no entry");
+    const fromOutput = { graph: "root", entry: gears, drop: { x: 500, y: 300 }, id: "new" };
+    expect(
+      pickCommands(pack, { ...fromOutput, from: { node: "line", item: "plate", side: "out", port: "out-plate" } })[1],
+    ).toEqual({
+      type: "connect",
+      graph: "root",
+      edge: { from: "line", fromPort: "out-plate", to: "new", item: "plate" },
+    });
+    const intoInput = { graph: "root", entry: smelt, drop: { x: 0, y: 0 }, id: "new" };
+    expect(
+      pickCommands(pack, { ...intoInput, from: { node: "line", item: "ore", side: "in", port: "in-ore" } })[1],
+    ).toEqual({ type: "connect", graph: "root", edge: { from: "new", to: "line", toPort: "in-ore", item: "ore" } });
+  });
+
   it("adds the node and connects it to the port it was dragged from, as one batch", () => {
     const [gears] = pickerEntries(pack, { item: "plate", side: "out" }, {});
     if (!gears) throw new Error("no entry");

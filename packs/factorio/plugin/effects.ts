@@ -1,4 +1,5 @@
-// Factorio's module effects: what each module, beacon and quality level does, and how they add up for one machine.
+// Factorio's module effects: what each module, beacon and quality level does, and how they add up for one machine,
+// with productivity research and the quality of modules and beacons.
 // Hides the game's numbers and its rules for combining them. Source: the Lua prototypes of Factorio 2.1.14
 // (wube/factorio-data at tag 2.1.14, see CREDITS.md) and the prototype API's EffectReceiver limits.
 // Tested through the reference factories in tools/pack-cli/factorio.mechanics.test.ts.
@@ -35,6 +36,8 @@ export const BEACON = {
   slots: 2,
   effects: ["consumption", "speed", "pollution"],
   distribution: 1.5,
+  /** `distribution_effectivity_bonus_per_quality_level`: a legendary beacon passes on 2.5 times its modules. */
+  distributionPerQualityLevel: 0.2,
   powerMW: 0.48,
   /** The prototype's `profile` has 100 entries; more beacons than that don't fit around one machine anyway. */
   maxInRange: 100,
@@ -43,6 +46,28 @@ export const BEACON = {
 /** Each of n beacons in range passes on profile[n] of its effect: 1/√n, cut to four decimals as in the prototype. */
 function profile(beacons: number): number {
   return Math.floor(1e4 / Math.sqrt(beacons) + 1e-9) / 1e4;
+}
+
+/** Whether an effect's value helps: more speed, productivity and quality, less consumption and pollution. */
+const helps = (effect: EffectName, value: number) =>
+  effect === "consumption" || effect === "pollution" ? value < 0 : value > 0;
+
+/**
+ * A module's effects at a quality level: what it's for grows by 30 % per level, rounded down to 1 % (0.1 % for the
+ * quality effect); its drawbacks stay (the Factorio wiki, Quality: "+30% positive module effects").
+ */
+export function moduleEffects(kind: ModuleKind, tier: Tier, qualityLevel: number): Partial<Effects> {
+  const scaled: Partial<Effects> = {};
+  for (const [effect, value] of Object.entries(MODULES[kind][tier]) as [EffectName, number][]) {
+    if (!helps(effect, value) || qualityLevel === 0) {
+      scaled[effect] = value;
+      continue;
+    }
+    const step = effect === "quality" ? 1e-3 : 1e-2;
+    scaled[effect] =
+      Math.sign(value) * Math.floor((Math.abs(value) * qualityMultiplier(qualityLevel)) / step + 1e-9) * step;
+  }
+  return scaled;
 }
 
 /**
@@ -59,10 +84,18 @@ export type Modules = Partial<Record<ModuleKind, number>>;
 export interface Loadout {
   modules: Modules;
   tier: Tier;
+  /** Quality levels (`QUALITY_LEVELS`) of the machine's modules, of the beacons' modules and of the beacons. */
+  moduleQuality: number;
   beacons: number;
   /** The modules in each beacon. */
   beaconModules: Modules;
   beaconTier: Tier;
+  beaconModuleQuality: number;
+  beaconQuality: number;
+  /** Productivity from research, which counts whatever the building allows. */
+  research: number;
+  /** The recipe's `maximum_productivity`. */
+  maximumProductivity: number;
   /** Built-in effects of the building, such as the foundry's +50 % productivity. */
   base: Partial<Effects>;
   /** Effects the building and the recipe let through. */
@@ -73,23 +106,27 @@ export interface Loadout {
  * The machine's total effects. Speed and consumption stop at -80 %; productivity and quality at 0, and a quality
  * chance above 100 % can't do more (EffectReceiver's default limits).
  */
-export function totalEffects({ modules, tier, beacons, beaconModules, beaconTier, base, allowed }: Loadout): Effects {
+export function totalEffects(loadout: Loadout): Effects {
+  const { modules, tier, beacons, beaconModules, beaconTier, base, allowed } = loadout;
   const total: Effects = { speed: 0, productivity: 0, consumption: 0, pollution: 0, quality: 0 };
   const add = (effects: Partial<Effects>, times: number) => {
     for (const [effect, value] of Object.entries(effects) as [EffectName, number][]) total[effect] += value * times;
   };
-  for (const [kind, count] of Object.entries(modules) as [ModuleKind, number][]) add(MODULES[kind][tier], count);
+  for (const [kind, count] of Object.entries(modules) as [ModuleKind, number][]) {
+    add(moduleEffects(kind, tier, loadout.moduleQuality), count);
+  }
   if (beacons > 0) {
-    const strength = beacons * BEACON.distribution * profile(beacons);
+    const distribution = BEACON.distribution + BEACON.distributionPerQualityLevel * loadout.beaconQuality;
+    const strength = beacons * distribution * profile(beacons);
     for (const [kind, count] of Object.entries(beaconModules) as [ModuleKind, number][]) {
-      add(MODULES[kind][beaconTier], count * strength);
+      add(moduleEffects(kind, beaconTier, loadout.beaconModuleQuality), count * strength);
     }
   }
   add(base, 1);
   for (const effect of Object.keys(total) as EffectName[]) if (!allowed.includes(effect)) total[effect] = 0;
   return {
     speed: Math.max(-0.8, total.speed),
-    productivity: Math.max(0, total.productivity),
+    productivity: Math.min(loadout.maximumProductivity, Math.max(0, total.productivity + loadout.research)),
     consumption: Math.max(-0.8, total.consumption),
     pollution: Math.max(-0.8, total.pollution),
     quality: Math.min(1, Math.max(0, total.quality)),
@@ -98,6 +135,15 @@ export function totalEffects({ modules, tier, beacons, beaconModules, beaconTier
 
 /** Quality levels in order (quality/prototypes/quality.lua); a variant item is `<id>@<level>` above normal. */
 export const QUALITIES = ["normal", "uncommon", "rare", "epic", "legendary"] as const;
+/** Each quality's `level`, its strength: legendary is two levels above epic. */
+export const QUALITY_LEVELS = [0, 1, 2, 3, 5] as const;
+/** Each quality's `beacon_power_usage_multiplier`: a sixth less power per level. */
+export const BEACON_POWER_BY_QUALITY = [1, 5 / 6, 4 / 6, 3 / 6, 1 / 6] as const;
+
+/** What a quality level multiplies: crafting speed, module bonuses, what generators make (+30 % per level). */
+export function qualityMultiplier(level: number): number {
+  return 1 + 0.3 * level;
+}
 /** After the first upgrade (next_probability 1), each further level comes with chain_probability. */
 const CHAIN_PROBABILITY = 0.1;
 

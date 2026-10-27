@@ -1,8 +1,9 @@
 // Editing manager: the use cases that change a document. Applies commands through the editing engine, keeps the
 // undo history per document (one `apply` batch is one step), saves through the DocumentStore and publishes
 // `documentChanged` with the patches, so clients and the analysis manager follow along. Arranging asks the
-// layout engine for positions and applies them as one move.
-import { documentInfo, type DocumentStore, type OpenDocument } from "../contracts/access";
+// layout engine for positions and applies them as one move. Accepting a planner's proposal applies its commands
+// as one step and settles it in the proposals store, with `proposalChanged`.
+import { documentInfo, type DocumentStore, type OpenDocument, type ProposalStore } from "../contracts/access";
 import type { Command } from "../contracts/commands";
 import type { Document, Graph } from "../contracts/document";
 import type { DocumentInfo, Events, ManagerImplementation } from "../contracts/managers";
@@ -10,6 +11,7 @@ import type { Patch } from "../contracts/patches";
 import { fail, ok, type Result } from "../contracts/result";
 import { applyCommands, applyPatches, describeCommands, type ResolvedCommand } from "../engines/editing/commands";
 import { arrange, type ElkRunner } from "../engines/layout/arrange";
+import { placeProposal } from "../engines/planning";
 import type { EventBus } from "../utilities/events";
 
 export interface EditingDependencies {
@@ -19,6 +21,8 @@ export interface EditingDependencies {
   newId: () => string;
   /** Runs ELK for the layout engine (in a worker of its own in the app). */
   layout: ElkRunner;
+  /** The planner's proposals, which `applyProposal` accepts. */
+  proposals: ProposalStore;
 }
 
 interface Step {
@@ -37,6 +41,7 @@ export function createEditingManager({
   events,
   newId,
   layout,
+  proposals,
 }: EditingDependencies): ManagerImplementation<"editing"> {
   const histories = new Map<string, History>();
 
@@ -98,6 +103,17 @@ export function createEditingManager({
   return {
     getDocument: async ({ documentId }) => openDocument(documentId),
     apply: async ({ documentId, commands, label }) => commit(documentId, commands, label),
+    applyProposal: async ({ proposalId, label, offset }) => {
+      const stored = proposals.get(proposalId);
+      if (!stored) return fail([{ path: ["proposalId"], message: `Unknown proposal ${proposalId}` }]);
+      const { proposal, status } = stored;
+      if (status !== "pending") return fail([{ path: ["proposalId"], message: settled[status](proposalId) }]);
+      const applied = commit(proposal.documentId, placeProposal(proposal, offset), label);
+      if (!applied.ok) return applied;
+      proposals.settle(proposalId, "accepted");
+      events.publish("proposalChanged", { proposal, status: "accepted" });
+      return applied;
+    },
     undo: async ({ documentId }) => replay(documentId, "Undo"),
     redo: async ({ documentId }) => replay(documentId, "Redo"),
     arrange: async ({ documentId, graph: scope, direction, nodeIds, shapes }) => {
@@ -124,6 +140,14 @@ export function createEditingManager({
   };
 }
 
+/** Why a proposal that isn't pending can't be applied, in words a model can act on. */
+const settled = {
+  accepted: (id: string) => `Proposal ${id} is accepted already: it's in the document.`,
+  discarded: (id: string) =>
+    `The person discarded proposal ${id} in Carbonara. Ask them what to change, then plan again.`,
+  replaced: (id: string) => `A newer plan for the document replaced proposal ${id}; apply that one instead.`,
+};
+
 function graphOf(document: Document, scope: string): Graph | undefined {
   return scope === "root" ? document.graph : document.blueprints[scope]?.graph;
 }
@@ -134,5 +158,8 @@ function unknownDocument(documentId: string): Result<never> {
 
 function withId(command: Command, newId: () => string): ResolvedCommand {
   if (command.type === "addNode" || command.type === "connect") return { ...command, id: command.id ?? newId() };
+  if (command.type === "collapse") {
+    return { ...command, blueprint: command.blueprint ?? newId(), instance: command.instance ?? newId() };
+  }
   return command;
 }

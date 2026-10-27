@@ -904,6 +904,25 @@
                   "properties": {
                     "type": {
                       "type": "string",
+                      "const": "renameDocument"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "name"
+                  ],
+                  "description": "Renames the factory (its tab follows)."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
                       "const": "removeAndBridge"
                     },
                     "graph": {
@@ -956,6 +975,123 @@
                     "locked"
                   ],
                   "description": "Locks nodes in place (dragging, nudging and arranging leave them), or unlocks them."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "collapse"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "ids": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": "The nodes to collapse; not ports."
+                    },
+                    "blueprint": {
+                      "description": "The new blueprint's id. Chosen by the manager when left out.",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "instance": {
+                      "description": "The id of the instance that takes their place. Chosen when left out.",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "The new blueprint's name."
+                    },
+                    "bounds": {
+                      "description": "Where the nodes are drawn, so the ports go beside them. Estimated from positions when left out.",
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "width": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "height": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "width",
+                        "height"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "ids",
+                    "name"
+                  ],
+                  "description": "Collapses nodes into a subgraph: moves them into a new blueprint and puts an instance of it where they were. Each flow that crossed the selection now runs through a port of the blueprint (ports are inferred from those flows; flows of one item from one node share a port)."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "expand"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "A subgraph instance node."
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ],
+                  "description": "Expands a subgraph instance: puts a copy of its blueprint's nodes and flows in its place and reconnects the flows through its ports. Expanding the last instance of a blueprint dissolves the blueprint."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "renameBlueprint"
+                    },
+                    "blueprint": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "blueprint",
+                    "name"
+                  ],
+                  "description": "Renames a blueprint (every instance shows the new name)."
                 }
               ]
             }
@@ -967,6 +1103,56 @@
         "required": [
           "documentId",
           "commands"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "apply_proposal",
+      "description": "Accept a proposal from plan_production: add its nodes and flows to its document as one step in the undo history. The person sees every proposal as a ghost in Carbonara and may accept or discard it there first: if they discarded it, or a newer plan replaced it, this fails and says so; then ask what to change and plan again. Answers the document's new version.",
+      "group": "edit",
+      "manager": "editing",
+      "method": "applyProposal",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "proposalId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The id of a proposal from plan_production."
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "description": "How the step reads in the undo history, such as \"Steel for 2 yellow belts\"."
+          },
+          "offset": {
+            "default": {
+              "x": 0,
+              "y": 0
+            },
+            "description": "How far to move the proposal from where it was planned, in canvas pixels.",
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ]
+          }
+        },
+        "required": [
+          "proposalId",
+          "label"
         ]
       },
       "annotations": {
@@ -1056,7 +1242,7 @@
     },
     {
       "name": "plan_production",
-      "description": "Plan a production chain that makes the target items at the given rates (items per second) with the document's pack, using as few raw resources (or buildings) as possible. Returns a proposal: the nodes and flows to add next to the existing factory, a summary (buildings, raw inputs, byproducts, power) and anything that can't be met. Nothing changes until the proposal's commands are applied.",
+      "description": "Plan a production chain that makes the target items at the given rates (items per second) with the document's pack, using as few raw resources (or buildings) as possible. Returns a proposal: the nodes and flows to add next to the existing factory, a summary (buildings, raw inputs, byproducts, power) and anything that can't be met. The person sees it in Carbonara as a ghost beside the factory, with Accept, Adjust and Discard. Nothing changes until it's accepted there or with apply_proposal (by its id); a newer plan for the same document replaces it.",
       "group": "plan",
       "manager": "planning",
       "method": "planProduction",
@@ -1072,7 +1258,9 @@
             "default": {
               "objective": "resources",
               "alternates": true,
-              "exclude": []
+              "exclude": [],
+              "buildings": [],
+              "resourceWeights": {}
             },
             "type": "object",
             "properties": {
@@ -1097,6 +1285,28 @@
                 "items": {
                   "type": "string",
                   "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                }
+              },
+              "buildings": {
+                "default": [],
+                "description": "Buildings to prefer, such as steel-furnace or assembling-machine-3: each recipe runs in the first of these it can, otherwise in its default building (the first of its buildings).",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                }
+              },
+              "resourceWeights": {
+                "default": {},
+                "description": "What one item per second of a raw resource weighs against the others, by item; 1 when not named. Weigh scarce or unwanted resources higher.",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                },
+                "additionalProperties": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
                 }
               }
             }
@@ -1152,7 +1362,9 @@
             "default": {
               "objective": "resources",
               "alternates": true,
-              "exclude": []
+              "exclude": [],
+              "buildings": [],
+              "resourceWeights": {}
             },
             "type": "object",
             "properties": {
@@ -1178,6 +1390,28 @@
                   "type": "string",
                   "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
                 }
+              },
+              "buildings": {
+                "default": [],
+                "description": "Buildings to prefer, such as steel-furnace or assembling-machine-3: each recipe runs in the first of these it can, otherwise in its default building (the first of its buildings).",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                }
+              },
+              "resourceWeights": {
+                "default": {},
+                "description": "What one item per second of a raw resource weighs against the others, by item; 1 when not named. Weigh scarce or unwanted resources higher.",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                },
+                "additionalProperties": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
               }
             }
           },
@@ -1199,6 +1433,42 @@
       },
       "annotations": {
         "readOnlyHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "convert_rate",
+      "description": "Convert a rate such as \"2 full yellow belts\" or \"1800 per minute\" into items per second, the unit plan_production and the other tools use, with the document's pack (its belt and pipe capacities). Also gives the rate in the document's unit.",
+      "group": "read",
+      "manager": "planning",
+      "method": "convertRate",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The document's id from list_documents, or \"active\" for the document on screen in Carbonara."
+          },
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "How many of the unit, such as 2 for two full belts."
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A belt or pipe of the pack by id, name or alias (\"yellow belt\", \"transport-belt\"), meaning its full capacity; or a rate unit: \"per_second\", \"per_minute\", \"per_hour\" (or \"/s\", \"/min\", \"/h\")."
+          }
+        },
+        "required": [
+          "documentId",
+          "amount",
+          "unit"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
         "openWorldHint": false
       }
     },

@@ -7,6 +7,7 @@ import type { Id } from "../../contracts/pack";
 import type { Diagnostic } from "../../contracts/results";
 import type { InstanceSolution, Solution } from "../../contracts/solver";
 import { clean } from "../../utilities/numbers";
+import { addTo } from "../../utilities/records";
 import type { Compiled, Compiling, Draft, NodeInfo } from "./compile";
 
 /** A blueprint port as instances see it. */
@@ -58,7 +59,7 @@ function cyclicBlueprints(blueprints: Document["blueprints"]): Set<LocalId> {
     while (stack.length > 0) {
       const next = stack.pop() as LocalId;
       if (next === start) cyclic.add(start);
-      if (seen.has(next) || !(next in blueprints)) continue;
+      if (seen.has(next) || !Object.hasOwn(blueprints, next)) continue;
       seen.add(next);
       stack.push(...placed(next));
     }
@@ -181,7 +182,7 @@ export function addBoundaryFlows(
 ): void {
   (info.ports ?? []).forEach((port, index) => {
     const flows = port.entering ? inputs : outputs;
-    flows[port.item] = (flows[port.item] ?? 0) + (inside.ports[index] ?? 0);
+    addTo(flows, port.item, inside.ports[index] ?? 0);
   });
 }
 
@@ -224,8 +225,8 @@ export function addInsideTotals(
   });
   Object.assign(memo, { insides, adds: added });
   for (const adds of added) {
-    for (const [item, amount] of adds.raw) raw[item] = (raw[item] ?? 0) + amount;
-    for (const [building, count] of adds.buildings) buildings[building] = (buildings[building] ?? 0) + count;
+    for (const [item, amount] of adds.raw) addTo(raw, item, amount);
+    for (const [building, count] of adds.buildings) addTo(buildings, building, count);
   }
 }
 

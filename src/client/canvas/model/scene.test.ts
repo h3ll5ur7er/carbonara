@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Graph } from "../../../contracts/document";
+import type { Document, Graph } from "../../../contracts/document";
 import { PackData } from "../../../contracts/pack";
-import { createSceneBuilder, handleId } from "./scene";
+import { createSceneBuilder, handleId, type NodeView } from "./scene";
 
 const pack = PackData.parse({
   units: { rate: "per_second" },
@@ -133,5 +133,89 @@ describe("buildScene", () => {
     const byId = (scene: typeof first, id: string) => scene.nodes.find((node) => node.id === id);
     expect(byId(moved, "smelter")).toBe(byId(first, "smelter"));
     expect(byId(moved, "mine")).not.toBe(byId(first, "mine"));
+  });
+
+  describe("subgraphs", () => {
+    const blueprints: Document["blueprints"] = {
+      line: {
+        name: "Plate line",
+        graph: {
+          nodes: {
+            "in-water": { kind: "port", direction: "in", item: "water" },
+            "in-ore": { kind: "port", direction: "in", item: "ore" },
+            smelter: { kind: "recipe", recipe: "smelt" },
+            "out-plate": { kind: "port", direction: "out", item: "plate" },
+          },
+          edges: {},
+        },
+      },
+    };
+    // Inside, the water comes in below the ore: the card lists the inputs in that order.
+    const subgraphs = {
+      blueprints,
+      layout: { line: { "in-ore": { x: 0, y: 0 }, "in-water": { x: 0, y: 96 } } },
+    };
+    const placed: Graph = {
+      nodes: { mine: graph.nodes["mine"] as Graph["nodes"][string], line: { kind: "instance", blueprint: "line" } },
+      edges: { a: { from: "mine", to: "line", toPort: "in-ore", item: "ore" } },
+    };
+    const instanceOf = (nodes: NodeView[]) => nodes.find((node) => node.id === "line");
+
+    it("draws an instance as its blueprint, with a port for each of its port nodes", () => {
+      const line = instanceOf(createSceneBuilder()(placed, positions, pack, subgraphs).nodes);
+      expect(line).toMatchObject({ kind: "instance", blueprint: "line", title: "Plate line" });
+      expect(line?.ports.map((port) => [port.direction, port.item.name, port.port, port.handle])).toEqual([
+        ["in", "Ferrite Ore", "in-ore", "in:ore#in-ore"],
+        ["in", "Water", "in-water", "in:water#in-water"],
+        ["out", "Iron Plate", "out-plate", "out:plate#out-plate"],
+      ]);
+      const [ore, water, plate] = line?.ports ?? [];
+      expect([ore?.x, water?.x, plate?.x]).toEqual([0, 0, line?.width]);
+    });
+
+    it("connects edges to an instance through the port they name", () => {
+      expect(createSceneBuilder()(placed, positions, pack, subgraphs).edges).toEqual([
+        {
+          id: "a",
+          source: "mine",
+          target: "line",
+          sourceHandle: "out:ore",
+          targetHandle: "in:ore#in-ore",
+          item: "ore",
+        },
+      ]);
+    });
+
+    it("draws a blueprint's ports as its boundary: an input passes its item on into the blueprint", () => {
+      const inside = blueprints["line"]?.graph as Graph;
+      const nodes = createSceneBuilder()(inside, undefined, pack, subgraphs).nodes;
+      expect(nodes.find((node) => node.id === "in-ore")).toMatchObject({
+        kind: "port",
+        direction: "in",
+        item: { id: "ore" },
+        ports: [{ direction: "out", handle: "out:ore" }],
+      });
+      expect(nodes.find((node) => node.id === "out-plate")).toMatchObject({
+        kind: "port",
+        direction: "out",
+        ports: [{ direction: "in", handle: "in:plate" }],
+      });
+    });
+
+    it("draws an instance of a missing blueprint without ports", () => {
+      const line = instanceOf(createSceneBuilder()(placed, positions, pack).nodes);
+      expect(line).toMatchObject({ kind: "instance", title: "line", ports: [] });
+    });
+
+    it("rebuilds an instance when its blueprint changes, and only then", () => {
+      const builder = createSceneBuilder();
+      const first = instanceOf(builder(placed, positions, pack, subgraphs).nodes);
+      expect(instanceOf(builder(placed, positions, pack, { ...subgraphs }).nodes)).toBe(first);
+      const renamed = {
+        ...subgraphs,
+        blueprints: { line: { ...(blueprints["line"] as Document["blueprints"][string]), name: "Plates" } },
+      };
+      expect(instanceOf(builder(placed, positions, pack, renamed).nodes)).toMatchObject({ title: "Plates" });
+    });
   });
 });

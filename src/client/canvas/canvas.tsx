@@ -19,7 +19,7 @@ import { rateDisplayOf, type RateDisplay } from "./model/format";
 import { GRID } from "./model/geometry";
 import { createResultSlots } from "./model/result-slots";
 import { insertCommands } from "./model/insert";
-import { createSceneBuilder, type CanvasScene, type NodeView } from "./model/scene";
+import { createSceneBuilder, type CanvasScene, type NodeView, type Subgraphs } from "./model/scene";
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
 import { CanvasContextMenu } from "./context-menu";
 import { SelectionToolbar } from "./selection-toolbar";
@@ -58,6 +58,10 @@ export interface CanvasProps {
   reserved?: Partial<Insets> | undefined;
   /** Drawn over the graph in flow coordinates, such as the bottleneck heatmap. */
   overlay?: ReactNode;
+  /** A subgraph instance was double-clicked or its open button pressed (or "Open subgraph" ran on it). */
+  onOpenSubgraph?: (instance: LocalId) => void;
+  /** Sits at the canvas's top-left, such as the breadcrumbs inside a subgraph; bars at the top move below it. */
+  header?: ReactNode;
 }
 
 export function Canvas({
@@ -72,6 +76,8 @@ export function Canvas({
   if (!document || !pack) return <EmptyCanvas />;
   return (
     <DocumentCanvas
+      // Each graph is a canvas of its own: its view, selection and history start afresh.
+      key={graph}
       document={document}
       pack={pack}
       results={results}
@@ -136,7 +142,12 @@ function DocumentCanvas({
   onGhostCancel,
   reserved,
   overlay,
-}: Pick<CanvasProps, "ghost" | "onGhostPlace" | "onGhostCancel" | "reserved" | "overlay"> & {
+  onOpenSubgraph,
+  header,
+}: Pick<
+  CanvasProps,
+  "ghost" | "onGhostPlace" | "onGhostCancel" | "reserved" | "overlay" | "onOpenSubgraph" | "header"
+> & {
   document: Document;
   pack: PackData;
   results: AnalysisResults | null;
@@ -149,9 +160,11 @@ function DocumentCanvas({
   const [buildScene] = useState(createSceneBuilder);
   const shown = graph === "root" ? document.graph : document.blueprints[graph]?.graph;
   const layout = document.layout[graph];
+  // Instances draw their blueprint's ports: the blueprints and their layouts, the same object until one changes.
+  const subgraphs = useSubgraphs(document);
   const scene = useMemo(
-    () => (shown ? buildScene(shown, layout, pack) : EMPTY_SCENE),
-    [buildScene, shown, layout, pack],
+    () => (shown ? buildScene(shown, layout, pack, subgraphs) : EMPTY_SCENE),
+    [buildScene, shown, layout, pack, subgraphs],
   );
 
   const [buildGhostScene] = useState(createSceneBuilder);
@@ -165,8 +178,10 @@ function DocumentCanvas({
   } = ghost ?? {};
   const content = useMemo(
     () =>
-      ghostGraph && ghostPositions && ghostContent(buildGhostScene(ghostGraph, ghostPositions, pack), ghostLabel ?? ""),
-    [buildGhostScene, ghostGraph, ghostPositions, ghostLabel, pack],
+      ghostGraph &&
+      ghostPositions &&
+      ghostContent(buildGhostScene(ghostGraph, ghostPositions, pack, subgraphs), ghostLabel ?? ""),
+    [buildGhostScene, ghostGraph, ghostPositions, ghostLabel, pack, subgraphs],
   );
   const ghostScene = useMemo(() => content && placement && { ...content, placement }, [content, placement]);
 
@@ -220,8 +235,30 @@ function DocumentCanvas({
     },
     [onSelectionChange],
   );
-  const navigation = useNavigation(document.id);
-  const actions = useEditActions({ document, pack, graph, scene, selection, apply, navigation: navigation.actions });
+  // Back and forward stay within the graph on screen.
+  const navigation = useNavigation(graph === "root" ? document.id : `${document.id}/${graph}`);
+  // Nodes an edit is about to add (a collapse's instance) are selected once they're drawn.
+  const selectWhenShown = useRef<LocalId[] | null>(null);
+  useLayoutEffect(() => {
+    const wanted = selectWhenShown.current;
+    if (!wanted) return;
+    const ids = new Set(scene.nodes.map((view) => view.id));
+    if (!wanted.every((id) => ids.has(id))) return;
+    selectWhenShown.current = null;
+    canvasActions()?.select(wanted);
+  }, [scene]);
+  const selectLater = useCallback((ids: LocalId[]) => (selectWhenShown.current = ids), []);
+  const actions = useEditActions({
+    document,
+    pack,
+    graph,
+    scene,
+    selection,
+    apply,
+    navigation: navigation.actions,
+    openSubgraph: onOpenSubgraph,
+    selectWhenShown: selectLater,
+  });
   const onDelete: CanvasViewProps["onDelete"] = useCallback((bridge) => actions.deleteSelection(bridge), [actions]);
   const onInsert: CanvasViewProps["onInsert"] = useCallback(
     (nodeId, edgeId, point) => {
@@ -316,7 +353,8 @@ function DocumentCanvas({
     (entry: PickerEntry) => {
       if (!drop) return;
       setDrop(null);
-      const pick = { graph, from: drop, entry, drop: drop.flow, id: newNodeId(entry) };
+      const from = { node: drop.node, item: drop.item, side: drop.side, ...(drop.port && { port: drop.port }) };
+      const pick = { graph, from, entry, drop: drop.flow, id: newNodeId(entry) };
       void apply(clearOfOthers(pickCommands(pack, pick), scene, pack), `Add ${entry.title}`);
     },
     [apply, drop, graph, pack, scene],
@@ -343,30 +381,39 @@ function DocumentCanvas({
           onEditText={onEditText}
           onResize={onResize}
           onViewSettled={navigation.onViewSettled}
+          {...(onOpenSubgraph && { onOpenSubgraph })}
           ghost={ghostScene}
           {...(onGhostPlace && { onGhostPlace })}
           {...(onGhostCancel && { onGhostCancel })}
           overlay={overlay}
         />
       </CanvasContextMenu>
-      {several && !finding && (
-        <SelectionToolbar
-          left={insets.left}
-          right={insets.right}
-          multiEdit={<MultiEdit document={document} pack={pack} graph={graph} selection={selection} apply={apply} />}
-        />
+      {header && (
+        <div style={{ left: insets.left }} className="pointer-events-none absolute top-3 ml-3 flex">
+          {header}
+        </div>
       )}
-      {finding && (
-        <FindPanel
-          document={document}
-          pack={pack}
-          graph={graph}
-          left={insets.left}
-          right={insets.right}
-          onJump={onJump}
-          onReplace={onReplace}
-        />
-      )}
+      {/* The bars at the top move down a row while a header takes the top-left. */}
+      <div className={`pointer-events-none absolute inset-x-0 top-0 ${header ? "mt-12" : ""}`}>
+        {several && !finding && (
+          <SelectionToolbar
+            left={insets.left}
+            right={insets.right}
+            multiEdit={<MultiEdit document={document} pack={pack} graph={graph} selection={selection} apply={apply} />}
+          />
+        )}
+        {finding && (
+          <FindPanel
+            document={document}
+            pack={pack}
+            graph={graph}
+            left={insets.left}
+            right={insets.right}
+            onJump={onJump}
+            onReplace={onReplace}
+          />
+        )}
+      </div>
       <UnitsPicker settings={document.settings} pack={pack} right={insets.right} actions={actions} />
       {drop && request && (
         <RecipePicker
@@ -382,6 +429,24 @@ function DocumentCanvas({
       )}
     </div>
   );
+}
+
+/**
+ * The document's blueprints and their layouts (what instance cards are drawn from), as one object that stays the
+ * same until a blueprint or a blueprint's layout changes, so a ghost isn't rebuilt by edits elsewhere.
+ */
+function useSubgraphs(document: Document): Subgraphs {
+  const { blueprints, layout } = document;
+  const layouts = Object.fromEntries(Object.keys(blueprints).flatMap((id) => (layout[id] ? [[id, layout[id]]] : [])));
+  const [kept, setKept] = useState<Subgraphs>(() => ({ blueprints, layout: layouts }));
+  const same =
+    kept.blueprints === blueprints &&
+    Object.keys(layouts).length === Object.keys(kept.layout).length &&
+    Object.entries(layouts).every(([id, positions]) => kept.layout[id] === positions);
+  if (same) return kept;
+  const next = { blueprints, layout: layouts };
+  setKept(next);
+  return next;
 }
 
 /** A readable, practically unique id for a new node: what it runs, plus a random suffix. */

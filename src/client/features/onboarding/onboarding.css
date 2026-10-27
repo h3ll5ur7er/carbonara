@@ -1,0 +1,43 @@
+/*
+ * The welcome tour's spotlight: an accent ring around what a step is about, breathing slowly unless the person
+ * prefers reduced motion. Same layer order as Tailwind's, declared again for load order (see canvas.css).
+ */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .tour-spotlight {
+    box-shadow:
+      0 0 0 2px var(--color-accent),
+      0 0 0 6px var(--color-accent-soft),
+      0 0 24px 4px var(--color-accent-glow);
+    transition:
+      top var(--duration-base) var(--ease-out),
+      left var(--duration-base) var(--ease-out),
+      width var(--duration-base) var(--ease-out),
+      height var(--duration-base) var(--ease-out);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .tour-spotlight {
+      animation: tour-breathe 2.4s var(--ease-in-out) infinite;
+    }
+  }
+
+  @keyframes tour-breathe {
+    50% {
+      box-shadow:
+        0 0 0 2px var(--color-accent),
+        0 0 0 9px var(--color-accent-soft),
+        0 0 32px 8px var(--color-accent-glow);
+    }
+  }
+
+  /* The game cards of the first run: the pack's accent lights up the one under the pointer or focus. */
+  .game-card:hover,
+  .game-card:focus-visible {
+    box-shadow:
+      inset 0 1px 0 0 var(--color-highlight),
+      0 0 0 1px var(--color-accent),
+      0 12px 32px -12px var(--color-accent-glow);
+  }
+}

@@ -131,6 +131,7 @@ describe("the pack library with isolated plugins", () => {
           throw new Error("not used");
         },
         describe: async () => ({ nodeFields: {}, settingsFields: {}, metrics: {} }),
+        unavailableRecipes: async () => [],
         dispose: () => disposed.push(source),
       };
       return ok(runtime);

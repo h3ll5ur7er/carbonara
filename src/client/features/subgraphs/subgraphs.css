@@ -1,0 +1,31 @@
+/*
+ * Moving between subgraph levels (use-subgraph-view.tsx). Diving in, the view first zooms into the instance's
+ * card; then the blueprint's canvas grows in from slightly smaller, as if the card opened. Coming back up, the
+ * canvas above settles in from slightly larger while it glides out from the instance. Durations are tokens, so
+ * with reduced motion both are instant. Same layer order as Tailwind's, declared again for load order.
+ */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .subgraph-enter {
+    animation: subgraph-enter var(--duration-slow) var(--ease-out);
+  }
+
+  .subgraph-leave {
+    animation: subgraph-leave var(--duration-slow) var(--ease-out);
+  }
+
+  @keyframes subgraph-enter {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  @keyframes subgraph-leave {
+    from {
+      opacity: 0;
+      transform: scale(1.04);
+    }
+  }
+}

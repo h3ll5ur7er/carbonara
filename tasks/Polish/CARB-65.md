@@ -15,3 +15,4 @@ Visual QA over every canonical scene, empty states, micro-interactions.
 
 - [ ] Review
 - [ ] Fixes
+- [ ] Sankey overview: faint text from the canvas shows through the bands (`e2e/__screenshots__/planner-overviews.spec.ts/sankey-*.png`), and a few labels still touch band edges

@@ -4,7 +4,7 @@ import type { DocumentCompiler, LoadedPack, PluginRuntime } from "../../contract
 import type { PackData } from "../../contracts/pack";
 import type { Plugin } from "../../contracts/plugin";
 import { compile, compileMemo } from "./compile";
-import { describePlugin } from "./hooks";
+import { describePlugin, unavailableRecipes } from "./hooks";
 import { findBlueprint } from "./instances";
 import { resultsMemo, toResults } from "./results";
 
@@ -14,6 +14,7 @@ export function localRuntime(pack: PackData, plugin: Plugin): PluginRuntime {
     compile: (document) => compiler().compile(document),
     compiler,
     describe: async (settings) => describePlugin(pack, plugin, settings),
+    unavailableRecipes: async (settings) => unavailableRecipes(pack, plugin, settings),
   };
 }
 
@@ -26,6 +27,7 @@ function localCompiler(pack: PackData, plugin: Plugin): DocumentCompiler {
       const compiled = compile({ document, pack, plugin }, compiling, patches);
       return {
         model: compiled.model,
+        items: compiled.items,
         results: async (outcome, version) => toResults(compiled, outcome, plugin, version, mapping),
         blueprints: Object.fromEntries((compiled.blueprints ?? []).map(({ graph }, index) => [graph, index])),
         async blueprintResults(graph, outcome, version) {

@@ -10,6 +10,7 @@ import type { Patch } from "../../contracts/patches";
 import type { NodeContext, Plugin, PluginContext } from "../../contracts/plugin";
 import type { Diagnostic } from "../../contracts/results";
 import type { Constraint, Model, ModelEdge, ModelNode } from "../../contracts/solver";
+import { own } from "../../utilities/records";
 import { toPerSecond } from "../../utilities/units";
 import { pluginConstraints, pluginContext, prepareRecipeNode } from "./hooks";
 import {
@@ -428,7 +429,7 @@ function draftGraph(
       changed = refreshNode(id, nodes[id] as Node) !== known || changed;
     }
     if (memo.nodes.size > nodeOrder.sorted.length) {
-      for (const id of [...memo.nodes.keys()]) if (!(id in nodes)) forgetNode(id);
+      for (const id of [...memo.nodes.keys()]) if (!Object.hasOwn(nodes, id)) forgetNode(id);
       changed = true;
     }
     const edgeOrder = (memo.edgeOrder = ordered(edges, memo.edgeOrder));
@@ -437,7 +438,7 @@ function draftGraph(
       changed = refreshEdge(id, edges[id] as Edge) !== known || changed;
     }
     if (memo.edges.size > edgeOrder.sorted.length) {
-      for (const id of [...memo.edges.keys()]) if (!(id in edges)) forgetEdge(id);
+      for (const id of [...memo.edges.keys()]) if (!Object.hasOwn(edges, id)) forgetEdge(id);
       changed = true;
     }
     return changed || !previous ? { ...collect(), unchanged: false } : undefined;
@@ -456,7 +457,8 @@ function draftGraph(
     const edgeIds = new Set(touched.edges);
     for (const id of touched.nodes) {
       const before = memo.nodes.get(id);
-      const node = nodes[id];
+      // Ids from patches may be anything, `constructor` included: own keys only.
+      const node = own(nodes, id);
       if (node === undefined && !before) continue;
       const after = node === undefined ? undefined : refreshNode(id, node);
       if (after === before) continue;
@@ -471,7 +473,7 @@ function draftGraph(
     }
     for (const id of edgeIds) {
       const before = memo.edges.get(id);
-      const edge = edges[id];
+      const edge = own(edges, id);
       if (edge === undefined && !before) continue;
       const after = edge === undefined ? undefined : refreshEdge(id, edge);
       if (after === before) continue;

@@ -53,7 +53,7 @@ const broken: [name: string, change: Record<string, string | null>, messages: st
   [
     "a pack for a newer pack format",
     { "manifest.yaml": edit("manifest.yaml", "^1", "^2") },
-    ["manifest.yaml:4:1: engine: Needs pack format ^2, but this version of Carbonara reads pack format 1.0.0"],
+    ["manifest.yaml:4:1: engine: Needs pack format ^2, but this version of Carbonara reads pack format 1.1.0"],
   ],
   [
     "a missing plugin file",
@@ -99,6 +99,33 @@ const broken: [name: string, change: Record<string, string | null>, messages: st
     "a JSON data file with a wrong form",
     { "data/zz-extra.json": `{"items": [{"id": "gear", "name": "Gear", "form": "liquid"}]}` },
     ['data/zz-extra.json:1:43: items[0].form: Invalid option: expected one of "solid"|"fluid"'],
+  ],
+  [
+    "a starter without a name",
+    { "starters/plates.yaml": "graph: { nodes: {}, edges: {} }\n" },
+    ["starters/plates.yaml:1:1: name: Required"],
+  ],
+  [
+    "a starter named in capitals",
+    { "starters/Plates.yaml": "name: Plates\ngraph: { nodes: {}, edges: {} }\n" },
+    ["starters/Plates.yaml: A starter's file name is its id: lowercase letters, digits, . _ - (plates.yaml)"],
+  ],
+  [
+    "a starter using a recipe the pack doesn't have",
+    {
+      "starters/plates.yaml":
+        "name: Plates\ngraph:\n  nodes:\n    press: { kind: recipe, recipe: gear }\n  edges: {}\n",
+    },
+    ["starters/plates.yaml:4:28: graph.nodes.press.recipe: Unknown recipe 'gear'"],
+  ],
+  [
+    "a starter with a flow from a node that isn't there",
+    {
+      "starters/plates.yaml":
+        "name: Plates\ngraph:\n  nodes: { out: { kind: sink, item: plate } }\n" +
+        "  edges: { a: { from: smelt, to: out, item: plate } }\n",
+    },
+    ["starters/plates.yaml:4:17: graph.edges.a.from: Unknown node 'smelt'"],
   ],
   [
     "a data file that isn't YAML",

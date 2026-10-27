@@ -40,6 +40,8 @@ describe("appCommands", () => {
       // Exporting is rare: palette, menus and the canvas's context menu.
       "file.exportPng",
       "file.exportSvg",
+      // The tour starts by itself on the first run; afterwards it's a palette command.
+      "help.tour",
     ]);
     for (const command of appCommands) {
       if (!paletteOnly.has(command.id)) expect(command.shortcut, command.id).toBeDefined();

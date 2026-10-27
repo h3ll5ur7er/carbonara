@@ -45,6 +45,8 @@ export function edgeUnder(rect: Rect, scene: CanvasScene, node: NodeView): Local
  * on, else the first thing it makes that the consumer takes; undefined when it doesn't take the item at all.
  */
 export function insertedItem(node: NodeView, item: Id, consumer: NodeView): Id | undefined {
+  // An instance connects through its blueprint's ports, which splicing doesn't choose.
+  if (node.kind === "instance") return undefined;
   const takes = (view: NodeView, candidate: Id) =>
     view.ports.some((port) => port.direction === "in" && (view.kind === "junction" || port.item.id === candidate));
   if (!takes(node, item)) return undefined;

@@ -25,6 +25,8 @@ describe("carbonara-pack new", () => {
     expect(readFileSync(join(folder, "plugin", "index.ts"), "utf8")).toContain(`definePlugin({ id: "my-game" })`);
     expect(readFileSync(join(folder, "README.md"), "utf8")).toMatch(/^# My Game\n/);
     expect(existsSync(join(folder, "data", "recipes.yaml"))).toBe(true);
+    // The starter factory fits the template's data only, which the new pack replaces.
+    expect(existsSync(join(folder, "starters"))).toBe(false);
   });
 
   it("makes a pack that builds and installs, wherever it was created", async () => {

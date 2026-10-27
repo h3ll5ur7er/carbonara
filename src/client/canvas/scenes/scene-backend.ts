@@ -46,11 +46,20 @@ export function createSceneBackend(
 }
 
 function apply(draft: Draft<Document>, command: Command, newId: () => string) {
+  if (command.type === "renameBlueprint") {
+    const blueprint = draft.blueprints[command.blueprint];
+    if (blueprint) blueprint.name = command.name;
+    return;
+  }
   if (command.type === "setSettings") {
     for (const [key, value] of Object.entries(command.settings)) {
       if (value === null) Reflect.deleteProperty(draft.settings, key);
       else if (value !== undefined) Object.assign(draft.settings, { [key]: value });
     }
+    return;
+  }
+  if (command.type === "renameDocument") {
+    draft.name = command.name;
     return;
   }
   const graph = command.graph === "root" ? draft.graph : draft.blueprints[command.graph]?.graph;

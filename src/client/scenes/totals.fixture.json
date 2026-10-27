@@ -105,7 +105,8 @@
         "source-water-wash-ferrite": {
           "from": "source-water",
           "to": "wash-ferrite",
-          "item": "water"
+          "item": "water",
+          "logistics": "pipe"
         },
         "purify-water-wash-ferrite": {
           "from": "purify-water",
@@ -133,56 +134,56 @@
     "layout": {
       "root": {
         "source-ferrite-ore": {
-          "x": 0,
-          "y": 312
+          "x": 48,
+          "y": 192
         },
         "source-cuprite-ore": {
-          "x": 0,
-          "y": 48
+          "x": 48,
+          "y": 72
         },
         "source-water": {
-          "x": 0,
-          "y": 432
+          "x": 48,
+          "y": 312
         },
         "iron-gear": {
-          "x": 1176,
-          "y": 264
+          "x": 1296,
+          "y": 368
         },
         "copper-wire": {
-          "x": 768,
-          "y": 480
+          "x": 864,
+          "y": 16
         },
         "iron-plate": {
-          "x": 768,
-          "y": 264
+          "x": 864,
+          "y": 340
         },
         "copper-plate": {
-          "x": 360,
+          "x": 432,
           "y": 0
         },
         "wash-ferrite": {
-          "x": 360,
-          "y": 240
+          "x": 432,
+          "y": 284
         },
         "purify-water": {
-          "x": 768,
-          "y": 816
+          "x": 0,
+          "y": 432
         },
         "output-iron-gear": {
-          "x": 1584,
-          "y": 312
+          "x": 1728,
+          "y": 468
         },
         "output-copper-wire": {
-          "x": 1584,
-          "y": 528
+          "x": 1296,
+          "y": 116
         },
         "byproduct-slag": {
-          "x": 768,
-          "y": 696
+          "x": 864,
+          "y": 220
         },
         "byproduct-sludge": {
-          "x": 1176,
-          "y": 864
+          "x": 432,
+          "y": 544
         }
       }
     },
@@ -332,7 +333,8 @@
         "perSecond": 460
       },
       "source-water-wash-ferrite": {
-        "perSecond": 57.5
+        "perSecond": 57.5,
+        "capacity": 100
       },
       "wash-ferrite-iron-plate": {
         "perSecond": 460

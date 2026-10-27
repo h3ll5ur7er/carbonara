@@ -2,25 +2,28 @@
 // solver already understand. Each candidate recipe is a node; one hub (a junction) per item joins all of the
 // item's producers to all of its consumers, so the solver picks the mix of recipes, cycles and byproducts
 // included. Raw inputs are sources (capped at the map's limits), the targets are pinned sinks, and every
-// item made spills what nobody uses into a free sink.
+// item made spills what nobody uses into a free sink. Recipes run in the preferred building they allow.
 import type { Document, Edge, LocalId, Node } from "../../contracts/document";
 import type { Issue } from "../../contracts/issues";
 import type { PlanOptions, PlanTarget } from "../../contracts/managers";
 import type { Id, PackData, Recipe } from "../../contracts/pack";
-import type { Plugin } from "../../contracts/plugin";
 import { fail, ok, type Result } from "../../contracts/result";
+import { own } from "../../utilities/records";
 import { toPerSecond } from "../../utilities/units";
+import type { RecipeRates } from "./probe";
 
 export interface SuperstructureInput {
   /** The document the plan is for: its id, pack and plugin settings carry over. */
   document: Document;
   pack: PackData;
-  /** Asked which recipes are available; without one (an isolated plugin), all are. */
-  plugin?: Plugin;
+  /** Recipes the pack's plugin rules out under the document's settings (`PluginRuntime.unavailableRecipes`). */
+  unavailable?: ReadonlySet<Id>;
   targets: PlanTarget[];
   options: PlanOptions;
   /** Makes the targets with this recipe only, never from a raw source (to compare recipes). */
   via?: Id;
+  /** The recipes as nodes run them (the plugin's fuel, by-products …); recipes not in it as the pack has them. */
+  rates?: ReadonlyMap<Id, RecipeRates>;
 }
 
 /** What a superstructure node stands for. */
@@ -42,10 +45,11 @@ export interface Superstructure {
 export function buildSuperstructure({
   document,
   pack,
-  plugin,
+  unavailable = new Set(),
   targets,
   options,
   via,
+  rates,
 }: SuperstructureInput): Result<Superstructure> {
   const items = new Set(pack.items.map((item) => item.id));
   const issues: Issue[] = targets.flatMap((target, index) =>
@@ -58,7 +62,8 @@ export function buildSuperstructure({
   const wanted = new Map<Id, number>();
   for (const target of targets) wanted.set(target.item, (wanted.get(target.item) ?? 0) + target.perSecond);
 
-  const allowed = allowedRecipes(pack, plugin, document, options);
+  const allowed = allowedRecipes(pack, unavailable, options);
+  const run = (recipe: Recipe): RecipeRates => rates?.get(recipe.id) ?? recipe;
   const resources = new Map(pack.resources.map((resource) => [resource.item, resource]));
 
   // Walk upstream from the targets: each item's producers, then their inputs.
@@ -70,12 +75,12 @@ export function buildSuperstructure({
     const item = queue.shift() as Id;
     visited.push(item);
     const forced = via !== undefined && wanted.has(item);
-    const producers = allowed.filter((candidate) => makes(candidate, item) && (!forced || candidate.id === via));
+    const producers = allowed.filter((candidate) => makes(run(candidate), item) && (!forced || candidate.id === via));
     for (const recipe of producers) {
       if (recipes.includes(recipe)) continue;
       recipes.push(recipe);
-      for (const input of Object.keys(recipe.in)) {
-        if (uses(recipe, input) && !seen.has(input)) {
+      for (const input of Object.keys(run(recipe).in)) {
+        if (uses(run(recipe), input) && !seen.has(input)) {
           seen.add(input);
           queue.push(input);
         }
@@ -95,7 +100,7 @@ export function buildSuperstructure({
   for (const item of visited) {
     add(hub(item), { kind: "junction" }, { kind: "hub", item });
     const resource = resources.get(item);
-    const madeHere = recipes.some((recipe) => makes(recipe, item));
+    const madeHere = recipes.some((recipe) => makes(run(recipe), item));
     const forced = via !== undefined && wanted.has(item);
     if (!forced && (resource || !madeHere)) {
       const limit = resource?.limit;
@@ -111,13 +116,15 @@ export function buildSuperstructure({
   const made: Id[] = [];
   for (const recipe of recipes) {
     const id = `recipe:${recipe.id}`;
-    add(id, { kind: "recipe", recipe: recipe.id }, { kind: "recipe", recipe: recipe.id });
+    const building = buildingFor(recipe, options.buildings);
+    const node: Node = { kind: "recipe", recipe: recipe.id, ...(building !== recipe.buildings[0] && { building }) };
+    add(id, node, { kind: "recipe", recipe: recipe.id });
     // Catalysts (an item both used and made) are netted by the compiler: only a net input takes from the hub.
-    for (const item of Object.keys(recipe.in)) {
-      if (uses(recipe, item)) edges[`${hub(item)}>${id}`] = { from: hub(item), to: id, item };
+    for (const item of Object.keys(run(recipe).in)) {
+      if (uses(run(recipe), item)) edges[`${hub(item)}>${id}`] = { from: hub(item), to: id, item };
     }
-    for (const item of Object.keys(recipe.out)) {
-      if (!makes(recipe, item)) continue;
+    for (const item of Object.keys(run(recipe).out)) {
+      if (!makes(run(recipe), item)) continue;
       if (!(hub(item) in nodes)) add(hub(item), { kind: "junction" }, { kind: "hub", item });
       if (!made.includes(item)) made.push(item);
       edges[`${id}>${hub(item)}`] = { from: id, to: hub(item), item };
@@ -148,28 +155,27 @@ export function buildSuperstructure({
 }
 
 /** The recipes the plan may use, in pack order. */
-export function allowedRecipes(
-  pack: PackData,
-  plugin: Plugin | undefined,
-  document: Document,
-  options: PlanOptions,
-): Recipe[] {
-  const context = { pack, settings: document.settings.plugin ?? {} };
+export function allowedRecipes(pack: PackData, unavailable: ReadonlySet<Id>, options: PlanOptions): Recipe[] {
   const excluded = new Set(options.exclude);
   return pack.recipes.filter(
     (recipe) =>
       !excluded.has(recipe.id) &&
-      (options.alternates || !recipe.tags?.includes("alternate")) &&
-      plugin?.recipeAvailable?.(recipe, context) !== false,
+      !unavailable.has(recipe.id) &&
+      (options.alternates || !recipe.tags?.includes("alternate")),
   );
 }
 
+/** The building a recipe runs in: the first preferred building it allows, else its default. */
+export function buildingFor(recipe: Recipe, preferred: readonly Id[]): Id {
+  return preferred.find((building) => recipe.buildings.includes(building)) ?? (recipe.buildings[0] as Id);
+}
+
 /** Whether the recipe makes more of the item than it uses. */
-export function makes(recipe: Recipe, item: Id): boolean {
-  return (recipe.out[item] ?? 0) > (recipe.in[item] ?? 0);
+export function makes(recipe: RecipeRates, item: Id): boolean {
+  return (own(recipe.out, item) ?? 0) > (own(recipe.in, item) ?? 0);
 }
 
 /** Whether the recipe uses more of the item than it makes. */
-function uses(recipe: Recipe, item: Id): boolean {
-  return (recipe.in[item] ?? 0) > (recipe.out[item] ?? 0);
+function uses(recipe: RecipeRates, item: Id): boolean {
+  return (own(recipe.in, item) ?? 0) > (own(recipe.out, item) ?? 0);
 }
