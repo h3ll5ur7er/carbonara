@@ -99,6 +99,7 @@ function FlowCanvas({
   onDelete,
   onEditText,
   onResize,
+  onToggleCollapsed,
   onViewSettled,
   onOpenSubgraph = ignore,
 }: CanvasViewProps) {
@@ -130,9 +131,10 @@ function FlowCanvas({
       lod,
       editText: onEditText,
       resize: onResize,
+      toggleCollapsed: onToggleCollapsed,
       openSubgraph: onOpenSubgraph,
     }),
-    [results, rateUnit, machineGroups, lod, onEditText, onResize, onOpenSubgraph],
+    [results, rateUnit, machineGroups, lod, onEditText, onResize, onToggleCollapsed, onOpenSubgraph],
   );
 
   const store = useStoreApi<FlowNode, FlowEdgeType>();
@@ -182,7 +184,7 @@ function FlowCanvas({
     [fitView, getNodesBounds, insets, store],
   );
   const ghostLayer = useGhostLayer({ ghost, onPlace: onGhostPlace, onCancel: onGhostCancel, reveal });
-  const { takeChanges, onKeyDown: ghostKeyDown } = ghostLayer;
+  const { takeChanges, following } = ghostLayer;
   const onNodesChange = useCallback(
     (changes: NodeChange<FlowNode>[]) => {
       const snapped = snapChanges(takeChanges(changes), store.getState().nodes);
@@ -394,7 +396,7 @@ function FlowCanvas({
       const shape = polygon.map((point) => screenToFlowPosition(point));
       const candidates = store
         .getState()
-        .nodes.filter((node) => node.type !== "frame")
+        .nodes.filter((node) => node.type !== "frame" && !node.hidden)
         .map((node) => ({ id: node.id, ...node.position, width: node.width ?? 0, height: node.height ?? 0 }));
       const chosen = new Set(insideLasso(candidates, shape));
       setNodes((current) =>
@@ -410,7 +412,6 @@ function FlowCanvas({
   // Arrow keys nudge the selection; the move is one edit. Captured, so React Flow's own nudging stays out.
   const onKeyDownCapture = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      if (ghostKeyDown(event)) return;
       // With Ctrl or Cmd, arrows are shortcuts (into and out of subgraphs), not nudges.
       const offset = event.ctrlKey || event.metaKey ? undefined : nudgeOffset(event.key, event, GRID);
       const editable =
@@ -437,7 +438,7 @@ function FlowCanvas({
       );
       moveLocally(moved);
     },
-    [store, moveLocally, onDelete, ghostKeyDown],
+    [store, moveLocally, onDelete],
   );
 
   const onNodeDoubleClick = useCallback(
@@ -459,7 +460,13 @@ function FlowCanvas({
 
   return (
     <CanvasContext value={context}>
-      <div ref={root} className={`size-full ${altHeld ? "alt-held" : ""}`} onKeyDownCapture={onKeyDownCapture}>
+      <div
+        ref={root}
+        className={`size-full ${altHeld ? "alt-held" : ""}`}
+        onKeyDownCapture={onKeyDownCapture}
+        onPointerMove={ghostLayer.onPointerMove}
+        onClickCapture={ghostLayer.onClickCapture}
+      >
         <LassoArea onLasso={onLasso}>
           <ReactFlow<FlowNode, FlowEdgeType>
             nodes={ghostLayer.nodes.length > 0 ? [...nodes, ...ghostLayer.nodes] : nodes}
@@ -475,7 +482,11 @@ function FlowCanvas({
             edgesReconnectable={altHeld}
             onReconnect={onReconnect}
             reconnectRadius={RECONNECT_RADIUS}
-            selectionOnDrag
+            // While a ghost follows the pointer, a click places it: nothing on the canvas takes the pointer.
+            selectionOnDrag={!following}
+            nodesDraggable={!following}
+            nodesConnectable={!following}
+            elementsSelectable={!following}
             selectionMode={SelectionMode.Partial}
             selectionKeyCode={null}
             multiSelectionKeyCode="Shift"
@@ -486,8 +497,6 @@ function FlowCanvas({
             onConnect={handleConnect}
             onConnectEnd={onConnectEnd}
             onNodeDoubleClick={onNodeDoubleClick}
-            onPaneMouseMove={ghostLayer.onPaneMouseMove}
-            onPaneClick={ghostLayer.onPaneClick}
             onSelectionChange={reportSelection}
             onInit={onMoveEnd}
             onMoveEnd={onMoveEnd}
@@ -499,7 +508,7 @@ function FlowCanvas({
             minZoom={0.05}
             maxZoom={MAX_ZOOM}
             aria-label="Factory canvas"
-            className={`lod-${lod} ${particles ? "" : "particles-off"} ${ghostLayer.following ? "ghost-following" : ""}`}
+            className={`lod-${lod} ${particles ? "" : "particles-off"} ${following ? "ghost-following" : ""}`}
             // Culling pays off while part of the graph is on screen. At chip zoom most of it is, and mounting
             // and unmounting chips at the screen edges on every pan frame costs more than drawing them all.
             onlyRenderVisibleElements={lod !== "chip" && !exporting}
@@ -520,7 +529,10 @@ function FlowCanvas({
               offset={centredOnGrid(GRID * MAJOR_GRID_EVERY, MAJOR_DOT_SIZE)}
               color="var(--color-grid-dot-major)"
             />
-            <SnapMarks guides={snapping.marks.guides} gaps={snapping.marks.gaps} />
+            <SnapMarks
+              guides={following ? ghostLayer.marks.guides : snapping.marks.guides}
+              gaps={following ? ghostLayer.marks.gaps : snapping.marks.gaps}
+            />
             {overlay && <ViewportPortal>{overlay}</ViewportPortal>}
           </ReactFlow>
         </LassoArea>
@@ -614,6 +626,8 @@ function toFlowNode(view: NodeView, previous?: FlowNode): FlowNode {
     data: { view },
     ...(view.kind === "frame" && { zIndex: -1 }),
     ...(view.locked && { draggable: false, className: "is-locked" }),
+    // Inside a collapsed frame: its flows run to the frame's bar (model/scene.ts, `fold`).
+    ...(view.hiddenBy && { hidden: true }),
     ...(previous?.selected && { selected: true }),
     ...(previous?.dragging && { dragging: true }),
   };

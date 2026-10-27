@@ -117,6 +117,17 @@ export const Command = z.discriminatedUnion("type", [
   z
     .object({ type: z.literal("renameBlueprint"), blueprint: LocalId, name: z.string().min(1) })
     .describe("Renames a blueprint (every instance shows the new name)."),
+  z
+    .object({
+      type: z.literal("setCollapsed"),
+      graph: GraphScope,
+      ids: z.array(LocalId).min(1),
+      collapsed: z.boolean(),
+    })
+    .describe(
+      "Folds frames to their label bar, hiding the nodes they hold on the canvas, or unfolds them. " +
+        "(Not `collapse`, which moves nodes into a subgraph.)",
+    ),
 ]);
 export type Command = z.infer<typeof Command>;
 export type CommandInput = z.input<typeof Command>;

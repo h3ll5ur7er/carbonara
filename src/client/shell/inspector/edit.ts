@@ -8,6 +8,8 @@ export interface FieldEditTarget {
   documentId: string;
   graph?: string;
   nodeId: string;
+  /** Several selected nodes edited at once, instead of `nodeId` alone. */
+  nodeIds?: string[];
 }
 
 export interface FieldEdit {
@@ -18,12 +20,13 @@ export interface FieldEdit {
 
 export function applyFieldEdit(
   editing: Pick<Connector["editing"], "apply">,
-  { documentId, graph = "root", nodeId }: FieldEditTarget,
+  { documentId, graph = "root", nodeId, nodeIds = [nodeId] }: FieldEditTarget,
   { key, descriptor, value }: FieldEdit,
 ): ReturnType<Connector["editing"]["apply"]> {
+  const label = fieldEditLabel(descriptor, value);
   return editing.apply({
     documentId,
-    commands: [{ type: "setNodeFields", graph, id: nodeId, fields: { [key]: value } }],
-    label: fieldEditLabel(descriptor, value),
+    commands: nodeIds.map((id) => ({ type: "setNodeFields", graph, id, fields: { [key]: value } })),
+    label: nodeIds.length > 1 ? `${label} on ${nodeIds.length} machines` : label,
   });
 }

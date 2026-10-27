@@ -58,6 +58,45 @@ test("the inspector shows a machine's clock speed, shards and somersloops, and i
   await expect(node).toContainText("50/min");
 });
 
+test("several selected machines share their settings in the inspector, edited at once", async ({ page }) => {
+  // Each edit waits for a solve of the Satisfactory pack.
+  test.setTimeout(90_000);
+  for (let count = 1; count <= 2; count++) {
+    await page.keyboard.press("ControlOrMeta+K");
+    await page.keyboard.type("iron plate");
+    await page
+      .getByRole("option", { name: /^Iron Plate/ })
+      .first()
+      .click();
+    await expect(page.locator(".react-flow__node")).toHaveCount(count);
+  }
+  const [first, second] = [page.locator(".react-flow__node").nth(0), page.locator(".react-flow__node").nth(1)];
+  await first.click();
+  const inspector = page.getByRole("complementary", { name: "Inspector" });
+  await setNumber(page, "Clock speed", "50");
+  await second.click({ modifiers: ["Shift"] });
+  await expect(inspector.getByRole("heading", { name: "2 machines" })).toBeVisible();
+  await expect(inspector).toContainText("Mixed");
+
+  await setNumber(page, "Clock speed", "150");
+  await expect(inspector).not.toContainText("Mixed");
+  const clockOf = async (node: typeof first) => {
+    // Clicking a node of a multi-selection keeps the selection (to drag them all): clear it first.
+    await page.keyboard.press("Escape");
+    await page.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
+    await node.click();
+    await expect(inspector.getByRole("heading", { name: "2 machines" })).toBeHidden();
+    return inspector.getByRole("spinbutton", { name: "Clock speed" });
+  };
+  await expect(await clockOf(first)).toHaveValue("150");
+  await expect(await clockOf(second)).toHaveValue("150");
+
+  // One edit for both: one undo puts both back.
+  await page.keyboard.press("ControlOrMeta+Z");
+  await expect(await clockOf(second)).toHaveValue("100");
+  await expect(await clockOf(first)).toHaveValue("50");
+});
+
 test("the save profile unlocks and locks alternate recipes", async ({ page }) => {
   const inspector = page.getByRole("complementary", { name: "Inspector" });
   await expect(inspector.getByRole("heading", { name: "Save profile" })).toBeVisible();

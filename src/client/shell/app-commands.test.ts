@@ -37,6 +37,8 @@ describe("appCommands", () => {
       "tag.blue",
       "tag.purple",
       "tag.none",
+      // Folding frames: also the chevron on each frame.
+      "arrange.toggleCollapse",
       // Exporting is rare: palette, menus and the canvas's context menu.
       "file.exportPng",
       "file.exportSvg",

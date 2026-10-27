@@ -25,6 +25,8 @@ test("Ctrl+F finds nodes across the factory and Enter jumps to one", async ({ pa
   const options = page.getByRole("option");
   // The gear assembler, and the motor assembler that takes gears.
   await expect(options).toHaveText([/Iron Gear\s*Assembler/, /Motor\s*Assembler/]);
+  // Motor Recycling gives gears back, but it's no recipe for making them.
+  await expect(page.getByText(/Replace Iron Gear everywhere/)).toHaveCount(0);
   await expect(page).toHaveScreenshot("find-panel.png");
 
   await page.keyboard.press("Enter");

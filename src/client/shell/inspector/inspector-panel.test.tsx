@@ -118,6 +118,34 @@ describe("InspectorPanel", () => {
     expect(screen.getByRole("list", { name: "Problems" }).textContent).toContain("Clock 150 % needs a power shard");
   });
 
+  it("edits several machines at once, marking the values they don't share", async () => {
+    const apply = vi.fn<Connector["editing"]["apply"]>().mockResolvedValue({ ok: true, value: info });
+    renderPanel(apply, {
+      selection: {
+        target: { documentId: "doc-1", nodeId: "a", nodeIds: ["a", "b"] },
+        node: { title: "2 machines", subtitle: "2 × Furnace", fields, values: { clock: 100 }, mixed: ["sloop"] },
+      },
+    });
+    expect(screen.getByText("Mixed")).toBeTruthy();
+    expect(screen.getByRole("switch", { name: /Somersloop/ }).getAttribute("aria-checked")).toBe("false");
+    await userEvent.click(screen.getByRole("switch", { name: /Somersloop/ }));
+    expect(apply).toHaveBeenCalledExactlyOnceWith({
+      documentId: "doc-1",
+      commands: ["a", "b"].map((id) => ({ type: "setNodeFields", graph: "root", id, fields: { sloop: true } })),
+      label: "Turn on Somersloop on 2 machines",
+    });
+  });
+
+  it("says so when the selected nodes share no settings", () => {
+    renderPanel(vi.fn(), {
+      selection: {
+        target: { documentId: "doc-1", nodeId: "a", nodeIds: ["a", "b"] },
+        node: { title: "2 nodes", fields: {}, values: {}, mixed: [] },
+      },
+    });
+    expect(screen.getByText("They share no settings.")).toBeTruthy();
+  });
+
   it("invites a selection when nothing is selected", () => {
     renderPanel(vi.fn(), { selection: null });
     expect(screen.getByText("Nothing selected")).toBeTruthy();

@@ -38,6 +38,8 @@ function fakeBackend() {
       undo: () => Promise.reject(new Error("not used")),
       redo: () => Promise.reject(new Error("not used")),
       arrange: () => Promise.reject(new Error("not used")),
+      copy: () => Promise.reject(new Error("not used")),
+      paste: () => Promise.reject(new Error("not used")),
     },
     on(event, listener) {
       const set = listeners.get(event) ?? new Set();

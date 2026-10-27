@@ -97,7 +97,7 @@ export async function arrange(input: ArrangeInput, elk: ElkRunner): Promise<Reco
       id,
       width: shape.width,
       height: shape.height,
-      ports: shape.ports.map((port, index) => elkPort(id, index, port.side, port.x, port.y)),
+      ports: shape.ports.map((port, index) => elkPort(id, index, port.side, port.x, port.y, direction)),
       layoutOptions: {
         "elk.portConstraints": "FIXED_POS",
         // Raw materials start the flow, even those that feed a loop deep inside it (ELK refuses it for a node
@@ -222,14 +222,27 @@ function layoutOptions(direction: ArrangeDirection): LayoutOptions {
   };
 }
 
-function elkPort(node: LocalId, index: number, side: "in" | "out", x: number, y: number): ElkPort {
+/** Arranged to the right, flows enter on the left and leave on the right; arranged down, top and bottom. */
+const PORT_SIDES: Record<ArrangeDirection, Record<"in" | "out", string>> = {
+  right: { in: "WEST", out: "EAST" },
+  down: { in: "NORTH", out: "SOUTH" },
+};
+
+function elkPort(
+  node: LocalId,
+  index: number,
+  side: "in" | "out",
+  x: number,
+  y: number,
+  direction: ArrangeDirection,
+): ElkPort {
   return {
     id: `${node}\u0000${index}`,
     x,
     y,
     width: 0,
     height: 0,
-    layoutOptions: { "elk.port.side": side === "in" ? "WEST" : "EAST" },
+    layoutOptions: { "elk.port.side": PORT_SIDES[direction][side] },
   };
 }
 

@@ -1,18 +1,25 @@
 // A node's port as a React Flow handle, placed exactly where the scene's geometry says.
 import { Handle, Position, type NodeHandle } from "@xyflow/react";
 import type { CSSProperties } from "react";
-import type { PortView } from "../model/scene";
+import type { PortSide, PortView } from "../model/scene";
 import { tint } from "../parts";
 
 /** Diameter of a port, in flow units. */
 const PORT_SIZE = 10;
+
+const SIDES: Record<PortSide, Position> = {
+  left: Position.Left,
+  right: Position.Right,
+  top: Position.Top,
+  bottom: Position.Bottom,
+};
 
 /** The handle as React Flow needs it before the DOM is measured: edges of culled nodes still find it. */
 export function handleBounds(port: PortView): NodeHandle {
   return {
     id: port.handle,
     type: port.direction === "in" ? "target" : "source",
-    position: port.direction === "in" ? Position.Left : Position.Right,
+    position: SIDES[port.side],
     x: port.x - PORT_SIZE / 2,
     y: port.y - PORT_SIZE / 2,
     width: PORT_SIZE,

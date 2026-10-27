@@ -20,6 +20,8 @@ export const JUNCTION_SIZE = 48;
 
 export const NOTE_SIZE = { width: 240, height: 120 };
 export const FRAME_SIZE = { width: 480, height: 312 };
+/** A collapsed frame: its label bar, two grid steps high. */
+export const COLLAPSED_FRAME_HEIGHT = 48;
 
 /** A recipe card with one row per port: its inputs, then its outputs. */
 export function recipeHeight(rows: number): number {
