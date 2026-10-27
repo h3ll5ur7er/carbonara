@@ -86,7 +86,9 @@ test.describe("keyboard", () => {
     await page.keyboard.press("Enter");
     // The list takes focus a moment after it opens; keys pressed before that are lost.
     await expect(page.getByRole("option", { selected: true })).toBeFocused();
+    // One key at a time: the list may still be positioning itself, and a key it hasn't caught up with is lost.
     await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("option", { name: "Iron Plate (Coal Smelting)" })).toBeFocused();
     await page.keyboard.press("ArrowDown");
     await expect(page.getByRole("option", { name: "Iron Gear" })).toBeFocused();
     await page.keyboard.press("Enter");
