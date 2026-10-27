@@ -38,9 +38,19 @@ test("top to bottom from the palette, and locked nodes stay put", async ({ page 
   // Top to bottom: the ore comes before the washers, which come before the gears.
   expect((await flowPosition(page, "ore")).y).toBeLessThan((await flowPosition(page, "wash-a")).y);
   expect((await flowPosition(page, "wash-a")).y).toBeLessThan((await flowPosition(page, "gears")).y);
+  // Flows enter the arranged nodes at the top and leave at the bottom; the locked goal keeps its side port.
+  const gearsNode = page.locator('.react-flow__node[data-id="gears"]');
+  await expect(gearsNode.locator(".react-flow__handle-top")).toHaveCount(1);
+  await expect(gearsNode.locator(".react-flow__handle-bottom")).toHaveCount(1);
+  await expect(page.locator('.react-flow__node[data-id="goal"] .react-flow__handle-left')).toHaveCount(1);
   await page.keyboard.press("f");
   await expect.poll(async () => overlaps(await nodeBoxes(page))).toEqual([]);
   await expect(page).toHaveScreenshot("arranged-congested-down.png");
+
+  // Left to right turns them back.
+  await page.keyboard.press("Shift+A");
+  await expect(gearsNode.locator(".react-flow__handle-left")).toHaveCount(1);
+  await expect(page.locator(".react-flow__handle-top")).toHaveCount(0);
 });
 
 test("a locked node can't be dragged", async ({ page }) => {

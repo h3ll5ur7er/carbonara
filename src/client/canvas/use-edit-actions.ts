@@ -82,13 +82,24 @@ export function useEditActions({
       arrange(direction) {
         const selected = selection.current.nodes;
         const nodeIds = selected.length >= 2 ? selected : undefined;
+        // The layout engine gets the nodes as they'll be drawn: arranged down, their flows enter at the top and
+        // leave at the bottom (the editing manager turns them).
+        const arranged = new Set(nodeIds ?? Object.keys(shown?.nodes ?? {}));
+        const turned = Object.fromEntries(
+          Object.keys(shown?.nodes ?? {}).map((id) => {
+            const { flow, ...at } = layout?.[id] ?? { x: 0, y: 0 };
+            const turn = arranged.has(id) && !at.locked ? direction : flow;
+            return [id, { ...at, ...(turn === "down" && { flow: "down" as const }) }];
+          }),
+        );
+        const views = shown ? createSceneBuilder()(shown, turned, pack).nodes : scene.nodes;
         report(
           "Arrange",
           connector.editing.arrange({
             documentId,
             graph,
             direction,
-            shapes: shapesOf(scene.nodes),
+            shapes: shapesOf(views),
             ...(nodeIds && { nodeIds }),
           }),
         );

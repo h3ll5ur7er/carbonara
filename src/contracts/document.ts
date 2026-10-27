@@ -74,6 +74,13 @@ export const Position = z.object({
   height: z.number().positive().optional(),
   locked: z.literal(true).optional().describe("Locked nodes stay put: dragging, nudging and arranging leave them."),
   tag: TagColour.optional().describe("A colour tag the user gave the node."),
+  flow: z
+    .literal("down")
+    .optional()
+    .describe(
+      "Flows enter the node at the top and leave at the bottom, as arranging top to bottom leaves them; " +
+        "on the left and right when left out.",
+    ),
 });
 export type Position = z.infer<typeof Position>;
 

@@ -183,6 +183,21 @@ describe("arranging", () => {
     expect(await current()).toEqual(original);
   });
 
+  it("turns the flows of the nodes it arranges top to bottom down, and back when arranging left to right", async () => {
+    const { editing, current } = setup();
+    const nodeIds = ["ore", "smelt"];
+    await editing.arrange({ documentId: "doc-1", graph: "root", direction: "down", shapes, nodeIds });
+    const down = (await current()).layout["root"] ?? {};
+    expect(down["ore"]?.flow).toBe("down");
+    expect(down["smelt"]?.flow).toBe("down");
+    expect(down["area"]?.flow).toBeUndefined();
+
+    await editing.arrange({ documentId: "doc-1", graph: "root", direction: "right", shapes, nodeIds });
+    const right = (await current()).layout["root"] ?? {};
+    expect(right["ore"]).not.toHaveProperty("flow");
+    expect(right["smelt"]).not.toHaveProperty("flow");
+  });
+
   it("arranges only the nodes asked for", async () => {
     const { editing, current } = setup();
     await editing.arrange({

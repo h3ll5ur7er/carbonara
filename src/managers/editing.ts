@@ -115,7 +115,8 @@ export function createEditingManager({
       const positions = open.document.layout[scope] ?? {};
       const arranged = await arrange({ graph, positions, shapes, direction, nodeIds }, layout);
 
-      // ELK takes a moment: move the nodes that still exist then, keeping their other layout fields.
+      // ELK takes a moment: move the nodes that still exist then, keeping their other layout fields. Their flows
+      // run the way they were arranged: down puts their ports on the top and bottom edges.
       const latest = documents.get(documentId);
       if (!latest) return unknownDocument(documentId);
       const nodes = graphOf(latest.document, scope)?.nodes ?? {};
@@ -123,7 +124,10 @@ export function createEditingManager({
       const moves = Object.fromEntries(
         Object.entries(arranged)
           .filter(([id]) => nodes[id] && !latestLayout[id]?.locked)
-          .map(([id, at]) => [id, { ...latestLayout[id], ...at }]),
+          .map(([id, at]) => {
+            const { flow: _flow, ...kept } = latestLayout[id] ?? {};
+            return [id, { ...kept, ...at, ...(direction === "down" && { flow: "down" as const }) }];
+          }),
       );
       if (Object.keys(moves).length === 0) return ok(documentInfo(latest));
       return commit(documentId, [{ type: "moveNodes", graph: scope, positions: moves }], "Arrange");

@@ -21,6 +21,9 @@ export interface ItemView {
   form: ItemForm;
 }
 
+/** The edge of the node a port sits on: flows run left to right, or (`flow: "down"`) top to bottom. */
+export type PortSide = "left" | "right" | "top" | "bottom";
+
 export interface PortView {
   /** Unique within the node; edges attach to it. */
   handle: string;
@@ -29,6 +32,7 @@ export interface PortView {
   /** Where the port sits on the node's border, relative to its top-left corner. */
   x: number;
   y: number;
+  side: PortSide;
 }
 
 interface NodeViewBase {
@@ -138,7 +142,7 @@ export function createSceneBuilder() {
         cached.pack === pack &&
         cached.junctionItem === junctionItem
           ? cached.view
-          : decorated(position, nodeView(id, node, position, index, junctionItem));
+          : decorated(position, oriented(position?.flow, nodeView(id, node, position, index, junctionItem)));
       next.set(id, { node, position, pack, junctionItem, view });
       (view.kind === "frame" ? frames : others).push(view);
     }
@@ -292,5 +296,23 @@ function decorated(position: Position | undefined, view: NodeView): NodeView {
 }
 
 function port(direction: PortDirection, item: ItemView, x: number, y: number): PortView {
-  return { handle: handleId(direction, item.id), direction, item, x, y };
+  return { handle: handleId(direction, item.id), direction, item, x, y, side: direction === "in" ? "left" : "right" };
+}
+
+/**
+ * A node whose flows run down (arranged top to bottom) takes them in along its top edge and gives them out along
+ * its bottom edge, each side's ports spread evenly in their order.
+ */
+function oriented(flow: Position["flow"], view: NodeView): NodeView {
+  if (flow !== "down" || view.ports.length === 0) return view;
+  const spread = (direction: PortDirection): PortView[] => {
+    const own = view.ports.filter((candidate) => candidate.direction === direction);
+    return own.map((candidate, index) => ({
+      ...candidate,
+      x: (view.width * (index + 1)) / (own.length + 1),
+      y: direction === "in" ? 0 : view.height,
+      side: direction === "in" ? "top" : "bottom",
+    }));
+  };
+  return { ...view, ports: [...spread("in"), ...spread("out")] };
 }

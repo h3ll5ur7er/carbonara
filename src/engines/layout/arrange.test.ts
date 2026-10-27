@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Graph, Node, Position } from "../../contracts/document";
 import type { NodeShape } from "../../contracts/layout";
 import { arrange, type ArrangeInput } from "./arrange";
-import { chain, congested, shapeOf, type LayoutScene } from "./scenes.fixture";
+import { chain, congested, downShapes, shapeOf, type LayoutScene } from "./scenes.fixture";
 
 const elk = new ELK();
 
@@ -107,6 +107,19 @@ describe("arranging the canonical scenes", () => {
       const arranged = merged(start, await arrange(input(scene, start), elk));
       expect(crossings(scene, arranged)).toBeLessThan(crossings(scene, start));
       expect(crossings(scene, arranged)).toBeLessThanOrEqual(crossings(scene, scene.positions));
+    });
+
+    it(`runs ${name} top to bottom with ports on the top and bottom edges: flows go down`, async () => {
+      const down = { ...scene, shapes: downShapes(scene.shapes) };
+      const arranged = merged(scene.positions, await arrange(input(down, scene.positions, { direction: "down" }), elk));
+      expect(overlapping(down, arranged)).toEqual([]);
+      const upward = Object.values(scene.graph.edges).filter(
+        (edge) =>
+          portPoint(down, arranged, edge.to, "in", edge.item).y <=
+          portPoint(down, arranged, edge.from, "out", edge.item).y,
+      );
+      // Only the water loop's way back may run against the flow.
+      expect(upward.length).toBeLessThanOrEqual(1);
     });
 
     it(`runs ${name} left to right: every forward flow leaves its producer to the right`, async () => {
