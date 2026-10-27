@@ -3,7 +3,7 @@
 // (machines, power, raw inputs against the map, byproducts, shortfalls). Accept adds it as one undo step,
 // Adjust goes back to the goals (the proposal's) with the ghost still shown, Discard drops it. Proposals an MCP
 // client makes open here too (`followProposals`).
-import { Check, ChevronRight, Plus, Recycle, Undo2, WandSparkles, X } from "lucide-react";
+import { Check, ChevronRight, Plus, Recycle, TriangleAlert, Undo2, WandSparkles, X } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import type { PlanOptions } from "../../../contracts/managers";
 import type { PackData, RateUnit } from "../../../contracts/pack";
@@ -231,18 +231,28 @@ function GoalsForm({ planner, document, pack, rateUnit }: PlannerTarget & { plan
           <ResourceWeights pack={pack} options={options} />
         </div>
       </div>
-      <footer className="flex items-center gap-2 border-t border-line-subtle px-4 py-3">
-        <p role={error ? "alert" : undefined} className="min-w-0 flex-1 text-xs text-danger">
+      <footer className="flex flex-col gap-3 border-t border-line-subtle px-4 py-3">
+        {/* Why there's no plan gets a line of its own above the buttons, as a callout like the shortfalls. */}
+        <p
+          role={error ? "alert" : undefined}
+          className={cx(
+            "flex gap-2 rounded-md bg-danger-soft px-3 py-2 text-xs text-danger inset-ring inset-ring-danger/25",
+            !error && "hidden",
+          )}
+        >
+          <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
           {error}
         </p>
-        {planner.proposal && (
-          <Button variant="ghost" onClick={() => usePlanner.setState({ stage: "proposal" })}>
-            Back
+        <div className="flex items-center justify-end gap-2">
+          {planner.proposal && (
+            <Button variant="ghost" onClick={() => usePlanner.setState({ stage: "proposal" })}>
+              Back
+            </Button>
+          )}
+          <Button type="submit" variant="primary" disabled={planning}>
+            <WandSparkles /> {planning ? "Planning…" : "Plan"}
           </Button>
-        )}
-        <Button type="submit" variant="primary" disabled={planning}>
-          <WandSparkles /> {planning ? "Planning…" : "Plan"}
-        </Button>
+        </div>
       </footer>
     </form>
   );
