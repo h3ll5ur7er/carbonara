@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main window: core events, menus and windows. Storage and files go through the app's own commands (src/lib.rs), which never take a path from the webview.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

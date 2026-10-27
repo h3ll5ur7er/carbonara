@@ -1,6 +1,9 @@
 [workspace]
 resolver = "3"
-members = ["crates/solver", "crates/solver-wasm"]
+members = ["crates/solver", "crates/solver-wasm", "src/shells/tauri/src-tauri"]
+# The desktop shell needs WebKitGTK and friends to build on Linux, so plain `cargo test` and `cargo clippy` leave
+# it out; `-p carbonara-desktop` builds it (docs/Development.md, Desktop). Add every other new crate to both lists.
+default-members = ["crates/solver", "crates/solver-wasm"]
 
 [workspace.package]
 edition = "2024"

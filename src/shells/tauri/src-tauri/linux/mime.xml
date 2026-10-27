@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The file types of tauri.conf.json's fileAssociations, for Linux desktops: installed to
+     /usr/share/mime/packages by the .deb and .rpm, where the package manager's triggers register them. -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-carbonara">
+    <comment>Carbonara factory</comment>
+    <sub-class-of type="application/gzip"/>
+    <glob pattern="*.carbonara"/>
+  </mime-type>
+  <mime-type type="application/x-carbonara-pack">
+    <comment>Carbonara game pack</comment>
+    <sub-class-of type="application/zip"/>
+    <glob pattern="*.cpack"/>
+  </mime-type>
+</mime-info>

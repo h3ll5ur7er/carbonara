@@ -34,6 +34,15 @@ export function testKeyValueStorage(name: string, newBacking: () => { open: () =
       await expect(storage.keys()).resolves.toEqual([]);
     });
 
+    it("keeps keys with any characters apart", async () => {
+      // Pack keys contain slashes; desktop keys become file names, which may be case-insensitive or reserved.
+      const keys = ["info/satisfactory", "../escape", "con", "Iron", "iron", "", "Eisenbarren ⚙"];
+      const storage = newBacking().open();
+      for (const [index, key] of keys.entries()) await storage.set(key, index);
+      for (const [index, key] of keys.entries()) await expect(storage.get(key)).resolves.toBe(index);
+      await expect(storage.keys().then((stored) => stored.sort())).resolves.toEqual([...keys].sort());
+    });
+
     it("keeps values for the next session", async () => {
       const backing = newBacking();
       await backing.open().set("doc", { name: "Iron" });
