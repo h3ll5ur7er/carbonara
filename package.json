@@ -19,7 +19,8 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "e2e": "playwright test",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "schema": "tsx tools/schema.ts"
   },
   "dependencies": {
     "@xyflow/react": "12.12.0",
@@ -46,6 +47,7 @@
     "globals": "^17.13.0",
     "prettier": "3.9.10",
     "tailwindcss": "4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
     "vite": "8.3.5",

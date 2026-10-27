@@ -1,0 +1,271 @@
+{
+  "title": "Carbonara pack data file (data/*.yaml)",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "units": {
+      "type": "object",
+      "properties": {
+        "rate": {
+          "type": "string",
+          "enum": [
+            "per_second",
+            "per_minute",
+            "per_hour"
+          ]
+        }
+      },
+      "required": [
+        "rate"
+      ]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "form": {
+            "type": "string",
+            "enum": [
+              "solid",
+              "fluid"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "minLength": 1
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "form"
+        ]
+      }
+    },
+    "buildings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "icon": {
+            "type": "string",
+            "minLength": 1
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "speed": {
+            "default": 1,
+            "description": "Crafting speed: a recipe taking `time` seconds takes `time / speed` in this building.",
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "power": {
+            "description": "Power in MW: what the building consumes or produces at 100%.",
+            "type": "object",
+            "properties": {
+              "consume": {
+                "type": "number",
+                "minimum": 0
+              },
+              "produce": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          },
+          "fields": {
+            "description": "Settings the pack's plugin interprets, such as the clock range.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": [
+                  "number",
+                  "string",
+                  "boolean"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      }
+    },
+    "recipes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "icon": {
+            "type": "string",
+            "minLength": 1
+          },
+          "buildings": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+            },
+            "description": "Buildings that can run the recipe; the first is the default."
+          },
+          "time": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Seconds per craft at speed 1."
+          },
+          "in": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+            },
+            "additionalProperties": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "out": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+            },
+            "additionalProperties": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "description": "Amounts per craft; probabilistic outputs are written as expected values."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "id",
+          "buildings",
+          "time",
+          "out"
+        ]
+      }
+    },
+    "logistics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "carries": {
+            "type": "string",
+            "enum": [
+              "solid",
+              "fluid"
+            ]
+          },
+          "capacity": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Throughput in the pack's rate unit."
+          }
+        },
+        "required": [
+          "id",
+          "carries",
+          "capacity"
+        ]
+      }
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+          },
+          "limit": {
+            "description": "The most the map yields, in the pack's rate unit.",
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "extractors": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+            }
+          }
+        },
+        "required": [
+          "item"
+        ]
+      }
+    }
+  }
+}

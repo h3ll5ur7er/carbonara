@@ -1,0 +1,47 @@
+import { describe, expect, it } from "vitest";
+import { PackData } from "../../contracts/pack";
+import { checkReferences } from "./references";
+
+const base = PackData.parse({
+  items: [
+    { id: "ore", name: "Ore", form: "solid" },
+    { id: "plate", name: "Plate", form: "solid" },
+  ],
+  buildings: [{ id: "furnace", name: "Furnace" }],
+  recipes: [{ id: "plate", buildings: ["furnace"], time: 1, in: { ore: 1 }, out: { plate: 1 } }],
+  resources: [{ item: "ore", extractors: ["furnace"] }],
+});
+
+const withChange = (change: Partial<Record<keyof PackData, unknown>>) => PackData.parse({ ...base, ...change });
+
+describe("checkReferences", () => {
+  it("finds nothing wrong with a consistent pack", () => {
+    expect(checkReferences(base)).toEqual([]);
+  });
+
+  it("reports items a recipe uses but nobody defines", () => {
+    const data = withChange({ recipes: [{ ...base.recipes[0], in: { ore: 1, coal: 2 } }] });
+    expect(checkReferences(data)).toEqual([{ path: ["recipes", 0, "in", "coal"], message: "Unknown item 'coal'" }]);
+  });
+
+  it("reports unknown buildings of recipes and extractors", () => {
+    const data = withChange({
+      recipes: [{ ...base.recipes[0], buildings: ["smelter"] }],
+      resources: [{ item: "ore", extractors: ["drill"] }],
+    });
+    expect(checkReferences(data)).toEqual([
+      { path: ["recipes", 0, "buildings", 0], message: "Unknown building 'smelter'" },
+      { path: ["resources", 0, "extractors", 0], message: "Unknown building 'drill'" },
+    ]);
+  });
+
+  it("reports resources of unknown items", () => {
+    const data = withChange({ resources: [{ item: "gold" }] });
+    expect(checkReferences(data)).toEqual([{ path: ["resources", 0, "item"], message: "Unknown item 'gold'" }]);
+  });
+
+  it("reports ids defined twice, at the second definition", () => {
+    const data = withChange({ items: [...base.items, { id: "ore", name: "Ore again", form: "solid" }] });
+    expect(checkReferences(data)).toEqual([{ path: ["items", 2, "id"], message: "Item 'ore' is defined twice" }]);
+  });
+});

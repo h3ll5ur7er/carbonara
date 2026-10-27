@@ -47,16 +47,17 @@ items:
 buildings:
   - id: smelter
     name: Smelter
-    power: { consume: 4 }             # MW
+    speed: 1                           # crafting speed (default 1)
+    power: { consume: 4 }              # MW
     fields: { clock: { min: 1, max: 250, default: 100 } }   # interpreted by the plugin
 recipes:
   - id: iron-ingot
-    building: smelter
+    buildings: [smelter]               # buildings that can run it; the first is the default
     time: 2                            # seconds per craft
     in:  { iron-ore: 1 }
     out: { iron-ingot: 1 }
   - id: alt-pure-iron-ingot
-    building: refinery
+    buildings: [refinery]
     time: 12
     in:  { iron-ore: 7, water: 4 }
     out: { iron-ingot: 13 }
@@ -65,12 +66,14 @@ logistics:
   - { id: belt-mk1, name: Conveyor Belt Mk.1, aliases: [mk1 belt], carries: solid, capacity: 60 }
   - { id: pipe-mk1, carries: fluid, capacity: 300 }
 resources:
-  - { id: iron-ore, extractors: [miner-mk1, miner-mk2], nodes: { impure: 39, normal: 42, pure: 46 } }
+  - { item: iron-ore, limit: 92100, extractors: [miner-mk1, miner-mk2] }   # limit: the most the map yields
 ```
 
 `aliases` let plain language ("yellow belt") resolve to data, for the MCP tools and the command palette.
 
-The zod schemas in `src/contracts/` are the source of truth. JSON Schema is generated from them for pack authors and editors.
+Item ids may carry a variant after `@` (`steam@500`, `gear@rare`), for plugins that model temperatures or quality. Probabilistic outputs are written as expected values (`0.25`).
+
+The zod schemas in [[src/contracts/pack.ts]] are the source of truth for the shape. `pnpm schema` generates JSON Schemas for pack authors and editors into `schemas/`, and a test fails when they're out of date. Rules beyond the shape (every reference resolves, no id defined twice) are the `packs` engine's: [[src/engines/packs/references.ts]].
 
 ## Built-in and third-party packs
 

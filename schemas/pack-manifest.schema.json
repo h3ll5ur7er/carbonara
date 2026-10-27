@@ -1,0 +1,66 @@
+{
+  "title": "Carbonara pack manifest (manifest.yaml)",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$"
+    },
+    "engine": {
+      "type": "string",
+      "pattern": "^[\\^~]?\\d+(\\.\\d+){0,2}$",
+      "description": "The pack format and plugin API versions the pack was written for."
+    },
+    "game": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "data": {
+      "default": "data/",
+      "description": "Folder whose files are merged, in name order, into the pack data.",
+      "type": "string",
+      "minLength": 1
+    },
+    "plugin": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The plugin module. Every pack has one; the template's does nothing."
+    },
+    "theme": {
+      "type": "object",
+      "properties": {
+        "accent": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        }
+      }
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "version",
+    "engine",
+    "plugin"
+  ]
+}
