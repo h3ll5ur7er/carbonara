@@ -47,13 +47,17 @@ jobs:
   e2e:
     name: End-to-end and screenshots
     runs-on: ubuntu-latest
+    # The same image `pnpm e2e` uses locally (scripts/e2e.mjs), so screenshots render identically.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_IN_IMAGE: 1
+      CI: true
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
-      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e
-        env:
-          CI: true
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

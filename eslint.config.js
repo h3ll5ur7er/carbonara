@@ -29,7 +29,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["eslint-rules/**", "*.config.{js,ts}", "tools/**", "bench/**"],
+    files: ["eslint-rules/**", "*.config.{js,ts}", "tools/**", "scripts/**", "bench/**"],
     languageOptions: { globals: globals.node },
   },
   prettier,
