@@ -21,15 +21,37 @@ The tokens live in `src/client/ui/tokens.css` and reach components as Tailwind u
 | Lines and grid | `line-subtle`, `line`, `line-strong`; `grid-dot`, `grid-dot-major` |
 | Accent | `accent`, `accent-hover`, `accent-fg` (legible as text), `accent-soft`, `accent-glow` |
 | Flows | `flow-healthy` (teal), `flow-near-capacity` (amber), `flow-over-capacity` (red) |
+| Status and controls | `danger`, `danger-soft`, `success` (messages, destructive actions); `knob` (switch and slider knobs, light in both themes); `scrim` (behind modal dialogs) |
 | Type | `font-sans` (Inter), `font-mono` (JetBrains Mono, tabular figures); sizes `2xs` (11 px) to `3xl` (32 px) |
-| Shape and depth | 4 px spacing step, radii `xs`–`xl`, shadows `sm`, `panel`, `overlay` |
-| Motion | `--duration-instant` to `--duration-slow` (0 with reduced motion), easings `out` and `in-out` |
+| Shape and depth | 4 px spacing step, radii `xs`–`xl`, shadows `sm`, `panel`, `overlay`, `knob`; `inset-shadow-well` (recessed fields); blurs `glass`, `scrim` |
+| Motion | `--duration-instant` to `--duration-slow` (0 with reduced motion), easings `out` and `in-out`; entrances `animate-pop-in` (popovers), `animate-rise-in` (dialogs, toasts), `animate-fade-in`, `animate-fade-out` |
 
-- **Themes:** each colour is written once as `light-dark(light, dark)`, so a theme only sets `color-scheme`. Dark is the default; `data-theme="light"` or `"dark"` on `<html>` is an explicit choice, and without one the theme follows `prefers-color-scheme`.
-- **Pack accent:** a pack sets `--pack-accent` (its `theme.accent`) on `<html>` or on any subtree. The accent tokens are derived from it where they're used (`@theme inline`), so they follow it without being redefined.
+- **Themes:** each colour is written once as `light-dark(light, dark)`, so a theme only sets `color-scheme`. Dark is the default; `data-theme="light"` or `"dark"` on `<html>` is an explicit choice, and without one the theme follows `prefers-color-scheme`. The choice is held in memory by `ui/use-theme.ts` (shared by the theme toggle and the command palette) until the preferences access component persists it.
+- **Pack accent:** a pack sets `--pack-accent` (its `theme.accent`) on `<html>` or on any subtree; `packAccentStyle(accent)` in `ui/theme.ts` gives the style for a subtree. The accent tokens are derived from it where they're used (`@theme inline`), so they follow it without being redefined.
 - **Colour-blind palette:** `data-palette="colorblind"` on `<html>` swaps the flow colours for Okabe–Ito blue, yellow and vermillion, which also differ in lightness.
 - **Fonts** are bundled with the app (`@fontsource-variable`), never loaded from the network, so screenshots are deterministic and the app works offline.
 - The canvas dot grid has a dot every 24 flow units and a brighter one every fourth, with dots centred on multiples of the pitch.
+
+## Primitives
+
+The design system lives in `src/client/ui/`, one file per primitive, built on Radix primitives and styled only with tokens. The `?scene=gallery` scene shows every primitive in its common states and lets you switch the theme and the pack accent; its screenshots and keyboard tests are in `e2e/ui.spec.ts`.
+
+| Primitive | File | Notes |
+| --- | --- | --- |
+| `Button` | `button.tsx` | Variants `primary` (the one main action), `secondary`, `ghost`, `danger`; sizes `sm` (28 px) and `md` (32 px) |
+| `IconButton` | `button.tsx` | Always has a `label` (its accessible name and tooltip) and optionally the shortcut |
+| `Input` | `input.tsx` | Fields share `fieldSurface`: a recessed well whose hairline turns accent with a soft halo on focus |
+| `NumberInput` | `number-input.tsx` | Tabular figures, a unit suffix and a stepper. Arrow keys nudge by about 1/100 of the range (a power of ten, at least the step), Shift or Page Up/Down by ten times that; Enter or blur commits a typed value (clamped, snapped to the step), Escape reverts. Only committed values leave the field, so each edit is one undo step |
+| `Slider` | `slider.tsx` | `onValueChange` follows the drag, `onValueCommit` fires once at the end |
+| `Select` | `select.tsx` | For short option lists |
+| `Menu…`, `ContextMenu…` | `menu.tsx` | Items with an optional icon and shortcut; the context menu also opens with Shift+F10 or the context-menu key |
+| `Tooltip` | `tooltip.tsx` | Opens on hover and keyboard focus; needs one `TooltipProvider` at the root |
+| `Dialog` | `dialog.tsx` | Title, optional description, body and a footer with the primary action last; focus is trapped and returns to the trigger |
+| `Tabs` | `tabs.tsx` | A segmented control; arrow keys move between tabs |
+| `Toggle`, `Switch` | `toggle.tsx` | A pressed/unpressed icon button for toolbars, a switch for on/off settings |
+| `Kbd` | `kbd.tsx` | Shows keys already in display form |
+
+Popovers (menus, select lists) float on frosted glass (`popoverSurface`); dialogs sit on a solid surface over a blurred scrim. Number formatting and parsing (decimal comma, units typed after the number, no float noise) live in `number.ts`.
 
 ## Flows as the hero visual
 

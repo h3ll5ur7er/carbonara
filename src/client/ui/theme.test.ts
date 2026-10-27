@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveTheme, toggleTheme } from "./theme";
+import { packAccentStyle, resolveTheme, toggleTheme } from "./theme";
 
 describe("resolveTheme", () => {
   it("follows the system when there is no explicit choice", () => {
@@ -10,6 +10,16 @@ describe("resolveTheme", () => {
   it("keeps an explicit choice whatever the system prefers", () => {
     expect(resolveTheme("light", "dark")).toBe("light");
     expect(resolveTheme("dark", "light")).toBe("dark");
+  });
+});
+
+describe("packAccentStyle", () => {
+  it("sets the pack accent that the accent tokens derive from", () => {
+    expect(packAccentStyle("#3b82f6")).toEqual({ "--pack-accent": "#3b82f6" });
+  });
+
+  it("keeps the inherited accent when the pack has none", () => {
+    expect(packAccentStyle(undefined)).toEqual({});
   });
 });
 

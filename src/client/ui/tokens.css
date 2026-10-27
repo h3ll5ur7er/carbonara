@@ -92,6 +92,16 @@
   --color-grid-dot: light-dark(oklch(0.35 0.03 260 / 0.22), oklch(0.8 0.02 260 / 0.17));
   --color-grid-dot-major: light-dark(oklch(0.35 0.03 260 / 0.3), oklch(0.8 0.02 260 / 0.26));
 
+  /* Status, for messages and destructive actions (flows have their own colours above). */
+  --color-danger: light-dark(oklch(0.55 0.19 25), oklch(0.7 0.17 25));
+  --color-danger-soft: light-dark(oklch(0.55 0.19 25 / 0.1), oklch(0.7 0.17 25 / 0.14));
+  --color-success: light-dark(oklch(0.55 0.11 165), oklch(0.78 0.12 165));
+
+  /* The knob of switches and sliders: light in both themes. */
+  --color-knob: light-dark(oklch(1 0 0), oklch(0.97 0.003 260));
+  /* Dims the app behind a modal dialog. */
+  --color-scrim: light-dark(oklch(0.3 0.02 260 / 0.22), oklch(0.08 0.005 260 / 0.55));
+
   /* Shadow tints, used by the shadows below. */
   --color-shadow: light-dark(oklch(0.3 0.03 260 / 0.1), oklch(0 0 0 / 0.5));
   --color-highlight: light-dark(oklch(1 0 0 / 0.9), oklch(1 0 0 / 0.06));
@@ -140,8 +150,15 @@
   --shadow-overlay:
     inset 0 1px 0 0 var(--color-highlight), 0 0 0 1px var(--color-line), 0 24px 48px -16px var(--color-shadow);
 
+  /* Knobs (switch, slider) sit a little above their track. */
+  --shadow-knob: 0 1px 3px 0 var(--color-shadow), 0 0 0 0.5px var(--color-line);
+  /* Editable fields are recessed wells. */
+  --inset-shadow-*: initial;
+  --inset-shadow-well: inset 0 1px 2px 0 var(--color-shadow);
+
   --blur-*: initial;
   --blur-glass: 20px;
+  --blur-scrim: 3px;
 
   /* Motion. Durations are `--duration-*` above (they drop to 0 for reduced motion). */
   --ease-*: initial;
@@ -149,6 +166,36 @@
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --default-transition-duration: var(--duration-fast);
   --default-transition-timing-function: var(--ease-out);
+
+  /* Entrances of overlays: popovers grow from their trigger, dialogs and toasts rise into place. */
+  --animate-*: initial;
+  --animate-pop-in: pop-in var(--duration-fast) var(--ease-out);
+  --animate-fade-in: fade-in var(--duration-base) var(--ease-out);
+  --animate-rise-in: rise-in var(--duration-base) var(--ease-out);
+  --animate-fade-out: fade-out var(--duration-fast) var(--ease-in-out);
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem) scale(0.98);
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
 }
 
 /* ---------- Tokens that follow the runtime inputs ---------- */

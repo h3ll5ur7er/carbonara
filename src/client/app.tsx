@@ -1,8 +1,30 @@
 // The app shell: top bar over a full-bleed canvas, with slots for the side panels.
+// In development, `?scene=<name>` renders a fixed scene instead (src/client/scenes/registry.ts).
+import { lazy, Suspense } from "react";
 import { Canvas } from "./canvas/canvas";
 import { TopBar } from "./top-bar";
+import { TooltipProvider } from "./ui/tooltip";
+
+/** Statically false in production builds, so the scenes are left out of the bundle. */
+const SceneHost =
+  import.meta.env.DEV && new URLSearchParams(location.search).has("scene") ? lazy(() => import("./scenes/host")) : null;
 
 export function App() {
+  if (SceneHost) {
+    return (
+      <Suspense fallback={null}>
+        <SceneHost />
+      </Suspense>
+    );
+  }
+  return (
+    <TooltipProvider>
+      <AppShell />
+    </TooltipProvider>
+  );
+}
+
+export function AppShell() {
   return (
     <div className="flex h-dvh w-dvw flex-col overflow-hidden bg-canvas font-sans text-fg">
       <TopBar />
