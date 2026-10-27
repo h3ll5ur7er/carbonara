@@ -5,3 +5,4 @@ dist
 tasks
 docs
 schemas
+.claude/worktrees

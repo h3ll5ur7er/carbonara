@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 import local from "./eslint-rules/layers.js";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "target", "src/engines/solver/wasm", "playwright-report", "test-results"] },
+  { ignores: [".claude/worktrees", "dist", "node_modules", "target", "src/engines/solver/wasm", "playwright-report", "test-results"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
