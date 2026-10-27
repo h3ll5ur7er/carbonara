@@ -1,6 +1,6 @@
 # Desktop
 
-The desktop app is the web app in a Tauri 2 window. It runs the same client, managers and engines; what changes is the platform underneath (storage in the app data folder, native file dialogs) and what only a desktop app can do: open files by double-click, keep one running instance, have a menu bar, update itself, and later serve MCP ([[Architecture/MCP server]]). Tasks: [[CARB-57]] (shell), [[CARB-58]] (releases and updates).
+The desktop app is the web app in a Tauri 2 window. It runs the same client, managers and engines; what changes is the platform underneath (storage in the app data folder, native file dialogs) and what only a desktop app can do: open files by double-click, keep one running instance, have a menu bar, update itself, and serve MCP ([[Architecture/MCP server]]). Tasks: [[CARB-57]] (shell, MCP wiring), [[CARB-58]] (releases and updates).
 
 [TOC]
 
@@ -13,13 +13,14 @@ src/shells/tauri/
 ├─ backend.ts                # composition root: the managers on desktop storage
 ├─ opened-files.tsx          # files opened with the app → documents, or the pack trust prompt
 ├─ menu.ts                   # the macOS menu bar, from the command registry
+├─ mcp.ts                    # the webview's end of the MCP server: `mcp-call` events in, `mcp_answer` out
 ├─ vite.config.ts            # the web build's config with this entry, into dist/desktop
 ├─ icon.svg                  # the app icon's source (`pnpm tauri icon …`)
 └─ src-tauri/                # the Rust shell: a workspace member (`carbonara-desktop`)
    ├─ tauri.conf.json        # window, CSP, bundles, file associations
    ├─ capabilities/          # what the webview may call
    ├─ linux/                 # the .desktop template and MIME types for the .deb and .rpm
-   └─ src/                   # lib.rs (commands, setup), storage.rs, dialogs.rs, opened.rs, updater.rs
+   └─ src/                   # lib.rs (commands, setup), storage.rs, dialogs.rs, opened.rs, updater.rs, mcp.rs
 src/platforms/tauri/         # the tauri platform: KeyValueStorage, FileAccess, the invoke proxy
 ```
 
@@ -45,12 +46,15 @@ flowchart LR
     dialogs[dialogs.rs: native dialogs]
     opened[opened.rs: files opened with the app]
     updater[updater.rs]
+    mcp[mcp.rs: MCP server]
   end
   client -- RPC --> managers
   kv -- "invoke over a MessagePort" --> serve
   serve -- invoke --> storage
   files -- invoke --> dialogs
   files -- invoke --> opened
+  mcp -- "mcp-call events" --> client
+  client -- "mcp_answer" --> mcp
 ```
 
 Tauri's `invoke` exists only on the UI thread, but the access components that store documents and packs run in the backend worker. So the platform calls are proxied (as [[Architecture#Threads and processes]] says): the UI thread creates a `MessageChannel`, serves the Tauri commands on one end with `serveInvoke`, and posts the other end to the worker as its first message; the worker wraps it in `proxyInvoke` ([[src/platforms/tauri/invoke.ts]]), which has the shape of `invoke`. The UI thread serves only the four storage commands, so code in the worker (which still includes third-party plugins until [[CARB-42]]) can't open dialogs or reach anything else, and the port isn't reachable from the worker's globals.
@@ -123,7 +127,12 @@ The version in `package.json` stays `0.0.0`: the tag is the release's version.
 
 ## MCP server
 
-The MCP server ([[CARB-60]], `crates/mcp`) starts in the Rust shell's `setup` in [[src/shells/tauri/src-tauri/src/lib.rs]], where a comment marks the place: add the crate as a dependency of `carbonara-desktop` and start it there with the `AppHandle`. The managers live in the webview's backend worker, so a tool call has to reach them through the webview: for example, the shell emits the call as an event, a small listener on the UI thread (next to `OpenedFiles` in [[src/shells/tauri/main.tsx]]) passes it to the connector as an ordinary manager call, and answers through a command. Nothing else in this shell needs to change.
+The MCP server ([[CARB-60]], `crates/mcp`, [[Architecture/MCP server]]) runs inside the desktop app; [[src/shells/tauri/src-tauri/src/mcp.rs]] plugs it in:
+
+- **While the app runs**, `setup` serves it on `127.0.0.1:41736` (or any free port when that one is taken) behind the per-install token, kept in the app's config folder as `mcp-token`, and writes `mcp.json` there with the URL and token. If it can't start, the app runs without MCP and says so on stderr.
+- **Tool calls** go to the webview as `mcp-call` events; the UI thread hands them to the MCP bridge (`attachMcpShell` in [[src/shells/tauri/main.tsx]], transport in [[src/shells/tauri/mcp.ts]]), which checks the permissions, calls the managers through the connector and answers with the `mcp_answer` command. The managers live in the backend worker, so this is the only way to them.
+- **`mcp_connection`** tells the webview the URL, token and the app's executable, for the copy-config snippets of the AI access dialog.
+- **`carbonara mcp`** (the app's executable with the argument `mcp`) is the stdio bridge for clients that only launch stdio servers. `run()` checks for it before anything else, so it opens no window and isn't handed to the running instance; it reads `mcp.json` from the config folder and forwards to the running app.
 
 ## Building and testing
 
@@ -132,7 +141,7 @@ See [[Development#Desktop]] for the commands. What runs where:
 | Check | Where |
 | --- | --- |
 | TS platform implementations, the proxy, opened files, the menu mapping, the desktop backend | `pnpm test` |
-| The Rust store, opened-file handling, updater configuration | `cargo test -p carbonara-desktop` |
+| The Rust store, opened-file handling, updater configuration, starting the MCP server | `cargo test -p carbonara-desktop` |
 | The app builds and bundles on Linux | CI job *Desktop app (Linux)* on every push |
 | Installers for all three systems | `release.yml`, on tags |
 

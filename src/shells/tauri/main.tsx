@@ -1,6 +1,7 @@
 // Desktop shell, UI thread: the web app in the Tauri window, with the desktop platform wired in. The backend
 // worker stores in the app data folder through the Tauri commands this thread serves it; the File commands use
-// native dialogs; files opened with the app open here; macOS gets a menu bar. See docs/Architecture/Desktop.md.
+// native dialogs; files opened with the app open here; the MCP server's tool calls reach the managers through
+// this thread; macOS gets a menu bar. See docs/Architecture/Desktop.md.
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { StrictMode } from "react";
@@ -9,12 +10,15 @@ import { App } from "../../client/app";
 import { ConnectorProvider, createConnector } from "../../client/core/connector";
 import { platformOf } from "../../client/core/commands-shortcuts";
 import { setFileAccess } from "../../client/features/documents/actions";
+import { attachMcpShell } from "../../client/features/mcp/host";
+import type { McpConnectionInfo } from "../../client/features/mcp/snippets";
 import { appRegistry } from "../../client/shell/app-commands";
 import { errorMessage, toast } from "../../client/shell/toasts";
 import "../../client/styles.css";
 import { createTauriFileAccess, type FileContents } from "../../platforms/tauri/files";
 import { serveInvoke } from "../../platforms/tauri/invoke";
 import { STORAGE_COMMANDS } from "../../platforms/tauri/key-value";
+import { mcpTransport } from "./mcp";
 import { installMenuBar } from "./menu";
 import { OpenedFiles } from "./opened-files";
 
@@ -29,6 +33,13 @@ const connector = createConnector({
 });
 
 setFileAccess(createTauriFileAccess(invoke));
+// Before rendering, so the AI access dialog has the connection for its copy-config snippets.
+const mcpConnection = await invoke<McpConnectionInfo | null>("mcp_connection");
+attachMcpShell({
+  connector,
+  transport: mcpTransport(invoke, listen),
+  ...(mcpConnection && { connection: mcpConnection }),
+});
 if (platformOf(navigator.platform) === "mac") {
   installMenuBar(appRegistry).catch((error: unknown) =>
     toast({ title: "Couldn't set up the menu bar", description: errorMessage(error), tone: "error" }),

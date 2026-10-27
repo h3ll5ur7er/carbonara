@@ -1,8 +1,9 @@
 //! The desktop shell: the web app (src/shells/tauri/main.tsx) in a native window, with storage in the app data
-//! folder, native file dialogs, file associations, one running instance, and updates. The webview reaches it only
+//! folder, native file dialogs, file associations, one running instance, updates and the MCP server. The webview reaches it only
 //! through the commands below; see docs/Architecture/Desktop.md.
 
 mod dialogs;
+mod mcp;
 mod opened;
 mod storage;
 mod updater;
@@ -89,6 +90,19 @@ fn receive(app: &AppHandle, paths: Vec<std::path::PathBuf>) {
 }
 
 pub fn run() {
+    // The updater builds reqwest with rustls but without a crypto provider, and so every HTTP client in the app;
+    // install the one it uses before anything (the stdio bridge's client among them) builds one.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let context = tauri::generate_context!();
+    // `carbonara mcp` is the stdio bridge for MCP clients: no window, and no hand-over to a running instance.
+    if mcp::wants_stdio_bridge(&std::env::args().collect::<Vec<_>>()) {
+        if let Err(error) = mcp::run_stdio_bridge(&context.config().identifier) {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
     let app = tauri::Builder::default()
         // First, so a second launch hands its files to this one and exits before it starts anything else.
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
@@ -104,6 +118,8 @@ pub fn run() {
             take_opened_files,
             dialogs::open_file,
             dialogs::save_file,
+            mcp::mcp_answer,
+            mcp::mcp_connection,
         ])
         .setup(|app| {
             app.manage(Storages::new(storage::root(&app.path().app_data_dir()?)));
@@ -113,17 +129,17 @@ pub fn run() {
             app.state::<OpenedFiles>()
                 .push(opened::files_in_args(&args, &cwd));
 
-            // MCP server (CARB-60): start the `crates/mcp` server here, on 127.0.0.1 with the per-install token.
-            // It forwards each tool call to the webview's connector as an ordinary manager call, so it needs the
-            // `AppHandle` (to emit the call and receive the answer) and nothing else from this shell.
-            // See docs/Architecture/Desktop.md, "MCP server".
+            // Without MCP the app still works; the AI access dialog then has no connection to offer.
+            if let Err(error) = mcp::start(app.handle()) {
+                eprintln!("Carbonara couldn't start its MCP server: {error}");
+            }
 
             if updater::is_configured(&app.config().plugins) {
                 updater::start(app.handle())?;
             }
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("the desktop app's configuration is valid");
 
     app.run(|_app, _event| {

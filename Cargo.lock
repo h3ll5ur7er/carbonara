@@ -485,6 +485,9 @@ dependencies = [
 name = "carbonara-desktop"
 version = "0.1.0"
 dependencies = [
+ "carbonara-mcp",
+ "dirs",
+ "rustls",
  "serde",
  "serde_json",
  "tauri",
@@ -493,6 +496,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]

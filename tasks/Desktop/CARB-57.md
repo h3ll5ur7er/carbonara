@@ -18,6 +18,7 @@ Tauri 2 shell with the tauri platform port, file associations for `.carbonara` a
 - [x] Dialogs + menus
 - [x] One running instance: a second launch hands its files to the first
 - [x] Linux packages register the file types (MIME file, `%F` in the `.desktop` entry)
+- [x] MCP server ([[CARB-60]]) wired in: served while the app runs, tool calls through the webview, `carbonara mcp` stdio bridge
 - [ ] Tried by hand on a desktop: double-click in a file manager (Linux, Windows, macOS), the open and save dialogs, dropping a `.cpack` on the window, the macOS menu bar
 
 How it works: [[Architecture/Desktop]].
@@ -34,3 +35,4 @@ How it works: [[Architecture/Desktop]].
 ## Comments
 
 - **Claude** (2026-10-27): Verified in the cloud container: `pnpm check`, `pnpm format:check`, `cargo fmt --check`, `cargo clippy`/`cargo test` (root and `-p carbonara-desktop`), the web e2e suite, and `pnpm desktop:build` (`.deb`, `.rpm`, AppImage). The release binary, run under `xvfb-run`: renders the app with the CSP on and solves the example factory; opens a `.carbonara` passed as an argument and shows the trust prompt for a `.cpack`; a second launch with a file exits at once and the running app opens the file; the next start restores it from `key-value/` in the app data folder. `gio` identifies `.carbonara` and `.cpack` files by the packaged MIME file. Not tried: native dialogs, a file manager's double-click, drag and drop in WebKitGTK, Windows, macOS.
+- **Claude** (2026-10-27): Wired in the MCP server after merging it ([[CARB-60]]): `src-tauri/src/mcp.rs` serves it on 127.0.0.1:41736 (any free port when taken) with the token and `mcp.json` in the config folder, `mcp-call` / `mcp_answer` / `mcp_connection` as the MCP page describes, and `carbonara mcp` runs the stdio bridge before the app starts. The desktop app installs rustls' ring provider at start: the updater builds reqwest without one, which made the stdio bridge's HTTP client panic. Verified with the debug build under `xvfb-run`: a scripted client is refused without the token (401), lists 8 tools and gets `list_packs` answered through the webview; `carbonara-desktop mcp` answers `initialize` and `list_documents` over stdio.
