@@ -111,7 +111,7 @@ function Alternates({
         <h4 id={id} className="text-2xs font-medium tracking-wide text-fg-faint uppercase">
           Alternate recipes
         </h4>
-        <span className="font-mono text-xs text-fg-subtle tabular-nums">
+        <span className="text-xs text-fg-subtle tabular-nums">
           {unlockedCount(pack, settings)} of {alternates.length} unlocked
         </span>
       </div>
