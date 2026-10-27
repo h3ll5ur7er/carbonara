@@ -76,7 +76,7 @@ test("places a blueprint from the library twice; editing the blueprint changes b
   await openDocument(page, { ...document, graph: { nodes: {}, edges: {} }, layout: { ...document.layout, root: {} } });
   await page.keyboard.press("ControlOrMeta+B");
   const library = page.getByRole("complementary", { name: "Library" });
-  const card = library.getByRole("button", { name: /Copper Wire line/ });
+  const card = library.getByRole("button", { name: /^Copper Wire line/ });
   await expect(card).toContainText("Not placed");
 
   // Drag one onto the canvas: it follows as a ghost and lands where it's let go.
@@ -121,7 +121,7 @@ test("clicking a library card picks the blueprint up, a click on the canvas puts
   await openDocument(page, document);
   await expect(instances(page)).toHaveCount(2);
   await page.keyboard.press("ControlOrMeta+B");
-  const card = page.getByRole("complementary", { name: "Library" }).getByRole("button", { name: /Copper Wire line/ });
+  const card = page.getByRole("complementary", { name: "Library" }).getByRole("button", { name: /^Copper Wire line/ });
   await card.click();
   await expect(card).toHaveAttribute("aria-pressed", "true");
   // Above the factory (fitting leaves room there): empty canvas.
@@ -141,6 +141,45 @@ test("clicking a library card picks the blueprint up, a click on the canvas puts
   await page.mouse.click(empty.x, empty.y);
   await expect(instances(page)).toHaveCount(3);
   await expect(card).toContainText("Placed 3 times");
+});
+
+test("the library renames, duplicates and deletes blueprints, each one step undo takes back", async ({ page }) => {
+  const { document } = subgraphScene(NO_PACK);
+  await openDocument(page, document);
+  await page.keyboard.press("ControlOrMeta+B");
+  const library = page.getByRole("complementary", { name: "Library" });
+  const actions = (name: string) => library.getByRole("button", { name: `Actions for ${name}`, exact: true });
+
+  // Right-click a card to rename the blueprint: every copy follows.
+  await library.getByRole("button", { name: /^Copper Wire line/ }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Rename…" }).click();
+  const name = library.getByRole("textbox", { name: "Blueprint name" });
+  await name.fill("Wire module");
+  await name.press("Enter");
+  await expect(instances(page)).toHaveText([/Wire module/, /Wire module/]);
+
+  // Its ⋯ button duplicates it: a variant nothing places yet.
+  await actions("Wire module").click();
+  await page.getByRole("menuitem", { name: "Duplicate" }).click();
+  await expect(library.getByRole("button", { name: /^Wire module copy/ })).toContainText("Not placed");
+
+  // Deleting the placed one asks first, and takes its instances with it.
+  await actions("Wire module").click();
+  await page.getByRole("menuitem", { name: "Delete…" }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete “Wire module”?" });
+  await expect(dialog).toContainText("It's placed 2 times");
+  await dialog.getByRole("button", { name: "Delete blueprint and 2 instances" }).click();
+  await expect(instances(page)).toHaveCount(0);
+
+  // The copy is placed nowhere: one click clears it away.
+  await library.getByRole("button", { name: "Delete 1 unplaced blueprint" }).click();
+  await expect(library).toContainText("No blueprints yet");
+
+  // Each was one step.
+  await page.keyboard.press("ControlOrMeta+Z");
+  await expect(library.getByRole("button", { name: /^Wire module copy/ })).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+Z");
+  await expect(instances(page)).toHaveCount(2);
 });
 
 test("the inspector shows an instance's blueprint and ports, renames it, selects its copies and opens it", async ({

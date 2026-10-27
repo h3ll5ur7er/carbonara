@@ -5,7 +5,7 @@ import { current, isDraft } from "immer";
 import type { Command } from "../../contracts/commands";
 import type { Document, Edge, Graph, LocalId, Node, Position } from "../../contracts/document";
 import type { Issue } from "../../contracts/issues";
-import { allGraphs, contains, freeId, issue } from "./graphs";
+import { allGraphs, contains, freeId, issue, portsOf } from "./graphs";
 import { own } from "../../utilities/records";
 
 type Collapse = Omit<Extract<Command, { type: "collapse" }>, "blueprint" | "instance"> & {
@@ -13,6 +13,7 @@ type Collapse = Omit<Extract<Command, { type: "collapse" }>, "blueprint" | "inst
   instance: LocalId;
 };
 type Expand = Extract<Command, { type: "expand" }>;
+type AddBlueprint = Omit<Extract<Command, { type: "addBlueprint" }>, "id"> & { id: LocalId };
 type Direction = "in" | "out";
 
 /**
@@ -208,6 +209,39 @@ export function expand(document: Document, scope: string, graph: Graph, command:
     Reflect.deleteProperty(document.blueprints, blueprintId);
     Reflect.deleteProperty(document.layout, blueprintId);
   }
+}
+
+/**
+ * Adds a blueprint that nothing places yet, after checking that its graph holds together: its flows join its own
+ * nodes (through ports instances have), its instances place blueprints the document has (never itself), and its
+ * layout positions only its nodes.
+ */
+export function addBlueprint(document: Document, command: AddBlueprint): Issue | undefined {
+  const { id, blueprint, layout } = command;
+  if (id === "root") return issue(["id"], "A blueprint can't be called root");
+  if (own(document.blueprints, id)) return issue(["id"], `Blueprint ${id} already exists`);
+  const { nodes, edges } = blueprint.graph;
+  for (const [nodeId, node] of Object.entries(nodes)) {
+    if (node.kind !== "instance") continue;
+    const at = ["blueprint", "graph", "nodes", nodeId];
+    if (node.blueprint === id) return issue(at, `Blueprint ${id} can't contain itself`);
+    if (!own(document.blueprints, node.blueprint)) return issue(at, `Unknown blueprint ${node.blueprint}`);
+  }
+  for (const [edgeId, edge] of Object.entries(edges)) {
+    const at = ["blueprint", "graph", "edges", edgeId];
+    for (const end of [edge.from, edge.to]) if (!own(nodes, end)) return issue(at, `Unknown node ${end}`);
+    if (edge.fromPort !== undefined && !portsOf(document, own(nodes, edge.from), "out").includes(edge.fromPort)) {
+      return issue(at, `${edge.from} has no out port ${edge.fromPort}`);
+    }
+    if (edge.toPort !== undefined && !portsOf(document, own(nodes, edge.to), "in").includes(edge.toPort)) {
+      return issue(at, `${edge.to} has no in port ${edge.toPort}`);
+    }
+  }
+  for (const nodeId of Object.keys(layout)) {
+    if (!own(nodes, nodeId)) return issue(["layout", nodeId], `Unknown node ${nodeId}`);
+  }
+  document.blueprints[id] = copy(blueprint);
+  document.layout[id] = copy(layout);
 }
 
 /**

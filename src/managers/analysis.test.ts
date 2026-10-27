@@ -169,6 +169,24 @@ describe("the analysis manager", () => {
       [{ type: "renameBlueprint", blueprint: "cell", name: "Smelting cell" }],
       [{ type: "setPin", graph: "cell", id: "smelt", pin: { type: "machines", count: 4 } }],
       [{ type: "setRate", graph: "root", id: "plates", perSecond: 1.5 }],
+      // A copy of the blueprint, placed, edited inside and deleted with its instance.
+      (document: Document): ResolvedCommand[] => [
+        {
+          type: "addBlueprint",
+          id: "variant",
+          blueprint: { name: "Variant", graph: document.blueprints.cell?.graph ?? { nodes: {}, edges: {} } },
+          layout: document.layout.cell ?? {},
+        },
+        {
+          type: "addNode",
+          graph: "root",
+          id: "variant1",
+          node: { kind: "instance", blueprint: "variant" },
+          position: { x: 0, y: 400 },
+        },
+      ],
+      [{ type: "setPin", graph: "variant", id: "smelt", pin: { type: "machines", count: 1 } }],
+      [{ type: "removeBlueprint", blueprint: "variant" }],
       [{ type: "expand", graph: "root", id: "cell1" }],
       [{ type: "setRate", graph: "root", id: "plates", perSecond: 3 }],
       paste,

@@ -28,6 +28,7 @@ import { scopedTo } from "./features/subgraphs/path";
 import { useSubgraphView, type SubgraphView } from "./features/subgraphs/use-subgraph-view";
 import { useBlueprintPlacement, type BlueprintPlacement } from "./features/subgraphs/use-blueprint-placement";
 import { BlueprintLibrary } from "./features/subgraphs/library-panel";
+import { useBlueprintManagement } from "./features/subgraphs/use-blueprint-management";
 import { libraryEntries } from "./features/subgraphs/library";
 import "./features/subgraphs/subgraphs.css";
 
@@ -57,6 +58,7 @@ export function LiveApp() {
   );
   const inspected = useInspected(active, subgraph, selection);
   const placement = useBlueprintPlacement(active.document, graph);
+  const manage = useBlueprintManagement(active.document);
   const entries = useMemo(
     () => (active.document && active.packData ? libraryEntries(active.document, active.packData, graph) : []),
     [active.document, active.packData, graph],
@@ -90,6 +92,7 @@ export function LiveApp() {
               onPlaceInView={placement.placeInView}
               onDrop={placement.drop}
               onCancel={placement.cancel}
+              manage={manage}
             />
           ),
         })}

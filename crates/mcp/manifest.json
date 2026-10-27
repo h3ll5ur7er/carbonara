@@ -1113,6 +1113,396 @@
                   "properties": {
                     "type": {
                       "type": "string",
+                      "const": "addBlueprint"
+                    },
+                    "id": {
+                      "description": "The new blueprint's id. Chosen by the manager when left out.",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "blueprint": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "graph": {
+                          "type": "object",
+                          "properties": {
+                            "nodes": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "additionalProperties": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "recipe"
+                                      },
+                                      "recipe": {
+                                        "type": "string",
+                                        "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                                      },
+                                      "building": {
+                                        "description": "One of the recipe's buildings; the recipe's first when left out.",
+                                        "type": "string",
+                                        "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                                      },
+                                      "fields": {
+                                        "description": "Values of the pack plugin's node fields.",
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": [
+                                            "number",
+                                            "string",
+                                            "boolean"
+                                          ]
+                                        }
+                                      },
+                                      "pin": {
+                                        "oneOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "machines"
+                                              },
+                                              "count": {
+                                                "type": "number",
+                                                "minimum": 0
+                                              }
+                                            },
+                                            "required": [
+                                              "type",
+                                              "count"
+                                            ]
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "rate"
+                                              },
+                                              "item": {
+                                                "type": "string",
+                                                "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                                              },
+                                              "perSecond": {
+                                                "type": "number",
+                                                "minimum": 0
+                                              }
+                                            },
+                                            "required": [
+                                              "type",
+                                              "item",
+                                              "perSecond"
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "recipe"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "source"
+                                      },
+                                      "item": {
+                                        "type": "string",
+                                        "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                                      },
+                                      "maxPerSecond": {
+                                        "description": "Most this source supplies; unlimited when left out.",
+                                        "type": "number",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "item"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "sink"
+                                      },
+                                      "item": {
+                                        "type": "string",
+                                        "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                                      },
+                                      "targetPerSecond": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "item"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "junction",
+                                        "description": "Splits and merges flows: splitters, mergers, buses."
+                                      }
+                                    },
+                                    "required": [
+                                      "kind"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "instance"
+                                      },
+                                      "blueprint": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "blueprint"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "port"
+                                      },
+                                      "direction": {
+                                        "type": "string",
+                                        "enum": [
+                                          "in",
+                                          "out"
+                                        ]
+                                      },
+                                      "item": {
+                                        "type": "string",
+                                        "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "direction",
+                                      "item"
+                                    ],
+                                    "description": "A blueprint's boundary."
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "note"
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "text"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "frame"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "tone": {
+                                        "type": "string"
+                                      },
+                                      "collapsed": {
+                                        "description": "Folded to its label bar: the canvas hides the nodes it holds and draws their flows to the bar.",
+                                        "type": "boolean",
+                                        "const": true
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "label"
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            "edges": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                  "from": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "to": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "fromPort": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "toPort": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "item": {
+                                    "type": "string",
+                                    "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                                  },
+                                  "logistics": {
+                                    "description": "Belt or pipe tier; limits the flow to its capacity.",
+                                    "type": "string",
+                                    "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                                  },
+                                  "ratio": {
+                                    "description": "Fixed share of the source node's output of this item.",
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1
+                                  }
+                                },
+                                "required": [
+                                  "from",
+                                  "to",
+                                  "item"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "nodes",
+                            "edges"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "graph"
+                      ]
+                    },
+                    "layout": {
+                      "default": {},
+                      "description": "Where its nodes sit inside it.",
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "x": {
+                            "type": "number"
+                          },
+                          "y": {
+                            "type": "number"
+                          },
+                          "width": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "height": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "locked": {
+                            "description": "Locked nodes stay put: dragging, nudging and arranging leave them.",
+                            "type": "boolean",
+                            "const": true
+                          },
+                          "tag": {
+                            "description": "A colour tag the user gave the node.",
+                            "type": "string",
+                            "enum": [
+                              "red",
+                              "orange",
+                              "yellow",
+                              "green",
+                              "blue",
+                              "purple"
+                            ]
+                          },
+                          "flow": {
+                            "description": "Flows enter the node at the top and leave at the bottom, as arranging top to bottom leaves them; on the left and right when left out.",
+                            "type": "string",
+                            "const": "down"
+                          }
+                        },
+                        "required": [
+                          "x",
+                          "y"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "blueprint"
+                  ],
+                  "description": "Adds a blueprint, placed nowhere yet: a copy of one to start a variant, or one a paste brings along. Instances inside it must name blueprints the document has."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "removeBlueprint"
+                    },
+                    "blueprint": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "blueprint"
+                  ],
+                  "description": "Deletes a blueprint and every instance of it, in every graph, with their flows."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
                       "const": "setCollapsed"
                     },
                     "graph": {

@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { Document, type Graph, type Node } from "../../contracts/document";
+import { Document, type Blueprint, type Graph, type Node } from "../../contracts/document";
 import { exampleDocument } from "../../contracts/document.fixture";
 import { applyCommands, applyPatches, type Edit, type ResolvedCommand } from "./commands";
 
@@ -157,8 +157,22 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       blueprint: fc.constantFrom("rods", "sub1", "nope"),
       name: fc.constantFrom("A", "B"),
     }),
+    fc.record({
+      type: fc.constant("addBlueprint" as const),
+      // Fresh most of the time; sometimes taken (or `root`), which the engine must refuse.
+      id: fc.constantFrom("copy1", "copy2", "rods", "root"),
+      blueprint: fc.constantFrom(...addedBlueprints),
+      layout: fc.constantFrom({}, { in: { x: 0, y: 0 } }),
+    }),
+    fc.record({ type: fc.constant("removeBlueprint" as const), blueprint: fc.constantFrom("rods", "copy1", "nope") }),
   );
 }
+
+/** Blueprints to add: a copy of the rods (its layout fits), and one that places them (whose layout doesn't). */
+const addedBlueprints: Blueprint[] = [
+  start.blueprints.rods ?? { name: "Rods", graph: { nodes: {}, edges: {} } },
+  { name: "Hall", graph: { nodes: { inner: { kind: "instance", blueprint: "rods" } }, edges: {} } },
+];
 
 const root: Pools = {
   graphs: ["root"],
@@ -274,10 +288,13 @@ describe("the editing engine (property tests)", () => {
     );
   });
 
-  it("never leaves dangling edges, positions or self-containing blueprints", () => {
+  it("never leaves dangling edges, positions, instances or self-containing blueprints", () => {
     fc.assert(
       fc.property(batches, (commandBatches) => {
         for (const document of run(commandBatches).states) {
+          for (const key of Object.keys(document.layout)) {
+            if (key !== "root") expect(document.blueprints).toHaveProperty([key]);
+          }
           for (const [graphKey, graph] of graphs(document)) {
             for (const edge of Object.values(graph.edges)) {
               expect(graph.nodes).toHaveProperty([edge.from]);
@@ -287,7 +304,9 @@ describe("the editing engine (property tests)", () => {
             }
             for (const id of Object.keys(document.layout[graphKey] ?? {})) expect(graph.nodes).toHaveProperty([id]);
             for (const node of Object.values(graph.nodes)) {
-              if (node.kind === "instance") expect(node.blueprint).not.toBe(graphKey);
+              if (node.kind !== "instance") continue;
+              expect(node.blueprint).not.toBe(graphKey);
+              expect(document.blueprints).toHaveProperty([node.blueprint]);
             }
           }
         }

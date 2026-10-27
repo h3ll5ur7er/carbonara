@@ -76,6 +76,69 @@ describe("the blueprint library", () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 
+  describe("managing blueprints", () => {
+    const manage = () => ({ rename: vi.fn(), duplicate: vi.fn(), remove: vi.fn() });
+    const unplacedEntry: LibraryEntry = {
+      id: "old",
+      name: "Old line",
+      inputs: [],
+      outputs: [],
+      instances: 0,
+      nodes: 1,
+      placeable: true,
+    };
+    /** Opens a card's ⋯ menu from the keyboard and picks an item. */
+    async function choose(card: string, item: string) {
+      screen.getByRole("button", { name: `Actions for ${card}` }).focus();
+      await userEvent.keyboard("{Enter}");
+      await userEvent.click(await screen.findByRole("menuitem", { name: item }));
+    }
+
+    it("renames a blueprint on its card: Enter keeps the name, Escape drops it", async () => {
+      const handlers = manage();
+      renderLibrary({ manage: handlers });
+      await choose("Copper line", "Rename…");
+      const name = screen.getByRole("textbox", { name: "Blueprint name" });
+      await userEvent.clear(name);
+      await userEvent.type(name, "Wire works{Enter}");
+      expect(handlers.rename).toHaveBeenCalledExactlyOnceWith("line", "Wire works");
+      await choose("Copper line", "Rename…");
+      await userEvent.type(screen.getByRole("textbox", { name: "Blueprint name" }), " 2{Escape}");
+      expect(handlers.rename).toHaveBeenCalledOnce();
+      expect(screen.getByRole("button", { name: /^Copper line/ })).toBeTruthy();
+    });
+
+    it("duplicates a blueprint", async () => {
+      const handlers = manage();
+      renderLibrary({ manage: handlers });
+      await choose("Smelting", "Duplicate");
+      expect(handlers.duplicate).toHaveBeenCalledExactlyOnceWith("self");
+    });
+
+    it("asks before deleting a placed blueprint, saying its instances go too", async () => {
+      const handlers = manage();
+      renderLibrary({ manage: handlers });
+      await choose("Copper line", "Delete…");
+      const dialog = screen.getByRole("dialog", { name: "Delete “Copper line”?" });
+      expect(dialog.textContent).toContain("It's placed 2 times. Deleting it removes all 2 instances");
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(handlers.remove).not.toHaveBeenCalled();
+      await choose("Copper line", "Delete…");
+      await userEvent.click(screen.getByRole("button", { name: "Delete blueprint and 2 instances" }));
+      expect(handlers.remove).toHaveBeenCalledExactlyOnceWith(["line"]);
+    });
+
+    it("deletes one placed nowhere straight away, and all of those at once", async () => {
+      const handlers = manage();
+      renderLibrary({ manage: handlers, entries: [...entries, unplacedEntry] });
+      await choose("Old line", "Delete…");
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(handlers.remove).toHaveBeenLastCalledWith(["old"]);
+      await userEvent.click(screen.getByRole("button", { name: "Delete 1 unplaced blueprint" }));
+      expect(handlers.remove).toHaveBeenLastCalledWith(["old"]);
+    });
+  });
+
   it("says how to make a blueprint while there are none", () => {
     renderLibrary({ entries: [], collapseKeys: ["Ctrl", "G"] });
     expect(screen.getByText("No blueprints yet")).toBeTruthy();
