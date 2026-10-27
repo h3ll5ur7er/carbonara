@@ -22,30 +22,41 @@ The **solution** has the activity per node, the flow per edge, and the slacks th
 
 ## LP formulation
 
-Variables:
+Built by `formulate` in [[crates/solver/src/formulation.rs]] and solved by `solve` in [[crates/solver/src/lib.rs]].
 
-- `x_n ≥ 0`: machine count for each production node (continuous)
-- `f_e ≥ 0`: flow on each edge
-- `s⁺`, `s⁻`: surplus and deficit slack for each (node, item) port
+Variables, all `≥ 0`:
+
+- `x_n`: activity of each node, at most its `max`
+- `f_e`: flow on each edge
+- `surplus(n,i)` per output port and `deficit(n,i)` per input port of a process node
+- `overflow_e` per edge with a capacity; `above_n`, `below_n` per pinned node
 
 Constraints:
 
-- **Production node**, output item *i*: `Σ f_out(n,i) + surplus(n,i) = x_n · r_out(n,i)`
-- **Production node**, input item *i*: `Σ f_in(n,i) + deficit(n,i) = x_n · r_in(n,i)`
-- **Logistics** (splitter, merger, bus): flow in equals flow out per item; split ratios are optional
-- **Edges:** `f_e ≤ cap_e`, soft, with an overflow slack so the UI can show *where* a belt is overloaded
-- **Sources:** `Σ out ≤ supply`
-- **Pins:** `x_n = pin`, soft, with a miss slack (a rate pin on a recipe becomes an activity pin in the compiler)
+- **Process node**, net rate `r` of item *i* (an item listed as input and output is netted): output `Σ f_out(n,i) + surplus(n,i) = r · x_n`, input `Σ f_in(n,i) + deficit(n,i) = |r| · x_n`
+- **Edges** carry only what their ends trade: an edge whose process end doesn't make (or use) its item is fixed at zero
+- **Junction:** flow in equals flow out per item; its activity is its throughput (`x_j = Σ f_in`)
+- **Ratio:** `f_e = ratio · output`, where output is `r · x` for a process and the item's inflow for a junction
+- **Capacity**, soft: `f_e − overflow_e ≤ cap_e`, so the UI can show *where* a belt is overloaded
+- **Sources** are process nodes with one rate of +1; their supply is the node's `max`
+- **Pins**, soft: `x_n − above_n + below_n = pin` (a rate pin on a recipe becomes an activity pin in the compiler)
+- **Plugin constraints** are hard. They (and negative costs) are the only way to get `infeasible` or `unbounded`, returned as values (`Unsolvable`); everything else the user can ask for is soft and shows up as slack
 
-**Objective tiers**, solved one after another for numerical stability:
+**Objective tiers**, solved one after another (lexicographically) for numerical stability:
 
-1. Meet pinned targets.
-2. Minimise deficits and overflow.
-3. Minimise user-weighted cost (raw resources, power, building count).
+1. Pin misses `Σ above + below`
+2. Deficits
+3. Overflow. After deficits, because "this belt is overloaded" says more about a plan than "this machine is starved" when both explain the same shortfall
+4. Cost `Σ cost · x`
+5. Surplus. Last, so that choices left free (an unpinned sink after a pinned machine) take what is made instead of wasting it. Without it such flows would be arbitrary
+
+After a slack tier is solved, **each of its slacks is held** at its value (± 1e-8 relative); the cost tier holds only its total. Holding only a slack tier's total let later tiers shift a tiny amount of shortage to another port, which showed up as spurious diagnostics. The tolerance exists because microlp's values are accurate to about 1e-8; holding exactly made feasible models infeasible. A slack is reported only when it's larger than 1e-7 of the quantity it qualifies (the port's throughput, the edge's flow, the pin).
 
 Propagate mode is simply the case where most variables are pinned.
 
 The LP handles **cycles** (recycling loops, water loops, Factorio quality recycling) natively. Probabilistic outputs are modelled as expected values, so they stay linear.
+
+The LP library sits behind the `Backend` trait ([[crates/solver/src/program.rs]]): the formulation builds a backend-neutral `Program`, and `MicroLp` minimises it with `good_lp` + `microlp`. A second backend (clarabel) only has to implement `minimise`.
 
 ## Readable results
 

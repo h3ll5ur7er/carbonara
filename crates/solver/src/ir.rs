@@ -124,6 +124,18 @@ pub struct Solution {
     pub pin_misses: Vec<NodeSlack>,
 }
 
+/// Why a valid model has no solution. Only hard constraints from plugins (or negative costs) cause these;
+/// everything else the user can ask for is soft and shows up as slack instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum Unsolvable {
+    /// The plugin constraints contradict each other or the node limits.
+    Infeasible,
+    /// A negative cost lets the objective fall without limit.
+    Unbounded,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]

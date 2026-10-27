@@ -11,3 +11,4 @@ export type { PortSlack } from "./ir/PortSlack";
 export type { Rate } from "./ir/Rate";
 export type { Solution } from "./ir/Solution";
 export type { Term } from "./ir/Term";
+export type { Unsolvable } from "./ir/Unsolvable";
