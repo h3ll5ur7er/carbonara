@@ -50,11 +50,13 @@ describe("the solver's WebAssembly boundary", () => {
 
   it("solves a model built from the TS types", async () => {
     const result = await solve(chain);
+    // Values are exact to about 1e-8 (docs/Architecture/Solver.md, LP formulation).
+    const about = (value: number) => expect.closeTo(value, 9);
     expect(result).toEqual({
       ok: true,
       value: {
-        activity: [1, 2, 1],
-        flow: [1, 1],
+        activity: [about(1), about(2), about(1)],
+        flow: [about(1), about(1)],
         surplus: [],
         deficit: [],
         overflow: [],

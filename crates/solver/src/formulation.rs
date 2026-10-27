@@ -2,24 +2,10 @@
 //! constraints a model becomes, the objective tiers, and how the variables read back as a [`Solution`].
 
 use crate::ir::{Comparison, EdgeSlack, Model, NodeKind, NodeSlack, PortSlack, Solution};
-use crate::program::{Program, Terms, Var};
+use crate::program::{Hold, Program, Terms, Tier, Var};
 
 /// Relative size below which a value is floating-point noise: shown as zero and never reported as slack.
 const NOISE: f64 = 1e-7;
-
-/// An objective, minimised without worsening the tiers before it.
-pub struct Tier {
-    pub terms: Terms,
-    pub hold: Hold,
-}
-
-/// How a solved tier is kept at its optimum while later tiers are minimised.
-pub enum Hold {
-    /// Every slack keeps its value, so later tiers can't move a shortage to another port.
-    EachSlack,
-    /// Only the total is kept.
-    Total,
-}
 
 /// A slack variable at a node's port, with the port's rate per unit of activity.
 pub(crate) struct PortVar {
@@ -195,7 +181,7 @@ pub fn formulate(model: &Model) -> Formulation {
 
     let slacks = |terms: Terms| Tier {
         terms,
-        hold: Hold::EachSlack,
+        hold: Hold::Slacks,
     };
     let tiers = vec![
         slacks(misses),

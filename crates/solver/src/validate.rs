@@ -1,5 +1,6 @@
 //! Checks that a model is internally consistent before it is solved.
 //! An invalid model is a bug in the compiler engine, not a user error, so the message is for developers.
+//! Where a check is reported (`at`) is only spelled out when it fails: validating is on every solve's path.
 
 use crate::graph::Graph;
 use crate::ir::{Model, NodeKind};
@@ -19,18 +20,18 @@ pub fn validate(model: &Model) -> Result<(), InvalidModel> {
     // Ports first: edges to instances, in any graph, rely on them.
     for (b, blueprint) in model.blueprints.iter().enumerate() {
         for (p, &port) in blueprint.ports.iter().enumerate() {
-            let at = format!("blueprints[{b}].ports[{p}]");
+            let at = || format!("blueprints[{b}].ports[{p}]");
             let node = blueprint
                 .nodes
                 .get(port as usize)
-                .ok_or_else(|| InvalidModel(format!("{at}: no node {port}")))?;
+                .ok_or_else(|| InvalidModel(format!("{}: no node {port}", at())))?;
             let is_port = node.kind == NodeKind::Process
                 && node.rates.len() == 1
                 && node.rates[0].per_second.abs() == 1.0
                 && node.max.is_none()
                 && node.pin.is_none()
                 && node.cost == 0.0;
-            check(is_port, at.clone(), || {
+            check(is_port, at, || {
                 format!("nodes[{port}] is no port (one rate of ±1, nothing else)")
             })?;
             check(!blueprint.ports[..p].contains(&port), at, || {
@@ -47,70 +48,73 @@ pub fn validate(model: &Model) -> Result<(), InvalidModel> {
 
 fn check_graph(model: &Model, graph: Graph, at: &str) -> Result<(), InvalidModel> {
     let nodes = graph.nodes.len();
-    let node =
-        |index: u32, at: String| check(index < nodes as u32, at, || format!("no node {index}"));
-    let item =
-        |index: u32, at: String| check(index < model.items, at, || format!("no item {index}"));
+    let node = |index: u32, at: &dyn Fn() -> String| {
+        check(index < nodes as u32, at, || format!("no node {index}"))
+    };
+    let item = |index: u32, at: &dyn Fn() -> String| {
+        check(index < model.items, at, || format!("no item {index}"))
+    };
 
     for (n, current) in graph.nodes.iter().enumerate() {
+        let path = |field: &str| format!("{at}nodes[{n}]{field}");
         match current.kind {
             NodeKind::Junction => check(
                 current.rates.is_empty(),
-                format!("{at}nodes[{n}].rates"),
+                || path(".rates"),
                 || "junctions have no rates".into(),
             )?,
             NodeKind::Instance => {
                 let blueprint = current.blueprint.ok_or_else(|| {
-                    InvalidModel(format!("{at}nodes[{n}].blueprint: missing for an instance"))
+                    InvalidModel(format!("{}: missing for an instance", path(".blueprint")))
                 })?;
                 check(
                     (blueprint as usize) < model.blueprints.len(),
-                    format!("{at}nodes[{n}].blueprint"),
+                    || path(".blueprint"),
                     || format!("no blueprint {blueprint}"),
                 )?;
                 let plain = current.rates.is_empty()
                     && current.max.is_none()
                     && current.pin.is_none()
                     && current.cost == 0.0;
-                check(plain, format!("{at}nodes[{n}]"), || {
-                    "instances have no rates, maximum, pin or cost".into()
-                })?;
+                check(
+                    plain,
+                    || path(""),
+                    || "instances have no rates, maximum, pin or cost".into(),
+                )?;
             }
             NodeKind::Process | NodeKind::Balanced => {}
         }
         if current.kind != NodeKind::Instance {
             check(
                 current.blueprint.is_none(),
-                format!("{at}nodes[{n}].blueprint"),
+                || path(".blueprint"),
                 || "only instances place blueprints".into(),
             )?;
         }
         for (r, rate) in current.rates.iter().enumerate() {
-            item(rate.item, format!("{at}nodes[{n}].rates[{r}].item"))?;
-            finite(
-                rate.per_second,
-                format!("{at}nodes[{n}].rates[{r}].perSecond"),
-            )?;
+            item(rate.item, &|| path(&format!(".rates[{r}].item")))?;
+            finite(rate.per_second, || path(&format!(".rates[{r}].perSecond")))?;
         }
         if let Some(max) = current.max {
-            non_negative(max, format!("{at}nodes[{n}].max"))?;
+            non_negative(max, || path(".max"))?;
         }
         if let Some(pin) = current.pin {
-            non_negative(pin, format!("{at}nodes[{n}].pin"))?;
+            non_negative(pin, || path(".pin"))?;
         }
-        finite(current.cost, format!("{at}nodes[{n}].cost"))?;
+        finite(current.cost, || path(".cost"))?;
     }
     for (e, edge) in graph.edges.iter().enumerate() {
-        node(edge.from, format!("{at}edges[{e}].from"))?;
-        node(edge.to, format!("{at}edges[{e}].to"))?;
-        item(edge.item, format!("{at}edges[{e}].item"))?;
+        let path = |field: &str| format!("{at}edges[{e}].{field}");
+        node(edge.from, &|| path("from"))?;
+        node(edge.to, &|| path("to"))?;
+        item(edge.item, &|| path("item"))?;
         if let Some(capacity) = edge.capacity {
-            non_negative(capacity, format!("{at}edges[{e}].capacity"))?;
+            non_negative(capacity, || path("capacity"))?;
         }
         if let Some(ratio) = edge.ratio {
             check(
                 (0.0..=1.0).contains(&ratio),
-                format!("{at}edges[{e}].ratio"),
+                || path("ratio"),
                 || "not between 0 and 1".into(),
             )?;
         }
@@ -118,21 +122,24 @@ fn check_graph(model: &Model, graph: Graph, at: &str) -> Result<(), InvalidModel
             (edge.from, edge.from_port, false, "fromPort"),
             (edge.to, edge.to_port, true, "toPort"),
         ] {
-            let at = format!("{at}edges[{e}].{name}");
+            let at = || path(name);
             match (graph.nodes[end as usize].blueprint, port) {
                 (None, None) => {}
                 (Some(_), None) => {
-                    return Err(InvalidModel(format!("{at}: missing for an instance")));
+                    return Err(InvalidModel(format!("{}: missing for an instance", at())));
                 }
                 (None, Some(_)) => {
-                    return Err(InvalidModel(format!("{at}: nodes[{end}] is no instance")));
+                    return Err(InvalidModel(format!(
+                        "{}: nodes[{end}] is no instance",
+                        at()
+                    )));
                 }
                 (Some(blueprint), Some(port)) => {
                     let (port_item, is_in) = model.blueprints[blueprint as usize]
                         .port(port)
-                        .ok_or_else(|| InvalidModel(format!("{at}: no port {port}")))?;
+                        .ok_or_else(|| InvalidModel(format!("{}: no port {port}", at())))?;
                     let direction = if entering { "in" } else { "out" };
-                    check(is_in == entering, at.clone(), || {
+                    check(is_in == entering, at, || {
                         format!("port {port} is no {direction} port")
                     })?;
                     check(port_item == edge.item, at, || {
@@ -143,19 +150,19 @@ fn check_graph(model: &Model, graph: Graph, at: &str) -> Result<(), InvalidModel
         }
     }
     for (c, constraint) in graph.constraints.iter().enumerate() {
+        let path = |field: &str| format!("{at}constraints[{c}].{field}");
         check(
             !constraint.terms.is_empty(),
-            format!("{at}constraints[{c}].terms"),
+            || path("terms"),
             || "empty".into(),
         )?;
         for (t, term) in constraint.terms.iter().enumerate() {
-            node(term.node, format!("{at}constraints[{c}].terms[{t}].node"))?;
-            finite(
-                term.coefficient,
-                format!("{at}constraints[{c}].terms[{t}].coefficient"),
-            )?;
+            node(term.node, &|| path(&format!("terms[{t}].node")))?;
+            finite(term.coefficient, || {
+                path(&format!("terms[{t}].coefficient"))
+            })?;
         }
-        finite(constraint.rhs, format!("{at}constraints[{c}].rhs"))?;
+        finite(constraint.rhs, || path("rhs"))?;
     }
     Ok(())
 }
@@ -196,20 +203,24 @@ fn check_nesting(model: &Model) -> Result<(), InvalidModel> {
     Ok(())
 }
 
-fn check(ok: bool, at: String, problem: impl FnOnce() -> String) -> Result<(), InvalidModel> {
+fn check(
+    ok: bool,
+    at: impl FnOnce() -> String,
+    problem: impl FnOnce() -> String,
+) -> Result<(), InvalidModel> {
     if ok {
         Ok(())
     } else {
-        Err(InvalidModel(format!("{at}: {}", problem())))
+        Err(InvalidModel(format!("{}: {}", at(), problem())))
     }
 }
 
-fn finite(value: f64, at: String) -> Result<(), InvalidModel> {
+fn finite(value: f64, at: impl FnOnce() -> String) -> Result<(), InvalidModel> {
     check(value.is_finite(), at, || "not finite".into())
 }
 
-fn non_negative(value: f64, at: String) -> Result<(), InvalidModel> {
-    finite(value, at.clone())?;
+fn non_negative(value: f64, at: impl Fn() -> String) -> Result<(), InvalidModel> {
+    finite(value, &at)?;
     check(value >= 0.0, at, || "negative".into())
 }
 

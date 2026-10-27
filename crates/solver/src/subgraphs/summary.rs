@@ -12,10 +12,10 @@
 use super::closure::Closure;
 use super::flatten::flatten;
 use super::{Context, hull, scale_pins};
-use crate::formulation::{Hold, Tier, formulate};
+use crate::SolveError;
+use crate::formulation::formulate;
 use crate::ir::{Comparison, Inlined, InstanceSolution, Model, Node, NodeKind, Unsolvable};
-use crate::program::{Backend, BackendError, Program, Terms, Var};
-use crate::{SolveError, minimise_in_order};
+use crate::program::{Backend, BackendError, Hold, Program, Terms, Tier, Var};
 use std::collections::HashSet;
 
 /// A blueprint that can run in more independent ways than this is inlined.
@@ -377,7 +377,7 @@ fn witness(
             hold: Hold::Total,
         },
     ];
-    let values = minimise_in_order(&mut program, &tiers, backend)?;
+    let values = backend.minimise_in_order(&mut program, &tiers)?;
     let activity: Vec<f64> = free.activity.iter().map(|&var| values[var]).collect();
     let flow: Vec<f64> = free.flow.iter().map(|&var| values[var]).collect();
     let (inside, _, instances) = body.unflatten(&activity, &flow);

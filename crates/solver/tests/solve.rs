@@ -310,7 +310,10 @@ fn a_plan_without_shortages_settles_pins_deficits_and_overflow_in_one_lp() {
     let (lps, solution) = lps_for(&chain);
     // pins, deficits and overflow at once; then cost; then surplus
     assert_eq!(lps, 3);
-    assert_eq!(solution, solved(&chain));
+    // The default backend solves all tiers in one warm LP; both reach the same plan.
+    let warm = solved(&chain);
+    assert_all_close(&solution.activity, &warm.activity);
+    assert_all_close(&solution.flow, &warm.flow);
 }
 
 #[test]

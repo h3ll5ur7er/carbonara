@@ -1,5 +1,6 @@
 // The solver engine's TS facade: the only code that knows the solver is WebAssembly.
 // It hides the LP formulation, the backend, decomposition and caching (docs/Architecture/Solver.md).
+// Models and solutions cross into WebAssembly as JSON text: much faster than JS objects for big models.
 import type { Result } from "../../contracts/result";
 import type { Model, Solution, Unsolvable } from "../../contracts/solver";
 import init, { irVersion, solve as solveModel, Solver, validateModel as validate } from "./wasm/solver";
@@ -24,7 +25,7 @@ export async function solverIrVersion(): Promise<number> {
 /** Throws when the model doesn't match the IR or isn't internally consistent (a compiler bug). */
 export async function validateModel(model: Model): Promise<void> {
   await loadSolver();
-  validate(model);
+  validate(JSON.stringify(model));
 }
 
 export type SolveResult = Result<Solution, Unsolvable>;
@@ -32,7 +33,7 @@ export type SolveResult = Result<Solution, Unsolvable>;
 /** Solves a model from scratch. Throws on inconsistent models, which are compiler bugs. */
 export async function solve(model: Model): Promise<SolveResult> {
   await loadSolver();
-  return solveModel(model) as SolveResult;
+  return JSON.parse(solveModel(JSON.stringify(model))) as SolveResult;
 }
 
 /**
@@ -60,8 +61,8 @@ export async function createSolver(): Promise<IncrementalSolver> {
   await loadSolver();
   const solver = new Solver();
   return {
-    solve: (model) => solver.solve(model) as SolveResult,
-    expand: (model, blueprint) => solver.expand(model, blueprint) as SolveResult,
+    solve: (model) => JSON.parse(solver.solve(JSON.stringify(model))) as SolveResult,
+    expand: (model, blueprint) => JSON.parse(solver.expand(JSON.stringify(model), blueprint)) as SolveResult,
     lastSolved: () => solver.lastSolved(),
     lastSummarised: () => solver.lastSummarised(),
     dispose: () => solver.free(),
