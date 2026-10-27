@@ -49,7 +49,7 @@ While a node is dragged ([[src/client/canvas/model/snap.ts]], [[src/client/canva
 - It also snaps to **even spacing** among the nodes in its row (or column): centred between its two nearest neighbours, or one more step of the gap between the two neighbours on one side. Both equal gaps are marked with ticks and their size.
 - Otherwise it snaps to the grid. The nearest candidate wins, so a node never jumps more than 6 pixels or half a grid step.
 - Nodes dragged along with it move by the same amount. Accent lines show every alignment that holds after the snap. `Alt` while dragging places freely.
-- React Flow's own delete key is off until delete commands exist, so nothing disappears only on screen.
+- React Flow's own delete key stays off: deleting is the Edit commands' job (below), so nothing disappears only on screen.
 - Edge styles (orthogonal or smooth), reroute points (double-click an edge), and bundled edges for main buses.
 
 ## Clipboard and ghost placement
@@ -62,7 +62,22 @@ While a node is dragged ([[src/client/canvas/model/snap.ts]], [[src/client/canva
 ## Editing
 
 - Drop a node onto an edge to insert it. **Delete & bridge** (`Ctrl+Shift+Del`) removes a node and keeps the flow connected. `Alt`-drag the end of an edge to move it to another port.
-- **Multi-select editing:** change the recipe, clock, modules or belt tier of every selected node at once.
+
+### Deleting, bridging, inserting and rewiring
+
+| Gesture | Does | Edit |
+| --- | --- | --- |
+| `Delete` (or `Backspace` on the canvas) | Deletes the selected nodes with their flows, and the selected flows | `removeNodes` + `disconnect`, one step "Delete" |
+| `Ctrl+Shift+Del` (`Ctrl+Shift+Backspace` on the canvas) | **Delete & bridge**: deletes the selected nodes and keeps the flow connected | `removeAndBridge`, one step |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo the last edit of the document on screen. A text field keeps its own undo | `editing.undo` / `editing.redo` |
+| Drag a node without flows onto a flow | The flow turns accent while the node would fit; dropping splices the node in | `disconnect` + two `connect` + `moveNodes`, one step "Insert …" |
+| `Alt`-drag the end of a flow | While `Alt` is held, the ends of flows can be picked up (they show as rings); dropping one on another port of the same item moves the flow there | `disconnect` + `connect`, one step "Rewire" |
+
+- **Bridging** ([[src/engines/editing/commands.ts]], `removeAndBridge`): per item, every flow into the removed nodes is connected to every flow out of them with the same item, through chains of removed nodes too (a merger into a splitter becomes all sources to all destinations). A recipe whose inputs differ from its outputs has nothing to bridge, so it's simply removed. Bridges keep the outer ports, keep the belt where both sides used the same one, never duplicate a flow that already exists and never connect a node to itself. They are named after the two flows they join (`in+out`), so the engine stays pure.
+- **Inserting** ([[src/client/canvas/model/insert.ts]]): a node fits a flow when it takes the flow's item and passes on something the consumer takes, the same item if it can (a junction, a buffer) or else what it makes (a wire machine dropped onto a plates flow that ends in a wire consumer). The flow's belt carries on where the item stays the same. Only a single node without flows of its own is inserted; anything else is just moved. Flows that loop back (below their nodes) aren't targets.
+- **Rewiring** keeps the flow's belt and share; it only moves a flow to a port of the same item.
+- Deleting a node whose flows are selected too deletes those flows once, with the node.
+ change the recipe, clock, modules or belt tier of every selected node at once.
 - **Find** (`Ctrl+F`) items, recipes and nodes across the whole factory, including inside subgraphs, and jump to them. **Replace recipe everywhere.**
 - **Balance:** fit a node's machine count to downstream demand or upstream supply. **Round to buildable** switches between "4 × 100% + 1 × 37.5%" and "5 × 87.5%".
 - Lock nodes; group frames (colour, label, collapsible); sticky notes; colour tags.

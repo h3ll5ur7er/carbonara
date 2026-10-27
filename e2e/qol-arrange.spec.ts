@@ -32,7 +32,7 @@ test("top to bottom from the palette, and locked nodes stay put", async ({ page 
   await page.locator(".react-flow__pane").click({ position: { x: 700, y: 820 } });
   await page.keyboard.press("ControlOrMeta+K");
   await page.keyboard.type("arrange top");
-  await page.keyboard.press("Enter");
+  await page.getByRole("option", { name: /Arrange top to bottom/ }).click();
   await expect.poll(() => flowPosition(page, "gears"), { timeout: 20_000 }).not.toEqual(gears);
   expect(await flowPosition(page, "goal")).toEqual(goal);
   // Top to bottom: the ore comes before the washers, which come before the gears.

@@ -1,12 +1,12 @@
 // The canvas's editing actions for the app's commands (edit-actions.ts), for the document on screen: they read
 // the selection and the scene the moment they run and send their edits through the connector.
-import { useEffect, type RefObject } from "react";
+import { useEffect, useMemo, type RefObject } from "react";
 import type { CommandInput } from "../../contracts/commands";
 import type { Document, LocalId, Node } from "../../contracts/document";
 import type { PackData } from "../../contracts/pack";
 import { useConnector } from "../core/connector";
 import { errorMessage, toast } from "../shell/toasts";
-import { setCanvasEditActions } from "./edit-actions";
+import { setCanvasEditActions, type CanvasEditActions } from "./edit-actions";
 import { freeSpot, obstaclesOf } from "./model/free-spot";
 import { GRID } from "./model/geometry";
 import { createSceneBuilder, type CanvasScene } from "./model/scene";
@@ -27,25 +27,52 @@ export interface EditActionsInput {
   apply(commands: CommandInput[], label: string): Promise<void>;
 }
 
-export function useEditActions({ document, pack, graph, scene, selection, apply }: EditActionsInput): void {
+/** Builds the actions, registers them while the canvas is on screen, and returns them for the canvas's own keys. */
+export function useEditActions({
+  document,
+  pack,
+  graph,
+  scene,
+  selection,
+  apply,
+}: EditActionsInput): CanvasEditActions {
   const connector = useConnector();
   const documentId = document.id;
+  const shown = graph === "root" ? document.graph : document.blueprints[graph]?.graph;
   const layout = document.layout[graph];
 
-  useEffect(() => {
-    setCanvasEditActions({
+  const actions = useMemo(
+    (): CanvasEditActions => ({
       arrange(direction) {
         const selected = selection.current.nodes;
         const nodeIds = selected.length >= 2 ? selected : undefined;
-        const label = "Arrange";
-        connector.editing
-          .arrange({ documentId, graph, direction, shapes: shapesOf(scene.nodes), ...(nodeIds && { nodeIds }) })
-          .then(
-            (result) => {
-              if (!result.ok) failed(label, result.error.map((issue) => issue.message).join(" "));
-            },
-            (error: unknown) => failed(label, errorMessage(error)),
-          );
+        report(
+          "Arrange",
+          connector.editing.arrange({
+            documentId,
+            graph,
+            direction,
+            shapes: shapesOf(scene.nodes),
+            ...(nodeIds && { nodeIds }),
+          }),
+        );
+      },
+      deleteSelection(bridge) {
+        const nodes = selection.current.nodes.filter((id) => shown?.nodes[id]);
+        const removed = new Set(nodes);
+        // Flows of deleted nodes go with them; the other selected flows are deleted on their own.
+        const edges = selection.current.edges.filter((id) => {
+          const edge = shown?.edges[id];
+          return edge && !removed.has(edge.from) && !removed.has(edge.to);
+        });
+        const commands: CommandInput[] = [
+          ...(nodes.length > 0
+            ? [{ type: bridge ? "removeAndBridge" : "removeNodes", graph, ids: nodes } as const]
+            : []),
+          ...(edges.length > 0 ? [{ type: "disconnect", graph, ids: edges } as const] : []),
+        ];
+        if (commands.length === 0) return;
+        void apply(commands, bridge ? "Delete and bridge" : "Delete");
       },
       toggleLock() {
         const ids = selection.current.nodes;
@@ -53,6 +80,8 @@ export function useEditActions({ document, pack, graph, scene, selection, apply 
         const locked = !ids.every((id) => layout?.[id]?.locked);
         void apply([{ type: "setLocked", graph, ids, locked }], locked ? "Lock" : "Unlock");
       },
+      undo: () => report("Undo", connector.editing.undo({ documentId })),
+      redo: () => report("Redo", connector.editing.redo({ documentId })),
       placeNew(node: Node) {
         const [view] = createSceneBuilder()({ nodes: { new: node }, edges: {} }, undefined, pack).nodes;
         const width = view?.width ?? 0;
@@ -62,9 +91,29 @@ export function useEditActions({ document, pack, graph, scene, selection, apply 
         const wanted = { x: snap(centre.x - width / 2), y: snap(centre.y - height / 2), width, height };
         return freeSpot(wanted, obstaclesOf(scene.nodes), GRID);
       },
-    });
+    }),
+    [connector, documentId, graph, shown, layout, pack, scene, selection, apply],
+  );
+
+  useEffect(() => {
+    setCanvasEditActions(actions);
     return () => setCanvasEditActions(undefined);
-  }, [connector, documentId, graph, layout, pack, scene, selection, apply]);
+  }, [actions]);
+  return actions;
+}
+
+/** Reports a call that failed, as a value or on the way. */
+function report(label: string, call: Promise<unknown>) {
+  call.then(
+    (result) => {
+      if (isFailure(result)) failed(label, result.error.map((issue) => issue.message).join(" "));
+    },
+    (error: unknown) => failed(label, errorMessage(error)),
+  );
+}
+
+function isFailure(result: unknown): result is { ok: false; error: { message: string }[] } {
+  return typeof result === "object" && result !== null && "ok" in result && result.ok === false;
 }
 
 function failed(label: string, description: string) {

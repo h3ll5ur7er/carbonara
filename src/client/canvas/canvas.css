@@ -123,6 +123,23 @@
     stroke: var(--flow);
   }
 
+  /* The flow a dragged node would be inserted into: accent, and a little bolder. */
+  .react-flow .react-flow__edge.is-insert-target .flow .flow-line {
+    stroke: var(--color-accent);
+    stroke-width: calc(var(--flow-width) * 1px + 3px);
+  }
+  .react-flow .react-flow__edge.is-insert-target .flow .flow-halo {
+    stroke: var(--color-accent);
+  }
+
+  /* While Alt is held, the ends of flows can be picked up and moved to other ports. */
+  .alt-held .react-flow__edgeupdater {
+    cursor: grab;
+    fill: var(--color-accent-soft);
+    stroke: var(--color-accent);
+    stroke-width: 1.5px;
+  }
+
   /* A soft glow that draws the eye to flows at or over their capacity. */
   .react-flow .react-flow__edge .flow .flow-halo {
     stroke: var(--flow);

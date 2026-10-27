@@ -37,6 +37,29 @@ export function flowPath({ sourceX, sourceY, targetX, targetY, below }: PathEnds
 
 /** A cubic curve leaving and entering horizontally, like a belt bending between two machines. */
 function curve(sourceX: number, sourceY: number, targetX: number, targetY: number): string {
-  const reach = Math.max(Math.abs(targetX - sourceX) / 2, 40);
+  const reach = curveReach(sourceX, targetX);
   return `M${sourceX},${sourceY} C${sourceX + reach},${sourceY} ${targetX - reach},${targetY} ${targetX},${targetY}`;
+}
+
+function curveReach(sourceX: number, targetX: number): number {
+  return Math.max(Math.abs(targetX - sourceX) / 2, 40);
+}
+
+/** Points along a forward flow's curve, ends included: what the flow passes over. */
+export function flowPoints(
+  { sourceX, sourceY, targetX, targetY }: PathEnds,
+  count: number,
+): { x: number; y: number }[] {
+  const reach = curveReach(sourceX, targetX);
+  const xs = [sourceX, sourceX + reach, targetX - reach, targetX];
+  const ys = [sourceY, sourceY, targetY, targetY];
+  const at = (values: number[], t: number) => {
+    const [a = 0, b = 0, c = 0, d = 0] = values;
+    const u = 1 - t;
+    return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
+  };
+  return Array.from({ length: count }, (_, index) => {
+    const t = index / (count - 1);
+    return { x: at(xs, t), y: at(ys, t) };
+  });
 }

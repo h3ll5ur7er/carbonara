@@ -209,6 +209,92 @@ describe("moving nodes", () => {
   });
 });
 
+describe("deleting and bridging", () => {
+  /** A bus: two smelters merge into a junction, which feeds the sink and the rods; an extra splitter after it. */
+  const bus = Document.parse({
+    ...exampleDocument,
+    graph: {
+      nodes: {
+        a: { kind: "recipe", recipe: "iron-ingot" },
+        b: { kind: "recipe", recipe: "iron-ingot" },
+        merge: { kind: "junction" },
+        split: { kind: "junction" },
+        out: { kind: "sink", item: "iron-ingot" },
+        other: { kind: "sink", item: "iron-ingot" },
+        rods: { kind: "instance", blueprint: "rods" },
+      },
+      edges: {
+        a1: { from: "a", to: "merge", item: "iron-ingot", logistics: "belt-mk2" },
+        b1: { from: "b", to: "merge", item: "iron-ingot", logistics: "belt-mk2" },
+        m1: { from: "merge", to: "split", item: "iron-ingot", logistics: "belt-mk2" },
+        s1: { from: "split", to: "out", item: "iron-ingot", logistics: "belt-mk1" },
+        s2: { from: "split", to: "rods", toPort: "in", item: "iron-ingot" },
+        direct: { from: "a", to: "other", item: "iron-ingot" },
+      },
+    },
+    layout: { root: { merge: { x: 0, y: 0 }, split: { x: 100, y: 0 } } },
+  });
+
+  function bridged(ids: string[]) {
+    const result = applyCommands(bus, [{ type: "removeAndBridge", graph: "root", ids }]);
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    return result.value.document;
+  }
+
+  it("connects what flowed in to what flowed out, keeping ports, and the belt where both sides agree", () => {
+    const next = bridged(["split"]);
+    expect(next.graph.nodes).not.toHaveProperty("split");
+    expect(next.layout["root"]).not.toHaveProperty("split");
+    expect(Object.values(next.graph.edges)).toEqual(
+      expect.arrayContaining([
+        { from: "merge", to: "out", item: "iron-ingot" },
+        { from: "merge", to: "rods", toPort: "in", item: "iron-ingot" },
+      ]),
+    );
+    expect(Object.keys(next.graph.edges)).toEqual(["a1", "b1", "direct", "m1+s1", "m1+s2"]);
+  });
+
+  it("bridges through a chain of removed nodes, every source to every destination", () => {
+    const next = bridged(["merge", "split"]);
+    const pairs = Object.values(next.graph.edges).map((edge) => `${edge.from}>${edge.to}`);
+    expect(pairs.sort()).toEqual(["a>other", "a>out", "a>rods", "b>out", "b>rods"]);
+  });
+
+  it("keeps the belt when both sides of the bridge use the same one", () => {
+    const next = bridged(["merge"]);
+    expect(next.graph.edges["a1+m1"]).toEqual({ from: "a", to: "split", item: "iron-ingot", logistics: "belt-mk2" });
+  });
+
+  it("doesn't duplicate a flow that already exists, or connect a node to itself", () => {
+    const looped = Document.parse({
+      ...exampleDocument,
+      graph: {
+        nodes: { a: { kind: "junction" }, j: { kind: "junction" }, z: { kind: "junction" } },
+        edges: {
+          in: { from: "a", to: "j", item: "x" },
+          out: { from: "j", to: "z", item: "x" },
+          back: { from: "j", to: "a", item: "x" },
+          there: { from: "a", to: "z", item: "x" },
+        },
+      },
+      layout: {},
+    });
+    const result = applyCommands(looped, [{ type: "removeAndBridge", graph: "root", ids: ["j"] }]);
+    expect(result.ok && result.value.document.graph.edges).toEqual({ there: { from: "a", to: "z", item: "x" } });
+  });
+
+  it("only removes a node whose inputs and outputs are different items", () => {
+    const result = applyCommands(document, [{ type: "removeAndBridge", graph: "root", ids: ["smelt"] }]);
+    expect(result.ok && Object.keys(result.value.document.graph.edges)).toEqual(["e3", "e4"]);
+  });
+
+  it("rejects unknown nodes", () => {
+    expect(rejection({ type: "removeAndBridge", graph: "root", ids: ["ghost"] })).toEqual([
+      { path: ["commands", 0, "ids", 0], message: "Unknown node ghost" },
+    ]);
+  });
+});
+
 describe("locking nodes", () => {
   it("marks their positions locked, and unlocks them again", () => {
     const { document: locked } = edit({ type: "setLocked", graph: "root", ids: ["ore", "split"], locked: true });

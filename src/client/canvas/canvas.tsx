@@ -16,7 +16,8 @@ import "./canvas.css";
 import { freeSpot, obstaclesOf } from "./model/free-spot";
 import { GRID } from "./model/geometry";
 import { createResultSlots } from "./model/result-slots";
-import { createSceneBuilder, type CanvasScene } from "./model/scene";
+import { insertCommands } from "./model/insert";
+import { createSceneBuilder, type CanvasScene, type NodeView } from "./model/scene";
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
 import { useEditActions, type Selection } from "./use-edit-actions";
 import { setViewportCentre } from "./viewport";
@@ -84,6 +85,9 @@ function EmptyCanvas() {
       onMoveNodes={ignore}
       onConnect={ignore}
       onPortDropped={ignore}
+      onInsert={ignore}
+      onRewire={ignore}
+      onDelete={ignore}
       onViewCentre={setViewportCentre}
       onSelectionChange={ignore}
     />
@@ -159,7 +163,43 @@ function DocumentCanvas({
     },
     [onSelectionChange],
   );
-  useEditActions({ document, pack, graph, scene, selection, apply });
+  const actions = useEditActions({ document, pack, graph, scene, selection, apply });
+  const onDelete: CanvasViewProps["onDelete"] = useCallback((bridge) => actions.deleteSelection(bridge), [actions]);
+  const onInsert: CanvasViewProps["onInsert"] = useCallback(
+    (nodeId, edgeId, point) => {
+      const edge = shown?.edges[edgeId];
+      const views = new Map(scene.nodes.map((view) => [view.id, view]));
+      const node = views.get(nodeId);
+      const consumer = edge && views.get(edge.to);
+      const position = { ...layout?.[nodeId], ...point };
+      const commands = edge && node && consumer && insertCommands(graph, edgeId, edge, node, consumer, position);
+      if (commands) void apply(commands, `Insert ${nodeTitle(node)}`);
+      else onMoveNodes({ [nodeId]: point });
+    },
+    [apply, graph, layout, scene, shown, onMoveNodes],
+  );
+  const onRewire: CanvasViewProps["onRewire"] = useCallback(
+    (edgeId, to) => {
+      const old = shown?.edges[edgeId];
+      if (!old) return;
+      // The flow keeps its belt and share; a port it leaves no longer applies.
+      const { fromPort, toPort, ...kept } = old;
+      const edge = {
+        ...kept,
+        ...to,
+        ...(fromPort !== undefined && to.from === old.from && { fromPort }),
+        ...(toPort !== undefined && to.to === old.to && { toPort }),
+      };
+      void apply(
+        [
+          { type: "disconnect", graph, ids: [edgeId] },
+          { type: "connect", graph, edge },
+        ],
+        "Rewire",
+      );
+    },
+    [apply, graph, shown],
+  );
 
   // The recipe picker, while a connection dropped in empty space waits for its other end.
   const [drop, setDrop] = useState<(PortDrop & { bounds: { left: number; right: number; height: number } }) | null>(
@@ -200,6 +240,9 @@ function DocumentCanvas({
         onPortDropped={onPortDropped}
         onViewCentre={setViewportCentre}
         onSelectionChange={onSelection}
+        onInsert={onInsert}
+        onRewire={onRewire}
+        onDelete={onDelete}
       />
       {drop && request && (
         <RecipePicker
@@ -221,6 +264,21 @@ function DocumentCanvas({
 function newNodeId(entry: PickerEntry): LocalId {
   const base = entry.kind === "recipe" ? entry.id : `${entry.kind}-${entry.item.id}`;
   return `${base}-${crypto.randomUUID().slice(0, 6)}`;
+}
+
+/** How a node is named in the history: "Insert Iron Plate". */
+function nodeTitle(view: NodeView): string {
+  switch (view.kind) {
+    case "recipe":
+      return view.title;
+    case "source":
+    case "sink":
+      return view.item.name;
+    case "junction":
+      return "junction";
+    default:
+      return "node";
+  }
 }
 
 /** Moves the nodes the commands add off the nodes already there, as little as it takes. */

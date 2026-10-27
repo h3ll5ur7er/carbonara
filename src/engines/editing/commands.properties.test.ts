@@ -85,6 +85,11 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       perSecond: fc.option(fc.double({ min: 0, max: 100, noNaN: true }), { nil: null }),
     }),
     fc.record({
+      type: fc.constant("removeAndBridge" as const),
+      graph,
+      ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),
+    }),
+    fc.record({
       type: fc.constant("setLocked" as const),
       graph,
       ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),

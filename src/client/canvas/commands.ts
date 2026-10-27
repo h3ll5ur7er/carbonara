@@ -1,10 +1,51 @@
 // The canvas's commands, for the app's command registry (palette, menus, shortcuts).
-import { ChevronsDown, ChevronsRight, Focus, Lock, Maximize } from "lucide-react";
+import { Cable, ChevronsDown, ChevronsRight, Focus, Lock, Maximize, Redo2, Trash, Undo2 } from "lucide-react";
 import type { CommandDefinition } from "../core/commands";
 import { canvasEditActions } from "./edit-actions";
 import { canvasActions } from "./viewport";
 
 export const canvasCommands: CommandDefinition[] = [
+  {
+    id: "edit.undo",
+    title: "Undo",
+    group: "Edit",
+    shortcut: "Mod+Z",
+    // A text field keeps its own undo.
+    inTextFields: false,
+    keywords: ["back", "revert", "history"],
+    icon: Undo2,
+    run: () => canvasEditActions()?.undo(),
+  },
+  {
+    id: "edit.redo",
+    title: "Redo",
+    group: "Edit",
+    shortcut: "Mod+Shift+Z",
+    inTextFields: false,
+    keywords: ["again", "history"],
+    icon: Redo2,
+    run: () => canvasEditActions()?.redo(),
+  },
+  {
+    id: "edit.delete",
+    title: "Delete selection",
+    group: "Edit",
+    // Backspace too, on the canvas (Mac keyboards have no Delete key).
+    shortcut: "Delete",
+    keywords: ["remove", "erase", "nodes", "flows", "edges"],
+    icon: Trash,
+    run: () => canvasEditActions()?.deleteSelection(false),
+  },
+  {
+    id: "edit.deleteAndBridge",
+    title: "Delete and bridge",
+    group: "Edit",
+    shortcut: "Mod+Shift+Delete",
+    inTextFields: false,
+    keywords: ["remove", "reconnect", "keep connected", "splice", "bypass"],
+    icon: Cable,
+    run: () => canvasEditActions()?.deleteSelection(true),
+  },
   {
     id: "view.zoomToFit",
     title: "Zoom to fit",

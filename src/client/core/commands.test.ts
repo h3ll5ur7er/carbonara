@@ -64,4 +64,11 @@ describe("forKey", () => {
     expect(registry.forKey(press("f"), "other", true)).toBeUndefined();
     expect(registry.forKey(press("k", { ctrlKey: true }), "other", true)).toBe(palette);
   });
+
+  it("leaves a text field its own keys, such as undo, when a command says so", () => {
+    const undo = command("undo", { shortcut: "Mod+Z", inTextFields: false });
+    const withUndo = createCommandRegistry([undo]);
+    expect(withUndo.forKey(press("z", { ctrlKey: true }), "other", true)).toBeUndefined();
+    expect(withUndo.forKey(press("z", { ctrlKey: true }), "other", false)).toBe(undo);
+  });
 });

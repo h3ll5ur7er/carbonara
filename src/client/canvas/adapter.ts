@@ -53,6 +53,12 @@ export interface CanvasViewProps {
   onViewCentre(centre: Point): void;
   /** The selected nodes or flows changed. */
   onSelectionChange(nodeIds: LocalId[], edgeIds: LocalId[]): void;
+  /** A node without flows was dropped onto a flow, at `position` (top-left, flow units). */
+  onInsert(node: LocalId, edge: LocalId, position: Point): void;
+  /** One end of a flow was dragged (with Alt) to another port. */
+  onRewire(edge: LocalId, to: { from: LocalId; to: LocalId; item: Id }): void;
+  /** Backspace on the canvas: delete the selection (and bridge, with Mod+Shift), as the Delete key's command does. */
+  onDelete(bridge: boolean): void;
 }
 
 /** A renderer of the factory canvas. */

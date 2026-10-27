@@ -57,6 +57,7 @@ Documents change only through `Command`s ([[src/contracts/commands.ts]]) sent to
 | --- | --- |
 | `addNode` | Adds a node and its position |
 | `removeNodes` | Removes nodes, their positions and every edge that touches them |
+| `removeAndBridge` | Removes nodes like `removeNodes` and keeps the flow connected: per item, each flow into them is joined to each flow out of them (rules on [[Design/Editor quality of life]], Deleting, bridging, inserting and rewiring). New edges are named `<in>+<out>` (with `~2` … when taken), so the engine stays pure |
 | `connect` / `disconnect` | Adds an edge / removes edges |
 | `moveNodes` | Replaces positions (the whole `Position`, so callers keep `width`, `height` and `locked`) |
 | `setNodeFields`, `setPin` | A recipe node's plugin fields, its pin |

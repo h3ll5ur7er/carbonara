@@ -40,6 +40,7 @@ import { LassoArea } from "./lasso";
 import { handleBounds } from "./port-handle";
 import { RecipeNode } from "./recipe-node";
 import { SnapMarks, useSnapping } from "./snapping";
+import { useAltHeld, useInsertTarget } from "./edge-gestures";
 import { SinkNode, SourceNode } from "./terminal-nodes";
 import { motionDurations, useMoveTween } from "./tween";
 import type { FlowEdge as FlowEdgeType, FlowNode } from "./types";
@@ -79,6 +80,9 @@ function FlowCanvas({
   onViewCentre,
   onPortDropped,
   onSelectionChange,
+  onInsert,
+  onRewire,
+  onDelete,
 }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
@@ -141,10 +145,50 @@ function FlowCanvas({
     (changes: EdgeChange<FlowEdgeType>[]) => setEdges((current) => applyEdgeChanges(changes, current)),
     [],
   );
-  const { onNodeDragEnd } = snapping;
+  const insert = useInsertTarget(scene);
+  const { onNodeDrag: snapDrag, onNodeDragEnd } = snapping;
+  const { follow: followInsert, end: endInsert } = insert;
+  const onNodeDrag: OnNodeDrag<FlowNode> = useCallback(
+    (event, node, dragged) => {
+      snapDrag(event, node, dragged);
+      followInsert(dragged);
+    },
+    [snapDrag, followInsert],
+  );
   const onNodeDragStop: OnNodeDrag<FlowNode> = useCallback(
-    (_event, _node, dragged) => moveLocally(onNodeDragEnd(dragged)),
-    [moveLocally, onNodeDragEnd],
+    (_event, node, dragged) => {
+      const dropped = onNodeDragEnd(dragged);
+      const edge = endInsert();
+      const position = dropped[node.id];
+      if (edge && position && dragged.length === 1) {
+        pending.current.set(node.id, position);
+        onInsert(node.id, edge, position);
+      } else moveLocally(dropped);
+    },
+    [moveLocally, onNodeDragEnd, endInsert, onInsert],
+  );
+  // The flow a dragged node would be inserted into stands out.
+  const shownEdges = useMemo(
+    () =>
+      insert.target === undefined
+        ? edges
+        : edges.map((edge) => (edge.id === insert.target ? { ...edge, className: "is-insert-target" } : edge)),
+    [edges, insert.target],
+  );
+
+  const altHeld = useAltHeld();
+  const onReconnect = useCallback(
+    (old: FlowEdgeType, connection: Connection) => {
+      const item = connectionItem(normalise(connection));
+      const unchanged =
+        old.source === connection.source &&
+        old.target === connection.target &&
+        old.sourceHandle === connection.sourceHandle &&
+        old.targetHandle === connection.targetHandle;
+      if (!item || item !== old.data?.view.item || unchanged) return;
+      onRewire(old.id, { from: connection.source, to: connection.target, item });
+    },
+    [onRewire],
   );
   const isValidConnection = useCallback(
     (connection: Connection | FlowEdgeType) => connectionItem(normalise(connection)) !== undefined,
@@ -228,6 +272,12 @@ function FlowCanvas({
       const offset = nudgeOffset(event.key, event, GRID);
       const editable =
         event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable]");
+      if (event.key === "Backspace" && !editable) {
+        // The Delete key's command, for keyboards without one; with Mod+Shift, delete and bridge.
+        event.preventDefault();
+        onDelete((event.ctrlKey || event.metaKey) && event.shiftKey);
+        return;
+      }
       if (!offset || editable) return;
       const selected = store.getState().nodes.filter((node) => node.selected && !node.data.view.locked);
       if (selected.length === 0) return;
@@ -244,7 +294,7 @@ function FlowCanvas({
       );
       moveLocally(moved);
     },
-    [store, moveLocally],
+    [store, moveLocally, onDelete],
   );
 
   // React Flow wants this handler stable; it reports every selection change, including box and lasso.
@@ -259,25 +309,29 @@ function FlowCanvas({
 
   return (
     <CanvasContext value={context}>
-      <div className="size-full" onKeyDownCapture={onKeyDownCapture}>
+      <div className={`size-full ${altHeld ? "alt-held" : ""}`} onKeyDownCapture={onKeyDownCapture}>
         <LassoArea onLasso={onLasso}>
           <ReactFlow<FlowNode, FlowEdgeType>
             nodes={nodes}
-            edges={edges}
+            edges={shownEdges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeDragStart={snapping.onNodeDragStart}
-            onNodeDrag={snapping.onNodeDrag}
+            onNodeDrag={onNodeDrag}
             onNodeDragStop={onNodeDragStop}
+            // Alt-drag an end of a flow to another port; without Alt, the ends belong to the ports.
+            edgesReconnectable={altHeld}
+            onReconnect={onReconnect}
+            reconnectRadius={RECONNECT_RADIUS}
             selectionOnDrag
             selectionMode={SelectionMode.Partial}
             selectionKeyCode={null}
             multiSelectionKeyCode="Shift"
             panOnDrag={PAN_BUTTONS}
             panOnScroll
-            // Deleting waits for delete commands (Editor QoL); React Flow's would only hide nodes locally.
+            // Deleting is the Edit commands' job (one undoable edit); React Flow's would only hide nodes locally.
             deleteKeyCode={null}
             onConnect={handleConnect}
             onConnectEnd={onConnectEnd}
@@ -320,6 +374,9 @@ function FlowCanvas({
     </CanvasContext>
   );
 }
+
+/** How close to a flow's end, in screen pixels, an Alt-drag picks it up. */
+const RECONNECT_RADIUS = 14;
 
 /** Middle and right mouse buttons pan; the left one selects. */
 const PAN_BUTTONS = [1, 2];

@@ -35,6 +35,12 @@ export const Command = z.discriminatedUnion("type", [
       .describe("A source's supply limit or a sink's target, in items per second; null removes it."),
   }),
   z
+    .object({ type: z.literal("removeAndBridge"), graph: GraphScope, ids: z.array(LocalId).min(1) })
+    .describe(
+      "Removes nodes and keeps the flow connected: each flow that went into them is connected to each that came " +
+        "out of them with the same item. New flows are named after the two they join (`in+out`).",
+    ),
+  z
     .object({ type: z.literal("setLocked"), graph: GraphScope, ids: z.array(LocalId).min(1), locked: z.boolean() })
     .describe("Locks nodes in place (dragging, nudging and arranging leave them), or unlocks them."),
 ]);
