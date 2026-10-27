@@ -124,7 +124,7 @@ function DocumentCanvas({
   placement: BlueprintPlacement;
   onSelectionChange(nodeIds: string[]): void;
 }) {
-  const { graph, results, viewport, motion, onOpenSubgraph, header } = subgraph;
+  const { graph, results, viewport, motion, onOpenSubgraph, onReveal, header } = subgraph;
   const shown = useMemo(() => document && scopedTo(document, graph), [document, graph]);
   const overlays = useFactoryOverlays({ info, document: shown, pack: packData, results, graph });
   const empty = !shown || Object.keys(shown.graph.nodes).length === 0;
@@ -140,6 +140,7 @@ function DocumentCanvas({
           {...(viewport && { viewport })}
           onSelectionChange={onSelectionChange}
           onOpenSubgraph={onOpenSubgraph}
+          onReveal={onReveal}
           header={header}
           {...overlays.canvas}
           // A blueprint on its way from the library takes the ghost while it follows the pointer.

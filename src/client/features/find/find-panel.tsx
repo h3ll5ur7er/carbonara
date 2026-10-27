@@ -1,21 +1,28 @@
 // The find panel (Ctrl+F): a bar over the canvas that lists the nodes matching what you type, across the whole
-// factory, subgraphs included. ↑↓ move, Enter jumps to the node (the panel stays, to step through), Escape
-// closes. For a recipe it offers to replace that recipe everywhere with one that makes the same product.
+// factory, subgraphs included. ↑↓ move, Enter jumps to the node (the panel stays, to step through), opening the
+// subgraphs on the way when it's in another graph; Escape closes. For a recipe it offers to replace that recipe
+// everywhere with one that makes the same product.
 import { Command } from "cmdk";
 import { CornerDownLeft, Replace, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Document } from "../../../contracts/document";
 import type { Id, PackData } from "../../../contracts/pack";
 import { cx } from "../../ui/cx";
 import { Kbd } from "../../ui/kbd";
+import { pathTo } from "../subgraphs/path";
 import { alternativesFor, findInFactory, type FindResult } from "./find";
-import { setFindOpen } from "./find-store";
+import { setFindActive, setFindOpen, setFindQuery, useFind } from "./find-store";
 
 export interface FindPanelProps {
   document: Document;
   pack: PackData;
-  /** The graph on the canvas: only its nodes can be jumped to. */
+  /** The graph on the canvas. */
   graph: string;
+  /**
+   * Whether a jump may leave it, opening the way to a node in another graph; else only its nodes can be jumped to.
+   * Nodes of a blueprint the factory doesn't place can't be reached either way.
+   */
+  leaves?: boolean;
   /** Where the visible canvas is, clear of the side panels. */
   left: number;
   right: number;
@@ -29,10 +36,17 @@ const item = cx(
   "data-[selected=true]:bg-accent-soft data-[selected=true]:text-fg data-[disabled=true]:opacity-55",
 );
 
-export function FindPanel({ document, pack, graph, left, right, onJump, onReplace }: FindPanelProps) {
-  const [query, setQuery] = useState("");
-  const [active, setActive] = useState("");
+export function FindPanel({ document, pack, graph, leaves = false, left, right, onJump, onReplace }: FindPanelProps) {
+  const query = useFind((state) => state.query);
+  const active = useFind((state) => state.active);
   const results = useMemo(() => findInFactory(document, pack, query), [document, pack, query]);
+  // The graphs a jump can reach: the one on screen, and with `leaves` every graph the factory places on the way.
+  const graphs = useMemo(() => {
+    if (!leaves) return new Set([graph]);
+    const placed = ["root", ...Object.keys(document.blueprints)].filter((id) => pathTo(document, id) !== undefined);
+    return new Set([graph, ...placed]);
+  }, [document, graph, leaves]);
+  const reachable = (result: FindResult) => graphs.has(result.graph);
   const keyOf = (result: FindResult) => `${result.graph}/${result.nodeId}`;
   const current = results.find((result) => keyOf(result) === active) ?? results[0];
   const recipe = current?.recipe;
@@ -50,7 +64,7 @@ export function FindPanel({ document, pack, graph, left, right, onJump, onReplac
         shouldFilter={false}
         loop
         value={active}
-        onValueChange={setActive}
+        onValueChange={setFindActive}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
@@ -64,7 +78,7 @@ export function FindPanel({ document, pack, graph, left, right, onJump, onReplac
           <Command.Input
             autoFocus
             value={query}
-            onValueChange={setQuery}
+            onValueChange={setFindQuery}
             placeholder="Find items, recipes and nodes…"
             aria-label="Find in factory"
             className="h-full min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-faint"
@@ -77,19 +91,18 @@ export function FindPanel({ document, pack, graph, left, right, onJump, onReplac
               Nothing matches “{query}”.
             </Command.Empty>
             {results.map((result) => {
-              // Subgraphs can't be opened on the canvas yet, so their nodes are listed but not jumped to.
-              const reachable = result.graph === graph;
+              const here = result.graph === graph;
               return (
                 <Command.Item
                   key={keyOf(result)}
                   value={keyOf(result)}
-                  disabled={!reachable}
+                  disabled={!reachable(result)}
                   onSelect={() => onJump(result)}
                   className={item}
                 >
                   <span className="min-w-0 truncate text-fg">{result.title}</span>
                   <span className="min-w-0 flex-1 truncate text-xs text-fg-subtle">
-                    {[result.detail, reachable ? "" : `in ${result.where}`].filter(Boolean).join(" · ")}
+                    {[result.detail, here ? "" : `in ${result.where}`].filter(Boolean).join(" · ")}
                   </span>
                   <CornerDownLeft
                     className="size-3.5 shrink-0 text-accent-fg opacity-0 group-data-[selected=true]/item:opacity-100"

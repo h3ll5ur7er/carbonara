@@ -202,6 +202,34 @@ test("the planner plans into the subgraph on screen", async ({ page }) => {
   await expect(gears).toHaveCount(0);
 });
 
+test("find opens the way into a nested subgraph and back out", async ({ page }) => {
+  const { document } = subgraphScene(NO_PACK);
+  // The wire works become a hall of their own, placed once in the factory.
+  const nested: Document = {
+    ...document,
+    graph: { nodes: { hall: { kind: "instance", blueprint: "works" } }, edges: {} },
+    blueprints: { ...document.blueprints, works: { name: "Wire hall", graph: document.graph } },
+    layout: { ...document.layout, works: document.layout.root ?? {}, root: { hall: { x: 0, y: 0 } } },
+  };
+  await openDocument(page, nested);
+  await page.keyboard.press("ControlOrMeta+F");
+  const find = page.getByRole("combobox", { name: "Find in factory" });
+  await page.keyboard.type("wire assembler");
+  await expect(page.getByRole("option")).toHaveText([/Copper Wire\s*Assembler · in Copper Wire line/]);
+
+  // Enter opens the hall, then the copper line inside it, and selects the wire machine there.
+  await page.keyboard.press("Enter");
+  await expect(breadcrumbs(page).getByRole("listitem")).toHaveText([/Wire works/, /Wire hall/, /Copper Wire line/]);
+  await expect(page.locator('.react-flow__node[data-id="wire"]')).toHaveClass(/selected/);
+  await expect(find).toHaveValue("wire assembler");
+
+  // A node of the factory itself: back up to it.
+  await find.fill("wire hall");
+  await page.keyboard.press("Enter");
+  await expect(breadcrumbs(page)).toBeHidden();
+  await expect(page.locator('.react-flow__node[data-id="hall"]')).toHaveClass(/selected/);
+});
+
 for (const colorScheme of ["dark", "light"] as const) {
   test(`instance cards and the blueprint library in ${colorScheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });

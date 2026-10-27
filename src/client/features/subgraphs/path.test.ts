@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Document } from "../../../contracts/document";
 import { exampleDocument } from "../../../contracts/document.fixture";
 import { PackData } from "../../../contracts/pack";
-import { blueprintName, crumbsOf, graphOf, instancesOf, livePath, scopedTo, type Crumb } from "./path";
+import { blueprintName, crumbsOf, graphOf, instancesOf, livePath, pathTo, scopedTo, type Crumb } from "./path";
 
 const document = Document.parse(exampleDocument);
 /** The fixture's rods blueprint holds an instance of a gears blueprint. */
@@ -47,6 +47,28 @@ describe("subgraph paths", () => {
       { label: "Iron rods", depth: 1 },
       { label: "Gears", depth: 2 },
     ]);
+  });
+
+  it("lead from the root graph to a blueprint through the first instance found on the way", () => {
+    expect(pathTo(nested, "root")).toEqual([]);
+    expect(pathTo(nested, "rods")).toEqual([{ instance: "rods", blueprint: "rods" }]);
+    expect(pathTo(nested, "gears")).toEqual(path);
+    // Placed in the root graph too: the shorter way, through the first instance by id.
+    const twice = Document.parse({
+      ...nested,
+      graph: {
+        ...nested.graph,
+        nodes: {
+          ...nested.graph.nodes,
+          "gears-b": { kind: "instance", blueprint: "gears" },
+          "gears-a": { kind: "instance", blueprint: "gears" },
+        },
+      },
+    });
+    expect(pathTo(twice, "gears")).toEqual([{ instance: "gears-a", blueprint: "gears" }]);
+    // Not placed anywhere (or only in a blueprint that isn't): no way there.
+    expect(pathTo(document, "gears")).toBeUndefined();
+    expect(pathTo(nested, "nothing")).toBeUndefined();
   });
 
   it("count a blueprint's instances in every graph", () => {

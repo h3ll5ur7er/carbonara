@@ -42,3 +42,20 @@ export function canvasActions(): CanvasActions | undefined {
 export function setCanvasActions(next: CanvasActions | undefined): void {
   actions = next;
 }
+
+let waiting: (() => void)[] = [];
+
+/**
+ * Resolves once the next canvas to come on screen has set up its view, so its actions can move it: after the
+ * canvas changes level, one level at a time (find's jump into a subgraph).
+ */
+export function nextCanvasShown(): Promise<void> {
+  return new Promise((resolve) => waiting.push(resolve));
+}
+
+/** A document canvas has set up its first view. */
+export function canvasShown(): void {
+  const resolved = waiting;
+  waiting = [];
+  for (const resolve of resolved) resolve();
+}

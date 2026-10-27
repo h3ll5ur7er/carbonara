@@ -25,7 +25,7 @@ import { CanvasContextMenu } from "./context-menu";
 import { SelectionToolbar } from "./selection-toolbar";
 import { UnitsPicker } from "./units-picker";
 import { MultiEdit } from "./multi-edit";
-import { canvasActions } from "./viewport";
+import { canvasActions, canvasShown } from "./viewport";
 import { FindPanel } from "../features/find/find-panel";
 import { recipeChangeCommands, type FindResult } from "../features/find/find";
 import { useFind } from "../features/find/find-store";
@@ -63,6 +63,8 @@ export interface CanvasProps {
   onOpenSubgraph?: (instance: LocalId) => void;
   /** Sits at the canvas's top-left, such as the breadcrumbs inside a subgraph; bars at the top move below it. */
   header?: ReactNode;
+  /** Find jumped to a node in another graph: open the way there. Without it, find jumps only on screen. */
+  onReveal?: ((graph: string, nodeId: LocalId) => void) | undefined;
 }
 
 export function Canvas({
@@ -146,9 +148,10 @@ function DocumentCanvas({
   overlay,
   onOpenSubgraph,
   header,
+  onReveal,
 }: Pick<
   CanvasProps,
-  "ghost" | "onGhostPlace" | "onGhostCancel" | "reserved" | "overlay" | "onOpenSubgraph" | "header"
+  "ghost" | "onGhostPlace" | "onGhostCancel" | "reserved" | "overlay" | "onOpenSubgraph" | "header" | "onReveal"
 > & {
   document: Document;
   pack: PackData;
@@ -252,6 +255,18 @@ function DocumentCanvas({
   );
   // Back and forward stay within the graph on screen.
   const navigation = useNavigation(graph === "root" ? document.id : `${document.id}/${graph}`);
+  // The first settled view says the canvas is set up: a jump across levels can move it on from there.
+  const viewSetUp = useRef(false);
+  const { onViewSettled: settled } = navigation;
+  const onViewSettled: CanvasViewProps["onViewSettled"] = useCallback(
+    (view, size) => {
+      settled(view, size);
+      if (viewSetUp.current) return;
+      viewSetUp.current = true;
+      canvasShown();
+    },
+    [settled],
+  );
   // Nodes an edit is about to add (a collapse's instance) are selected once they're drawn.
   const selectWhenShown = useRef<LocalId[] | null>(null);
   useLayoutEffect(() => {
@@ -337,7 +352,11 @@ function DocumentCanvas({
   );
 
   const finding = useFind((state) => state.open);
-  const onJump = useCallback((result: FindResult) => canvasActions()?.focus([result.nodeId]), []);
+  const onJump = useCallback(
+    (result: FindResult) =>
+      result.graph === graph ? canvasActions()?.focus([result.nodeId]) : onReveal?.(result.graph, result.nodeId),
+    [graph, onReveal],
+  );
   const onReplace = useCallback(
     (from: Id, to: Id) => {
       const running: Record<string, LocalId[]> = {};
@@ -408,7 +427,7 @@ function DocumentCanvas({
           onEditText={onEditText}
           onResize={onResize}
           onToggleCollapsed={onToggleCollapsed}
-          onViewSettled={navigation.onViewSettled}
+          onViewSettled={onViewSettled}
           {...(onOpenSubgraph && { onOpenSubgraph })}
           ghost={ghostScene}
           {...(placeGhost && { onGhostPlace: placeGhost })}
@@ -435,6 +454,7 @@ function DocumentCanvas({
             document={document}
             pack={pack}
             graph={graph}
+            leaves={onReveal !== undefined}
             left={insets.left}
             right={insets.right}
             onJump={onJump}
