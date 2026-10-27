@@ -1,7 +1,8 @@
 // The goal planner: a card floating at the canvas's top-left. Write goals (items and rates in the document's
 // unit) and options, plan, and the proposal appears on the canvas as a ghost while the card sums it up
 // (machines, power, raw inputs against the map, byproducts, shortfalls). Accept adds it as one undo step,
-// Adjust goes back to the goals with the ghost still shown, Discard drops it.
+// Adjust goes back to the goals (the proposal's) with the ghost still shown, Discard drops it. Proposals an MCP
+// client makes open here too (`followProposals`).
 import { Check, Plus, Recycle, Undo2, WandSparkles, X } from "lucide-react";
 import { useEffect, useId, useMemo } from "react";
 import type { PackData, RateUnit } from "../../../contracts/pack";
@@ -27,8 +28,8 @@ import {
   SummaryList,
   SummaryStats,
 } from "../totals/summary-view";
-import { acceptedCommands, planLabel, proposalGhost, targetsPerSecond, type GoalRow } from "./plan";
-import { closePlanner, newGoal, resetPlanner, usePlanner, type PlannerState } from "./planner-store";
+import { goalsOf, planLabel, proposalGhost, targetsPerSecond, type GoalRow } from "./plan";
+import { closePlanner, newGoal, newGoalKey, resetPlanner, usePlanner, type PlannerState } from "./planner-store";
 import { fromPerSecond, rateSuffix } from "../../../utilities/units";
 
 /** The card's width, in pixels; the canvas keeps fitted graphs clear of it. */
@@ -65,8 +66,19 @@ export function usePlannerCanvas(documentId: string | undefined) {
   };
 }
 
+/** Closes the planner, discarding its proposal if it has one: the planning manager stops waiting for it. */
+function useDiscard() {
+  const connector = useConnector();
+  return () => {
+    const { proposal } = usePlanner.getState();
+    closePlanner();
+    if (proposal) void connector.planning.discardProposal({ proposalId: proposal.id }).catch(() => undefined);
+  };
+}
+
 export function PlannerPanel({ document, pack, rateUnit }: PlannerTarget) {
   const planner = usePlanner();
+  const discard = useDiscard();
   const library = usePanels((panels) => panels.left);
   if (!planner.open || planner.documentId !== document.id) return null;
   const left = library.open ? library.width + 2 * MARGIN : MARGIN;
@@ -79,7 +91,7 @@ export function PlannerPanel({ document, pack, rateUnit }: PlannerTarget) {
         "backdrop-blur-glass backdrop-saturate-150",
       )}
       onKeyDown={(event) => {
-        if (event.key === "Escape" && !event.defaultPrevented) closePlanner();
+        if (event.key === "Escape" && !event.defaultPrevented) discard();
       }}
     >
       <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line-subtle pr-1.5 pl-4">
@@ -87,7 +99,7 @@ export function PlannerPanel({ document, pack, rateUnit }: PlannerTarget) {
         <h2 className="flex-1 truncate text-xs font-semibold tracking-wide text-fg-muted uppercase">
           {planner.stage === "proposal" ? "Proposal" : "Plan production"}
         </h2>
-        <IconButton label="Close planner" icon={<X />} size="sm" onClick={closePlanner} />
+        <IconButton label="Close planner" icon={<X />} size="sm" onClick={discard} />
       </header>
       {planner.stage === "proposal" && planner.proposal ? (
         <ProposalCard planner={planner} pack={pack} rateUnit={rateUnit} />
@@ -224,6 +236,7 @@ function GoalsForm({ planner, document, pack, rateUnit }: PlannerTarget & { plan
 
 function ProposalCard({ planner, pack, rateUnit }: { planner: PlannerState; pack: PackData; rateUnit: RateUnit }) {
   const connector = useConnector();
+  const discard = useDiscard();
   const proposal = planner.proposal;
   if (!proposal) return null;
   const facts = summaryFacts(proposal.summary, pack);
@@ -233,11 +246,7 @@ function ProposalCard({ planner, pack, rateUnit }: { planner: PlannerState; pack
     if (!proposal) return;
     const label = planLabel(proposal.targets, pack, rateUnit);
     try {
-      const result = await connector.editing.apply({
-        documentId: proposal.documentId,
-        commands: acceptedCommands(proposal, planner.offset),
-        label,
-      });
+      const result = await connector.editing.applyProposal({ proposalId: proposal.id, label, offset: planner.offset });
       if (result.ok) usePlanner.setState({ stage: "accepted", proposal: null, offset: { x: 0, y: 0 } });
       else
         toast({
@@ -285,10 +294,15 @@ function ProposalCard({ planner, pack, rateUnit }: { planner: PlannerState; pack
         )}
       </div>
       <footer className="flex shrink-0 items-center gap-2 border-t border-line-subtle px-4 py-3">
-        <Button variant="ghost" onClick={closePlanner}>
+        <Button variant="ghost" onClick={discard}>
           Discard
         </Button>
-        <Button className="ml-auto" onClick={() => usePlanner.setState({ stage: "goals" })}>
+        <Button
+          className="ml-auto"
+          onClick={() =>
+            usePlanner.setState({ stage: "goals", goals: goalsOf(proposal.targets, rateUnit, newGoalKey) })
+          }
+        >
           Adjust
         </Button>
         <Button variant="primary" autoFocus onClick={() => void accept()}>

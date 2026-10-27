@@ -26,10 +26,29 @@ sequenceDiagram
   M->>K: results(solution)
   M->>P: propose(superstructure, results, document)
   P-->>M: proposal
+  M->>M: store it as pending (ProposalStore), publish proposalChanged
   M-->>C: Result<Proposal>
 ```
 
-[[src/contracts/managers.ts]] declares both methods (`planning.planProduction`, `planning.compareRecipes`) with their MCP tools, `plan_production` and `compare_recipes` in the *Plan* group. Rates are in items per second, like everywhere behind the managers; the UI converts from the document's unit.
+[[src/contracts/managers.ts]] declares the methods (`planning.planProduction`, `compareRecipes`, `discardProposal`, `convertRate`, and `editing.applyProposal`) with their MCP tools: `plan_production` and `compare_recipes` in the *Plan* group, `convert_rate` in *Read*, `apply_proposal` in *Edit*. Rates are in items per second, like everywhere behind the managers; the UI converts from the document's unit, and `convertRate` from what people say ("2 full yellow belts": the pack's logistics by id, name or alias, at full capacity; or `per_minute`, `/h` …) into items per second ([[src/engines/planning/rates.ts]]).
+
+## Proposals
+
+Every proposal `planProduction` makes is kept in the `ProposalStore` (proposals access, [[src/access/proposals/memory.ts]], in memory for the session) under an id a model can read back (`proposal-1`, `proposal-2` …), and goes through these states, each published as `proposalChanged { proposal, status }`:
+
+```mermaid
+stateDiagram-v2
+  [*] --> pending: planning.planProduction
+  pending --> accepted: editing.applyProposal (Accept, or apply_proposal)
+  pending --> discarded: planning.discardProposal (Discard, closing the card)
+  pending --> replaced: a newer plan for the same document
+```
+
+- **Who owns what:** the planning manager makes, replaces and discards proposals; the editing manager accepts them, because adding the commands and the undo step is its use case. The store is the access component they share (like the `DocumentStore`), so neither calls the other, and the event tells everyone else.
+- **One pending proposal per document:** a new plan replaces the document's pending one. Comparing recipes plans too, but keeps nothing.
+- **Accepting** applies the commands, moved by the ghost's `offset`, as one `editing.apply`-style batch with the caller's label, then settles the proposal. A proposal that isn't pending fails with why, in words for a model: accepted already, discarded by the person ("ask them what to change, then plan again"), or replaced. Commands that no longer fit the document (an id taken since) fail and leave it pending.
+- **The UI follows the events** ([[src/client/features/planner/planner-store.ts]] `followProposals`, started by the live app): a pending proposal opens the planner card on its document's tab, whoever made it; the shown one moves to *Accepted* or leaves when it's settled. So a proposal from an MCP client looks exactly like the person's own ([[Design]], Goal planner).
+- Closing a document drops its proposals; a restart starts without any.
 
 ## Superstructure
 
@@ -63,7 +82,7 @@ The manager compiles through the pack's plugin runtime (`runtimeOf`), so third-p
 - **Flows:** the hubs dissolve. Each hub's producers are matched to its consumers in order (users, then the target, then the spill) by the north-west corner rule, so a hub with *p* producers and *c* consumers becomes at most *p + c − 1* direct edges.
 - **Layout** ([[src/engines/planning/layout.ts]]): layered, left to right. A depth-first walk from the raw inputs drops the edges that close cycles; every node goes one column right of its furthest input; raw inputs take the first column and targets the last; columns are ordered by the barycentre of their neighbours; nodes line up with what feeds them (raw inputs with what they feed) and land on the grid. Node sizes approximate the canvas geometry, which the engines can't import. It's a stand-in until the `layout` engine ([[CARB-49]]); auto-arrange tidies up further.
 - **Placement:** right of the document's factory with an 8-grid gap, level with its top; at the origin in an empty document.
-- **Commands:** `addNode` for each node, then `connect` for each flow, for one `editing.apply` batch (one undo step).
+- **Commands:** `addNode` for each node, then `connect` for each flow, for one batch (one undo step) when accepted.
 - **Preview results** under the commands' ids (machine counts, rates, flows) for the ghost, and a **summary**: buildings (rounded up per node), raw inputs, byproducts, shortfalls (deficits, e.g. when a raw input hits its map limit) and power (the plugin's derived `power`, Satisfactory's metric in MW, or `powerMW`; else the building's `power.consume` × machines).
 
 Accepting a proposal gives a document whose own solve has no deficits and the same raw use (tested for every item the template pack makes, in [[src/managers/planning.test.ts]]).

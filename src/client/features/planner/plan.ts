@@ -1,10 +1,10 @@
-// The goal planner's rules in the client: goals in the document's unit become targets per second, a proposal
-// becomes a ghost and, accepted, the commands that add it where the ghost was left.
-import type { Command } from "../../../contracts/commands";
+// The goal planner's rules in the client: goals in the document's unit become targets per second (and back), a
+// proposal becomes a ghost, and its undo step gets a name.
 import type { Graph } from "../../../contracts/document";
 import type { PlanTarget, Proposal } from "../../../contracts/managers";
 import type { Id, Item, PackData, RateUnit } from "../../../contracts/pack";
-import { toPerSecond } from "../../../utilities/units";
+import { clean } from "../../../utilities/numbers";
+import { fromPerSecond, toPerSecond } from "../../../utilities/units";
 import type { Point } from "../../canvas/adapter";
 import type { Ghost } from "../../canvas/ghost/ghost";
 import { formatRate } from "../../canvas/model/format";
@@ -23,6 +23,15 @@ export function targetsPerSecond(rows: GoalRow[], unit: RateUnit): PlanTarget[] 
   );
 }
 
+/** A proposal's targets as goals to adjust, in the document's unit. */
+export function goalsOf(targets: PlanTarget[], unit: RateUnit, key: () => number): GoalRow[] {
+  return targets.map((target) => ({
+    key: key(),
+    item: target.item,
+    rate: clean(fromPerSecond(target.perSecond, unit)),
+  }));
+}
+
 /** The proposal as a ghost: the nodes and flows it adds, where it adds them, moved by `offset`. */
 export function proposalGhost(proposal: Proposal, offset: Point): Ghost {
   const graph: Graph = { nodes: {}, edges: {} };
@@ -36,18 +45,6 @@ export function proposalGhost(proposal: Proposal, offset: Point): Ghost {
     }
   }
   return { graph, positions, results: proposal.results, placement: { mode: "fixed", offset }, label: "Proposal" };
-}
-
-/** The proposal's commands with its nodes moved by `offset`, where the ghost was left. */
-export function acceptedCommands(proposal: Proposal, offset: Point): Command[] {
-  return proposal.commands.map((command) =>
-    command.type === "addNode"
-      ? {
-          ...command,
-          position: { ...command.position, x: command.position.x + offset.x, y: command.position.y + offset.y },
-        }
-      : command,
-  );
 }
 
 /** "Plan 15/min Motor": how the accepted proposal reads in the undo history. */

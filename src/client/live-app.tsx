@@ -16,6 +16,7 @@ import { DocumentTabs } from "./features/documents/document-tabs";
 import { sharedDocumentIn } from "./features/documents/links";
 import { NewDocumentDialog } from "./features/documents/new-document-dialog";
 import { useFactoryOverlays } from "./features/planner/factory-overlays";
+import { followProposals } from "./features/planner/planner-store";
 import { CheatSheet } from "./features/shortcuts/cheat-sheet";
 import { Welcome } from "./features/documents/welcome";
 import { McpHost } from "./features/mcp/host";
@@ -32,6 +33,8 @@ export function LiveApp() {
     setDocumentActions(createDocumentActions(connector, workspace));
     return () => setDocumentActions(null);
   }, [connector, workspace]);
+  // Proposals open in the planner on their document's tab, whoever made them (the planner or an MCP client).
+  useEffect(() => followProposals(connector, (documentId) => workspace.activate(documentId)), [connector, workspace]);
 
   useOpenSharedDocument();
   useReportRestoreProblems();

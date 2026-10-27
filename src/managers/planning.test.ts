@@ -2,14 +2,16 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import templatePlugin from "../../packs/_template/plugin/index";
 import { createMemoryDocumentStore } from "../access/documents/memory";
+import { createMemoryProposalStore } from "../access/proposals/memory";
 import type { LoadedPack, PackStore } from "../contracts/access";
 import type { Command } from "../contracts/commands";
 import { CURRENT_DOCUMENT_VERSION, type Document, type Graph } from "../contracts/document";
-import type { PlanOptions, PlanTarget, Proposal } from "../contracts/managers";
+import type { Events, PlanOptions, PlanTarget, Proposal } from "../contracts/managers";
 import { compile, toResults } from "../engines/compiler";
 import { templatePack } from "../engines/compiler/template.fixture";
 import { applyCommands, type ResolvedCommand } from "../engines/editing/commands";
 import { loadSolver, solve } from "../engines/solver";
+import { createEventBus } from "../utilities/events";
 import { createPlanningManager } from "./planning";
 
 const template: LoadedPack = {
@@ -48,10 +50,15 @@ function factory(graph: Graph = { nodes: {}, edges: {} }, layout: Document["layo
   };
 }
 
-function setUp(document = factory()) {
+function setUp(document = factory(), pack: PackStore = packs) {
   const documents = createMemoryDocumentStore();
   documents.put(document);
-  return createPlanningManager({ documents, packs });
+  const proposals = createMemoryProposalStore();
+  const events = createEventBus<Events>();
+  const changes: string[] = [];
+  events.subscribe("proposalChanged", ({ proposal, status }) => changes.push(`${proposal.id} ${status}`));
+  const planning = createPlanningManager({ documents, packs: pack, proposals, events });
+  return Object.assign(planning, { proposals, events, changes });
 }
 
 const defaults: PlanOptions = { objective: "resources", alternates: true, exclude: [] };
@@ -239,9 +246,7 @@ describe("planning production", () => {
       buildings: template.data.buildings.map((building) => ({ ...building, id: renamed(building.id) })),
       recipes: template.data.recipes.map((recipe) => ({ ...recipe, buildings: recipe.buildings.map(renamed) })),
     };
-    const documents = createMemoryDocumentStore();
-    documents.put(factory());
-    const planning = createPlanningManager({ documents, packs: { get: async () => ({ ...template, data }) } });
+    const planning = setUp(factory(), { list: packs.list, get: async () => ({ ...template, data }) });
     const result = await planning.planProduction({
       documentId: "doc",
       targets: [{ item: "iron-plate", perSecond: 1 }],
@@ -266,6 +271,63 @@ describe("planning production", () => {
         options: defaults,
       }),
     ).toMatchObject({ ok: false, error: [{ path: ["targets", 0, "item"] }] });
+  });
+});
+
+describe("proposals", () => {
+  const steel = { documentId: "doc", targets: [{ item: "iron-plate", perSecond: 1 }], options: defaults };
+
+  it("are kept as pending under an id, and published for the UI to show", async () => {
+    const planning = setUp();
+    const result = await planning.planProduction(steel);
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    expect(result.value.id).toBe("proposal-1");
+    expect(planning.proposals.get("proposal-1")).toEqual({ proposal: result.value, status: "pending" });
+    expect(planning.changes).toEqual(["proposal-1 pending"]);
+  });
+
+  it("replace the document's earlier pending proposal", async () => {
+    const planning = setUp();
+    await planning.planProduction(steel);
+    await planning.planProduction(steel);
+    expect(planning.changes).toEqual(["proposal-1 pending", "proposal-1 replaced", "proposal-2 pending"]);
+    expect(planning.proposals.pending("doc").map(({ id }) => id)).toEqual(["proposal-2"]);
+  });
+
+  it("aren't kept when planning fails, or when only comparing recipes", async () => {
+    const planning = setUp();
+    await planning.planProduction({ ...steel, targets: [{ item: "gold", perSecond: 1 }] });
+    await planning.compareRecipes({ documentId: "doc", item: "iron-plate", perSecond: 1, options: defaults });
+    expect(planning.changes).toEqual([]);
+  });
+
+  it("can be discarded while pending; discarding again changes nothing", async () => {
+    const planning = setUp();
+    await planning.planProduction(steel);
+    expect(await planning.discardProposal({ proposalId: "proposal-1" })).toEqual({ ok: true, value: undefined });
+    expect(await planning.discardProposal({ proposalId: "proposal-1" })).toEqual({ ok: true, value: undefined });
+    expect(planning.proposals.get("proposal-1")?.status).toBe("discarded");
+    expect(planning.changes).toEqual(["proposal-1 pending", "proposal-1 discarded"]);
+    expect(await planning.discardProposal({ proposalId: "proposal-7" })).toMatchObject({ ok: false });
+  });
+
+  it("go when their document closes", async () => {
+    const planning = setUp();
+    await planning.planProduction(steel);
+    planning.events.publish("documentsChanged", { documents: [] });
+    expect(planning.proposals.get("proposal-1")).toBeUndefined();
+  });
+});
+
+describe("converting rates", () => {
+  it("reads belts with the document's pack and answers in its unit too", async () => {
+    const document = { ...factory(), settings: { rateUnit: "per_minute" as const } };
+    const result = await setUp(document).convertRate({ documentId: "doc", amount: 2, unit: "conveyor-1" });
+    const belt = template.data.logistics.find(({ id }) => id === "conveyor-1");
+    expect(result).toMatchObject({
+      ok: true,
+      value: { perSecond: 2 * (belt?.capacity ?? Number.NaN), inDocumentUnit: { unit: "per_minute" } },
+    });
   });
 });
 

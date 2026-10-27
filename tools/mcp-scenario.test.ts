@@ -1,21 +1,25 @@
 // "Steel, 2 full yellow belts" (docs/Architecture/MCP-server.md, Example) as a scripted MCP session, end to end
 // on the TypeScript side: the scripted client sends each call exactly as the Rust server does (tool, plus the
 // manager method from the manifest), through the webview's bridge, its permissions and the connector, to the real
-// workspace, editing and analysis managers, the Factorio pack and the solver. The Rust side of the trip is tested
-// in crates/mcp.
-//
-// Stand-ins until the real pieces exist, each marked SWITCH below:
-// - the client converts "2 full yellow belts" itself, from the pack's logistics, until convert_rate exists
-//   (planning manager);
-// - accepting runs the proposal's commands through edit_graph until apply_proposal exists (CARB-46).
+// workspace, editing, analysis and planning managers, the Factorio pack and the solver. The app's planner follows
+// the proposals as in the live app, so the test sees what the person sees. The Rust side of the trip is tested in
+// crates/mcp.
 import { readdirSync, readFileSync } from "node:fs";
 import ELK from "elkjs/lib/elk.bundled.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import factorioPlugin from "../packs/factorio/plugin/index";
+import { createMemoryProposalStore } from "../src/access/proposals/memory";
 import { createMcpAccess } from "../src/client/features/mcp/access";
+import { followProposals, usePlanner } from "../src/client/features/planner/planner-store";
 import { startMcpBridge } from "../src/client/features/mcp/bridge";
 import type { DocumentStore, LoadedPack, OpenDocument, PackStore } from "../src/contracts/access";
-import { managers as contracts, type DocumentInfo, type Events, type Proposal } from "../src/contracts/managers";
+import {
+  managers as contracts,
+  type DocumentInfo,
+  type Events,
+  type Proposal,
+  type RateConversion,
+} from "../src/contracts/managers";
 import type { PackData } from "../src/contracts/pack";
 import type { Result } from "../src/contracts/result";
 import type { Request, Response } from "../src/contracts/rpc";
@@ -76,16 +80,19 @@ const packs: PackStore = { list: async () => [factorio.info], get: async () => f
 function carbonara() {
   const bus = createEventBus<Events>();
   const documents = memoryDocuments();
+  const proposals = createMemoryProposalStore();
   let nextId = 1;
   const newId = () => `id-${nextId++}`;
   const dispatch = createDispatcher(contracts, {
     workspace: createWorkspaceManager({ documents, packs, events: bus, newId }),
-    editing: createEditingManager({ documents, events: bus, newId, layout: new ELK() }),
+    editing: createEditingManager({ documents, events: bus, newId, layout: new ELK(), proposals }),
     analysis: createAnalysisManager({ bus, documents, packs }),
     packs: { listPacks: async () => [factorio.info], getPackData: async () => factorio.data },
-    planning: createPlanningManager({ documents, packs }),
+    planning: createPlanningManager({ documents, packs, proposals, events: bus }),
   });
   const backendListeners: ((message: unknown) => void)[] = [];
+  // Events reach the client as they do from the backend worker.
+  bus.subscribeAll((event, payload) => backendListeners.forEach((listener) => listener({ event, payload })));
   const backend = connect(contracts, {
     send: (message) =>
       void dispatch(message as Request).then((response) => backendListeners.forEach((listener) => listener(response))),
@@ -102,6 +109,9 @@ function carbonara() {
     listen: (listener) => (toBridge = listener),
   };
   startMcpBridge({ transport: shell, contracts, backend, activeDocumentId: () => activeTab, access });
+  // The planner card, which opens every proposal on its document's tab.
+  usePlanner.setState({ open: false, documentId: null, stage: "goals", proposal: null });
+  followProposals(backend, (documentId) => (activeTab = documentId));
 
   // The scripted MCP client, seen through the server: the manifest maps each tool to its manager method, and
   // answers travel as JSON text.
@@ -132,6 +142,7 @@ function carbonara() {
     client,
     access,
     history,
+    backend,
     /** The person opens a new Factorio factory in a tab. */
     async openFactory(name: string) {
       const info = await backend.workspace.createDocument({ name, packId: "factorio" });
@@ -139,6 +150,14 @@ function carbonara() {
       return info;
     },
   };
+}
+
+/** Steel the classic way: from iron ore in furnaces, without Space Age's asteroid crushing and foundry casting. */
+function withoutSpaceAge(pack: PackData): string[] {
+  const spaceAge = new Set(["foundry", "crusher", "electromagnetic-plant", "recycler"]);
+  return pack.recipes
+    .filter(({ buildings }) => buildings.some((building) => spaceAge.has(building)))
+    .map(({ id }) => id);
 }
 
 function expectOk<T>(answer: { ok: true; value: T } | { ok: false; error: string }): T {
@@ -161,23 +180,22 @@ describe("Steel, 2 full yellow belts, through MCP", () => {
     expect(listed).toMatchObject({ id: factory.id, packId: "factorio" });
     const pack = expectOk(await client.call<PackData>("get_pack_data", { packId: listed?.packId }));
 
-    // SWITCH: convert_rate("2 full yellow belts"), once the planning manager has it.
-    const belt = pack.logistics.find(({ aliases }) => aliases?.includes("yellow belt"));
-    expect(belt).toMatchObject({ id: "transport-belt", capacity: 15 });
-    expect(pack.units.rate).toBe("per_second");
-    const target = 2 * (belt?.capacity ?? 0);
-    expect(target).toBe(30);
+    // "2 full yellow belts" in items per second, with the pack's belts.
+    const belts = expectOk(
+      await client.call<Result<RateConversion>>("convert_rate", {
+        documentId: "active",
+        amount: 2,
+        unit: "full yellow belts",
+      }),
+    );
+    if (!belts.ok) throw new Error(belts.error.map(({ message }) => message).join("\n"));
+    expect(belts.value).toMatchObject({ perSecond: 30, explanation: "2 × Transport belt at 15/s each" });
 
-    // Planning is off until the person allows it. Steel the classic way: from iron ore in furnaces, without
-    // Space Age's asteroid crushing and foundry casting, which use fewer raw items.
-    const spaceAge = new Set(["foundry", "crusher", "electromagnetic-plant", "recycler"]);
-    const exclude = pack.recipes
-      .filter(({ buildings }) => buildings.some((building) => spaceAge.has(building)))
-      .map(({ id }) => id);
+    // Planning is off until the person allows it. Without Space Age's recipes, which use fewer raw items.
     const targets = {
       documentId: "active",
-      targets: [{ item: "steel-plate", perSecond: target }],
-      options: { exclude },
+      targets: [{ item: "steel-plate", perSecond: belts.value.perSecond }],
+      options: { exclude: withoutSpaceAge(pack) },
     };
     expect(await client.call("plan_production", targets)).toMatchObject({
       ok: false,
@@ -190,15 +208,30 @@ describe("Steel, 2 full yellow belts, through MCP", () => {
     // 9000 iron ore per minute, in each recipe's default building: 960 stone furnaces (speed 1).
     expect(proposal.summary).toMatchObject({ buildings: { "stone-furnace": 960 }, raw: { "iron-ore": 150 } });
 
-    // The person accepts. SWITCH: apply_proposal once it exists.
-    access.allow("edit", true);
-    const accepted = await client.call("edit_graph", {
-      documentId: "active",
-      commands: proposal.commands,
-      label: "Accept the steel proposal",
+    // The person sees it: the planner card opens with the proposal as a ghost on the factory's tab.
+    expect(usePlanner.getState()).toMatchObject({
+      open: true,
+      documentId: factory.id,
+      stage: "proposal",
+      proposal: { id: proposal.id },
     });
+
+    // Accepting takes the Edit group: it changes the factory without the person's click.
+    const accept = { proposalId: proposal.id, label: "Steel for 2 yellow belts" };
+    expect(await client.call("apply_proposal", accept)).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/Edit tools are switched off/),
+    });
+    access.allow("edit", true);
+    const accepted = await client.call("apply_proposal", accept);
     expect(accepted).toMatchObject({ ok: true, value: { ok: true, value: { id: factory.id } } });
-    expect(history).toEqual(["AI: Accept the steel proposal"]);
+    expect(history).toEqual(["AI: Steel for 2 yellow belts"]);
+    // The card says it was added; accepting again adds nothing.
+    expect(usePlanner.getState()).toMatchObject({ stage: "accepted", proposal: null });
+    expect(await client.call("apply_proposal", accept)).toMatchObject({
+      ok: true,
+      value: { ok: false, error: [{ message: expect.stringMatching(/accepted already/) }] },
+    });
 
     // The solved factory runs without deficits and matches the proposal's summary.
     const { diagnostics } = expectOk(
@@ -219,20 +252,48 @@ describe("Steel, 2 full yellow belts, through MCP", () => {
     expectOk(await client.call("undo", { documentId: "active" }));
     const graph = expectOk(await client.call<{ nodes: object }>("get_graph", { documentId: "active" }));
     expect(graph.nodes).toEqual({});
-    expect(history.at(-1)).toBe("Undo AI: Accept the steel proposal");
+    expect(history.at(-1)).toBe("Undo AI: Steel for 2 yellow belts");
 
     // Every call is in the activity log, the refusal included.
     const log = access.store.getState().activity.map(({ tool, status }) => `${tool} ${status}`);
     expect(log.reverse()).toEqual([
       "list_documents done",
       "get_pack_data done",
+      "convert_rate done",
       "plan_production refused",
       "plan_production done",
-      "edit_graph done",
+      "apply_proposal refused",
+      "apply_proposal done",
+      "apply_proposal done",
       "get_diagnostics done",
       "get_totals done",
       "undo done",
       "get_graph done",
     ]);
+  });
+
+  it("tells the model when the person discarded the proposal in the app", async () => {
+    const { client, access, backend, openFactory, history } = carbonara();
+    await openFactory("Steel");
+    access.allow("plan", true);
+    access.allow("edit", true);
+    const planned = expectOk(
+      await client.call<Result<Proposal>>("plan_production", {
+        documentId: "active",
+        targets: [{ item: "steel-plate", perSecond: 1 }],
+        options: { exclude: withoutSpaceAge(factorio.data) },
+      }),
+    );
+    if (!planned.ok) throw new Error(planned.error.map(({ message }) => message).join("\n"));
+    expect(usePlanner.getState().proposal?.id).toBe(planned.value.id);
+
+    // The person clicks Discard on the planner card.
+    await backend.planning.discardProposal({ proposalId: planned.value.id });
+    expect(usePlanner.getState().proposal).toBeNull();
+    expect(await client.call("apply_proposal", { proposalId: planned.value.id, label: "Steel" })).toMatchObject({
+      ok: true,
+      value: { ok: false, error: [{ message: expect.stringMatching(/The person discarded proposal/) }] },
+    });
+    expect(history).toEqual([]);
   });
 });

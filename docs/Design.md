@@ -146,10 +146,12 @@ The side panels float over the canvas, so the canvas reads which are open and tr
 | Stage | Shows |
 | --- | --- |
 | Goals | One row per goal: an item picker (type to search names, aliases and ids; what recipes make first, raw resources marked) and a rate in the document's unit, 1/s worth by default. *Add a goal*; options *Use as few* (Resources or Buildings) and *Alternate recipes*. *Plan* asks the `planning` manager ([[Architecture/Planning]]) |
-| Proposal | The goals as chips; three stats (machines to build, power in MW, total raw input); buildings by count; raw inputs with a bar against the map's limit (healthy, amber above 90%, red over); byproducts; a red callout for what the map can't supply. *Discard*, *Adjust* (back to the goals, the ghost stays until the next plan), *Accept* (focused, so Enter accepts) |
+| Proposal | The goals as chips; three stats (machines to build, power in MW, total raw input); buildings by count; raw inputs with a bar against the map's limit (healthy, amber above 90%, red over); byproducts; a red callout for what the map can't supply. *Discard*, *Adjust* (back to the goals, now the proposal's, the ghost stays until the next plan), *Accept* (focused, so Enter accepts) |
 | Accepted | "Added to …", with *Undo* (the whole plan is one step), *Plan more* and *Done* |
 
-The proposal appears on the canvas as a **ghost** beside the factory, brought into view with the nearby part of the factory when cards stay readable at that zoom (otherwise the ghost alone). Accepting sends the proposal's commands, moved to where the ghost was left, as one `editing.apply` batch labelled "Plan 15/min Motor". Escape closes the card.
+The proposal appears on the canvas as a **ghost** beside the factory, brought into view with the nearby part of the factory when cards stay readable at that zoom (otherwise the ghost alone). Accepting asks `editing.applyProposal` to add it where the ghost was left, as one undo step labelled "Plan 15/min Motor". Escape, *Discard* and closing the card discard it (`planning.discardProposal`).
+
+The card follows the planning manager's proposals (`proposalChanged`, [[Architecture/Planning#Proposals]]), not only its own: a proposal an MCP client makes with `plan_production` opens the card on its document's tab, in the *Proposal* stage, as if the person had planned it. When the model accepts it (`apply_proposal`) the card moves on to *Accepted*; when the person discards it, the model is told so.
 
 ### Totals
 

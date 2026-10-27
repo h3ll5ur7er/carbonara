@@ -1,6 +1,6 @@
 // Scene `planner`: a small copper line with the goal planner's proposal for 15 motors a minute beside it, as a
 // ghost with its summary card. The document, its results and the proposal are the real engines' answers
-// (planner.fixture.json, kept current by src/managers/planning.test.ts). Accepting applies the commands to the
+// (planner.fixture.json, kept current by src/managers/planning.test.ts). Accepting applies the proposal to the
 // scene's document in memory; planning again answers with the same proposal.
 import { produce } from "immer";
 import { useMemo, useState } from "react";
@@ -35,13 +35,14 @@ export default function PlannerScene() {
     () =>
       fakeConnector({
         editing: {
-          apply: async ({ commands }) => {
+          applyProposal: async ({ offset }) => {
             setDocument((current) =>
               produce(current, (draft) => {
-                for (const command of commands) {
+                for (const command of scene.proposal.commands) {
                   if (command.type === "addNode" && command.id) {
                     draft.graph.nodes[command.id] = command.node;
-                    (draft.layout.root ??= {})[command.id] = command.position;
+                    const { x, y } = command.position;
+                    (draft.layout.root ??= {})[command.id] = { x: x + offset.x, y: y + offset.y };
                   } else if (command.type === "connect" && command.id) {
                     draft.graph.edges[command.id] = command.edge;
                   }
@@ -55,7 +56,7 @@ export default function PlannerScene() {
             return { id: scene.document.id, name: scene.document.name, packId: "template", version: 3 };
           },
         },
-        planning: { planProduction: async () => ok(scene.proposal) },
+        planning: { planProduction: async () => ok(scene.proposal), discardProposal: async () => ok(undefined) },
         packs: { getPackData: async () => templatePack, listPacks: async () => [] },
       }),
     [],

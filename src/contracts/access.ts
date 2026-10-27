@@ -1,7 +1,7 @@
 // What managers need from the access components that more than one manager uses.
 // Each access component implements its interface; managers get it injected by the composition root.
 import type { Document } from "./document";
-import type { DocumentInfo, PackInfo } from "./managers";
+import type { DocumentInfo, PackInfo, Proposal, ProposalStatus } from "./managers";
 import type { PackData } from "./pack";
 import type { Plugin, PluginDescription } from "./plugin";
 import type { Result } from "./result";
@@ -58,6 +58,21 @@ export interface CompiledModel {
   blueprints: Record<string, number>;
   /** Maps the solve of a blueprint's inside (`IncrementalSolver.expand`) back to that blueprint's graph. */
   blueprintResults(graph: string, outcome: Result<Solution, Unsolvable>, version: number): Promise<AnalysisResults>;
+}
+
+/**
+ * The proposals made in this session and where each stands (proposals access). The planning manager makes,
+ * replaces and discards them; the editing manager accepts them. Closing a document drops its proposals.
+ */
+export interface ProposalStore {
+  /** Stores a new, pending proposal under the next free id. */
+  add(proposal: Omit<Proposal, "id">): Proposal;
+  get(proposalId: string): { proposal: Proposal; status: ProposalStatus } | undefined;
+  settle(proposalId: string, status: Exclude<ProposalStatus, "pending">): void;
+  /** The document's pending proposals, oldest first. */
+  pending(documentId: string): Proposal[];
+  /** Forgets the proposals of documents that aren't open any more. */
+  keepOnly(documentIds: ReadonlySet<string>): void;
 }
 
 /** Built-in and installed packs (packs access). Installing and removing come with CARB-25 and CARB-27. */

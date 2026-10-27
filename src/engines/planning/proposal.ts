@@ -29,7 +29,7 @@ interface Planned {
   result: NodeResult;
 }
 
-export function propose({ superstructure, results, pack, document }: ProposeInput): Proposal {
+export function propose({ superstructure, results, pack, document }: ProposeInput): Omit<Proposal, "id"> {
   const { roles, document: candidates } = superstructure;
   const fresh = idsBeside(document);
   const planned = new Map<LocalId, Planned>();
@@ -110,6 +110,18 @@ export function propose({ superstructure, results, pack, document }: ProposeInpu
     results: { nodes: nodeResults, edges: edgeResults },
     summary: summarise(planned, roles, results, pack),
   };
+}
+
+/** The proposal's commands with its nodes moved by `offset`, where its ghost was left. */
+export function placeProposal({ commands }: Pick<Proposal, "commands">, offset: { x: number; y: number }): Command[] {
+  return commands.map((command) =>
+    command.type === "addNode"
+      ? {
+          ...command,
+          position: { ...command.position, x: command.position.x + offset.x, y: command.position.y + offset.y },
+        }
+      : command,
+  );
 }
 
 function summarise(

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Proposal } from "../../../contracts/managers";
 import { templatePack } from "../../scenes/template-pack";
-import { acceptedCommands, findItems, planLabel, proposalGhost, targetsPerSecond } from "./plan";
+import { findItems, goalsOf, planLabel, proposalGhost, targetsPerSecond } from "./plan";
 
 const proposal: Proposal = {
+  id: "proposal-1",
   documentId: "doc",
   targets: [{ item: "copper-plate", perSecond: 1 }],
   commands: [
@@ -68,14 +69,24 @@ describe("planning in the client", () => {
     expect(ghost.placement).toEqual({ mode: "fixed", offset: { x: 48, y: 0 } });
   });
 
-  it("accepts the proposal where the ghost was moved to", () => {
-    const commands = acceptedCommands(proposal, { x: 48, y: -24 });
-    expect(commands.map((command) => (command.type === "addNode" ? command.position : command.type))).toEqual([
-      { x: 48, y: 0 },
-      { x: 408, y: -24 },
-      "connect",
+  it("turns a proposal's targets back into goals in the document's unit, to adjust them", () => {
+    let key = 0;
+    const goals = goalsOf(
+      [
+        { item: "motor", perSecond: 0.25 },
+        { item: "circuit", perSecond: 1 / 3 },
+      ],
+      "per_minute",
+      () => ++key,
+    );
+    expect(goals).toEqual([
+      { key: 1, item: "motor", rate: 15 },
+      { key: 2, item: "circuit", rate: 20 },
     ]);
-    expect(proposal.commands[0]).toMatchObject({ position: { x: 0, y: 24 } });
+    expect(targetsPerSecond(goals, "per_minute")).toEqual([
+      { item: "motor", perSecond: 0.25 },
+      { item: "circuit", perSecond: 1 / 3 },
+    ]);
   });
 
   it("names the undo step after the targets, in the document's unit", () => {

@@ -80,7 +80,7 @@ attachMcpShell({
 `attachMcpShell` ([[src/client/features/mcp/host.tsx]]) starts the bridge ([[src/client/features/mcp/bridge.ts]]); `McpHost`, which the live app renders, tells it which tab is on screen. The web app never calls it, so it has no MCP.
 - **Tools are generated from the manager contracts** (DRY): each MCP-exposed manager method carries a description, its zod schema becomes the tool's input schema, and it belongs to a permission group.
 - **Edits go through the normal command pipeline:** each tool call becomes one undo step, labelled "AI: …" in the history panel.
-- **Proposals instead of surprises:** generative tools don't change the document directly by default. They create a proposal, shown as a ghost overlay with a summary card (machines, raw inputs, power) and *Accept*, *Adjust* and *Discard* buttons. A setting allows edits to be applied directly instead.
+- **Proposals instead of surprises:** generative tools don't change the document directly. `plan_production` makes a proposal, which opens in the app's planner card as a ghost on its document's tab, with its summary (machines, raw inputs, power) and *Accept*, *Adjust* and *Discard*, exactly like the person's own plans ([[Architecture/Planning#Proposals]]). The model accepts it with `apply_proposal` only when the *Edit* group is on; otherwise the person decides in the app.
 - **Permissions:** read-only by default. The *Edit* and *Pack authoring* groups are switched on separately in settings. An activity panel lists every call.
 
 ## Tools
@@ -97,12 +97,14 @@ A view ([[src/client/features/mcp/views.ts]]) is the part of the method's value 
 | Read | `get_diagnostics` | `analysis.getResults`, view `diagnostics` | Deficits, surpluses, overflows, missed pins, errors |
 | Read | `list_packs` | `packs.listPacks` | |
 | Read | `get_pack_data` | `packs.getPackData` | Items, recipes, buildings, logistics, resources: the ids `edit_graph` needs |
-| Plan | `plan_production` | `planning.planProduction` | A proposal for target rates: the commands that build it, a preview solve and a summary ([[Architecture/Planning]]) |
+| Read | `convert_rate` | `planning.convertRate` | "2 full yellow belts" or "1800 per_minute" in items per second (the unit of every other tool), and in the document's unit |
+| Plan | `plan_production` | `planning.planProduction` | A proposal for target rates, with its id: the commands that build it, a preview solve and a summary ([[Architecture/Planning]]). The person sees it as a ghost in the app |
 | Plan | `compare_recipes` | `planning.compareRecipes` | The recipes that make an item, compared by what a plan with each one costs |
 | Edit | `edit_graph` | `editing.apply` | Any batch of [[src/contracts/commands.ts]] commands, as one undo step |
+| Edit | `apply_proposal` | `editing.applyProposal` | Accepts a proposal by id, as one undo step; says so when the person discarded it or a newer plan replaced it |
 | Edit | `undo` | `editing.undo` | |
 
-Still to come, each with the manager method it needs: `search_catalog` and `get_recipe` (a catalog query on the packs manager, for packs too large for `get_pack_data`), `explain_node` (analysis), `convert_rate` (planning), `apply_proposal` and showing an MCP proposal as a ghost in the app ([[CARB-82]]), `auto_arrange` ([[CARB-49]]), `replace_recipe` ([[CARB-53]]), `create_subgraph` ([[CARB-39]]), and the pack authoring tools `scaffold_pack`, `read_pack_file` / `write_pack_file` (only inside a dev pack folder), `validate_pack`, `reload_dev_pack` and `build_cpack` ([[CARB-72]]). `get_pack_schema` and `get_plugin_api_docs` became resources.
+Still to come, each with the manager method it needs: `search_catalog` and `get_recipe` (a catalog query on the packs manager, for packs too large for `get_pack_data`), `explain_node` (analysis), `auto_arrange` ([[CARB-49]]), `replace_recipe` ([[CARB-53]]), `create_subgraph` ([[CARB-39]]), and the pack authoring tools `scaffold_pack`, `read_pack_file` / `write_pack_file` (only inside a dev pack folder), `validate_pack`, `reload_dev_pack` and `build_cpack` ([[CARB-72]]). `get_pack_schema` and `get_plugin_api_docs` became resources.
 
 **One edit tool, not one per command.** `edit_graph` takes any batch of commands rather than separate `add_nodes`, `connect` and `set_node_fields` tools: the command union is the single source of truth for edits, so new commands reach MCP clients without touching the generator; a production line (nodes plus the edges between them) stays one undo step, as each tool call should be; and the JSON Schema of the union documents every command for the model. The cost is one large input schema.
 
@@ -121,18 +123,19 @@ Still to come, each with the manager method it needs: `search_catalog` and `get_
 
 - **The webview's bridge enforces them**, not the Rust server. The switches and the log live in the app, and every call from either transport passes the bridge, so it is the one place to check; the server stays a stateless forwarder. Tools of a switched-off group are still listed: a call is refused with a message that tells the model to ask the person to switch the group on, which needs no "tools changed" notifications.
 - **Every call is logged** ([[src/client/features/mcp/access.ts]]): tool, group, document, when, how it ended (done, failed, refused) and why. The log keeps the latest 200 calls.
-- **"AI: …" labels:** a method that takes a `label` (today `editing.apply`, behind `edit_graph`) gets the model's label prefixed with `AI: `, or `AI: Edit` without one, so the undo history shows which steps the AI made.
+- **"AI: …" labels:** a method that takes a `label` (today `editing.apply` and `editing.applyProposal`, behind `edit_graph` and `apply_proposal`) gets the model's label prefixed with `AI: `, or `AI: Edit` without one, so the undo history shows which steps the AI made.
+- **Why `apply_proposal` is an *Edit* tool:** it changes the factory without the person's click, which is what switching *Edit* on allows. *Plan* promises the opposite: proposals only, nothing changes until someone accepts. With *Plan* alone the model proposes and the person accepts or discards in the app; `apply_proposal` is refused and tells the model to ask for *Edit*.
 - The switches live in memory, like the theme: every start of the app is read-only again until a preferences store can persist them.
 
 ## Example
 
 "Steel, 2 full yellow belts":
 
-1. `convert_rate` finds that a yellow belt carries 15/s in the Factorio pack, so the target is 30/s = 1800 steel/min.
-2. `plan_production({ steel-plate: 30/s })` returns a proposal next to the existing factory: 960 stone furnaces (the recipes' default building; 480 smelting iron plate, 480 making steel) and 9000 iron ore/min.
-3. You click *Accept*, and `auto_arrange` tidies it up.
+1. `convert_rate({ amount: 2, unit: "full yellow belts" })` finds that a yellow belt carries 15/s in the Factorio pack, so the target is 30/s = 1800 steel/min.
+2. `plan_production({ steel-plate: 30/s })` returns a proposal (`proposal-1`) next to the existing factory: 960 stone furnaces (the recipes' default building; 480 smelting iron plate, 480 making steel) and 9000 iron ore/min. It opens in the app as a ghost with its summary card.
+3. You click *Accept*, or the model calls `apply_proposal({ proposalId: "proposal-1", label: "Steel for 2 yellow belts" })`; the undo history reads "AI: Steel for 2 yellow belts".
 
-[[tools/mcp-scenario.test.ts]] runs this session against the real managers, the Factorio pack and the solver: a scripted client sends every call as the server does, through the bridge and its permissions. It checks that planning is refused until allowed, that the accepted line solves without diagnostics and matches the proposal (960 stone furnaces, 150 iron ore/s), and that one undo, labelled "Undo AI: …", removes it. It plans with the real planner, excluding the Space Age recipes (asteroid crushing and foundry casting use fewer raw items). Until their tasks land, the client reads the belt capacity from `get_pack_data` instead of calling `convert_rate`, and accepting goes through `edit_graph` instead of `apply_proposal` ([[CARB-82]]); each spot is marked `SWITCH` in the test.
+[[tools/mcp-scenario.test.ts]] runs this session against the real managers, the Factorio pack and the solver: a scripted client sends every call as the server does, through the bridge and its permissions. The app's planner follows the proposals as in the live app. It checks that planning and accepting are refused until allowed, that the proposal opens in the planner card on the factory's tab, that the accepted line solves without diagnostics and matches the proposal (960 stone furnaces, 150 iron ore/s), that accepting twice adds nothing, and that one undo, labelled "Undo AI: …", removes it; and, in a second session, that the model is told when the person discarded the proposal. It plans with the real planner, excluding the Space Age recipes (asteroid crushing and foundry casting use fewer raw items).
 
 ## Security
 
