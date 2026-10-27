@@ -23,7 +23,8 @@ function locate(file) {
   const src = parts.lastIndexOf("src");
   if (src < 0 || !(parts[src + 1] in ALLOWED)) return null;
   const layer = parts[src + 1];
-  const component = (parts[src + 2] ?? "").replace(/\.[^.]+$/, "");
+  // `editing.test.ts` belongs to the component `editing`.
+  const component = (parts[src + 2] ?? "").replace(/\..*$/, "");
   return { layer, component };
 }
 

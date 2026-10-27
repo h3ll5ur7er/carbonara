@@ -63,6 +63,18 @@ A batch is all or nothing. The engine rejects it, as a value with the path of th
 
 Removing nodes also removes their positions and every edge that touches them; removing a blueprint's port node also removes the edges that reach that port through the blueprint's instances. Property tests check that `undo(do(x)) = x` for random command sequences and that no edge or position is ever left dangling.
 
+The `editing` manager ([[src/managers/editing.ts]]) runs the use case:
+
+- It gives new nodes and edges without an id a random UUID, applies the batch through the engine and saves the result in the `DocumentStore`, which raises the document's version by one.
+- It keeps an undo and a redo stack per document. One `apply` batch is one step, named by the caller's `label` or after its commands ("Move nodes"). A new edit clears the redo stack; closing a document (`documentsChanged` without it) drops its history.
+- It publishes `documentChanged` with the patches, the new version and the label (`Undo Move nodes` for an undo, whose patches are the step's inverse patches). A rejected batch changes nothing and publishes nothing.
+
+## Read model
+
+The client mirrors the documents it shows in a zustand store ([[src/client/core/read-model.ts]]). `open(documentId)` loads a snapshot with `editing.getDocument`, which returns the document *with its version*; from then on each `documentChanged` event with the next version is applied as Immer patches. Events the snapshot already includes (an older or equal version) are skipped, and a gap (a missed event) reloads the snapshot, because patches only apply to the version they were made from. Documents closed in the workspace are dropped.
+
+Because patches keep unchanged parts by identity, components subscribe with the selectors (`selectDocument`, `selectGraph`, `selectLayout`, `selectVersion`) and re-render only when their part changes: moving nodes changes the layout but leaves `selectGraph` returning the same object. A property test drives random edits, undos and redos through the real backend and checks that the read model always equals `getDocument` ([[src/shells/web/backend.test.ts]]).
+
 ## Saving
 
 The documents access component ([[src/access/documents/autosave.ts]], [[src/access/documents/files.ts]]) holds the documents open in this session and saves them.

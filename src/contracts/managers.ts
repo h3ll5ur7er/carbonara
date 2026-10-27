@@ -2,7 +2,7 @@
 // The RPC dispatcher, the client connector and the MCP server are all derived from this file.
 import { z } from "zod";
 import { Command } from "./commands";
-import type { Document } from "./document";
+import type { OpenDocument } from "./access";
 import type { Patch } from "./patches";
 import type { Issue } from "./issues";
 import type { PackData, PackManifest } from "./pack";
@@ -68,7 +68,8 @@ export const managers = {
     closeDocument: method<undefined>()(documentRef),
   },
   editing: {
-    getDocument: method<Document>()(documentRef),
+    /** The document with its version, so a client knows which `documentChanged` events the snapshot includes. */
+    getDocument: method<OpenDocument>()(documentRef),
     apply: method<Result<DocumentInfo>>()(
       documentRef.extend({ commands: z.array(Command).min(1), label: z.string().optional() }),
     ),
