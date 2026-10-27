@@ -122,6 +122,31 @@ describe("importPack", () => {
     expect(pixels[0]).toBeGreaterThan(200); // red: the 256 px image won
   });
 
+  it("takes the full-size icon from a strip of mipmaps, as Factorio ships its icons", async () => {
+    const pack = fakePack();
+    const sources = mkdtempSync(join(tmpdir(), "source-"));
+    const icons = join(sources, "icons");
+    mkdirSync(icons);
+    // 64 + 32 + 16 + 8 pixels wide: the 64×64 icon is red, the smaller copies to its right blue.
+    const strip = await sharp({ create: { width: 120, height: 64, channels: 4, background: "#0000ff" } })
+      .composite([{ input: await square(64, { r: 255, g: 0, b: 0 }), left: 0, top: 0 }])
+      .png()
+      .toBuffer();
+    writeFileSync(join(icons, "Plate.png"), strip);
+
+    await importPack(pack, [source(sources)], [icons]);
+    const { data: pixels, info } = await sharp(readFileSync(join(pack, "icons", "plate.webp")))
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    expect(info).toMatchObject({ width: 64, height: 64 });
+    const last = (info.width * info.height - 1) * info.channels;
+    // The bottom-right corner is red too: no blue copy squeezed in, no transparent padding.
+    expect(pixels[last + 3]).toBe(255);
+    expect(pixels[last]).toBeGreaterThan(200);
+    expect(pixels[last + 2]).toBeLessThan(50);
+  });
+
   it("replaces the data and icons of an earlier import", async () => {
     const pack = fakePack();
     mkdirSync(join(pack, "data"));
