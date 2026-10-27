@@ -74,3 +74,32 @@ test("says so when a file isn't a factory", async ({ page }) => {
   await expect(page.getByText("Couldn't open notes.json", { exact: true })).toBeVisible();
   await expect(tabs(page)).toHaveCount(0);
 });
+
+test("renames a factory from its tab, as one undoable step", async ({ page }) => {
+  await newFactory(page, "Iron");
+  await page.getByRole("tab", { name: "Iron" }).dblclick();
+  const field = page.getByRole("textbox", { name: "Factory name" });
+  await expect(field).toBeFocused();
+  await field.fill("Iron works");
+  await field.press("Enter");
+  await expect(tabs(page)).toHaveText(["Iron works"]);
+
+  await page.keyboard.press("ControlOrMeta+Z");
+  await expect(tabs(page)).toHaveText(["Iron"]);
+
+  // F2 ("Rename factory…") renames the factory on screen; Escape keeps its name.
+  await page.keyboard.press("F2");
+  await page.getByRole("textbox", { name: "Factory name" }).fill("Never mind");
+  await page.keyboard.press("Escape");
+  await expect(tabs(page)).toHaveText(["Iron"]);
+});
+
+test("reopens a closed factory from the recent list after a reload", async ({ page }) => {
+  await newFactory(page, "Iron");
+  await page.getByRole("button", { name: "Close Iron" }).click();
+  await page.reload();
+  const recent = page.getByRole("region", { name: "Recent" });
+  await expect(recent.getByRole("button")).toHaveText([/^Iron/]);
+  await recent.getByRole("button", { name: /Iron/ }).click();
+  await expect(page.getByRole("tab", { name: "Iron", selected: true })).toBeVisible();
+});

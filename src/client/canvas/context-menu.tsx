@@ -18,6 +18,7 @@ const ITEMS: Record<Target, string[][]> = {
     ["edit.copy", "edit.cut", "edit.duplicate"],
     ["view.zoomToSelection", "arrange.leftToRight", "align.straightenChain"],
     ["arrange.frameSelection", "arrange.toggleLock"],
+    ["subgraph.collapse", "subgraph.open", "subgraph.expand"],
     ["edit.delete", "edit.deleteAndBridge"],
   ],
   flow: [["edit.delete"]],

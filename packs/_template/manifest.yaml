@@ -3,7 +3,7 @@
 id: template
 name: Template Works
 version: 1.0.0
-engine: ^1
+engine: ^1.1
 game: { name: Template Works }
 data: data/
 plugin: plugin/index.js

@@ -50,11 +50,12 @@ export async function isolatePlugin(
     async compile(document) {
       const sandbox = await started();
       const answer = (await sandbox.call({ call: "compile", document })) as CompileAnswer;
-      if (typeof answer?.compileId !== "number" || typeof answer.model !== "object") {
+      if (typeof answer?.compileId !== "number" || typeof answer.model !== "object" || !strings(answer.items)) {
         throw new Error("The pack's plugin sandbox answered nonsense");
       }
       return {
         model: answer.model,
+        items: answer.items,
         async results(outcome, version) {
           const results = (await sandbox.call({
             call: "results",
@@ -64,21 +65,36 @@ export async function isolatePlugin(
           })) as AnalysisResults;
           return { ...results, documentId: document.id, version, graph: "root" };
         },
-        // Blueprints' insides aren't expanded for sandboxed packs yet (CARB-39): their instances still solve.
-        blueprints: {},
-        blueprintResults: async (graph) => {
-          throw new Error(`Blueprint ${graph} can't be expanded in the plugin sandbox yet`);
+        blueprints: blueprintIndices(answer.blueprints, answer.model.blueprints?.length ?? 0),
+        async blueprintResults(graph, outcome, version) {
+          const results = (await sandbox.call({
+            call: "blueprintResults",
+            compileId: answer.compileId,
+            graph,
+            outcome,
+            version,
+          })) as AnalysisResults;
+          return { ...results, documentId: document.id, version, graph };
         },
       };
     },
     async describe(settings) {
       return (await (await started()).call({ call: "describe", settings })) as PluginDescription;
     },
+    async unavailableRecipes(settings) {
+      const answer = await (await started()).call({ call: "unavailable", settings });
+      if (!strings(answer)) throw new Error("The pack's plugin sandbox answered nonsense");
+      return answer;
+    },
     dispose() {
       void running?.then((connection) => connection.stop());
       running = undefined;
     },
   });
+}
+
+function strings(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
 }
 
 interface Connection {
@@ -127,6 +143,16 @@ function connect(port: SandboxPort, timeoutMs: number, stopped: () => void): Con
     },
     stop: () => stop(),
   };
+}
+
+/** The sandbox's blueprint indices that point into the model; anything else it answered is dropped. */
+function blueprintIndices(answered: unknown, count: number): Record<string, number> {
+  if (typeof answered !== "object" || answered === null) return {};
+  return Object.fromEntries(
+    Object.entries(answered).filter(
+      ([, index]) => typeof index === "number" && Number.isInteger(index) && index >= 0 && index < count,
+    ),
+  );
 }
 
 function isReply(data: unknown): data is SandboxReply {

@@ -65,7 +65,7 @@ function resultsOf(pack: PackData, spec: SceneSpec): AnalysisResults {
       if (!recipe || machines === undefined) continue;
       const crafts = (machines * (speeds.get(node.building ?? recipe.buildings[0] ?? "") ?? 1)) / recipe.time;
       nodes[id] = { activity: machines, inputs: scale(recipe.in, crafts), outputs: scale(recipe.out, crafts) };
-    } else if (node.kind === "source" || node.kind === "sink" || node.kind === "junction") {
+    } else if (["source", "sink", "junction", "port"].includes(node.kind)) {
       nodes[id] = { activity: 0, inputs: {}, outputs: {} };
     }
   }
@@ -80,9 +80,13 @@ function resultsOf(pack: PackData, spec: SceneSpec): AnalysisResults {
     if (to && spec.nodes[edge.to]?.node.kind !== "recipe") add(to.inputs, edge.item, edge.perSecond);
   }
   for (const [id, result] of Object.entries(nodes)) {
-    const kind = spec.nodes[id]?.node.kind;
-    if (kind === "source") result.activity = sum(result.outputs);
-    if (kind === "sink" || kind === "junction") result.activity = sum(result.inputs);
+    const node = spec.nodes[id]?.node;
+    if (node?.kind === "source" || (node?.kind === "port" && node.direction === "in")) {
+      result.activity = sum(result.outputs);
+    }
+    if (node?.kind === "sink" || node?.kind === "junction" || (node?.kind === "port" && node.direction === "out")) {
+      result.activity = sum(result.inputs);
+    }
   }
 
   return {

@@ -1,12 +1,11 @@
-// The shape of a game pack: `manifest.yaml` and the files in `data/` (docs/Architecture/Game-packs.md).
-// Structure only; what makes a pack *valid* beyond its shape (references, duplicates) is the packs engine's job.
+// The shape of a game pack: `manifest.yaml`, the files in `data/` and the starter factories in `starters/`
+// (docs/Architecture/Game-packs.md). Structure only; what makes a pack *valid* beyond its shape (references,
+// duplicates) is the packs engine's job.
 import { z } from "zod";
+import { Blueprint, DocumentSettings, Graph, Layout, LocalId } from "./document";
+import { Id, RateUnit } from "./ids";
 
-/** Ids of items, buildings, recipes …: lowercase, may carry a variant after `@` (`steam@500`, `gear@rare`). */
-export const Id = z
-  .string()
-  .regex(/^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$/, "lowercase letters, digits, . _ - and an optional @variant");
-export type Id = z.infer<typeof Id>;
+export { Id, RateUnit };
 
 const SemVer = z.string().regex(/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/, "a semantic version such as 1.2.0");
 /** A version range: `1`, `1.2`, `1.2.3`, optionally with `^` or `~`. */
@@ -90,8 +89,24 @@ export const Resource = z.object({
 });
 export type Resource = z.infer<typeof Resource>;
 
-export const RateUnit = z.enum(["per_second", "per_minute", "per_hour"]);
-export type RateUnit = z.infer<typeof RateUnit>;
+/**
+ * A starter factory: a file in the pack's `starters/` folder, which a new document for the pack can start from
+ * (the first run opens one with the tour). It's a document's graph, layout and settings, so a factory built in
+ * Carbonara and saved as plain JSON works as one: the fields a starter doesn't take are ignored.
+ */
+export const StarterFile = z.object({
+  name: Name.describe("The factory's name; new documents are named after it."),
+  description: z.string().optional().describe("One sentence on what the factory shows."),
+  graph: Graph,
+  blueprints: z.record(LocalId, Blueprint).default({}),
+  layout: Layout.default({}),
+  settings: DocumentSettings.default({}),
+});
+export type StarterFile = z.infer<typeof StarterFile>;
+
+/** A starter factory in the pack data; its id is its file name without the extension. */
+export const Starter = StarterFile.extend({ id: Id });
+export type Starter = z.infer<typeof Starter>;
 
 const sections = {
   units: z.object({ rate: RateUnit }),
@@ -113,7 +128,7 @@ export const PackDataFile = z.object({
 });
 export type PackDataFile = z.infer<typeof PackDataFile>;
 
-/** All of a pack's data, merged from its files. */
+/** All of a pack's data, merged from its files, with its starter factories. */
 export const PackData = z.object({
   units: sections.units.default({ rate: "per_minute" }),
   items: sections.items.default([]),
@@ -121,5 +136,6 @@ export const PackData = z.object({
   recipes: sections.recipes.default([]),
   logistics: sections.logistics.default([]),
   resources: sections.resources.default([]),
+  starters: z.array(Starter).default([]).describe("From `starters/`, in file name order."),
 });
 export type PackData = z.infer<typeof PackData>;

@@ -16,7 +16,7 @@ These are the things we expect to change independently, and where each one is co
 | How graphs are laid out | ELK today, our own layered layout tomorrow | `layout` engine |
 | How goals become factories | Which recipes to consider, how proposals are shaped | `planning` engine |
 | What makes a pack valid | Schema versions, engine ranges, lint rules | `packs` engine |
-| Where documents, packs and settings are stored | IndexedDB, OPFS, files, share links, bundled packs | `documents`, `packs`, `preferences` access |
+| Where documents, packs, settings and proposals are kept | IndexedDB, OPFS, files, share links, bundled packs, memory | `documents`, `packs`, `preferences`, `proposals` access |
 | The machine | Browser APIs, Tauri commands, Node (CLI) | Platforms, behind ports |
 | Who is asking | The UI, an MCP client, the pack CLI, tests | Clients, which call managers only |
 | How the canvas is drawn | React Flow, later perhaps WebGL | The client's `CanvasAdapter` |
@@ -69,8 +69,8 @@ flowchart TB
 | --- | --- |
 | `workspace` | Create, open, save and close documents; tabs; autosave; recent documents; import/export; share links; preferences |
 | `editing` | Apply commands (add, connect, move, delete, set fields …); undo/redo and history; copy and paste; collapse and expand subgraphs; align and auto-arrange; apply proposals |
-| `analysis` | Solve when a document changes; per-node results; diagnostics; totals; explain a node; convert rates ("2 yellow belts" → items/min) |
-| `planning` | Goals → proposals; compare recipes |
+| `analysis` | Solve when a document changes; per-node results; diagnostics; totals; explain a node |
+| `planning` | Goals → proposals, and where each proposal stands; compare recipes; convert rates ("2 yellow belts" → items/s) |
 | `packs` | List, install, trust and remove packs; validate; load a dev folder and reload it on change; import game data; build a `.cpack` |
 
 Every manager method is declared once in [[src/contracts/managers.ts]]: its zod argument schema, the type it resolves to, and, if it's exposed to MCP, its tool name, permission group and description. Everything else is derived from that table:
@@ -81,11 +81,11 @@ Every manager method is declared once in [[src/contracts/managers.ts]]: its zod 
 
 Managers implement `ManagerImplementation<"name">` and receive validated arguments with defaults filled in. Methods return `Result` for expected failures (an invalid file, a broken pack) and throw only on bugs. Add a method to the contract when a use case needs it, not before.
 
-Access components that several managers share have their interfaces in [[src/contracts/access.ts]]: the `DocumentStore` (documents open in this session) and the `PackStore` (built-in and installed packs, loaded with their plugins).
+Access components that several managers share have their interfaces in [[src/contracts/access.ts]]: the `DocumentStore` (documents open in this session), the `PackStore` (built-in and installed packs, loaded with their plugins) and the `ProposalStore` (the planner's proposals of this session: planning makes them, editing accepts them).
 
 The **composition root** is [[src/shells/web/backend.ts]]: it creates the managers with their access components and platform, and serves them on the backend worker's port ([[src/shells/web/backend.worker.ts]]).
 
-**Events** (`Events` in the same file) are published on the backend's event bus ([[src/utilities/events.ts]]). Managers subscribe to each other's events instead of calling each other, and the composition root forwards every event to the clients: `documentChanged` (Immer patches and the new version), `documentsChanged`, `resultsChanged` and `packsChanged`. Edits are sent as `Command`s ([[src/contracts/commands.ts]]) to `editing.apply`; a batch is one undo step.
+**Events** (`Events` in the same file) are published on the backend's event bus ([[src/utilities/events.ts]]). Managers subscribe to each other's events instead of calling each other, and the composition root forwards every event to the clients: `documentChanged` (Immer patches and the new version), `documentsChanged`, `resultsChanged`, `packsChanged` and `proposalChanged`. Edits are sent as `Command`s ([[src/contracts/commands.ts]]) to `editing.apply`; a batch is one undo step.
 
 ## Threads and processes
 

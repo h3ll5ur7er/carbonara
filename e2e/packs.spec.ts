@@ -95,7 +95,7 @@ test("a broken pack shows where it's broken and can't be installed", async ({ pa
   await dropFile(page, "broken.cpack", bytes);
   const prompt = page.getByRole("dialog", { name: "This pack can't be installed" });
   await expect(prompt).toContainText(
-    "manifest.yaml:4:1: engine: Needs pack format ^9, but this version of Carbonara reads pack format 1.0.0",
+    "manifest.yaml:4:1: engine: Needs pack format ^9, but this version of Carbonara reads pack format 1.1.0",
   );
   await expect(prompt.getByRole("button", { name: "Install" })).toHaveCount(0);
 });

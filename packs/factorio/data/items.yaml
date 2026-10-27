@@ -792,6 +792,7 @@ items:
     name: Electric mining drill (Legendary)
     form: solid
     icon: icons/electric-mining-drill.webp
+  - { id: electricity, name: Electricity, form: fluid }
   - { id: electrolyte, name: Electrolyte, form: fluid, icon: icons/electrolyte.webp }
   - { id: electromagnetic-plant, name: Electromagnetic plant, form: solid, icon: icons/electromagnetic-plant.webp }
   - id: electromagnetic-plant@uncommon
@@ -1171,6 +1172,15 @@ items:
     name: Fusion generator (Legendary)
     form: solid
     icon: icons/fusion-generator.webp
+  - { id: fusion-plasma@1000000, name: "Plasma (1,000,000 °C)", form: fluid }
+  - { id: fusion-plasma@2000000, name: "Plasma (2,000,000 °C)", form: fluid }
+  - { id: fusion-plasma@3000000, name: "Plasma (3,000,000 °C)", form: fluid }
+  - { id: fusion-plasma@4000000, name: "Plasma (4,000,000 °C)", form: fluid }
+  - { id: fusion-plasma@5000000, name: "Plasma (5,000,000 °C)", form: fluid }
+  - { id: fusion-plasma@6000000, name: "Plasma (6,000,000 °C)", form: fluid }
+  - { id: fusion-plasma@7000000, name: "Plasma (7,000,000 °C)", form: fluid }
+  - { id: fusion-plasma@8000000, name: "Plasma (8,000,000 °C)", form: fluid }
+  - { id: fusion-plasma@9000000, name: "Plasma (9,000,000 °C)", form: fluid }
   - { id: fusion-power-cell, name: Fusion power cell, form: solid, icon: icons/fusion-power-cell.webp }
   - id: fusion-power-cell@uncommon
     name: Fusion power cell (Uncommon)
@@ -1227,6 +1237,7 @@ items:
   - { id: hazard-concrete@rare, name: Hazard concrete (Rare), form: solid, icon: icons/hazard-concrete.webp }
   - { id: hazard-concrete@epic, name: Hazard concrete (Epic), form: solid, icon: icons/hazard-concrete.webp }
   - { id: hazard-concrete@legendary, name: Hazard concrete (Legendary), form: solid, icon: icons/hazard-concrete.webp }
+  - { id: heat, name: Heat, form: fluid }
   - { id: heat-exchanger, name: Heat exchanger, form: solid, icon: icons/heat-exchanger.webp }
   - { id: heat-exchanger@uncommon, name: Heat exchanger (Uncommon), form: solid, icon: icons/heat-exchanger.webp }
   - { id: heat-exchanger@rare, name: Heat exchanger (Rare), form: solid, icon: icons/heat-exchanger.webp }
@@ -2322,7 +2333,6 @@ items:
   - { id: stack-inserter@rare, name: Stack inserter (Rare), form: solid, icon: icons/stack-inserter.webp }
   - { id: stack-inserter@epic, name: Stack inserter (Epic), form: solid, icon: icons/stack-inserter.webp }
   - { id: stack-inserter@legendary, name: Stack inserter (Legendary), form: solid, icon: icons/stack-inserter.webp }
-  - { id: steam, name: Steam, form: fluid, icon: icons/steam.webp }
   - { id: steam-engine, name: Steam engine, form: solid, icon: icons/steam-engine.webp }
   - { id: steam-engine@uncommon, name: Steam engine (Uncommon), form: solid, icon: icons/steam-engine.webp }
   - { id: steam-engine@rare, name: Steam engine (Rare), form: solid, icon: icons/steam-engine.webp }
@@ -2333,6 +2343,8 @@ items:
   - { id: steam-turbine@rare, name: Steam turbine (Rare), form: solid, icon: icons/steam-turbine.webp }
   - { id: steam-turbine@epic, name: Steam turbine (Epic), form: solid, icon: icons/steam-turbine.webp }
   - { id: steam-turbine@legendary, name: Steam turbine (Legendary), form: solid, icon: icons/steam-turbine.webp }
+  - { id: steam@165, name: Steam (165 °C), form: fluid, icon: icons/steam.webp }
+  - { id: steam@500, name: Steam (500 °C), form: fluid, icon: icons/steam.webp }
   - { id: steel-chest, name: Steel chest, form: solid, icon: icons/steel-chest.webp }
   - { id: steel-chest@uncommon, name: Steel chest (Uncommon), form: solid, icon: icons/steel-chest.webp }
   - { id: steel-chest@rare, name: Steel chest (Rare), form: solid, icon: icons/steel-chest.webp }

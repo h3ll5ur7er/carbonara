@@ -20,4 +20,4 @@ Left over from [[CARB-49]] to [[CARB-56]].
 - [x] Source and sink cards don't truncate long belt names (a rate in belts gets a line of its own)
 - [x] Balance: the inspector's subtitle follows the "even" machine-count setting; alternatives offer only recipes whose main product is the item (not "Motor Recycling" for gears)
 
-Still open (Wave 3, left on purpose): the find jump waits for subgraph navigation ([[CARB-39]], in progress in parallel), and bookmarks and custom shortcuts need the preferences store. Known limits of what's done: straighten chain and the align commands still think in rows when flows run down; arranging lays out a collapsed frame's nodes as if it were open.
+Still open (Wave 3, left on purpose): the find jump into other graphs is now [[CARB-85]], and bookmarks and custom shortcuts surviving a restart can build on the preferences store that has since landed. Known limits of what's done: straighten chain and the align commands still think in rows when flows run down; arranging lays out a collapsed frame's nodes as if it were open.

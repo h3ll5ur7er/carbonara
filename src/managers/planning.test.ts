@@ -1,15 +1,26 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import ELK from "elkjs/lib/elk.bundled.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import templatePlugin from "../../packs/_template/plugin/index";
 import { createMemoryDocumentStore } from "../access/documents/memory";
+import { createMemoryProposalStore } from "../access/proposals/memory";
 import type { LoadedPack, PackStore } from "../contracts/access";
 import type { Command } from "../contracts/commands";
 import { CURRENT_DOCUMENT_VERSION, type Document, type Graph } from "../contracts/document";
-import type { PlanOptions, PlanTarget, Proposal } from "../contracts/managers";
+import {
+  DEFAULT_PLAN_OPTIONS,
+  type Events,
+  type PlanOptions,
+  type PlanTarget,
+  type Proposal,
+} from "../contracts/managers";
+import { definePlugin } from "../contracts/plugin";
 import { compile, toResults } from "../engines/compiler";
 import { templatePack } from "../engines/compiler/template.fixture";
 import { applyCommands, type ResolvedCommand } from "../engines/editing/commands";
+import { proposalLayout } from "../engines/planning";
 import { loadSolver, solve } from "../engines/solver";
+import { createEventBus } from "../utilities/events";
 import { createPlanningManager } from "./planning";
 
 const template: LoadedPack = {
@@ -48,13 +59,18 @@ function factory(graph: Graph = { nodes: {}, edges: {} }, layout: Document["layo
   };
 }
 
-function setUp(document = factory()) {
+function setUp(document = factory(), pack: PackStore = packs) {
   const documents = createMemoryDocumentStore();
   documents.put(document);
-  return createPlanningManager({ documents, packs });
+  const proposals = createMemoryProposalStore();
+  const events = createEventBus<Events>();
+  const changes: string[] = [];
+  events.subscribe("proposalChanged", ({ proposal, status }) => changes.push(`${proposal.id} ${status}`));
+  const planning = createPlanningManager({ documents, packs: pack, proposals, events, layout: new ELK() });
+  return Object.assign(planning, { proposals, events, changes });
 }
 
-const defaults: PlanOptions = { objective: "resources", alternates: true, exclude: [] };
+const defaults: PlanOptions = DEFAULT_PLAN_OPTIONS;
 
 async function plan(targets: PlanTarget[], options: Partial<PlanOptions> = {}, document = factory()) {
   const result = await setUp(document).planProduction({
@@ -239,15 +255,42 @@ describe("planning production", () => {
       buildings: template.data.buildings.map((building) => ({ ...building, id: renamed(building.id) })),
       recipes: template.data.recipes.map((recipe) => ({ ...recipe, buildings: recipe.buildings.map(renamed) })),
     };
-    const documents = createMemoryDocumentStore();
-    documents.put(factory());
-    const planning = createPlanningManager({ documents, packs: { get: async () => ({ ...template, data }) } });
+    const planning = setUp(factory(), { list: packs.list, get: async () => ({ ...template, data }) });
     const result = await planning.planProduction({
       documentId: "doc",
       targets: [{ item: "iron-plate", perSecond: 1 }],
       options: defaults,
     });
     expect(result.ok && result.value.summary.buildings).toEqual({ constructor: 3, washer: 1, purifier: 1 });
+  });
+
+  it("plans what the plugin adds to recipes as nodes run them, such as the fuel a furnace burns", async () => {
+    // Furnaces burn a coal per craft and leave ash; neither is in the pack's recipes.
+    const burning = definePlugin({
+      id: "template",
+      effectiveRecipe: ({ recipe, building }) =>
+        building.id === "furnace"
+          ? { time: recipe.time, in: { ...recipe.in, coal: 1 }, out: { ...recipe.out, slag: 1 } }
+          : recipe,
+    });
+    const planning = setUp(factory(), { list: packs.list, get: async () => ({ ...template, plugin: burning }) });
+    const result = await planning.planProduction({
+      documentId: "doc",
+      targets: [{ item: "iron-plate", perSecond: 1 }],
+      options: defaults,
+    });
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    const { summary } = result.value;
+    expect(summary.shortfalls).toEqual({});
+    // A plate a second takes a craft a second: a coal from the map or from drying sludge, and a slag spare.
+    expect(summary.raw.coal ?? 0).toBeGreaterThan(0);
+    expect(summary.byproducts).toMatchObject({ slag: expect.closeTo(1, 9) });
+    const applied = accept(result.value);
+    const solved = await (async () => {
+      const compiled = compile({ document: applied, pack: template.data, plugin: burning });
+      return toResults(compiled, await solve(compiled.model), burning, 1);
+    })();
+    expect(solved.diagnostics.filter((diagnostic) => diagnostic.kind !== "surplus")).toEqual([]);
   });
 
   it("refuses unknown documents and items", async () => {
@@ -266,6 +309,139 @@ describe("planning production", () => {
         options: defaults,
       }),
     ).toMatchObject({ ok: false, error: [{ path: ["targets", 0, "item"] }] });
+  });
+});
+
+describe("smarter plans", () => {
+  it("run recipes in the buildings asked for: fast assemblers halve the motor assemblers", async () => {
+    const plain = await plan([{ item: "motor", perSecond: 0.25 }]);
+    const fast = await plan([{ item: "motor", perSecond: 0.25 }], { buildings: ["fast-assembler"] });
+    // Motors 2.5, gears 0.5, circuits 1.25, wire 0.4375 assemblers at speed 1; half of each at speed 2.
+    expect(plain.summary.buildings.assembler).toBe(3 + 1 + 2 + 1);
+    expect(fast.summary.buildings).toMatchObject({ "fast-assembler": 2 + 1 + 1 + 1 });
+    expect(fast.summary.buildings.assembler).toBeUndefined();
+    const motor = added(fast).find(({ node }) => node.kind === "recipe" && node.recipe === "motor");
+    expect(motor?.node).toEqual({ kind: "recipe", recipe: "motor", building: "fast-assembler" });
+    // The accepted plan solves as proposed.
+    const results = await analyse(accept(fast));
+    expect(results.diagnostics.filter((diagnostic) => diagnostic.kind !== "surplus")).toEqual([]);
+    expect(results.totals.buildings).toEqual(fast.summary.buildings);
+  });
+
+  it("weigh raw resources: when water is dear, iron is smelted from ore and coal instead", async () => {
+    const dear = await plan([{ item: "iron-plate", perSecond: 1 }], { resourceWeights: { water: 100 } });
+    expect(recipesIn(dear)).toEqual(["iron-plate-from-ore"]);
+    expect(dear.summary.raw).toEqual({ "ferrite-ore": expect.closeTo(2, 9), coal: expect.closeTo(1, 9) });
+  });
+
+  it("ask the plugin which recipes the save allows, with its settings' defaults filled in", async () => {
+    // Without a profile the setting is at its default, which rules the washer out.
+    const plugin = {
+      ...templatePlugin,
+      settingsFields: () => ({ purist: { kind: "toggle" as const, label: "Purist", default: true } }),
+      recipeAvailable: (recipe: { id: string }, { settings }: { settings: Record<string, unknown> }) =>
+        !(settings.purist === true && recipe.id === "wash-ferrite"),
+    };
+    const pack: PackStore = { list: packs.list, get: async () => ({ ...template, plugin }) };
+    const planning = setUp(factory(), pack);
+    const result = await planning.planProduction({
+      documentId: "doc",
+      targets: [{ item: "iron-plate", perSecond: 1 }],
+      options: defaults,
+    });
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    expect(recipesIn(result.value)).not.toContain("wash-ferrite");
+    const compared = await planning.compareRecipes({
+      documentId: "doc",
+      item: "clean-ferrite",
+      perSecond: 1,
+      options: defaults,
+    });
+    expect(compared).toEqual({ ok: true, value: [] });
+  });
+
+  it("put each flow on the smallest belt or pipe that carries it", async () => {
+    const proposal = await plan([{ item: "iron-plate", perSecond: 20 }]);
+    const flows = connected(proposal).map(({ edge }) => edge);
+    const carrying = (item: string) => flows.filter((edge) => edge.item === item).map((edge) => edge.logistics);
+    // 20 plates a second: more than a conveyor (15/s), within a fast one (30/s). Water goes by pipe.
+    expect(carrying("iron-plate")).toEqual(["conveyor-2"]);
+    expect(new Set(carrying("water"))).toEqual(new Set(["pipe"]));
+    const results = await analyse(accept(proposal));
+    expect(results.diagnostics.filter((diagnostic) => diagnostic.kind !== "surplus")).toEqual([]);
+  });
+
+  it("are laid out by the layout engine, without cards on top of each other", async () => {
+    const proposal = await plan([{ item: "motor", perSecond: 0.25 }]);
+    const { shapes } = proposalLayout(proposal, template.data);
+    const boxes = added(proposal).map(({ id, position }) => ({ id, ...position, ...shapes[id ?? ""] }));
+    for (const [index, a] of boxes.entries()) {
+      for (const b of boxes.slice(index + 1)) {
+        const apart =
+          a.x + (a.width ?? 0) <= b.x ||
+          b.x + (b.width ?? 0) <= a.x ||
+          a.y + (a.height ?? 0) <= b.y ||
+          b.y + (b.height ?? 0) <= a.y;
+        expect(apart, `${a.id} and ${b.id}`).toBe(true);
+      }
+    }
+  });
+});
+
+describe("proposals", () => {
+  const steel = { documentId: "doc", targets: [{ item: "iron-plate", perSecond: 1 }], options: defaults };
+
+  it("are kept as pending under an id, and published for the UI to show", async () => {
+    const planning = setUp();
+    const result = await planning.planProduction(steel);
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    expect(result.value.id).toBe("proposal-1");
+    expect(planning.proposals.get("proposal-1")).toEqual({ proposal: result.value, status: "pending" });
+    expect(planning.changes).toEqual(["proposal-1 pending"]);
+  });
+
+  it("replace the document's earlier pending proposal", async () => {
+    const planning = setUp();
+    await planning.planProduction(steel);
+    await planning.planProduction(steel);
+    expect(planning.changes).toEqual(["proposal-1 pending", "proposal-1 replaced", "proposal-2 pending"]);
+    expect(planning.proposals.pending("doc").map(({ id }) => id)).toEqual(["proposal-2"]);
+  });
+
+  it("aren't kept when planning fails, or when only comparing recipes", async () => {
+    const planning = setUp();
+    await planning.planProduction({ ...steel, targets: [{ item: "gold", perSecond: 1 }] });
+    await planning.compareRecipes({ documentId: "doc", item: "iron-plate", perSecond: 1, options: defaults });
+    expect(planning.changes).toEqual([]);
+  });
+
+  it("can be discarded while pending; discarding again changes nothing", async () => {
+    const planning = setUp();
+    await planning.planProduction(steel);
+    expect(await planning.discardProposal({ proposalId: "proposal-1" })).toEqual({ ok: true, value: undefined });
+    expect(await planning.discardProposal({ proposalId: "proposal-1" })).toEqual({ ok: true, value: undefined });
+    expect(planning.proposals.get("proposal-1")?.status).toBe("discarded");
+    expect(planning.changes).toEqual(["proposal-1 pending", "proposal-1 discarded"]);
+    expect(await planning.discardProposal({ proposalId: "proposal-7" })).toMatchObject({ ok: false });
+  });
+
+  it("go when their document closes", async () => {
+    const planning = setUp();
+    await planning.planProduction(steel);
+    planning.events.publish("documentsChanged", { documents: [] });
+    expect(planning.proposals.get("proposal-1")).toBeUndefined();
+  });
+});
+
+describe("converting rates", () => {
+  it("reads belts with the document's pack and answers in its unit too", async () => {
+    const document = { ...factory(), settings: { rateUnit: "per_minute" as const } };
+    const result = await setUp(document).convertRate({ documentId: "doc", amount: 2, unit: "conveyor-1" });
+    const belt = template.data.logistics.find(({ id }) => id === "conveyor-1");
+    expect(result).toMatchObject({
+      ok: true,
+      value: { perSecond: 2 * (belt?.capacity ?? Number.NaN), inDocumentUnit: { unit: "per_minute" } },
+    });
   });
 });
 

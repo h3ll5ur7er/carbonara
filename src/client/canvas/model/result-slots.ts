@@ -4,6 +4,7 @@
 import type { LocalId } from "../../../contracts/document";
 import type { Id } from "../../../contracts/pack";
 import type { AnalysisResults, NodeResult } from "../../../contracts/results";
+import { addTo } from "../../../utilities/records";
 
 export interface NodeSlot {
   result: NodeResult;
@@ -72,7 +73,7 @@ function slotsOf(results: AnalysisResults): Map<string, Slot> {
   for (const diagnostic of results.diagnostics) {
     if (diagnostic.kind === "deficit") {
       const items = deficits.get(diagnostic.node) ?? {};
-      items[diagnostic.item] = (items[diagnostic.item] ?? 0) + diagnostic.perSecond;
+      addTo(items, diagnostic.item, diagnostic.perSecond);
       deficits.set(diagnostic.node, items);
     } else if (diagnostic.kind === "overflow") overflows.add(diagnostic.edge);
   }

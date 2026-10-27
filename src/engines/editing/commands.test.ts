@@ -377,6 +377,22 @@ describe("changing the display settings", () => {
   });
 });
 
+describe("renaming the factory", () => {
+  it("changes the document's name, and undoes back to the old one", () => {
+    const { document: renamed, inversePatches } = edit({ type: "renameDocument", name: "Iron works" });
+    expect(renamed.name).toBe("Iron works");
+    expect(applyPatches(renamed, inversePatches).name).toBe(document.name);
+  });
+
+  it("changes nothing when the name is the same", () => {
+    expect(edit({ type: "renameDocument", name: document.name }).patches).toEqual([]);
+  });
+
+  it("is named for the history", () => {
+    expect(describeCommands([{ type: "renameDocument", name: "Iron works" }])).toBe("Rename factory");
+  });
+});
+
 describe("locking nodes", () => {
   it("marks their positions locked, and unlocks them again", () => {
     const { document: locked } = edit({ type: "setLocked", graph: "root", ids: ["ore", "split"], locked: true });

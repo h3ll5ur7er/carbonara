@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectionItem } from "./connect";
+import { connectionItem, portOf } from "./connect";
 
 describe("connectionItem", () => {
   it("is the item both ports carry", () => {
@@ -30,5 +30,20 @@ describe("connectionItem", () => {
     expect(
       connectionItem({ source: "a", target: "b", sourceHandle: "in:plate", targetHandle: "out:plate" }),
     ).toBeUndefined();
+  });
+});
+
+describe("instance ports", () => {
+  it("carry their item before the `#` and the blueprint's port after it", () => {
+    expect(
+      connectionItem({ source: "a", target: "line", sourceHandle: "out:plate", targetHandle: "in:plate#in-plate" }),
+    ).toBe("plate");
+    expect(
+      connectionItem({ source: "line", target: "b", sourceHandle: "out:plate@rare#p", targetHandle: "in:ore" }),
+    ).toBeUndefined();
+    expect(portOf("in:plate#in-plate")).toBe("in-plate");
+    expect(portOf("out:gear@rare#out~2")).toBe("out~2");
+    expect(portOf("in:plate")).toBeUndefined();
+    expect(portOf("in")).toBeUndefined();
   });
 });

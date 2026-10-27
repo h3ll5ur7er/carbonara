@@ -1,5 +1,4 @@
-// Nodes that route or annotate rather than produce: junctions, sticky notes, group frames, and a
-// placeholder for kinds the canvas does not draw yet.
+// Nodes that route or annotate rather than produce: junctions, sticky notes and group frames.
 import { NodeResizer } from "@xyflow/react";
 import { ChevronRight, ChevronsDownUp } from "lucide-react";
 import { memo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
@@ -216,14 +215,6 @@ export const FrameNode = memo(function FrameNode({ id, data: { view }, selected 
           {view.label}
         </span>
       )}
-    </div>
-  );
-});
-
-export const PlaceholderNode = memo(function PlaceholderNode({ data: { view } }: FlowNodeProps<"placeholder">) {
-  return (
-    <div className="grid size-full place-items-center rounded-lg border border-dashed border-line-strong text-xs text-fg-subtle">
-      {view.label}
     </div>
   );
 });

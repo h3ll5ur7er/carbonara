@@ -1,7 +1,7 @@
 // The shape of a Carbonara document (`.carbonara` files, autosaves, share links).
 // Older versions are upgraded by the documents access component before they are parsed with this schema.
 import { z } from "zod";
-import { Id, RateUnit } from "./pack";
+import { Id, RateUnit } from "./ids";
 
 export const CURRENT_DOCUMENT_VERSION = 1;
 
@@ -96,6 +96,20 @@ export type Position = z.infer<typeof Position>;
 export const Layout = z.record(z.string(), z.record(LocalId, Position));
 export type Layout = z.infer<typeof Layout>;
 
+/** How a document's rates and machine counts read, and its plugin settings. */
+export const DocumentSettings = z.object({
+  rateUnit: RateUnit.optional(),
+  belt: Id.optional().describe(
+    'Show the rates of items this belt or pipe carries as multiples of its capacity ("2 × Fast Conveyor").',
+  ),
+  machineGroups: z
+    .enum(["fill", "even"])
+    .optional()
+    .describe("How machine counts read: 4 × 100% + 1 × 37.5% (fill, the default) or 5 × 87.5% (even)."),
+  plugin: z.record(z.string(), z.unknown()).optional().describe("Settings of the pack's plugin, e.g. a save profile."),
+});
+export type DocumentSettings = z.infer<typeof DocumentSettings>;
+
 export const Document = z.object({
   format: z.literal("carbonara"),
   version: z.literal(CURRENT_DOCUMENT_VERSION),
@@ -105,21 +119,6 @@ export const Document = z.object({
   graph: Graph,
   blueprints: z.record(LocalId, Blueprint).default({}),
   layout: Layout.default({}),
-  settings: z
-    .object({
-      rateUnit: RateUnit.optional(),
-      belt: Id.optional().describe(
-        'Show the rates of items this belt or pipe carries as multiples of its capacity ("2 × Fast Conveyor").',
-      ),
-      machineGroups: z
-        .enum(["fill", "even"])
-        .optional()
-        .describe("How machine counts read: 4 × 100% + 1 × 37.5% (fill, the default) or 5 × 87.5% (even)."),
-      plugin: z
-        .record(z.string(), z.unknown())
-        .optional()
-        .describe("Settings of the pack's plugin, e.g. a save profile."),
-    })
-    .default({}),
+  settings: DocumentSettings.default({}),
 });
 export type Document = z.infer<typeof Document>;

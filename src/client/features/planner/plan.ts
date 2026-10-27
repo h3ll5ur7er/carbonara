@@ -1,10 +1,10 @@
-// The goal planner's rules in the client: goals in the document's unit become targets per second, a proposal
-// becomes a ghost and, accepted, the commands that add it where the ghost was left.
-import type { Command } from "../../../contracts/commands";
+// The goal planner's rules in the client: goals in the document's unit become targets per second (and back), a
+// proposal becomes a ghost, and its undo step gets a name.
 import type { Graph } from "../../../contracts/document";
 import type { PlanTarget, Proposal } from "../../../contracts/managers";
-import type { Id, Item, PackData, RateUnit } from "../../../contracts/pack";
-import { toPerSecond } from "../../../utilities/units";
+import type { Building, Id, Item, PackData, RateUnit } from "../../../contracts/pack";
+import { clean } from "../../../utilities/numbers";
+import { fromPerSecond, toPerSecond } from "../../../utilities/units";
 import type { Point } from "../../canvas/adapter";
 import type { Ghost } from "../../canvas/ghost/ghost";
 import { formatRate } from "../../canvas/model/format";
@@ -23,6 +23,15 @@ export function targetsPerSecond(rows: GoalRow[], unit: RateUnit): PlanTarget[] 
   );
 }
 
+/** A proposal's targets as goals to adjust, in the document's unit. */
+export function goalsOf(targets: PlanTarget[], unit: RateUnit, key: () => number): GoalRow[] {
+  return targets.map((target) => ({
+    key: key(),
+    item: target.item,
+    rate: clean(fromPerSecond(target.perSecond, unit)),
+  }));
+}
+
 /** The proposal as a ghost: the nodes and flows it adds, where it adds them, moved by `offset`. */
 export function proposalGhost(proposal: Proposal, offset: Point): Ghost {
   const graph: Graph = { nodes: {}, edges: {} };
@@ -38,18 +47,6 @@ export function proposalGhost(proposal: Proposal, offset: Point): Ghost {
   return { graph, positions, results: proposal.results, placement: { mode: "fixed", offset }, label: "Proposal" };
 }
 
-/** The proposal's commands with its nodes moved by `offset`, where the ghost was left. */
-export function acceptedCommands(proposal: Proposal, offset: Point): Command[] {
-  return proposal.commands.map((command) =>
-    command.type === "addNode"
-      ? {
-          ...command,
-          position: { ...command.position, x: command.position.x + offset.x, y: command.position.y + offset.y },
-        }
-      : command,
-  );
-}
-
 /** "Plan 15/min Motor": how the accepted proposal reads in the undo history. */
 export function planLabel(targets: PlanTarget[], pack: PackData, unit: RateUnit): string {
   const names = new Map(pack.items.map((item) => [item.id, item.name]));
@@ -58,6 +55,49 @@ export function planLabel(targets: PlanTarget[], pack: PackData, unit: RateUnit)
     return `${rate.value}${rate.unit} ${names.get(target.item) ?? target.item}`;
   });
   return `Plan ${parts.join(", ")}`;
+}
+
+/** Buildings that stand in for each other: a default building and the others its recipes may run in. */
+export interface BuildingFamily {
+  /** The default building of the family's recipes (the first of their buildings). */
+  base: Building;
+  /** Every building of the family, the base first, in pack order. */
+  members: Building[];
+}
+
+/**
+ * The pack's building families, for choosing which building recipes run in: one per default building that has
+ * alternatives, merged with the family it's itself an alternative in (assembler 2 recipes join assembler 1's).
+ */
+export function buildingFamilies(pack: PackData): BuildingFamily[] {
+  const families = new Map<Id, Set<Id>>();
+  for (const { buildings } of pack.recipes) {
+    const [base] = buildings;
+    if (base === undefined || buildings.length < 2) continue;
+    const members = families.get(base) ?? new Set([base]);
+    buildings.forEach((building) => members.add(building));
+    families.set(base, members);
+  }
+  for (const [base, members] of families) {
+    const host = [...families].find(([other, them]) => other !== base && them.has(base));
+    if (!host) continue;
+    members.forEach((member) => host[1].add(member));
+    families.delete(base);
+  }
+  const order = pack.buildings;
+  return [...families].flatMap(([base, members]) => {
+    const found = order.find((building) => building.id === base);
+    if (!found) return [];
+    const others = order.filter((building) => members.has(building.id) && building.id !== base);
+    return [{ base: found, members: [found, ...others] }];
+  });
+}
+
+/** The preferred buildings (`PlanOptions.buildings`) with a family's choice changed; the base means none. */
+export function preferBuilding(buildings: readonly Id[], family: BuildingFamily, choice: Id): Id[] {
+  const members = new Set(family.members.map((member) => member.id));
+  const others = buildings.filter((building) => !members.has(building));
+  return choice === family.base.id ? others : [...others, choice];
 }
 
 /**

@@ -71,7 +71,7 @@ While a node is dragged ([[src/client/canvas/model/snap.ts]], [[src/client/canva
 - Copy, cut, paste and duplicate (`Ctrl+C/X/V/D`). A paste doesn't drop nodes immediately: it shows a **ghost**, a translucent copy that follows the cursor with live snapping and guides. Click to place it, or press `Esc` to cancel.
 - Edges inside the selection are kept. **Paste with connections** (`Ctrl+Shift+V`) reconnects edges to the original outside nodes when pasting into the same document.
 - Works across documents and into or out of subgraphs. The clipboard also holds plain text (JSON), so you can paste a setup into Discord and someone else can paste it back. Pasting between different packs warns about ids that don't exist.
-- The same ghost renderer is used for blueprints dragged from the library and for MCP proposals ([[Architecture/MCP server]]).
+- The same ghost renderer is used for blueprints dragged from the library (Subgraphs, below) and for MCP proposals ([[Architecture/MCP server]]).
 
 ### How copy and paste work
 
@@ -121,7 +121,7 @@ All of them are in the palette and the app menu; the node's context menu offers 
 
 ### Find and multi-select editing
 
-- **Find** (`Ctrl+F`, "Find in factory"): a bar over the canvas lists every node matching all the words typed, across the root graph and every subgraph ([[src/client/features/find/find.ts]]): recipes by name, id, building and the names and aliases of the items they take and make; sources, sinks and ports by item; notes by text, frames by label, subgraph instances by blueprint name. `↑↓` move, `Enter` jumps (selects the node and zooms to it, `--duration-slow`; the bar stays, to step through), `Esc` closes. Nodes inside subgraphs are listed with where they are but can't be jumped to until subgraphs open on the canvas ([[CARB-39]]).
+- **Find** (`Ctrl+F`, "Find in factory"): a bar over the canvas lists every node matching all the words typed, across the root graph and every subgraph ([[src/client/features/find/find.ts]]): recipes by name, id, building and the names and aliases of the items they take and make; sources, sinks and ports by item; notes by text, frames by label, subgraph instances by blueprint name. `↑↓` move, `Enter` jumps (selects the node and zooms to it, `--duration-slow`; the bar stays, to step through), `Esc` closes. Nodes in other graphs (inside a subgraph, or the factory while one is open) are listed with where they are, but jumping there doesn't open the way to them yet ([[CARB-85]]).
 - **Replace recipe everywhere**: when the highlighted result runs a recipe, the bar offers the recipes with the same main product; picking one swaps it in every graph, and drops the flows of items the new recipe neither takes nor makes, in one edit. A recipe's main product is its first output, unless it takes apart something whose recipe is for making it from that output: Motor Recycling gives gears back first, but motors are made from gears, so it's no alternative for gears ([[src/client/features/find/find.ts]]). Multi-select editing's *Recipe* uses the same rule.
 - **Multi-select editing** (selection toolbar): *Recipe* swaps every selected machine to a recipe they could all run (same main product); *Belt* puts the selected flows and the flows of the selected nodes on a belt or pipe (only flows of the items it carries) or removes the limit. The pack plugin's fields (clock, shards, modules) are edited in the **inspector**: with several nodes selected it shows "5 machines" with their buildings ("3 × Assembler · 2 × Furnace") and the fields every one of them has (same key, same descriptor), marked *Mixed* where their values differ (the control then shows the default). An edit sets the field on all of them as one step, "Set Clock speed to 150 % on 5 machines". A selection with anything but machines has none to set ([[src/client/shell/inspector/inspect.ts]], `inspectSelection`).
 - New commands: `setRecipe` (keeps fields and pins; drops a building the caller doesn't name) and `setLogistics`.
@@ -148,7 +148,7 @@ All of them are in the palette and the app menu; the node's context menu offers 
 | Back / Forward | `Ctrl+[` / `Ctrl+]` | Through the places you looked at, like a browser ([[src/client/canvas/model/navigation.ts]]) |
 
 - A view that came to rest counts as a new place when it moved by a third of the screen or zoomed by a fifth; smaller moves only update where you are, so back returns to where you were before each jump. Zoom to fit, jumps from find and bookmarks count too.
-- Kept per document for the session (they don't go into the file).
+- Kept per document and graph for the session (they don't go into the file): inside a subgraph, back and forward stay inside it.
 - The spec's `Ctrl+1…9` are taken by browsers for their tabs, so bookmarks use the plain digits; the shortcut editor ([[CARB-56]]) can change them.
 
 ### Balance and units
@@ -159,9 +159,26 @@ All of them are in the palette and the app menu; the node's context menu offers 
 - **Round to buildable** (the toggle next to the units, or the command): machine counts read "5 × 87.5%" (every machine at the same clock) instead of "4 × 100% + 1 × 37.5%", on the cards and in the inspector's subtitle. A document setting (`settings.machineGroups`): one choice per factory.
 - Both settings change through the `setSettings` command, so they're undoable. The inspector's number fields keep the rate unit.
 
+## Subgraphs
+
+How subgraphs work is on [[Architecture/Subgraphs]]; the edits are `collapse`, `expand` and `renameBlueprint` ([[Architecture/Documents]], Collapse and expand). The commands are in the Subgraphs group ([[src/client/features/subgraphs/commands.ts]]) and on a node's context menu.
+
+| Command | Shortcut | Does |
+| --- | --- | --- |
+| Collapse into subgraph | `Ctrl+G` | The selected nodes (not ports) become a new blueprint, named after the main products that leave them ("Copper Wire line", "Subgraph" when nothing does). Its ports are laid out beside them, inputs left and outputs right; the instance takes the selection's top-left corner and is selected |
+| Expand subgraph | `Ctrl+Shift+G` | The selected instances become their nodes again; expanding the last instance of a blueprint dissolves it |
+| Open subgraph | `Ctrl+↓` (or double-click, or the card's *Open*) | Dives into the selected instance |
+| Leave subgraph | `Ctrl+↑` | Goes up one level |
+
+- **Instances** are drawn like machines, as a stack (a second card peeks out behind): the blueprint's name, its scale ("× 2", how many times it runs as designed; "Sized by its flows" without pins), an *Open* button, then one row per port with its live rate, in the order the ports sit inside. Flows reach an instance through a port: its handles are `in:<item>#<port>` ([[src/client/canvas/model/connect.ts]]), so connecting, the recipe picker and rewiring name the port. An instance isn't spliced into a flow it's dropped on (a splice can't choose its ports).
+- **Ports** (inside a blueprint) are pills with a dashed accent edge: an input passes its item on into the blueprint from its right edge, an output takes it in on its left ([[src/client/canvas/react-flow/subgraph-nodes.tsx]]).
+- **Opening and leaving** ([[src/client/features/subgraphs/use-subgraph-view.tsx]]): opening zooms into the card until it fills the view (`--duration-slow`), then the blueprint's canvas grows in from 90% (`subgraphs.css`); leaving brings the canvas above back zoomed into the instance, settling in from 104% while the view glides out to where it was. Each level is a canvas of its own: its view, selection, back and forward start afresh.
+- **Breadcrumbs** at the canvas's top-left (the bars at the top move down a row while they're there): the up button with the shortcut, the factory and each blueprint above (buttons back to that level), then the blueprint on screen, which a double-click or `F2` renames (`Enter` keeps, `Esc` drops). A chip says when the rates add up several instances.
+- **The library** ([[src/client/features/subgraphs/library-panel.tsx]]) lists the document's blueprints by name, each with its port items (inputs → outputs), how often it's placed and how many nodes it holds. Pressing a card picks the blueprint up as a ghost that follows the pointer over the canvas (the ghost renderer's pointer mode): letting go over the canvas after a drag places it there, centred and on the grid like the ghost; a click without a drag keeps it following until the next click on the canvas; `Esc` or letting go anywhere else cancels. `Enter` on a focused card places it mid-view, clear of the other nodes. Cards of blueprints that would contain themselves are disabled. Without blueprints, the panel says how to make one.
+
 ## Navigation
 
-- Zoom to fit or to the selection (`F` / `Shift+F`), minimap, viewport bookmarks (`Ctrl+1…9`), breadcrumbs, and back/forward like a browser.
+- Zoom to fit or to the selection (`F` / `Shift+F`), minimap, viewport bookmarks (`Ctrl+1…9`), breadcrumbs (Subgraphs, above), and back/forward like a browser.
 - Hover tooltips break a port's rate down by connection. Holding `Alt` while hovering highlights a node's whole upstream and downstream chain.
 
 ## General

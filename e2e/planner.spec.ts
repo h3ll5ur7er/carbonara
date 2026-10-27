@@ -115,3 +115,16 @@ test("the proposal's ghost drags as one, and is accepted where it was left", asy
   const placed = await page.locator('.react-flow__node[data-id="iron-plate"]').boundingBox();
   expect(Math.abs((placed?.y ?? 0) - (after?.y ?? 0))).toBeLessThan(2);
 });
+
+test("plans in the buildings asked for", async ({ page }) => {
+  const planner = await planGoal(page, "motor", "0.25");
+  await expect(planner.getByRole("region", { name: "Buildings" })).toContainText("Assembler");
+  await planner.getByRole("button", { name: "Adjust" }).click();
+  await planner.getByLabel("Recipes for the Assembler run in").click();
+  await page.getByRole("option", { name: "Fast Assembler" }).click();
+  await planner.getByRole("button", { name: "Plan", exact: true }).click();
+  await expect(planner.getByRole("region", { name: "Buildings" })).toContainText("Fast Assembler");
+  await planner.getByRole("button", { name: "Accept" }).click();
+  // Twice as fast: 1.25 fast assemblers make the motors that took 2.5 assemblers.
+  await expect(page.locator('.react-flow__node[data-id="motor"]')).toContainText("× 1.25");
+});

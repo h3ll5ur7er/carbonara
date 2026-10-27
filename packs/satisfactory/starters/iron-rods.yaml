@@ -1,0 +1,22 @@
+# A starter factory (docs/Guides/Pack-authoring.md, Starter factories): the first run opens it with the tour.
+# Iron ingots are smelted and the rod output waits; the tour adds the constructors in between.
+name: Iron rods
+description: Iron ore smelted into ingots, waiting for rod constructors.
+graph:
+  nodes:
+    ore: { kind: source, item: iron-ore }
+    ingots: { kind: recipe, recipe: iron-ingot }
+    hint:
+      {
+        kind: note,
+        text: "Next: Iron Rod, between the ingots and the output. Add it from the palette and connect both sides.",
+      }
+    rods: { kind: sink, item: iron-rod }
+  edges:
+    ore-ingots: { from: ore, to: ingots, item: iron-ore }
+layout:
+  root:
+    ore: { x: 0, y: 0 }
+    ingots: { x: 320, y: 0 }
+    hint: { x: 780, y: -170 }
+    rods: { x: 1200, y: 0 }

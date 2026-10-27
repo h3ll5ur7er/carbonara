@@ -1,6 +1,7 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 import { describe, expect, it } from "vitest";
 import { createMemoryDocumentStore } from "../access/documents/memory";
+import { createMemoryProposalStore } from "../access/proposals/memory";
 import { Command, type CommandInput } from "../contracts/commands";
 import { Document } from "../contracts/document";
 import { exampleDocument } from "../contracts/document.fixture";
@@ -16,8 +17,15 @@ function setup() {
   const events = createEventBus<Events>();
   const changes: Events["documentChanged"][] = [];
   events.subscribe("documentChanged", (change) => changes.push(change));
+  const proposals = createMemoryProposalStore();
   let ids = 0;
-  const editing = createEditingManager({ documents, events, newId: () => `id-${++ids}`, layout: new ELK() });
+  const editing = createEditingManager({
+    documents,
+    events,
+    newId: () => `id-${++ids}`,
+    layout: new ELK(),
+    proposals,
+  });
   /** Calls `apply` with arguments as the dispatcher passes them: validated, defaults filled in. */
   const apply = (commands: CommandInput[], label?: string) =>
     editing.apply({
@@ -26,7 +34,7 @@ function setup() {
       ...(label === undefined ? {} : { label }),
     });
   const current = async () => (await editing.getDocument({ documentId: "doc-1" })).document;
-  return { documents, events, changes, editing, apply, current };
+  return { documents, events, changes, editing, apply, current, proposals };
 }
 
 const addJunction: CommandInput = { type: "addNode", node: { kind: "junction" }, position: { x: 1, y: 2 } };
@@ -47,6 +55,16 @@ describe("the editing manager", () => {
     });
     expect((await current()).graph.nodes["id-1"]).toEqual({ kind: "junction" });
     expect(documents.get("doc-1")?.version).toBe(2);
+  });
+
+  it("chooses the ids of a collapse's blueprint and instance, and one undo expands it again", async () => {
+    const { apply, current, editing } = setup();
+    await apply([{ type: "collapse", ids: ["smelt", "split"], name: "Smelting" }]);
+    const collapsed = await current();
+    expect(collapsed.blueprints["id-1"]?.name).toBe("Smelting");
+    expect(collapsed.graph.nodes["id-2"]).toEqual({ kind: "instance", blueprint: "id-1" });
+    await editing.undo({ documentId: "doc-1" });
+    expect(await current()).toEqual(original);
   });
 
   it("keeps the ids callers choose", async () => {
@@ -277,5 +295,86 @@ describe("copy and paste", () => {
     const into = { clipboard: copied.value, offset: { x: 0, y: 0 }, connections: false };
     expect((await editing.paste({ documentId: "ghost", graph: "root", ...into })).ok).toBe(false);
     expect((await editing.paste({ documentId: "doc-1", graph: "nope", ...into })).ok).toBe(false);
+  });
+});
+
+describe("accepting a proposal", () => {
+  const planned = {
+    documentId: "doc-1",
+    targets: [{ item: "iron-plate", perSecond: 1 }],
+    commands: [
+      {
+        type: "addNode" as const,
+        graph: "root",
+        id: "plan-ore",
+        node: { kind: "source" as const, item: "iron-ore" },
+        position: { x: 600, y: 0 },
+      },
+      {
+        type: "addNode" as const,
+        graph: "root",
+        id: "plan-out",
+        node: { kind: "sink" as const, item: "iron-ore" },
+        position: { x: 960, y: 0 },
+      },
+      {
+        type: "connect" as const,
+        graph: "root",
+        id: "plan-flow",
+        edge: { from: "plan-ore", to: "plan-out", item: "iron-ore" },
+      },
+    ],
+    results: { nodes: {}, edges: {} },
+    summary: { buildings: {}, raw: {}, byproducts: {}, shortfalls: {}, powerMW: 0 },
+  };
+
+  it("adds it as one undo step where its ghost was left, and settles it as accepted", async () => {
+    const { editing, proposals, events, changes, current } = setup();
+    const settled: string[] = [];
+    events.subscribe("proposalChanged", ({ proposal, status }) => settled.push(`${proposal.id} ${status}`));
+    const { id } = proposals.add(planned);
+    const result = await editing.applyProposal({ proposalId: id, label: "Plan iron", offset: { x: 24, y: -48 } });
+    expect(result).toMatchObject({ ok: true, value: { id: "doc-1", version: 2 } });
+    const document = await current();
+    expect(document.graph.edges["plan-flow"]).toEqual({ from: "plan-ore", to: "plan-out", item: "iron-ore" });
+    expect(document.layout["root"]?.["plan-ore"]).toEqual({ x: 624, y: -48 });
+    expect(changes.map((change) => change.label)).toEqual(["Plan iron"]);
+    expect(proposals.get(id)?.status).toBe("accepted");
+    expect(settled).toEqual([`${id} accepted`]);
+
+    await editing.undo({ documentId: "doc-1" });
+    expect((await current()).graph).toEqual(original.graph);
+  });
+
+  it("refuses proposals that aren't pending, saying why", async () => {
+    const { editing, proposals, changes } = setup();
+    const reasons: Record<string, RegExp> = {
+      accepted: /is accepted already/,
+      discarded: /The person discarded proposal proposal-\d+/,
+      replaced: /A newer plan .* replaced proposal/,
+    };
+    for (const [status, reason] of Object.entries(reasons)) {
+      const { id } = proposals.add(planned);
+      proposals.settle(id, status as "accepted" | "discarded" | "replaced");
+      expect(await editing.applyProposal({ proposalId: id, label: "Plan", offset: { x: 0, y: 0 } })).toMatchObject({
+        ok: false,
+        error: [{ path: ["proposalId"], message: expect.stringMatching(reason) }],
+      });
+    }
+    expect(await editing.applyProposal({ proposalId: "proposal-99", label: "Plan", offset: { x: 0, y: 0 } })).toEqual({
+      ok: false,
+      error: [{ path: ["proposalId"], message: "Unknown proposal proposal-99" }],
+    });
+    expect(changes).toEqual([]);
+  });
+
+  it("keeps a proposal pending when its commands no longer fit the document", async () => {
+    const { editing, proposals, apply } = setup();
+    const { id } = proposals.add(planned);
+    await apply([{ type: "addNode", id: "plan-ore", node: { kind: "junction" }, position: { x: 0, y: 0 } }]);
+    expect(await editing.applyProposal({ proposalId: id, label: "Plan", offset: { x: 0, y: 0 } })).toMatchObject({
+      ok: false,
+    });
+    expect(proposals.get(id)?.status).toBe("pending");
   });
 });

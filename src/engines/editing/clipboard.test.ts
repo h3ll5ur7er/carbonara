@@ -163,6 +163,29 @@ describe("pasting", () => {
     expect(added.map(([, edge]) => edge)).toEqual([{ ...document.graph.edges.e4, from: split, to: rods }]);
   });
 
+  it("copies and pastes nodes named like what plain objects inherit, and knows they're not there otherwise", () => {
+    const named = Document.parse({
+      ...exampleDocument,
+      graph: {
+        nodes: {
+          constructor: { kind: "recipe", recipe: "iron-ingot" },
+          toString: { kind: "source", item: "iron-ore" },
+        },
+        edges: { valueOf: { from: "toString", to: "constructor", item: "iron-ore" } },
+      },
+      layout: { root: { constructor: { x: 240, y: 0 } } },
+    });
+    expect(copyNodes(document, "root", ["hasOwnProperty"]).ok).toBe(false);
+    const clipboard = copied(["constructor", "toString"], named);
+    expect(clipboard.layout).toEqual({ constructor: { x: 240, y: 0 }, toString: { x: 0, y: 0 } });
+    const result = pasted(clipboard, { connections: true }, named);
+    expect(result.nodeIds).toEqual([
+      expect.stringMatching(/^constructor-[0-9a-f]{6}$/),
+      expect.stringMatching(/^toString-[0-9a-f]{6}$/),
+    ]);
+    expect(Object.keys(result.document.graph.edges)).toHaveLength(2);
+  });
+
   it("refuses an unknown graph", () => {
     const result = pasteCommands(
       document,

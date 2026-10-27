@@ -32,9 +32,17 @@ export interface AppShellProps {
   selection?: InspectorPanelProps["selection"];
   /** The open documents' tabs; one static tab for `document` by default. */
   tabs?: ReactNode;
+  /** What the library panel shows; a note on what it's for by default. */
+  library?: ReactNode;
 }
 
-export function AppShell({ document = null, canvas = <EmptyCanvas />, selection = null, tabs }: AppShellProps) {
+export function AppShell({
+  document = null,
+  canvas = <EmptyCanvas />,
+  selection = null,
+  tabs,
+  library = <LibraryPlaceholder />,
+}: AppShellProps) {
   useCommandShortcuts(appRegistry, platform);
   const quickAdd = useQuickAdd(document);
   const keys = (id: string) => {
@@ -53,7 +61,7 @@ export function AppShell({ document = null, canvas = <EmptyCanvas />, selection 
         <main className="relative min-h-0 flex-1">
           {canvas}
           <SidePanel side="left" title="Library" shortcut={keys("view.toggleLibrary")}>
-            <LibraryPlaceholder />
+            {library}
           </SidePanel>
           <SidePanel side="right" title="Inspector" shortcut={keys("view.toggleInspector")}>
             <InspectorPanel selection={selection} />

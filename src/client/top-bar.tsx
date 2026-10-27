@@ -57,6 +57,7 @@ export function TopBar({ documentName, tabs, registry, platform }: TopBarProps) 
       )}
       <button
         type="button"
+        data-tour="palette"
         onClick={() => setPaletteOpen(true)}
         className={
           "absolute left-1/2 flex h-8 w-80 -translate-x-1/2 items-center gap-2 rounded-md bg-surface-2 pr-1.5 pl-2.5 " +

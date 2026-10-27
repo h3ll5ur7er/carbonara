@@ -2,8 +2,9 @@
 // Each scene loads lazily, so none of this reaches the production bundle (see `App`).
 //
 // To add one, export a component as the default of a module and register it below. Canvas scenes live in
-// `src/client/canvas/scenes/`; register them here under the canonical names. A placeholder stands in for a
-// canonical scene until its feature exists: replace its entry with the real scene and update the baselines.
+// `src/client/canvas/scenes/`; register them here under the canonical names. A placeholder (`placeholder: true`,
+// loading `placeholderScene` from ./placeholder.tsx) can stand in for a canonical scene until its feature exists;
+// every canonical scene is real now.
 import type { ComponentType } from "react";
 
 export interface Scene {
@@ -23,20 +24,12 @@ function overview(mode: "sankey" | "heatmap"): Promise<{ default: ComponentType 
   return import("./overview").then((module) => ({ default: module.overviewScene(mode) }));
 }
 
-function placeholder(title: string, task: string): Scene {
-  return {
-    title,
-    placeholder: true,
-    load: () => import("./placeholder").then(({ placeholderScene }) => ({ default: placeholderScene(title, task) })),
-  };
-}
-
 export const scenes: SceneRegistry = {
   // The canonical scenes of docs/Design.md (Visual QA), screenshot in dark and light by e2e/scenes.spec.ts.
   empty: { title: "Empty state", load: () => import("./empty") },
   chain: { title: "A 20-node chain", load: () => canvasScene("chain") },
   congested: { title: "A congested graph", load: () => canvasScene("congested") },
-  subgraph: placeholder("Inside a subgraph", "CARB-39"),
+  subgraph: { title: "Inside a subgraph", load: () => import("./subgraph") },
   "ghost-paste": { title: "A paste following the pointer as a ghost", load: () => import("./ghost-paste") },
   // The canvas perf harness (e2e/canvas-perf.spec.ts): 1,000 nodes.
   perf: { title: "1,000 nodes for the perf harness", load: () => canvasScene("perf") },

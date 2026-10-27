@@ -37,6 +37,12 @@ export interface CanvasEditActions extends NavigationActions, ClipboardActions {
   redo(): void;
   /** Where a node added from outside the canvas (quick-add) goes: mid-view, clear of the others. */
   placeNew(node: Node): Position;
+  /** Collapses the selected nodes into a new subgraph, and selects its instance. */
+  collapseSelection(): void;
+  /** Expands the selected subgraph instances back into the graph. */
+  expandSelection(): void;
+  /** Opens the selected subgraph instance. */
+  openSubgraph(): void;
 }
 
 let actions: CanvasEditActions | undefined;

@@ -19,7 +19,8 @@ describe("the carbonara-pack command", () => {
     expect(errors.join("\n")).toContain("carbonara-pack new <id>");
   });
 
-  it("creates, validates and builds a pack", async () => {
+  // Validating type-checks the plugin, which takes a few seconds.
+  it("creates, validates and builds a pack", { timeout: 30_000 }, async () => {
     const into = mkdtempSync(join(tmpdir(), "cli-"));
     const folder = join(into, "demo");
     expect(await cli("new", "demo", "--into", into, "--name", "Demo Works")).toEqual({
@@ -35,7 +36,25 @@ describe("the carbonara-pack command", () => {
     expect(built.out).toEqual([`Built ${file}`, `SHA-256 ${await sha256(readFileSync(file))}`]);
   });
 
-  it("names the file, line and column of each problem, relative to where it runs", async () => {
+  it("type-checks a TypeScript plugin when validating, which building alone doesn't", { timeout: 30_000 }, async () => {
+    const into = mkdtempSync(join(tmpdir(), "cli-"));
+    const folder = join(into, "demo");
+    await cli("new", "demo", "--into", into);
+    const plugin = join(folder, "plugin", "index.ts");
+    writeFileSync(
+      plugin,
+      readFileSync(plugin, "utf8").replace(`id: "demo" }`, `id: "demo", derive: () => ({ power: "lots" }) }`),
+    );
+    const { code, errors } = await cli("validate", folder);
+    expect(code).toBe(1);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(
+      new RegExp(`^${join(folder, "plugin/index.ts")}:4:\\d+: .*Type .string. is not assignable`),
+    );
+    expect((await cli("build", folder, "--out", join(into, "out"))).code).toBe(0);
+  });
+
+  it("names the file, line and column of each problem, relative to where it runs", { timeout: 30_000 }, async () => {
     const into = mkdtempSync(join(tmpdir(), "cli-"));
     const folder = join(into, "demo");
     await cli("new", "demo", "--into", into);

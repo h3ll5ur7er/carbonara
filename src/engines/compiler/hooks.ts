@@ -2,7 +2,7 @@
 // hooks and how their answers become fields, recipes, constraints and diagnostics (docs/Architecture/Plugins.md).
 // A plugin's answers are input like any other: values that don't fit are replaced or refused, never trusted.
 import type { LocalId } from "../../contracts/document";
-import type { Building, PackData, Recipe } from "../../contracts/pack";
+import type { Building, Id, PackData, Recipe } from "../../contracts/pack";
 import type {
   EffectiveRecipe,
   FieldDescriptor,
@@ -30,6 +30,17 @@ export function pluginContext(
     context: { pack, settings: checked.values },
     diagnostics: checked.problems.map((message): Diagnostic => ({ kind: "warning", message })),
   };
+}
+
+/** The recipes the plugin says aren't available under these document settings (their defaults filled in). */
+export function unavailableRecipes(
+  pack: PackData,
+  plugin: Plugin,
+  settings: Record<string, unknown> | undefined,
+): Id[] {
+  if (!plugin.recipeAvailable) return [];
+  const { context } = pluginContext(pack, plugin, settings);
+  return pack.recipes.filter((recipe) => plugin.recipeAvailable?.(recipe, context) === false).map(({ id }) => id);
 }
 
 export interface PreparedNode {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Edge } from "../../../contracts/document";
 import { templatePack } from "../../scenes/template-pack";
-import { edgeUnder, insertCommands } from "./insert";
+import { edgeUnder, insertCommands, insertedItem } from "./insert";
 import { createSceneBuilder } from "./scene";
 
 const scene = createSceneBuilder()(
@@ -90,5 +90,13 @@ describe("insertCommands", () => {
     expect(insertCommands("root", "plates", plates, view("wire"), view("ingots"), { x: 0, y: 0 })).toBeUndefined();
     expect(insertCommands("root", "plates", plates, view("out"), view("ingots"), { x: 0, y: 0 })).toBeUndefined();
     expect(insertCommands("root", "plates", plates, view("ore"), view("ingots"), { x: 0, y: 0 })).toBeUndefined();
+  });
+});
+
+describe("insertedItem", () => {
+  it("never splices in a subgraph instance, whose flows go through ports a splice can't choose", () => {
+    const instance = { ...view("smelter"), kind: "instance" as const, blueprint: "plates", title: "Plates" };
+    expect(insertedItem(view("smelter"), "cuprite-ore", view("ingots"))).toBe("copper-plate");
+    expect(insertedItem(instance, "cuprite-ore", view("ingots"))).toBeUndefined();
   });
 });

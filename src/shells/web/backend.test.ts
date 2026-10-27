@@ -82,4 +82,14 @@ describe("the web backend", () => {
       { numRuns: 30 },
     );
   });
+
+  it("renames a factory as one undo step, and the tabs follow", async () => {
+    await createIndexedDbStorage("carbonara-documents").set("doc-1", exampleDocument);
+    const backend = start();
+    const tabs: string[][] = [];
+    backend.on("documentsChanged", ({ documents }) => tabs.push(documents.map(({ name }) => name)));
+    await backend.editing.apply({ documentId: "doc-1", commands: [{ type: "renameDocument", name: "Iron works" }] });
+    await backend.editing.undo({ documentId: "doc-1" });
+    expect(tabs).toEqual([["Iron works"], ["Iron"]]);
+  });
 });

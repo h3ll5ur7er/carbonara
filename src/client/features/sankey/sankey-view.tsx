@@ -1,6 +1,6 @@
 // The Sankey overview: the whole factory as bands of flow over the canvas, clear of the side panels. `S` or
-// the command palette toggles it, Escape closes it. Bands take their item's tint; flows near or over their belt's
-// capacity get the canvas's amber or red halo, so bottlenecks stand out at a glance.
+// the command palette toggles it, Escape closes it. Bands take their item's tint and pass through junctions; flows
+// near or over their belt's capacity get the canvas's amber or red halo, so bottlenecks stand out at a glance.
 import { Waves, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { create } from "zustand";
@@ -13,7 +13,7 @@ import { createSceneBuilder } from "../../canvas/model/scene";
 import { usePanels } from "../../shell/panels";
 import { IconButton } from "../../ui/button";
 import { cx } from "../../ui/cx";
-import { NODE_WIDTH, sankeyLayout, type SankeyLink, type SankeyNode } from "./sankey";
+import { estimateLabelWidth, NODE_WIDTH, sankeyLayout, type SankeyLink, type SankeyNode } from "./sankey";
 
 export const useSankey = create<{ open: boolean }>(() => ({ open: false }));
 
@@ -44,8 +44,12 @@ function SankeyView({ document, pack, results, rateUnit }: SankeyOverlayProps) {
   const layout = useMemo(() => {
     if (!size) return null;
     const scene = buildScene(document.graph, document.layout.root, pack);
-    return sankeyLayout(scene, results?.documentId === document.id ? results : null, size);
-  }, [buildScene, document, pack, results, size]);
+    const labelWidth = (node: SankeyNode) => {
+      const rate = formatRate(node.throughput, rateUnit);
+      return estimateLabelWidth(node, `${rate.value}${rate.unit}`);
+    };
+    return sankeyLayout(scene, results?.documentId === document.id ? results : null, size, labelWidth);
+  }, [buildScene, document, pack, results, size, rateUnit]);
   const [hovered, setHovered] = useState<string | null>(null);
 
   useEffect(() => {
@@ -108,7 +112,6 @@ function SankeyView({ document, pack, results, rateUnit }: SankeyOverlayProps) {
                   key={node.id}
                   node={node}
                   unit={rateUnit}
-                  last={node.x + NODE_WIDTH + 140 > size.width}
                   dimmed={hovered !== null && hovered !== node.id && !touches(layout.links, hovered, node.id)}
                   onHover={setHovered}
                 />
@@ -169,21 +172,17 @@ function Band({ link, dimmed, onHover }: { link: SankeyLink; dimmed: boolean; on
 function Bar({
   node,
   unit,
-  last,
   dimmed,
   onHover,
 }: {
   node: SankeyNode;
   unit: RateUnit;
-  /** Labels go left of the last column's bars, so they stay on screen. */
-  last: boolean;
   dimmed: boolean;
   onHover(id: string | null): void;
 }) {
   const rate = formatRate(node.throughput, unit);
   const fill =
     node.kind === "recipe" ? "fill-accent" : node.kind === "junction" ? "fill-line-strong" : "fill-(--item-fg)";
-  const y = node.y + node.height / 2;
   return (
     <g
       className="item-tint transition-opacity duration-(--duration-fast)"
@@ -193,12 +192,12 @@ function Bar({
     >
       <rect x={node.x} y={node.y} width={NODE_WIDTH} height={node.height} rx={3} className={fill} />
       <text
-        x={last ? node.x - 8 : node.x + NODE_WIDTH + 8}
-        y={y}
+        x={node.labelAt.x}
+        y={node.labelAt.y}
         dominantBaseline="middle"
-        textAnchor={last ? "end" : "start"}
-        // A halo in the canvas colour keeps labels legible over bands.
-        className="pointer-events-none fill-fg stroke-canvas text-2xs font-medium [paint-order:stroke] [stroke-linejoin:round] [stroke-width:3px]"
+        textAnchor={node.labelAt.anchor}
+        // The layout keeps labels clear of the bands; a thin halo in the canvas colour softens a band's tip.
+        className="pointer-events-none fill-fg stroke-canvas text-2xs font-medium [paint-order:stroke] [stroke-linejoin:round] [stroke-width:2px]"
       >
         {node.label}
         <tspan className="fill-fg-subtle font-mono" dx={6}>

@@ -22,6 +22,7 @@ describe("buildPack", () => {
       "data/recipes.yaml",
       "manifest.yaml",
       "plugin/index.js",
+      "starters/copper-wire.yaml",
     ]);
     const pack = readPackFiles(files);
     expect(pack.ok && pack.value.data.recipes).toHaveLength(12);

@@ -14,6 +14,8 @@ export interface CanvasContextValue {
   resize(node: LocalId, rect: { x: number; y: number; width: number; height: number }): void;
   /** Frames fold to their label bar and back through this. */
   toggleCollapsed(frame: LocalId): void;
+  /** A subgraph instance asks to be opened (its card's button). */
+  openSubgraph(node: LocalId): void;
   /** How much of each node to draw at the current zoom. */
   lod: LodTier;
 }
@@ -39,6 +41,11 @@ export function useMachineGroups(): MachineGroups {
 export function useAnnotationEdits(): Pick<CanvasContextValue, "editText" | "resize" | "toggleCollapsed"> {
   const { editText, resize, toggleCollapsed } = useCanvasContext();
   return { editText, resize, toggleCollapsed };
+}
+
+/** How a subgraph instance asks to be opened. */
+export function useOpenSubgraph(): CanvasContextValue["openSubgraph"] {
+  return useCanvasContext().openSubgraph;
 }
 
 export function useLod(): LodTier {

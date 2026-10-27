@@ -198,7 +198,7 @@ function compileGraph({ document, pack, plugin }: CompileInput, scope: GraphScop
     const edge = edges[id] as (typeof edges)[string];
     const problem = (message: string, node?: LocalId) =>
       edgeDiagnostics.push({ kind: "error", message: `Edge "${id}" ${message}`, ...(node !== undefined && { node }) });
-    const missing = [edge.from, edge.to].find((end) => !(end in nodes));
+    const missing = [edge.from, edge.to].find((end) => !Object.hasOwn(nodes, end));
     if (missing !== undefined) {
       problem(`connects "${missing}", which doesn't exist`);
       continue;
