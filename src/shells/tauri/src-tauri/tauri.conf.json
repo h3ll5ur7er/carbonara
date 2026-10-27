@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Carbonara",
+  "version": "../../../../package.json",
+  "identifier": "io.github.h3ll5ur7er.carbonara",
+  "build": {
+    "beforeDevCommand": { "script": "pnpm desktop:frontend:dev", "cwd": "../../../..", "wait": false },
+    "beforeBuildCommand": { "script": "pnpm desktop:frontend", "cwd": "../../../.." },
+    "devUrl": "http://127.0.0.1:5190",
+    "frontendDist": "../../../../dist/desktop"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Carbonara",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600,
+        "center": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self' blob: 'wasm-unsafe-eval'",
+        "worker-src": "'self' blob:",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob:",
+        "font-src": "'self' data:",
+        "connect-src": "'self' ipc: http://ipc.localhost"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "shortDescription": "A node-based factory planner",
+    "longDescription": "Carbonara plans factories for factory-building games as node graphs, solves them for rates and machine counts, and keeps each game in a pack.",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/carbonara.desktop",
+        "files": { "/usr/share/mime/packages/carbonara.xml": "linux/mime.xml" }
+      },
+      "rpm": {
+        "desktopTemplate": "linux/carbonara.desktop",
+        "files": { "/usr/share/mime/packages/carbonara.xml": "linux/mime.xml" }
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": ["carbonara"],
+        "name": "Carbonara factory",
+        "description": "Carbonara factory",
+        "role": "Editor",
+        "mimeType": "application/x-carbonara",
+        "exportedType": { "identifier": "io.github.h3ll5ur7er.carbonara.factory", "conformsTo": ["public.data"] }
+      },
+      {
+        "ext": ["cpack"],
+        "name": "Carbonara game pack",
+        "description": "Carbonara game pack",
+        "role": "Viewer",
+        "mimeType": "application/x-carbonara-pack",
+        "exportedType": { "identifier": "io.github.h3ll5ur7er.carbonara.pack", "conformsTo": ["public.zip-archive"] }
+      }
+    ]
+  }
+}

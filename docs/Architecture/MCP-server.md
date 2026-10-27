@@ -44,7 +44,7 @@ sequenceDiagram
 
 ### Plugging it into the desktop shell
 
-The desktop shell (`src/shells/tauri/`) wires both ends. In Rust, at startup:
+The desktop shell (`src/shells/tauri/`) wires both ends; it's done in [[src/shells/tauri/src-tauri/src/mcp.rs]] and [[src/shells/tauri/main.tsx]] ([[Architecture/Desktop#MCP server]]). In Rust, at startup:
 
 ```rust
 let config = app.path().app_config_dir()?;

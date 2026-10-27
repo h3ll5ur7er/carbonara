@@ -16,7 +16,7 @@ milestone: "M2 It's a game"
 - [x] Server + token: `crates/mcp`, `serve_http` on `127.0.0.1` behind a per-install bearer token, loopback `Host` and no `Origin` ([[crates/mcp/tests/http.rs]])
 - [x] stdio bridge: `run_stdio` forwards to the running app through its connection file ([[crates/mcp/tests/stdio.rs]])
 - [x] Forwarding to managers through the connector: `MessageBridge` in Rust, `startMcpBridge` / `attachMcpShell` in the client ([[crates/mcp/tests/message_bridge.rs]], [[src/client/features/mcp/bridge.test.ts]])
-- [ ] Wire it into the Tauri shell ([[CARB-57]]): the code is in [[Architecture/MCP server#Plugging it into the desktop shell]]
+- [x] Wire it into the Tauri shell ([[CARB-57]]): [[src/shells/tauri/src-tauri/src/mcp.rs]], [[src/shells/tauri/main.tsx]]
 
 Decisions:
 

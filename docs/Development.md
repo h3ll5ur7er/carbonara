@@ -37,7 +37,9 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 | `pnpm pack:build <folder> [--out dist/packs]` | Bundles a pack folder's plugin and zips it into `<out>/<id>-<version>.cpack` |
 | `pnpm pack:import <pack> <file>… [--icons <folder>]…` | Regenerates a pack's data and icons with its plugin's importer |
 | `pnpm bench` | Edit → results timings on generated 500 / 1k / 10k / 50k-node factories, with the WebAssembly module as built (`pnpm build:wasm` builds release). Exits with 1 when a budget from [[Architecture/Solver]] is exceeded |
-| `cargo test` | Rust tests (solver; the MCP server, with scripted MCP clients over HTTP and stdio) |
+| `pnpm desktop:dev` / `pnpm desktop:build` | The desktop app with hot reload, or its installers ([[#Desktop]]) |
+| `pnpm tauri <command>` | The Tauri CLI, run in `src/shells/tauri` |
+| `cargo test` | Rust tests (solver; the MCP server, with scripted MCP clients over HTTP and stdio); the desktop shell is left out, see [[#Desktop]] |
 | `cargo clippy --all-targets -- -D warnings` / `cargo fmt --check` | Rust lint and format |
 
 ## Before you push
@@ -46,7 +48,7 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 pnpm check && pnpm format:check && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
 ```
 
-Run `pnpm e2e` too when you changed anything the user can see.
+Run `pnpm e2e` too when you changed anything the user can see, and `cargo clippy -p carbonara-desktop --all-targets -- -D warnings && cargo test -p carbonara-desktop` when you changed the desktop shell ([[#Desktop]]).
 
 ## Layer rules
 
@@ -85,6 +87,31 @@ When a change is meant to look different:
 3. Commit the new images in the same commit as the change, so the history shows why they changed.
 
 When a screenshot fails unexpectedly, the HTML report (`playwright-report/`, or `test-results/` for the expected, actual and diff images) shows what moved.
+
+## Desktop
+
+The desktop app is a Tauri 2 shell around the web app ([[Architecture/Desktop]]). Besides the setup above it needs Tauri's system libraries ([Tauri's prerequisites](https://v2.tauri.app/start/prerequisites/)); on Debian and Ubuntu:
+
+```bash
+sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
+  patchelf build-essential libssl-dev file
+```
+
+macOS needs the Xcode command line tools, Windows the WebView2 runtime (preinstalled on Windows 10 and 11) and the MSVC build tools.
+
+| Command | What it does |
+| --- | --- |
+| `pnpm desktop:dev` | The desktop app with hot reload: Vite on port 5190 (`src/shells/tauri/vite.config.ts`) and the Rust shell in debug mode |
+| `pnpm desktop:build` | The web build into `dist/desktop`, then the release app and installers in `target/release/bundle/` (on Linux: `.deb`, `.rpm`, AppImage). `--bundles deb` builds one kind, `--debug` a faster debug build |
+| `pnpm desktop:frontend` | Only the desktop app's web build, as `desktop:build` runs it |
+| `cargo test -p carbonara-desktop` / `cargo clippy -p carbonara-desktop --all-targets -- -D warnings` | The Rust shell's tests and lint |
+| `pnpm tauri icon icon.svg -o src-tauri/icons` | Regenerates the app icons (then delete the `android/`, `ios/` and Store logos it also writes) |
+
+The Rust shell (`src/shells/tauri/src-tauri`) is a workspace member but not a default member, so plain `cargo test`, `cargo clippy` and `cargo build` don't need the system libraries. A new crate goes into both `members` and `default-members` of the root `Cargo.toml`, or plain `cargo test` skips it. Run its checks with `-p carbonara-desktop` when you change the shell. CI does on every push (job *Desktop app (Linux)*), and builds a `.deb`.
+
+`pnpm tauri` runs the CLI in `src/shells/tauri`, where it finds `src-tauri/`, so paths you pass it are relative to that folder unless absolute.
+
+Without a display (a container, CI), the app can't open a window; `xvfb-run pnpm tauri dev` runs it on a virtual one. The shell's commands are covered by `cargo test`, its TypeScript by `pnpm test`.
 
 ## Deployment
 
