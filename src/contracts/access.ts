@@ -44,10 +44,19 @@ export type LoadedPack = { info: PackInfo; data: PackData } & (
 export interface PluginRuntime {
   /** Compiles the document into the solver IR (one round trip when the plugin is isolated). */
   compile(document: Document): Promise<CompiledModel>;
+  /**
+   * Compiles one document's versions one after another: each compile, and each mapping of its results, redoes
+   * only what changed since the one before (docs/Architecture/Solver.md, Performance). Keep one per document.
+   */
+  compiler(): DocumentCompiler;
   /** The plugin's fields, settings and metrics under these document settings (`settings.plugin`). */
   describe(settings: Record<string, unknown>): Promise<PluginDescription>;
   /** Stops an isolated plugin; the runtime can't be used afterwards. */
   dispose?(): void;
+}
+
+export interface DocumentCompiler {
+  compile(document: Document): Promise<CompiledModel>;
 }
 
 export interface CompiledModel {

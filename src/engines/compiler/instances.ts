@@ -7,7 +7,7 @@ import type { Id } from "../../contracts/pack";
 import type { Diagnostic } from "../../contracts/results";
 import type { InstanceSolution, Solution } from "../../contracts/solver";
 import { clean } from "../../utilities/numbers";
-import type { CompileInput, Compiled, Compiling, Draft, NodeInfo } from "./compile";
+import type { Compiled, Compiling, Draft, NodeInfo } from "./compile";
 
 /** A blueprint port as instances see it. */
 export interface Port {
@@ -119,74 +119,48 @@ export function connectPorts(edge: Edge, from: Draft, to: Draft): { fromPort?: n
   return { ...(fromPort !== undefined && { fromPort }), ...(toPort !== undefined && { toPort }) };
 }
 
+/** The blueprints a document's graphs can place: in id order (their index in the model), with their ports. */
+export interface BlueprintScope {
+  /** What the scope was made from. */
+  source: Document["blueprints"];
+  ids: LocalId[];
+  blueprints: GraphScope["blueprints"];
+  cyclic: Set<LocalId>;
+}
+
 /**
- * Compiles the root graph and every blueprint (in id order: their index in the model) with `compileGraph`,
- * then gives all of them one numbering of items, in pack order.
+ * The document's blueprints as instances see them. Reuses `previous` while the blueprints are the same, and
+ * its entries while a blueprint keeps its index and ports, so instances of a redesigned blueprint stay compiled.
  */
-export function compileWithBlueprints(
-  input: CompileInput,
-  compileGraph: (input: CompileInput, scope: GraphScope) => Compiled,
-): Compiled {
-  const { document, pack } = input;
-  const order = new Map(pack.items.map((item, index) => [item.id, index]));
-  const cyclic = cyclicBlueprints(document.blueprints);
-  const ids = Object.keys(document.blueprints)
+export function blueprintScope(
+  source: Document["blueprints"],
+  items: Map<Id, number>,
+  previous: BlueprintScope | undefined,
+): BlueprintScope {
+  if (previous?.source === source) return previous;
+  const cyclic = cyclicBlueprints(source);
+  const ids = Object.keys(source)
     .filter((id) => !cyclic.has(id))
     .sort(byId);
   const blueprints = new Map(
-    ids.map((id, index) => [id, { index, ports: portsOf(document.blueprints[id] as Blueprint, order) }]),
+    ids.map((id, index) => {
+      const ports = portsOf(source[id] as Blueprint, items);
+      const known = previous?.blueprints.get(id);
+      const same = known && known.index === index && samePorts(known.ports, ports);
+      return [id, same ? known : { index, ports }];
+    }),
   );
-  const scope = (name: string, graph: Graph, inBlueprint: boolean): GraphScope => ({
-    name,
-    graph,
-    inBlueprint,
-    blueprints,
-    cyclic,
-  });
-  const root = compileGraph(input, scope("root", document.graph, false));
-  if (ids.length === 0) return root;
-  const bodies = ids.map((id) => {
-    const blueprint = document.blueprints[id] as Blueprint;
-    const body = compileGraph(input, scope(id, blueprint.graph, true));
-    const ports = body.info.flatMap((info, index) => (info.kind === "port" ? [index] : []));
-    return { ...body, name: blueprint.name, ports };
-  });
+  return { source, ids, blueprints, cyclic };
+}
 
-  const items = [...new Set([root, ...bodies].flatMap((compiled) => compiled.items))].sort(
-    (a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0),
+function samePorts(a: Port[], b: Port[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((port, at) => {
+      const other = b[at] as Port;
+      return port.id === other.id && port.item === other.item && port.entering === other.entering;
+    })
   );
-  const shared = new Map(items.map((item, index) => [item, index]));
-  const renumber = <C extends Compiled>(compiled: C): C => {
-    const item = (index: number) => shared.get(compiled.items[index] as Id) as number;
-    return {
-      ...compiled,
-      items,
-      model: {
-        ...compiled.model,
-        items: items.length,
-        nodes: compiled.model.nodes.map((node) => ({
-          ...node,
-          rates: node.rates.map((rate) => ({ ...rate, item: item(rate.item) })),
-        })),
-        edges: compiled.model.edges.map((edge) => ({ ...edge, item: item(edge.item) })),
-      },
-    };
-  };
-  const placed = bodies.map(renumber);
-  const top = renumber(root);
-  return {
-    ...top,
-    model: {
-      ...top.model,
-      blueprints: placed.map(({ model, ports }) => ({
-        nodes: model.nodes,
-        edges: model.edges,
-        constraints: model.constraints,
-        ports,
-      })),
-    },
-    blueprints: placed,
-  };
 }
 
 /** A blueprint of a compiled document by id, with its index in the model. */
@@ -211,36 +185,51 @@ export function addBoundaryFlows(
   });
 }
 
-/** Raw inputs and buildings inside instances: each instance is a copy of its blueprint, with machines of its own. */
+/**
+ * Raw inputs and buildings inside instances: each instance is a copy of its blueprint, with machines of its own.
+ * What an instance adds is remembered by its solution in `memo` (only the latest instances stay), and added in
+ * the same order every time, so the totals come out the same to the last bit.
+ */
 export function addInsideTotals(
   compiled: Compiled,
   solution: Solution,
   raw: Record<Id, number>,
   buildings: Record<Id, number>,
+  memo: Map<InstanceSolution, InsideTotals> = new Map(),
 ): void {
-  const visit = (graph: Compiled, inside: InstanceSolution) => {
+  const kept = new Map<InstanceSolution, InsideTotals>();
+  const visit = (graph: Compiled, inside: InstanceSolution, adds: InsideTotals) => {
     graph.info.forEach((info, index) => {
       const activity = inside.activity[index] ?? 0;
       if (activity <= 0) return;
       if (info.kind === "source") {
-        for (const rate of graph.model.nodes[index]?.rates ?? []) {
-          const item = graph.items[rate.item] as Id;
-          raw[item] = (raw[item] ?? 0) + activity;
-        }
+        for (const rate of graph.model.nodes[index]?.rates ?? [])
+          adds.raw.push([graph.items[rate.item] as Id, activity]);
       }
-      if (info.context) {
-        const building = info.context.building.id;
-        buildings[building] = (buildings[building] ?? 0) + Math.ceil(clean(activity));
-      }
+      if (info.context) adds.buildings.push([info.context.building.id, Math.ceil(clean(activity))]);
     });
-    for (const nested of inside.instances ?? []) placed(graph, nested);
+    for (const nested of inside.instances ?? []) placed(graph, nested, adds);
   };
-  const placed = (graph: Compiled, inside: InstanceSolution) => {
+  const placed = (graph: Compiled, inside: InstanceSolution, adds: InsideTotals) => {
     const blueprint = graph.info[inside.node]?.blueprint;
     const body = blueprint === undefined ? undefined : compiled.blueprints?.[blueprint];
-    if (body) visit(body, inside);
+    if (body) visit(body, inside, adds);
   };
-  for (const inside of solution.instances ?? []) placed(compiled, inside);
+  for (const inside of solution.instances ?? []) {
+    let adds = memo.get(inside);
+    if (!adds) placed(compiled, inside, (adds = { raw: [], buildings: [] }));
+    kept.set(inside, adds);
+    for (const [item, amount] of adds.raw) raw[item] = (raw[item] ?? 0) + amount;
+    for (const [building, count] of adds.buildings) buildings[building] = (buildings[building] ?? 0) + count;
+  }
+  memo.clear();
+  for (const [inside, adds] of kept) memo.set(inside, adds);
+}
+
+/** What one instance adds to the totals, in the order it adds it. */
+export interface InsideTotals {
+  raw: [Id, number][];
+  buildings: [Id, number][];
 }
 
 /** Blueprints the solver had to inline, with a hint how to make them compile. */

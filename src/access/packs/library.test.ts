@@ -127,6 +127,9 @@ describe("the pack library with isolated plugins", () => {
         compile: async () => {
           throw new Error("not used");
         },
+        compiler: () => {
+          throw new Error("not used");
+        },
         describe: async () => ({ nodeFields: {}, settingsFields: {}, metrics: {} }),
         dispose: () => disposed.push(source),
       };

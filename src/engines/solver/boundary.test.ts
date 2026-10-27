@@ -35,8 +35,8 @@ beforeAll(async () => {
 });
 
 describe("the solver's WebAssembly boundary", () => {
-  it("speaks IR version 2", async () => {
-    expect(await solverIrVersion()).toBe(2);
+  it("speaks IR version 3", async () => {
+    expect(await solverIrVersion()).toBe(3);
   });
 
   it("accepts a model built from the TS types", async () => {
@@ -104,6 +104,19 @@ describe("the solver's WebAssembly boundary", () => {
       const result = solver.solve(edited);
       expect(solver.lastSolved()).toBe(1);
       expect(result).toEqual(await solve(edited));
+    } finally {
+      solver.dispose();
+    }
+  });
+
+  it("sends only changes across, and solves every model as a fresh solver would", async () => {
+    const solver = await createSolver();
+    try {
+      const models = [withPin(1), withPin(1.5), { ...withPin(1.5), edges: chain.edges.slice(0, 1) }, chain, withPin(0)];
+      for (const model of models) expect(solver.solve(model)).toEqual(await solve(model));
+      // A model that isn't consistent throws, and the next one is sent whole again.
+      expect(() => solver.solve({ ...chain, edges: [{ from: 0, to: 7, item: 0 }] })).toThrow("no node 7");
+      expect(solver.solve(withPin(2))).toEqual(await solve(withPin(2)));
     } finally {
       solver.dispose();
     }

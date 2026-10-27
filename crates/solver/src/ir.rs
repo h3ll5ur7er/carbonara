@@ -231,3 +231,51 @@ pub struct NodeSlack {
     /// Activity minus pin: negative when the node runs below its pin.
     pub difference: f64,
 }
+
+/// Changes to a list since the last solve: its new length, and the elements that differ, by index.
+/// Elements at or past `length` are dropped; every index the list grows by is among `set`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct Changes<T> {
+    pub length: u32,
+    pub set: Vec<(u32, T)>,
+}
+
+/// A model as changes to the model of the last solve (`Solver::solve_changes`): what crosses into
+/// WebAssembly, so an edit sends what it changed rather than the whole document.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ModelChanges {
+    pub items: u32,
+    pub nodes: Changes<Node>,
+    pub edges: Changes<Edge>,
+    pub constraints: Changes<Constraint>,
+    pub blueprints: Changes<Blueprint>,
+}
+
+/// A solution as changes to the solution of the last solve: what comes back out of WebAssembly.
+/// Slack lists are left out while they're the same.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SolutionChanges {
+    pub activity: Changes<f64>,
+    pub flow: Changes<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub surplus: Option<Vec<PortSlack>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub deficit: Option<Vec<PortSlack>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub overflow: Option<Vec<EdgeSlack>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub pin_misses: Option<Vec<NodeSlack>>,
+    pub instances: Changes<InstanceSolution>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub inlined: Option<Vec<Inlined>>,
+}

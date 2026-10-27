@@ -1,8 +1,9 @@
 // Analysis manager: the use case "a document changed → solve it → tell the clients". It sequences the
 // documents and packs stores, the compiler and the solver; the rules live in those engines.
-// Each document gets its own incremental solver, so an edit re-solves only the components it touched.
+// Each document gets its own compiler and incremental solver, so an edit recompiles only the nodes it touched and
+// re-solves only the components they belong to.
 // Blueprint graphs are solved lazily: when asked for, or after every solve while someone watches them.
-import type { CompiledModel, DocumentStore, PackStore } from "../contracts/access";
+import type { CompiledModel, DocumentCompiler, DocumentStore, LoadedPack, PackStore } from "../contracts/access";
 import type { Events, ManagerImplementation } from "../contracts/managers";
 import type { AnalysisResults } from "../contracts/results";
 import { runtimeOf } from "../engines/compiler";
@@ -16,6 +17,8 @@ export interface AnalysisDependencies {
 }
 
 interface DocumentState {
+  /** The pack's compiler for this document, while the pack stays the same. */
+  compiler?: { pack: LoadedPack; compiler: DocumentCompiler };
   solver?: IncrementalSolver;
   results?: AnalysisResults;
   /** What the latest results were solved from, for blueprint graphs asked for later. */
@@ -79,7 +82,8 @@ export function createAnalysisManager({ bus, documents, packs }: AnalysisDepende
         unsolved(documentId, version, "root", `The pack "${document.pack.id}" isn't installed`),
       );
     // Built-in plugins compile right here; third-party ones in their sandbox, in one round trip.
-    const compiled = await runtimeOf(pack).compile(document);
+    if (state.compiler?.pack !== pack) state.compiler = { pack, compiler: runtimeOf(pack).compiler() };
+    const compiled = await state.compiler.compiler.compile(document);
     state.solver ??= await createSolver();
     const results = await compiled.results(state.solver.solve(compiled.model), version);
     state.solved = { version, compiled };

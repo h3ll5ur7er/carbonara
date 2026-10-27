@@ -1,10 +1,11 @@
 //! Re-solves only what changed: blueprint summaries are cached by the blueprint, and solutions per
 //! component of the flattened model, keyed by a hash of the component's own model, so an edit re-solves
-//! the components it touched and reuses the others.
+//! the components it touched and reuses the others. It also holds the last model and solution, so callers
+//! across the WebAssembly boundary send and receive only changes (`solve_changes`).
 
 use crate::decompose::{Component, components, merge};
 use crate::fingerprint::fingerprint;
-use crate::ir::{Model, Solution};
+use crate::ir::{Model, ModelChanges, Solution, SolutionChanges};
 use crate::program::{Backend, MicroLp};
 use crate::subgraphs::{Summaries, expansion, flatten};
 use crate::{InvalidModel, SolveError, solve_flat, validate};
@@ -22,6 +23,9 @@ pub struct Solver<B: Backend = MicroLp> {
     solved: usize,
     reused: usize,
     summarised: usize,
+    /// The model of the last `solve_changes`, and the solution it returned.
+    held: Model,
+    sent: Solution,
 }
 
 impl<B: Backend> Solver<B> {
@@ -33,7 +37,42 @@ impl<B: Backend> Solver<B> {
             solved: 0,
             reused: 0,
             summarised: 0,
+            held: Model::default(),
+            sent: Solution::default(),
         }
+    }
+
+    /// Solves the model of the last call with `changes` made to it, and returns the solution as changes to
+    /// the one the last call returned. Invalid changes leave the model as it was.
+    pub fn solve_changes(&mut self, changes: ModelChanges) -> Result<SolutionChanges, SolveError> {
+        changes.apply(&mut self.held)?;
+        let model = std::mem::take(&mut self.held);
+        let solved = self.solve(&model);
+        self.held = model;
+        let solution = solved?;
+        let changes = SolutionChanges::between(&self.sent, &solution);
+        self.sent = solution;
+        Ok(changes)
+    }
+
+    /// `expand` for the model of the last `solve_changes` with `changes` made to it. The next
+    /// `solve_changes` changes that model.
+    pub fn expand_changes(
+        &mut self,
+        changes: ModelChanges,
+        blueprint: u32,
+    ) -> Result<Solution, SolveError> {
+        changes.apply(&mut self.held)?;
+        let model = std::mem::take(&mut self.held);
+        let expanded = self.expand(&model, blueprint);
+        self.held = model;
+        expanded
+    }
+
+    /// Forgets the model and solution of the last `solve_changes`: the next one sends everything again.
+    pub fn forget(&mut self) {
+        self.held = Model::default();
+        self.sent = Solution::default();
     }
 
     pub fn solve(&mut self, model: &Model) -> Result<Solution, SolveError> {

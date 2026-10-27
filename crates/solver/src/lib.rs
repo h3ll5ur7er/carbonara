@@ -3,8 +3,9 @@
 //! (see docs/Architecture/Solver.md and docs/Architecture/Subgraphs.md).
 
 /// Version of the solver IR this crate understands.
-pub const IR_VERSION: u32 = 2;
+pub const IR_VERSION: u32 = 3;
 
+mod changes;
 mod decompose;
 mod fingerprint;
 mod formulation;
