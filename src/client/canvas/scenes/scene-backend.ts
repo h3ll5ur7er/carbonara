@@ -39,7 +39,8 @@ export function createSceneBackend(
         return ok(info());
       },
     },
-    packs: { getPackData: async () => pack },
+    // The shell lists the installed packs; scenes install none.
+    packs: { getPackData: async () => pack, listPacks: async () => [] },
   });
   return { connector, commands };
 }

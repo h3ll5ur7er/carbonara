@@ -94,3 +94,46 @@ test("particles move along flows only while zoomed in and motion is welcome", as
   await openScene(page, "congested&zoom=1&focus=plate-merge", "dark", "reduce");
   expect((await particles()).display).toBe("none");
 });
+
+const tiers = [
+  { tier: "compact", zoom: 0.4 },
+  { tier: "chip", zoom: 0.18 },
+] as const;
+
+for (const { tier, zoom } of tiers) {
+  for (const colorScheme of ["dark", "light"] as const) {
+    test(`${tier} level of detail in ${colorScheme}`, async ({ page }) => {
+      await openScene(page, `chain&zoom=${zoom}&focus=purify`, colorScheme);
+      await expect(page.locator(".react-flow")).toHaveClass(new RegExp(`\\blod-${tier}\\b`));
+      await expect(page).toHaveScreenshot(`lod-${tier}-${colorScheme}.png`, { animations: "disabled" });
+    });
+  }
+}
+
+test("cards lose detail as the view zooms out, but keep their ports where they were", async ({ page }) => {
+  const purifier = page.locator('[data-id="purify"]');
+  const portOffset = () =>
+    purifier.evaluate((node) => {
+      const handle = node.querySelector('[data-handleid="in:dirty-water"]');
+      if (!handle) throw new Error("no port");
+      return (
+        (handle.getBoundingClientRect().top - node.getBoundingClientRect().top) / node.getBoundingClientRect().height
+      );
+    });
+
+  await openScene(page, "chain&zoom=1&focus=purify");
+  await expect(purifier.getByRole("listitem")).toHaveCount(3);
+  const fullOffset = await portOffset();
+
+  await openScene(page, "chain&zoom=0.4&focus=purify");
+  await expect(purifier.getByRole("listitem")).toHaveCount(0);
+  await expect(purifier).toContainText("Water");
+  expect(await portOffset()).toBeCloseTo(fullOffset, 2);
+});
+
+test("only nodes on screen are mounted while zoomed in", async ({ page }) => {
+  await openScene(page, "perf&zoom=1&focus=wire-95");
+  const mounted = await page.locator(".react-flow__node").count();
+  expect(mounted).toBeGreaterThan(0);
+  expect(mounted).toBeLessThan(100);
+});

@@ -7,15 +7,48 @@ import { monogram } from "../model/item-chip";
 import type { NodeSlot } from "../model/result-slots";
 import type { PortView } from "../model/scene";
 import { EfficiencyRing, ItemChip, Rate, ShortIcon } from "../parts";
-import { useNodeSlot, useRateUnit } from "./context";
+import { useLod, useNodeSlot, useRateUnit } from "./context";
 import { PortHandle } from "./port-handle";
 import type { FlowNodeProps } from "./types";
 
 export const RecipeNode = memo(function RecipeNode({ id, data: { view }, selected }: FlowNodeProps<"recipe">) {
   const slot = useNodeSlot(id);
+  const lod = useLod();
   const machines = slot ? formatMachines(slot.result.activity) : undefined;
   const short = Object.keys(slot?.deficits ?? {}).length > 0;
   const firstOutput = view.ports.find((port) => port.direction === "out");
+  const handles = view.ports.map((port) => <PortHandle key={port.handle} port={port} />);
+
+  if (lod === "chip") {
+    return (
+      <div
+        className={`relative grid size-full place-items-center rounded-lg ring-inset ${short ? "bg-flow-over-capacity/25" : "bg-surface-4"} ${selected ? "ring-8 ring-accent" : short ? "ring-4 ring-flow-over-capacity" : "ring-2 ring-line-strong"}`}
+      >
+        <span className="text-3xl font-bold text-accent-fg">{monogram(view.title)}</span>
+        {handles}
+      </div>
+    );
+  }
+
+  if (lod === "compact") {
+    return (
+      <div
+        className={`relative flex size-full items-center gap-5 rounded-lg bg-surface-2 px-6 shadow-panel ${cardRing(selected, short)}`}
+      >
+        <span
+          aria-hidden
+          className="grid size-18 shrink-0 place-items-center rounded-lg bg-accent-soft text-2xl font-semibold text-accent-fg"
+        >
+          {monogram(view.building.name)}
+        </span>
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="truncate text-2xl font-semibold tracking-tight text-fg">{view.title}</span>
+          <span className="font-mono text-xl text-fg-muted">{machines ? `× ${machines.count}` : "—"}</span>
+        </div>
+        {handles}
+      </div>
+    );
+  }
 
   return (
     <div

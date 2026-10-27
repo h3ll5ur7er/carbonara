@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CanvasViewProps, Insets } from "../adapter";
 import { connectionItem } from "../model/connect";
 import { particlesShown } from "../model/flow-style";
+import { lodTier } from "../model/lod";
 import { GRID } from "../model/geometry";
 import type { CanvasScene, EdgeView, NodeView } from "../model/scene";
 import { visibleCentre } from "../model/view";
@@ -76,8 +77,10 @@ function FlowCanvas({
     setEdges((current) => mergeEdges(scene, current));
   }
 
-  const context = useMemo(() => ({ results, rateUnit }), [results, rateUnit]);
+  // One subscriber to the zoom for the whole canvas: nodes re-render only when the tier changes.
+  const lod = useStore((state) => lodTier(state.transform[2]));
   const particles = useStore((state) => particlesShown(state.transform[2]));
+  const context = useMemo(() => ({ results, rateUnit, lod }), [results, rateUnit, lod]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange<FlowNode>[]) => setNodes((current) => applyNodeChanges(changes, current)),
@@ -132,7 +135,10 @@ function FlowCanvas({
         minZoom={0.05}
         maxZoom={2}
         aria-label="Factory canvas"
-        {...(!particles && { className: "particles-off" })}
+        className={`lod-${lod} ${particles ? "" : "particles-off"}`}
+        // Culling pays off while part of the graph is on screen. At chip zoom most of it is, and mounting
+        // and unmounting chips at the screen edges on every pan frame costs more than drawing them all.
+        onlyRenderVisibleElements={lod !== "chip"}
       >
         <Background
           id="minor"
@@ -191,6 +197,8 @@ function toFlowNode(view: NodeView, previous?: FlowNode): FlowNode {
     position: previous?.dragging ? previous.position : view.position,
     width: view.width,
     height: view.height,
+    // Known sizes count as measured, so culled nodes that were never drawn still take part in fitting.
+    measured: { width: view.width, height: view.height },
     handles: view.ports.map(handleBounds),
     data: { view },
     ...(view.kind === "frame" && { zIndex: -1 }),

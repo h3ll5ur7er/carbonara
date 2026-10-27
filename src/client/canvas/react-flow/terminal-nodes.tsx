@@ -2,8 +2,11 @@
 // Both are pills, so their silhouette alone sets them apart from machines.
 import { memo } from "react";
 import { formatNumber } from "../model/format";
-import { ItemChip, Rate } from "../parts";
-import { useNodeSlot, useRateUnit } from "./context";
+import { monogram } from "../model/item-chip";
+import type { LodTier } from "../model/lod";
+import type { NodeView } from "../model/scene";
+import { ItemChip, Rate, tint } from "../parts";
+import { useLod, useNodeSlot, useRateUnit } from "./context";
 import { PortHandle } from "./port-handle";
 import { cardRing } from "./recipe-node";
 import type { FlowNodeProps } from "./types";
@@ -12,6 +15,8 @@ export const SourceNode = memo(function SourceNode({ id, data: { view }, selecte
   const slot = useNodeSlot(id);
   const unit = useRateUnit();
   const supplied = slot?.result.outputs[view.item.id] ?? slot?.result.activity;
+  const lod = useLod();
+  if (lod !== "full") return <TerminalOverview view={view} lod={lod} selected={selected} short={false} />;
   return (
     <div
       className={`relative flex size-full items-center gap-3 rounded-full bg-surface-2 pr-6 pl-4 shadow-panel ring-inset ${cardRing(selected, false)}`}
@@ -44,6 +49,8 @@ export const SinkNode = memo(function SinkNode({ id, data: { view }, selected }:
   const unit = useRateUnit();
   const delivered = slot?.result.inputs[view.item.id] ?? slot?.result.activity;
   const short = Object.keys(slot?.deficits ?? {}).length > 0;
+  const lod = useLod();
+  if (lod !== "full") return <TerminalOverview view={view} lod={lod} selected={selected} short={short} />;
   const progress =
     view.targetPerSecond && delivered !== undefined ? Math.min(delivered / view.targetPerSecond, 1) : undefined;
   return (
@@ -78,3 +85,43 @@ export const SinkNode = memo(function SinkNode({ id, data: { view }, selected }:
     </div>
   );
 });
+
+/** A source or sink when zoomed out: the item in large type, then only its colour and monogram. */
+function TerminalOverview({
+  view,
+  lod,
+  selected,
+  short,
+}: {
+  view: Extract<NodeView, { kind: "source" | "sink" }>;
+  lod: Exclude<LodTier, "full">;
+  selected: boolean;
+  short: boolean;
+}) {
+  const handles = view.ports.map((port) => <PortHandle key={port.handle} port={port} />);
+  if (lod === "chip") {
+    const ring = selected
+      ? "ring-8 ring-accent"
+      : short
+        ? "ring-4 ring-flow-over-capacity"
+        : "ring-4 ring-(--item-line)";
+    return (
+      <div
+        style={tint(view.item.id)}
+        className={`item-tint relative grid size-full place-items-center rounded-full bg-(--item-bg) ring-inset ${ring}`}
+      >
+        <span className="text-3xl font-bold text-(--item-fg)">{monogram(view.item.name)}</span>
+        {handles}
+      </div>
+    );
+  }
+  return (
+    <div
+      className={`relative flex size-full items-center gap-4 rounded-full bg-surface-2 px-5 shadow-panel ring-inset ${cardRing(selected, short)}`}
+    >
+      <ItemChip item={view.item} size="xl" />
+      <span className="truncate text-2xl font-semibold tracking-tight text-fg">{view.item.name}</span>
+      {handles}
+    </div>
+  );
+}

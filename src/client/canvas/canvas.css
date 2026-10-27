@@ -38,6 +38,11 @@
     scale: 1.3;
   }
 
+  /* At overview zoom ports are specks; they stay in the DOM (edges are measured from them) but out of sight. */
+  .react-flow.lod-chip .react-flow__handle.port-handle {
+    visibility: hidden;
+  }
+
   .react-flow__node:focus-visible {
     outline: none;
   }

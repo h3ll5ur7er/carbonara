@@ -130,6 +130,30 @@ The side panels float over the canvas, so the canvas reads which are open and tr
 - First run asks which game you're playing and opens a starter factory for it, with an interactive tour.
 - The many smaller conveniences are on [[Design/Editor quality of life]].
 
+## Performance
+
+Large graphs stay smooth through three measures ([[CARB-18]]):
+
+| Measure | How |
+| --- | --- |
+| Levels of detail | [[src/client/canvas/model/lod.ts]]: full cards from zoom 0.6, compact cards (building tile, title and machine count in large type) from 0.25, chips below (neutral blocks with the recipe's monogram; sources and sinks in their item's tint; red rings for trouble; frame labels grow so frames stay landmarks). One subscriber to the zoom for the whole canvas, so nodes re-render only when the tier changes. Every tier keeps the same size and ports, so edges never move |
+| Culling | React Flow's `onlyRenderVisibleElements` while zoomed in. At chip zoom most of the graph is on screen, and mounting and unmounting chips at the screen edges on every pan frame cost more than drawing them all, so culling is off there. Nodes carry their known size as `measured`, so culled nodes still count when fitting |
+| Results outside React | Per-slot results (see Nodes, How the canvas is built); particles stop when zoomed out |
+
+Tried and dropped: promoting the viewport to its own compositor layer while panning (`will-change: transform`). It halved the compact tier's frame time but made the overview much worse, because culling invalidated the layer every frame, and without culling at the overview it gained nothing.
+
+**The perf harness** (`e2e/canvas-perf.spec.ts`, scene `perf`: 1,000 nodes, 800 flows) pans through React Flow's real input path once per animation frame and reads the main thread's CPU time per frame from Chrome (`ThreadTime`). That is the stable measure: frame intervals on a shared machine mostly measure the other processes. Under 16.7 ms the main thread can hold 60 fps (raster and compositing run on other threads). CI runs it against the dev server, keeps the best of three runs (on a shared machine the fastest run is the closest to the code's own cost), with budgets of 16.7 ms for full and compact cards and 25 ms for the whole graph on screen.
+
+Measured on a 4-vCPU cloud VM with software rendering, main-thread ms per frame:
+
+| View | Nodes mounted | Development build | Production build |
+| --- | --- | --- | --- |
+| Full cards, zoom 1 | ~21 | 5.6–5.8 | 3.2–3.9 |
+| Compact cards, zoom 0.4 | ~99 | 10.5–10.8 | 5.0–6.5 |
+| Chips, whole graph on screen | 1,000 | 14.7–17.4 | 12–17 |
+
+Before levels of detail and culling the full-card view took about 10 fps on the same machine, mostly from particles animating on off-screen flows. The production numbers need a build that keeps the scenes: `VITE_CANVAS_SCENES=true vite build`, then `vite preview` and `?scene=perf&zoom=…&focus=wire-95`. Frame rates on that VM varied between 15 and 57 fps for the same code with the machine's load, so they aren't a budget; the 20-node chain itself only reached 40–50 fps there.
+
 ## Accessibility
 
 Full keyboard navigation (between nodes and ports), visible focus rings, ARIA on panels, reduced-motion support, and colour never as the only signal.

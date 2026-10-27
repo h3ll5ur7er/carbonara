@@ -14,9 +14,13 @@ import { Toaster } from "./shell/toaster";
 import { TopBar } from "./top-bar";
 import { TooltipProvider } from "./ui/tooltip";
 
-/** Statically false in production builds, so the scenes are left out of the bundle. */
+/**
+ * Statically false in production builds, so the scenes are left out of the bundle. A build made with
+ * `VITE_CANVAS_SCENES=true` keeps them, to measure the canvas with production React (docs/Design.md, Performance).
+ */
+const scenesBuilt = import.meta.env.DEV || import.meta.env.VITE_CANVAS_SCENES === "true";
 const SceneHost =
-  import.meta.env.DEV && new URLSearchParams(location.search).has("scene") ? lazy(() => import("./scenes/host")) : null;
+  scenesBuilt && new URLSearchParams(location.search).has("scene") ? lazy(() => import("./scenes/host")) : null;
 
 export function App() {
   if (SceneHost) {

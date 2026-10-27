@@ -14,6 +14,7 @@ const CHIP_SIZES = {
   sm: "size-5 text-2xs tracking-tighter",
   md: "size-7 text-2xs",
   lg: "size-10 text-sm",
+  xl: "size-14 text-xl",
 } as const;
 
 /**
