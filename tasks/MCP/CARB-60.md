@@ -2,7 +2,7 @@
 id: CARB-60
 title: Serve MCP from the desktop app
 type: feature
-status: backlog
+status: todo
 priority: high
 labels: [mcp, desktop]
 wave: "2"

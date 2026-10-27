@@ -2,7 +2,7 @@
 id: CARB-56
 title: Customise shortcuts, context menus and export
 type: feature
-status: backlog
+status: todo
 priority: low
 labels: [qol]
 wave: "2"

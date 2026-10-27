@@ -2,7 +2,7 @@
 id: CARB-38
 title: Solve a subgraph's inside when it's opened
 type: feature
-status: backlog
+status: todo
 priority: medium
 labels: [solver, subgraphs]
 wave: "2"

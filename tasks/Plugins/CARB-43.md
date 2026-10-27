@@ -2,7 +2,7 @@
 id: CARB-43
 title: Model Satisfactory mechanics
 type: feature
-status: backlog
+status: todo
 priority: urgent
 labels: [plugins, satisfactory]
 wave: "2"

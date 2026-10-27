@@ -2,7 +2,7 @@
 id: CARB-42
 title: Isolate third-party pack code
 type: feature
-status: backlog
+status: todo
 priority: high
 labels: [plugins, security]
 wave: "2"

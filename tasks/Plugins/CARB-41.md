@@ -2,7 +2,7 @@
 id: CARB-41
 title: Run plugin hooks while compiling
 type: feature
-status: backlog
+status: todo
 priority: urgent
 labels: [plugins, engines]
 wave: "2"

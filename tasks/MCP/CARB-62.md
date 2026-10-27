@@ -2,7 +2,7 @@
 id: CARB-62
 title: Control what MCP clients may do
 type: feature
-status: backlog
+status: todo
 priority: high
 labels: [mcp, security]
 wave: "2"

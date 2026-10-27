@@ -2,7 +2,7 @@
 id: CARB-53
 title: Edit many nodes and find things
 type: feature
-status: backlog
+status: todo
 priority: medium
 labels: [qol]
 wave: "2"

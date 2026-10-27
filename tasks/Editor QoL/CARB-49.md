@@ -2,7 +2,7 @@
 id: CARB-49
 title: Auto-arrange graphs
 type: feature
-status: backlog
+status: todo
 priority: high
 labels: [qol, engines]
 wave: "2"

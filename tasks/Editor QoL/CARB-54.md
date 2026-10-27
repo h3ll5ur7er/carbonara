@@ -2,7 +2,7 @@
 id: CARB-54
 title: Balance machine counts and choose units
 type: feature
-status: backlog
+status: todo
 priority: medium
 labels: [qol]
 wave: "2"

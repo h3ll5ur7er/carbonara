@@ -2,7 +2,7 @@
 id: CARB-48
 title: Show the whole factory as a Sankey diagram
 type: feature
-status: backlog
+status: todo
 priority: low
 labels: [planner, ui]
 wave: "2"

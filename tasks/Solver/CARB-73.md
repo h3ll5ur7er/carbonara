@@ -18,3 +18,5 @@ Measured in [[CARB-12]] (median edit → results, release WASM): a 500-node comp
 - [ ] Presolve: shrink the LP before solving (fixed nodes, chains, empty columns)
 - [ ] Warm start: drive microlp directly so tiers and successive edits resume from the previous basis
 - [ ] Make the bench job blocking
+
+**Wave 2 scope:** the Rust-side items (presolve, warm start). Compiling only the changed component touches the compiler, which the Plugins work changes in parallel; it follows after both merge.

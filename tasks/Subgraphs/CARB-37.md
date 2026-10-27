@@ -2,7 +2,7 @@
 id: CARB-37
 title: Handle multi-mode subgraphs and inline the rest
 type: feature
-status: backlog
+status: todo
 priority: medium
 labels: [solver, subgraphs]
 wave: "2"

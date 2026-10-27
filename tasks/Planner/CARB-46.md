@@ -2,7 +2,7 @@
 id: CARB-46
 title: Show proposals as ghosts to accept, adjust or discard
 type: feature
-status: backlog
+status: todo
 priority: high
 labels: [planner, ux]
 wave: "2"

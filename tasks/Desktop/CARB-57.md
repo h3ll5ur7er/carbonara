@@ -2,7 +2,7 @@
 id: CARB-57
 title: Wrap the app in a Tauri shell
 type: feature
-status: backlog
+status: todo
 priority: high
 labels: [desktop]
 wave: "2"

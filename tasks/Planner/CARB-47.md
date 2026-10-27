@@ -2,7 +2,7 @@
 id: CARB-47
 title: Show factory totals
 type: feature
-status: backlog
+status: todo
 priority: medium
 labels: [planner, ui]
 wave: "2"

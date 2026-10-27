@@ -2,7 +2,7 @@
 id: CARB-61
 title: Generate MCP tools from the manager contracts
 type: feature
-status: backlog
+status: todo
 priority: high
 labels: [mcp, contracts]
 wave: "2"

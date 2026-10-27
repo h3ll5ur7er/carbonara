@@ -2,7 +2,7 @@
 id: CARB-58
 title: Ship desktop releases with updates
 type: chore
-status: backlog
+status: todo
 priority: medium
 labels: [desktop, release]
 wave: "2"

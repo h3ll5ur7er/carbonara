@@ -2,7 +2,7 @@
 id: CARB-36
 title: Compile one-degree-of-freedom subgraphs into macro recipes
 type: feature
-status: backlog
+status: todo
 priority: high
 labels: [solver, subgraphs]
 wave: "2"
