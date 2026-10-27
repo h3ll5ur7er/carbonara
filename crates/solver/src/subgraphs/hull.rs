@@ -1,8 +1,8 @@
 //! Vertices of a polytope that is only known through an oracle: `maximise(w)` returns a point of the
 //! polytope that maximises `w · p`. Starting from affinely independent points that span the polytope's
 //! affine hull, the hull of the known points grows until no facet can be pushed outwards: then the known
-//! points' hull is the polytope. Meant for the few dimensions (≤ 3) and vertices of subgraph modes; facets
-//! are found by brute force over subsets of the known points.
+//! points' hull is the polytope. Meant for the few dimensions (≤ 4: up to 3 of a cut cone, and its cost)
+//! and vertices of subgraph modes; facets are found by brute force over subsets of the known points.
 
 /// Above this, a point lies beyond a facet. Points are normalised to sum to 1, so this is relative.
 const TOLERANCE: f64 = 1e-7;
