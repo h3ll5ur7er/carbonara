@@ -187,17 +187,16 @@ export function addBoundaryFlows(
 
 /**
  * Raw inputs and buildings inside instances: each instance is a copy of its blueprint, with machines of its own.
- * What an instance adds is remembered by its solution in `memo` (only the latest instances stay), and added in
- * the same order every time, so the totals come out the same to the last bit.
+ * What an instance adds is remembered in `memo` while its solution is the same object at the same position, and
+ * added in the same order every time, so the totals come out the same to the last bit.
  */
 export function addInsideTotals(
   compiled: Compiled,
   solution: Solution,
   raw: Record<Id, number>,
   buildings: Record<Id, number>,
-  memo: Map<InstanceSolution, InsideTotals> = new Map(),
+  memo: InsideMemo = { insides: [], adds: [] },
 ): void {
-  const kept = new Map<InstanceSolution, InsideTotals>();
   const visit = (graph: Compiled, inside: InstanceSolution, adds: InsideTotals) => {
     graph.info.forEach((info, index) => {
       const activity = inside.activity[index] ?? 0;
@@ -215,15 +214,25 @@ export function addInsideTotals(
     const body = blueprint === undefined ? undefined : compiled.blueprints?.[blueprint];
     if (body) visit(body, inside, adds);
   };
-  for (const inside of solution.instances ?? []) {
-    let adds = memo.get(inside);
-    if (!adds) placed(compiled, inside, (adds = { raw: [], buildings: [] }));
-    kept.set(inside, adds);
+  const insides = solution.instances ?? [];
+  const added = insides.map((inside, at) => {
+    const known = memo.insides[at] === inside ? memo.adds[at] : undefined;
+    if (known) return known;
+    const adds: InsideTotals = { raw: [], buildings: [] };
+    placed(compiled, inside, adds);
+    return adds;
+  });
+  Object.assign(memo, { insides, adds: added });
+  for (const adds of added) {
     for (const [item, amount] of adds.raw) raw[item] = (raw[item] ?? 0) + amount;
     for (const [building, count] of adds.buildings) buildings[building] = (buildings[building] ?? 0) + count;
   }
-  memo.clear();
-  for (const [inside, adds] of kept) memo.set(inside, adds);
+}
+
+/** What instances added to the totals, by position. */
+export interface InsideMemo {
+  insides: InstanceSolution[];
+  adds: InsideTotals[];
 }
 
 /** What one instance adds to the totals, in the order it adds it. */

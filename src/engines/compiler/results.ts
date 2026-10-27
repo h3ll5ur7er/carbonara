@@ -10,7 +10,7 @@ import type { AnalysisResults, Diagnostic, EdgeResult, NodeResult } from "../../
 import type { InstanceSolution, ModelEdge, ModelNode, Solution, Unsolvable } from "../../contracts/solver";
 import { clean } from "../../utilities/numbers";
 import type { Compiled, NodeInfo } from "./compile";
-import { addBoundaryFlows, addInsideTotals, inlineHints, type InsideTotals } from "./instances";
+import { addBoundaryFlows, addInsideTotals, inlineHints, type InsideMemo } from "./instances";
 
 /**
  * What the last mapping of a document's results remembers for the next one. Opaque to callers: create one with
@@ -24,11 +24,11 @@ export interface ResultsMemo {
   edgeIds: LocalId[];
   edges: (EdgeMemo | undefined)[];
   /** What each instance adds to the totals, by the instance solution it was counted from. */
-  inside: Map<InstanceSolution, InsideTotals>;
+  inside: InsideMemo;
 }
 
 export function resultsMemo(): ResultsMemo {
-  return { nodeIds: [], nodes: [], edgeIds: [], edges: [], inside: new Map() };
+  return { nodeIds: [], nodes: [], edgeIds: [], edges: [], inside: { insides: [], adds: [] } };
 }
 
 interface NodeMemo {
@@ -109,7 +109,8 @@ export function toResults(
   }
   // An edge that went away changed its junctions too, but which they were is gone with it.
   if (!sameEdges) stale.fill(1);
-  const instances = new Map((solution.instances ?? []).map((inside) => [inside.node, inside]));
+  const insideOf: (InstanceSolution | undefined)[] = [];
+  for (const inside of solution.instances ?? []) insideOf[inside.node] = inside;
   for (let index = 0; index < model.nodes.length; index++) {
     const modelNode = model.nodes[index] as ModelNode;
     if (stale[index] === 1 && modelNode.kind === "junction") continue;
@@ -118,7 +119,7 @@ export function toResults(
       known?.model === modelNode &&
       known.info === compiled.info[index] &&
       known.activity === (solution.activity[index] ?? 0) &&
-      known.inside === instances.get(index);
+      known.inside === insideOf[index];
     stale[index] = same ? 0 : 1;
   }
 
@@ -143,7 +144,7 @@ export function toResults(
     if (!known || stale[index] === 1) {
       const activity = solution.activity[index] ?? 0;
       const info = compiled.info[index];
-      const inside = instances.get(index);
+      const inside = insideOf[index];
       const inputs: Record<Id, number> = {};
       const outputs: Record<Id, number> = {};
       const add = (amounts: Record<Id, number>, id: Id, amount: number) => (amounts[id] = (amounts[id] ?? 0) + amount);
