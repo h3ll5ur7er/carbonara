@@ -130,6 +130,8 @@ Still to come, each with the manager method it needs: `search_catalog` and `get_
 2. `plan_production({ steel-plate: 1800/min })` creates a ghost proposal next to the existing factory: 480 steel furnaces (240 smelting iron plate, 240 making steel) and 9000 iron ore/min.
 3. You click *Accept*, and `auto_arrange` tidies it up.
 
+[[tools/mcp-scenario.test.ts]] runs this session against the real managers, the Factorio pack and the solver: a scripted client sends every call as the server does, through the bridge and its permissions. It checks that planning is refused until allowed, that the accepted line solves without diagnostics and matches the proposal (480 steel furnaces, 150 iron ore/s), and that one undo, labelled "Undo AI: …", removes it. Until their tasks land, the client reads the belt capacity from `get_pack_data` instead of calling `convert_rate`, a fake stands in for `plan_production` ([[CARB-45]]), and accepting goes through `edit_graph` instead of `apply_proposal` ([[CARB-46]]); each spot is marked `SWITCH` in the test.
+
 ## Security
 
 - Bound to `127.0.0.1` only, with a per-install token.

@@ -2,7 +2,7 @@
 id: CARB-61
 title: Generate MCP tools from the manager contracts
 type: feature
-status: in-progress
+status: review
 priority: high
 labels: [mcp, contracts]
 wave: "2"
@@ -16,7 +16,7 @@ Tools, resources and prompts derived from the manager contracts' MCP metadata, s
 - [x] Generator: `pnpm mcp:tools` writes `crates/mcp/manifest.json`; a test fails when it's out of date
 - [x] Read and edit groups for the methods that exist; plan and authoring follow their managers (see the table in [[Architecture/MCP server]])
 - [x] Resources + prompts in the manifest
-- [ ] Tests call each tool through the server and the bridge
+- [x] Tests call each tool through the server and the bridge ([[crates/mcp/tests/http.rs]], [[src/client/features/mcp/bridge.test.ts]])
 
 Decisions:
 
