@@ -1,4 +1,4 @@
-# A starter factory (docs/Guides/Pack authoring.md, Starter factories): the first run opens it with the tour.
+# A starter factory (docs/Guides/Pack-authoring.md, Starter factories): the first run opens it with the tour.
 # Iron ingots are smelted and the rod output waits; the tour adds the constructors in between.
 name: Iron rods
 description: Iron ore smelted into ingots, waiting for rod constructors.

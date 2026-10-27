@@ -48,7 +48,7 @@ export function newPack(
     .join("/");
   writeFileSync(
     join(folder, "plugin", "index.ts"),
-    `// The plugin of ${name}. It does nothing yet: add hooks when the game needs them (docs/Architecture/Plugins.md).
+    `// The plugin of ${name}. It does nothing yet: add hooks when the game needs them (docs/Guides/Plugin-authoring.md).
 import { definePlugin } from "${contracts.startsWith(".") ? contracts : `./${contracts}`}";
 
 export default definePlugin({ id: "${id}" });

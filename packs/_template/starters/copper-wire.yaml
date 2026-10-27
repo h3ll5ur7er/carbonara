@@ -1,4 +1,4 @@
-# A starter factory (docs/Guides/Pack authoring.md, Starter factories): the first run opens it with the tour.
+# A starter factory (docs/Guides/Pack-authoring.md, Starter factories): the first run opens it with the tour.
 # Copper plates are smelted and the wire output waits; the tour adds the wire assemblers in between.
 name: Copper wire
 description: Cuprite ore smelted into copper plates, waiting for wire assemblers.

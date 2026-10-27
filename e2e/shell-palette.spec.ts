@@ -115,6 +115,7 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Save factory file\s*Ctrl\s*S/,
     /Copy share link\s*Ctrl\s*Shift\s*E/,
     /Close factory\s*Ctrl\s*Shift\s*X/,
+    /Rename factory…\s*F2/,
     /Export picture \(PNG\)/,
     /Export picture \(SVG\)/,
     /Toggle library\s*Ctrl\s*B/,
@@ -163,6 +164,7 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Plan production…\s*P/,
     /AI access and activity…\s*Ctrl\s*Shift\s*A/,
     /Keyboard shortcuts\s*\?/,
+    /Take the tour/,
   ]);
   // Typeahead moves to the item, wherever new commands put it.
   await page.keyboard.type("Toggle i");

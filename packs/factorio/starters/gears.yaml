@@ -1,4 +1,4 @@
-# A starter factory (docs/Guides/Pack authoring.md, Starter factories): the first run opens it with the tour.
+# A starter factory (docs/Guides/Pack-authoring.md, Starter factories): the first run opens it with the tour.
 # Iron plates are smelted and the gear output waits; the tour adds the assemblers in between.
 name: Iron gears
 description: Iron ore smelted into plates, waiting for gear assemblers.
