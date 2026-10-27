@@ -2,7 +2,7 @@
 id: CARB-52
 title: Insert on edge, delete & bridge, rewire
 type: feature
-status: review
+status: done
 priority: medium
 labels: [qol]
 wave: "2"

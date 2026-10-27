@@ -1,4 +1,4 @@
-// The document's display settings, in the canvas's bottom-left corner: what rates are shown in (a rate unit or a
+// The document's display settings, in the canvas's bottom-right corner (the totals take the bottom-left): what rates are shown in (a rate unit or a
 // belt) and how machine counts read. Each change is one undoable `setSettings` edit, through the edit actions.
 import { Factory } from "lucide-react";
 import type { Document } from "../../contracts/document";
@@ -11,19 +11,19 @@ import { choiceOf, rateChoices } from "./model/format";
 export function UnitsPicker({
   settings,
   pack,
-  left,
+  right,
   actions,
 }: {
   settings: Document["settings"];
   pack: PackData;
-  /** Where the visible canvas starts, clear of the left panel. */
-  left: number;
+  /** Where the visible canvas ends, clear of the right panel. */
+  right: number;
   actions: CanvasEditActions;
 }) {
   return (
     <div
-      style={{ left }}
-      className="absolute bottom-3 ml-3 flex items-center gap-1 rounded-lg bg-glass p-1 shadow-panel backdrop-blur-glass"
+      style={{ right }}
+      className="absolute bottom-3 mr-3 flex items-center gap-1 rounded-lg bg-glass p-1 shadow-panel backdrop-blur-glass"
     >
       <Select
         size="sm"

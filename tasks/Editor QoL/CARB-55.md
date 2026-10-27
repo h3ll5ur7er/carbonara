@@ -2,7 +2,7 @@
 id: CARB-55
 title: Organise with frames, notes, tags and bookmarks
 type: feature
-status: review
+status: done
 priority: low
 labels: [qol]
 wave: "2"

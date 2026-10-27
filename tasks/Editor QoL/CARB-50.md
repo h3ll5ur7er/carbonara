@@ -2,7 +2,7 @@
 id: CARB-50
 title: Align, distribute and straighten
 type: feature
-status: review
+status: done
 priority: medium
 labels: [qol]
 wave: "2"

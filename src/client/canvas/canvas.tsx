@@ -367,7 +367,7 @@ function DocumentCanvas({
           onReplace={onReplace}
         />
       )}
-      <UnitsPicker settings={document.settings} pack={pack} left={insets.left} actions={actions} />
+      <UnitsPicker settings={document.settings} pack={pack} right={insets.right} actions={actions} />
       {drop && request && (
         <RecipePicker
           pack={pack}
