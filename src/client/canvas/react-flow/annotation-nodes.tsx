@@ -136,11 +136,14 @@ function InPlaceText({
   return multiline ? <textarea {...props} /> : <input {...props} />;
 }
 
-/** Frame labels grow as the cards shrink, so frames stay the landmarks of an overview. */
+/**
+ * Frame labels grow as the cards shrink, so frames stay the landmarks of an overview. Each stays inside the
+ * room auto-arrange leaves above a frame's nodes (two grid steps), so it never runs into them.
+ */
 const FRAME_LABEL = {
   full: "top-2.5 left-4 text-2xs",
-  compact: "top-4 left-6 text-xl",
-  chip: "top-6 left-8 text-3xl",
+  compact: "top-3 left-5 text-xl leading-none",
+  chip: "top-1.5 left-4 text-3xl leading-none",
 } as const;
 
 /** A collapsed frame's label: it fills the bar at every zoom. */

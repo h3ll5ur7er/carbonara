@@ -63,7 +63,7 @@ export function EfficiencyRing({ efficiency, label }: { efficiency: number | und
   const circumference = 2 * Math.PI * radius;
   const filled = efficiency === undefined ? 0 : circumference * Math.min(efficiency, 1);
   return (
-    <span className="relative grid size-10 shrink-0 place-items-center">
+    <span className="relative grid size-11 shrink-0 place-items-center">
       <svg viewBox="0 0 36 36" className="absolute inset-0 size-full -rotate-90" aria-hidden>
         <circle cx="18" cy="18" r={radius} fill="none" strokeWidth="2.5" className="stroke-line" />
         <circle
@@ -77,7 +77,10 @@ export function EfficiencyRing({ efficiency, label }: { efficiency: number | und
           className="stroke-accent transition-[stroke-dasharray] duration-(--duration-base)"
         />
       </svg>
-      <span className="font-mono text-2xs font-medium text-fg">{label}</span>
+      {/* Long counts ("0.63") close up, so they keep clear of the ring. */}
+      <span className={`font-mono text-2xs font-medium text-fg ${label.length > 3 ? "tracking-tighter" : ""}`}>
+        {label}
+      </span>
     </span>
   );
 }

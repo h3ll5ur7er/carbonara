@@ -119,13 +119,16 @@ function ShortcutRow({ command, customised }: { command: CommandDefinition; cust
         icon={<Pencil />}
         onClick={() => setRecording(true)}
       />
-      {command.shortcut && (
+      {command.shortcut ? (
         <IconButton
           size="sm"
           label={`Remove shortcut for ${command.title}`}
           icon={<X />}
           onClick={() => setShortcut(command.id, null)}
         />
+      ) : (
+        // Holds the column, so every row's pencil lines up.
+        <span aria-hidden className="size-7 shrink-0" />
       )}
       {customised && (
         <IconButton

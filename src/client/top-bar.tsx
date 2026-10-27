@@ -9,6 +9,7 @@ import { paletteCommandId } from "./features/command-palette/command-palette";
 import { setPaletteOpen } from "./features/command-palette/palette-store";
 import { usePanels } from "./shell/panels";
 import { Kbd } from "./ui/kbd";
+import { Mark } from "./ui/mark";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "./ui/menu";
 import { ThemeToggle } from "./ui/theme-toggle";
 import { Toggle } from "./ui/toggle";
@@ -115,12 +116,7 @@ function AppMenu({ registry, platform }: { registry: CommandRegistry; platform: 
 function Wordmark() {
   return (
     <span className="flex items-center gap-2.5">
-      <svg viewBox="0 0 24 24" className="size-6 drop-shadow-glow" aria-hidden>
-        <rect width="24" height="24" rx="6.5" className="fill-accent" />
-        <path d="M7 8.5C12 8.5 12 15.5 17 15.5" fill="none" strokeWidth="2" className="stroke-on-accent" />
-        <circle cx="7" cy="8.5" r="2.5" className="fill-on-accent" />
-        <circle cx="17" cy="15.5" r="2.5" className="fill-on-accent" />
-      </svg>
+      <Mark className="size-6" />
       <span className="text-base font-semibold tracking-tight text-fg">Carbonara</span>
     </span>
   );

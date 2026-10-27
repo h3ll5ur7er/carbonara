@@ -24,7 +24,7 @@ The tokens live in `src/client/ui/tokens.css` and reach components as Tailwind u
 | Status and controls | `danger`, `danger-soft`, `success` (messages, destructive actions); `knob` (switch and slider knobs, light in both themes); `scrim` (behind modal dialogs) |
 | Type | `font-sans` (Inter), `font-mono` (JetBrains Mono, tabular figures); sizes `2xs` (11 px) to `3xl` (32 px) |
 | Shape and depth | 4 px spacing step, radii `xs`–`xl`, shadows `sm`, `panel`, `overlay`, `knob`; `inset-shadow-well` (recessed fields); blurs `glass`, `scrim` |
-| Motion | `--duration-instant` to `--duration-slow` (0 with reduced motion), easings `out` and `in-out`; entrances `animate-pop-in` (popovers), `animate-rise-in` (dialogs, toasts), `animate-fade-in`, `animate-fade-out` |
+| Motion | `--duration-instant` to `--duration-slow` (0 with reduced motion), easings `out` and `in-out`; entrances `animate-pop-in` (popovers), `animate-rise-in` (dialogs, toasts), `animate-fade-in`, `animate-fade-out`; loops `animate-spin` (busy) and `animate-pulse` (waiting), only behind `motion-safe:` |
 
 - **Themes:** each colour is written once as `light-dark(light, dark)`, so a theme only sets `color-scheme`. Dark is the default; `data-theme="light"` or `"dark"` on `<html>` is an explicit choice, and without one the theme follows `prefers-color-scheme`. The choice is held in memory by `ui/use-theme.ts` (shared by the theme toggle and the command palette) until the preferences access component persists it.
 - **Pack accent:** a pack sets `--pack-accent` (its `theme.accent`) on `<html>` or on any subtree; `packAccentStyle(accent)` in `ui/theme.ts` gives the style for a subtree. The accent tokens are derived from it where they're used (`@theme inline`), so they follow it without being redefined.
@@ -108,8 +108,8 @@ The flow colours come from the runtime `--flow-*` inputs, so `data-palette="colo
 | Source / sink | Pill, so the silhouette alone sets them apart from machines | Item chip, item name, rate; a source adds its limit, a sink a progress bar towards its target |
 | Junction | Circle | The chip of the item it carries, its throughput below |
 | Note | Sticky card with an accent edge | The text |
-| Frame | Dashed, tinted area behind everything | Its label |
-| Subgraph instance | A machine card with a second card peeking out behind it | Header: a stack icon, the blueprint's name, its scale. A strip with how it runs and an *Open* button. One row per port of the blueprint, as for a recipe |
+| Frame | Dashed, tinted area behind everything | Its label, which grows as the cards shrink but always fits in the two grid steps above the frame's nodes |
+| Subgraph instance | A machine card with a second card peeking out behind it | Header: a stack icon, the blueprint's name, its scale. A strip with how it runs and an *Open* button (an accent pill). One row per port of the blueprint, as for a recipe |
 | Port (inside a blueprint) | Pill with a dashed accent edge | Item chip, item name, rate, and "Input" or "Output" |
 
 - **Geometry is fixed** per node kind and port count ([[src/client/canvas/model/geometry.ts]]), so ports, and so edges, sit in the same place at every level of detail and in any renderer, and edges of nodes that were never on screen still have their ends.
