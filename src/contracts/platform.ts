@@ -10,3 +10,6 @@ export interface KeyValueStorage {
   /** Deleting a key that isn't stored is harmless. */
   delete(key: string): Promise<void>;
 }
+
+/** Runs an ES module given as source text and returns its exports: a Blob URL on the web, a data URL in Node. */
+export type ModuleLoader = (source: string) => Promise<Record<string, unknown>>;

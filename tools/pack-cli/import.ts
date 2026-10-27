@@ -1,6 +1,5 @@
-// `pnpm pack:import <pack id> <game data file>… [--icons <folder>]…`: runs a pack plugin's importer and writes the
-// result into the pack folder: `data/<section>.yaml` and `icons/*.webp`. Minimal stand-in until the full
-// `carbonara-pack import` (CARB-28) exists.
+// `carbonara-pack import <pack> <game data file>… [--icons <folder>]…`: runs a pack plugin's importer and writes the
+// result into the pack folder: `data/<section>.yaml` and `icons/*.webp`.
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -116,26 +115,5 @@ function* walk(folder: string): Generator<string> {
     const path = join(folder, entry);
     if (statSync(path).isDirectory()) yield* walk(path);
     else yield path;
-  }
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const [pack, ...rest] = process.argv.slice(2);
-  const sources: string[] = [];
-  const iconFolders: string[] = [];
-  for (let index = 0; index < rest.length; index++) {
-    const argument = rest[index] as string;
-    if (argument === "--icons") iconFolders.push(rest[++index] ?? "");
-    else sources.push(argument);
-  }
-  if (!pack || sources.length === 0) {
-    console.error("Usage: pnpm pack:import <pack id> <game data file>… [--icons <folder>]…");
-    process.exit(2);
-  }
-  const result = await importPack(join("packs", pack), sources, iconFolders);
-  if (result.ok) console.log(`Wrote ${result.value.files} data files and ${result.value.icons} icons to packs/${pack}`);
-  else {
-    for (const issue of result.error) console.error(`${issue.path.join(" › ")}: ${issue.message}`);
-    process.exit(1);
   }
 }

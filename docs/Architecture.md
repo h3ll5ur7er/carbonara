@@ -133,7 +133,7 @@ carbonara/
 │  ├─ solver/         # LP model, decomposition, subgraph compiler (native, tested with proptest)
 │  └─ solver-wasm/    # wasm-bindgen bindings
 ├─ packs/             # _template/, satisfactory/, factorio/ → each builds into one .cpack
-├─ tools/pack-cli/    # `carbonara-pack`, a client of the packs manager on the node platform
+├─ tools/pack-cli/    # `carbonara-pack`, the pack CLI on the node platform (calls the packs engine, see Game packs)
 ├─ bench/             # generated factories (1k / 10k / 50k nodes) and the perf harness
 ├─ docs/              # this wiki
 └─ tasks/             # the task board

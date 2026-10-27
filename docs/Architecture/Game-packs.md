@@ -77,24 +77,76 @@ The zod schemas in [[src/contracts/pack.ts]] are the source of truth for the sha
 
 ## Reading a pack
 
-Whether it comes from a `.cpack` or an unpacked folder, a pack is a set of files, and one pure function decides whether they make a valid pack: `readPackFiles` in [[src/engines/packs/files.ts]]. It parses `manifest.yaml`, checks the plugin file exists, merges the files in `data/` in name order (arrays are concatenated; `units` may be defined in only one file), validates the result and checks every reference. Problems come back as issues whose path starts with the file name.
+Whether it comes from a `.cpack` or an unpacked folder, a pack is a set of files, and one pure function decides whether they make a valid pack: `readPackFiles` in [[src/engines/packs/files.ts]]. It parses `manifest.yaml`, checks the `engine` range, checks the plugin file exists, merges the files in `data/` in name order (arrays are concatenated; `units` may be defined in only one file; unknown top-level sections are refused), validates the result and checks every reference.
+
+Problems come back as issues whose path starts with the file name and that carry the YAML line and column ([[src/engines/packs/source.ts]] keeps each file's parsed document and `LineCounter`; JSON files go through the same parser). A map entry is located at its key; a missing field at the closest node that exists; a reference problem in the merged data (`recipes[12].in.coal`) at the file and entry it came from. `describeIssue` ([[src/utilities/issues.ts]]) writes an issue the way the app and the CLI show it:
+
+```
+data/recipes.yaml:7:11: recipes[0].in.coal: Unknown item 'coal'
+manifest.yaml:4:1: engine: Needs pack format ^2, but this version of Carbonara reads pack format 1.0.0
+```
+
+**Pack format.** `PACK_FORMAT` in [[src/engines/packs/format.ts]] is the pack format and plugin API version this build implements (now `1.0.0`). A manifest's `engine` range (`^1`, `~1.2`, `1.2.3`, npm semantics) must include it, or the pack is refused before its data is read. Bump the minor version for additive changes and the major for breaking ones. The broken fixture packs in [[src/engines/packs/broken-packs.test.ts]] pin the message for each kind of mistake; add one when you add a rule.
 
 ## Built-in and third-party packs
 
 - **Built-in packs:** the app ships every pack we maintain (`packs/satisfactory`, `packs/factorio`, …). They're built at app build time, preinstalled and trusted, and they update with the app. They can also be updated on their own, without an app release.
-- **Third-party packs:** drop a `.cpack` on the app, open it with a file dialog, or double-click it on desktop. The `packs` manager reads it, the `packs` engine validates the manifest and data and checks the `engine` range, and errors name the file plus the YAML line and column. Because a pack contains code, installing one shows a trust prompt with its id, version and hash ([[Architecture/Plugins]]). Installed packs are stored in OPFS (web) or the app data folder (desktop).
+- **Third-party packs:** drop a `.cpack` on the app, open it with a file dialog, or double-click it on desktop. The `packs` manager reads it, the `packs` engine validates the manifest and data and checks the `engine` range, and errors name the file plus the YAML line and column. Because a pack contains code, installing one shows a trust prompt with its id, version and hash ([[Architecture/Plugins]]). Installed packs are stored in IndexedDB (web) or the app data folder (desktop).
 - **Identity:** a pack is content-addressed (a hash of the whole archive). Documents record pack id, version and hash. When a document's pack is missing or has a different version, opening it offers to install or migrate.
+
+### Where packs live
+
+The `packs` access component ([[src/access/packs/library.ts]]) implements the `PackStore` from [[src/contracts/access.ts]] plus `install` and `remove`. It hides three things:
+
+- **The archive format** ([[src/access/packs/archive.ts]]): a `.cpack` is a zip, opened with fflate in the backend worker so it never blocks the UI. Its identity is the hex SHA-256 of the archive bytes. Pack builds are reproducible (sorted entries, a fixed zip timestamp), so building the same folder twice gives the same hash.
+- **Built-in packs:** the Vite plugin in [[tools/pack-cli/vite-plugin.ts]] builds every folder in `packs/` that has a `manifest.yaml` with the same code as `carbonara-pack build` ([[tools/pack-cli/built-in-packs.ts]]), and serves them as the virtual module `virtual:built-in-packs`: a list of `{ info, load }`, where `load` imports the pack's data and plugin as separate chunks on first use. Built-in plugins are bundled into the backend worker like any other module. A broken pack fails the app build with the CLI's messages. Production builds ship the game packs (Satisfactory today); the **template pack is built in only by the dev server** (and so in e2e tests and Vitest), so there's always a small pack to try things with. While `pnpm dev` runs, editing a file in `packs/` rebuilds the packs and reloads the app. The packs are built in a `tsx` child process, so the app's TypeScript modules stay out of the Vite config's module graph (Vite's config loader can't follow their extensionless imports natively); that's why the configs import `vite-plugin.ts` with its extension.
+- **Installed packs** are kept in the `KeyValueStorage` port ([[src/contracts/platform.ts]]) that documents use too: IndexedDB (database `carbonara-packs`) on the web, memory in tests ([[src/utilities/memory-key-value.ts]]). Each pack has two keys: `info/<id>` holds its `PackInfo`, so listing reads no pack data, and `contents/<id>` its validated data and its plugin's source. The info is written last and removed first, so a pack counts as installed only while it's complete. Loading an installed pack needs no unzipping or validating again. Plugins load through the `ModuleLoader` port: a Blob URL `import()` in the backend worker ([[src/platforms/web/module-loader.ts]]), a data URL in Node. Installing loads the plugin once and refuses a pack whose plugin doesn't load or doesn't `export default` a plugin with an `id`.
+
+An installed pack with the id of a built-in pack stands in for it until it's removed; that's how a built-in pack updates without an app release. Installing a pack whose id is already installed replaces it.
+
+Why not OPFS: a pack's data and plugin are structured-cloneable values of a few megabytes, which IndexedDB stores well, and one storage port with one contract suite ([[src/contracts/platform.contract.ts]], run against memory and IndexedDB) is simpler than two. OPFS pays off for streaming large binary files; reconsider it if packs start keeping icons or other assets in bulk.
+
+> [!WARNING]
+> Third-party plugins currently run in the backend worker like built-in ones. Moving them to an opaque-origin plugin worker is [[CARB-42]].
+
+### Installing a pack
+
+The `packs` manager ([[src/managers/packs.ts]]) sequences it; the client's pack feature ([[src/client/features/packs/packs.tsx]]) is the UI.
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant UI as Client (packs feature)
+  participant M as packs manager
+  participant E as packs engine
+  participant A as packs access
+  User->>UI: drops a .cpack (or "Install from file…" in the pack manager)
+  UI->>M: inspectPack(bytes)
+  M->>A: openArchive (unzip, SHA-256)
+  M->>E: readPackFiles
+  M-->>UI: manifest, hash, issues (no pack code has run)
+  UI->>User: trust prompt: name, id, version, game, file, SHA-256, or the issues
+  User->>UI: Install
+  UI->>M: installPack(bytes)
+  M->>E: readPackFiles (again: the bytes are all the manager trusts)
+  M->>A: install (loads the plugin once, then stores)
+  M-->>UI: packsChanged event, Result
+```
+
+- The top bar's **Game packs** button opens the pack manager: every pack with its version, id and the start of its hash; built-in packs are marked, installed ones can be removed. Dropping a `.cpack` anywhere on the app, or picking one, opens the trust prompt. Its dialogs are native `<dialog>` elements until the design system has its dialog primitive ([[CARB-21]]).
+- `getPackData` and `removePack` throw for packs that don't exist or aren't installed: a client only asks for packs it was told about.
 
 ## Authoring
 
-- `carbonara-pack new <id>` scaffolds a pack from `packs/_template` (*Template Works*), a small original example game with a no-op plugin. The template is the starting point for authors and a test fixture; the app doesn't list it.
-- `carbonara-pack validate`, `build` (bundles the plugin with esbuild and zips it into a `.cpack`) and `dev` (the app loads the unpacked folder and reloads it on change). On the web, dev mode uses the File System Access API; on desktop the shell watches the folder.
-- `carbonara-pack import <game> --from <file>` runs the pack plugin's importer to regenerate `data/` from the game's own data files (Satisfactory's `Docs.json`, Factorio's `--dump-data` output) when a game updates. Icons are sourced once and normalised to WebP at fixed sizes.
+- `carbonara-pack new <id> [--into packs] [--name <name>]` scaffolds a pack from `packs/_template` (*Template Works*), a small original example game with a no-op plugin. It sets the id, name and version `0.1.0`, writes a fresh README, CREDITS and plugin, and points the plugin's import of `definePlugin` at this repository wherever the new folder is. The template is the starting point for authors and a test fixture; production builds of the app don't list it.
+- `carbonara-pack validate <folder>` lists every problem as `file:line:column: path: message`, `build <folder> [--out dist/packs]` bundles the plugin with esbuild and zips a reproducible `.cpack` (printing its SHA-256), and `dev <folder>` builds, then rebuilds on every change. Packs inside this repository's `packs/` also reload in a running `pnpm dev`; loading a pack folder from elsewhere into the running app (File System Access API on the web, a folder watch on desktop) is [[CARB-72]].
+- `carbonara-pack import <pack> <file>… [--icons <folder>]…` ([[tools/pack-cli/import.ts]]) runs the pack plugin's importer to regenerate `data/` and `icons/` from the game's own data files (Satisfactory's `Docs.json`, Factorio's `--dump-data` output) when a game updates, turns icon images into 64×64 WebP, writes one Prettier-clean YAML file per section, and then validates the pack. `<pack>` is a folder or the id of a pack in `packs/`. The importer's `accepts` lists the file names it reads.
+- The CLI ([[tools/pack-cli/main.ts]]; `pnpm carbonara-pack …`, with `pnpm pack:build` and `pnpm pack:import` as shorthands) calls the packs engine directly rather than the packs manager. Going through the manager would mean zipping a folder only to unzip it again and wiring a backend with stand-in storage to call one pure function; no CLI command needs installed packs. Revisit when one does (installing into the desktop app's pack folder, say).
 - The MCP server exposes the same steps as tools for AI-assisted authoring ([[Architecture/MCP server]]).
 
 ## Satisfactory pack
 
-`packs/satisfactory` holds Satisfactory 1.1. Its `data/` and `icons/` are generated by the plugin's importer from the game's `CommunityResources/Docs/en-US.json` (`Docs.json` before 1.1). Until `carbonara-pack import` exists ([[CARB-28]]), `pnpm pack:import <pack id> <file>… [--icons <folder>]…` ([[tools/pack-cli/import.ts]]) runs a pack's importer, turns icon images into 64×64 WebP and writes one Prettier-clean YAML file per section. The pack's `README.md` says how to update it, and `CREDITS.md` names every source.
+`packs/satisfactory` holds Satisfactory 1.1. Its `data/` and `icons/` are generated by the plugin's importer from the game's `CommunityResources/Docs/en-US.json` (`Docs.json` before 1.1). `pnpm pack:import satisfactory <file> --icons <folder>` (that is, `carbonara-pack import`) regenerates them. The pack's `README.md` says how to update it, and `CREDITS.md` names every source.
 
 Conventions the importer follows ([[packs/satisfactory/plugin/importer.ts]]):
 

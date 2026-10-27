@@ -35,8 +35,12 @@ describe("the web backend", () => {
     await expect(start().workspace.ping({})).resolves.toBe("pong");
   });
 
-  it("reports methods no manager implements yet", async () => {
-    await expect(start().packs.removePack({ packId: "x" })).rejects.toThrow("Unknown method packs.removePack");
+  it("reports methods no manager implements", async () => {
+    const [client, server] = channel();
+    startBackend(server);
+    const answer = new Promise((resolve) => client.listen(resolve));
+    client.send({ id: 1, manager: "nobody", method: "anything", args: {} });
+    expect(await answer).toEqual({ id: 1, ok: false, error: { message: "Unknown method nobody.anything" } });
   });
 
   it("reopens the documents autosaved in the last session", async () => {
