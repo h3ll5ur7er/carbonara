@@ -21,6 +21,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "schema": "tsx tools/schema.ts",
+    "mcp:tools": "tsx tools/mcp-tools.ts",
     "carbonara-pack": "tsx tools/pack-cli/main.ts",
     "pack:build": "tsx tools/pack-cli/main.ts build",
     "pack:import": "tsx tools/pack-cli/main.ts import",

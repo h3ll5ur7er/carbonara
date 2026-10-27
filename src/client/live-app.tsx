@@ -15,6 +15,7 @@ import { DocumentTabs } from "./features/documents/document-tabs";
 import { sharedDocumentIn } from "./features/documents/links";
 import { NewDocumentDialog } from "./features/documents/new-document-dialog";
 import { Welcome } from "./features/documents/welcome";
+import { McpHost } from "./features/mcp/host";
 import { errorMessage, toast } from "./shell/toasts";
 
 export function LiveApp() {
@@ -53,6 +54,7 @@ export function LiveApp() {
         selection={inspected}
       />
       <NewDocumentDialog />
+      <McpHost />
     </>
   );
 }
