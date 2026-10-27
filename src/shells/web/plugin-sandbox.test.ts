@@ -7,7 +7,7 @@ import { ok } from "../../contracts/result";
 import type { Solution } from "../../contracts/solver";
 import { localRuntime } from "../../engines/compiler";
 import { fixturePlugin, smeltingWith } from "../../engines/compiler/hooks.fixture";
-import { templatePack } from "../../engines/compiler/template.fixture";
+import { platesModule, templatePack } from "../../engines/compiler/template.fixture";
 import { loadModule } from "../../platforms/node/module-loader";
 import type { SandboxReply, SandboxRequest } from "./plugin-sandbox-protocol";
 import { isolatePlugin, type SandboxPort } from "./plugin-sandbox";
@@ -81,6 +81,37 @@ describe("a plugin in its sandbox", () => {
       expect(await there.results(solution, 4)).toEqual(await local.results(solution, 4));
     }
     expect(await isolated.value.describe({ boosters: 2 })).toEqual(await here.describe({ boosters: 2 }));
+  });
+
+  it("expands blueprints exactly as the in-worker path does, after the document's results too", async () => {
+    const isolated = await isolatePlugin({ start: () => inProcess() }, { source: await fixtureSource(), data: pack });
+    if (!isolated.ok) throw new Error(JSON.stringify(isolated.error));
+    const here = localRuntime(pack, fixturePlugin);
+    const [there, local] = [await isolated.value.compile(platesModule()), await here.compile(platesModule())];
+    expect(there.blueprints).toEqual({ plates: 0 });
+    expect(there.blueprints).toEqual(local.blueprints);
+    const root = ok(solutionFor(local.model.nodes.length, local.model.edges.length));
+    expect(await there.results(root, 2)).toEqual(await local.results(root, 2));
+    const inside = local.model.blueprints?.[0];
+    const expanded = ok(solutionFor(inside?.nodes.length ?? 0, inside?.edges.length ?? 0));
+    const results = await there.blueprintResults("plates", expanded, 2);
+    expect(results).toEqual(await local.blueprintResults("plates", expanded, 2));
+    expect(results.graph).toBe("plates");
+  });
+
+  it("keeps only blueprint indices the model has", async () => {
+    const honest = createSandboxRuntime(loadModule);
+    const lying = async (request: SandboxRequest): Promise<SandboxReply> => {
+      const reply = await honest(request);
+      if (request.call !== "compile" || !reply.ok) return reply;
+      return { ...reply, value: { ...(reply.value as object), blueprints: { plates: 7, other: -1, x: "0" } } };
+    };
+    const isolated = await isolatePlugin(
+      { start: () => inProcess(lying) },
+      { source: "export default { id: 'liar' };", data: pack },
+    );
+    if (!isolated.ok) throw new Error("not loaded");
+    expect((await isolated.value.compile(platesModule())).blueprints).toEqual({});
   });
 
   it("refuses a plugin that doesn't load, or doesn't export a plugin", async () => {

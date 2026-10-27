@@ -13,7 +13,7 @@ milestone: "M3 Megafactory"
 
 **Done when** the e2e test collapses a selection, enters it, edits it, and returns with parent results updated.
 
-- [ ] Editing engine: collapse/expand commands
+- [x] Editing engine: collapse/expand commands
 - [ ] Zoom transition + breadcrumbs
 - [ ] e2e test
-- [ ] Expand blueprints of sandboxed (third-party) packs: the plugin sandbox answers `blueprints: {}` for now, so their blueprint graphs show no results ([[src/shells/web/plugin-sandbox.ts]])
+- [x] Expand blueprints of sandboxed (third-party) packs: the plugin sandbox answers `blueprints: {}` for now, so their blueprint graphs show no results ([[src/shells/web/plugin-sandbox.ts]])
