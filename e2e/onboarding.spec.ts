@@ -18,6 +18,24 @@ async function connect(page: Page, from: string, to: string) {
   await page.mouse.up();
 }
 
+/** The tour progress saved in the preferences (IndexedDB), read straight from the database. */
+function savedTour(page: Page): Promise<unknown> {
+  return page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const request = indexedDB.open("carbonara-preferences");
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const database = request.result;
+          if (!database.objectStoreNames.contains("entries")) return resolve(undefined);
+          const read = database.transaction("entries").objectStore("entries").get("tour");
+          read.onsuccess = () => resolve(read.result);
+          database.close();
+        };
+      }),
+  );
+}
+
 async function pickGame(page: Page, game = "Template Works") {
   await page
     .getByRole("list", { name: "Games" })
@@ -84,6 +102,7 @@ test("a new player picks a game, gets a starter factory and completes the tour",
   await expect(tourCard(page)).toHaveAttribute("data-tour-step", "done");
   await tour(page).getByRole("button", { name: "Finish" }).click();
   await expect(tourCard(page)).toBeHidden();
+  await expect.poll(() => savedTour(page)).toEqual({ step: 6, finished: true });
 
   // Done is done: neither the tour nor the game picker comes back.
   await page.reload();
@@ -99,6 +118,8 @@ test("skipping the first run keeps it away, and the palette brings the tour back
   await page.goto("/?first-run");
   await page.getByRole("button", { name: /Skip/ }).click();
   await expect(page.getByText("Plan your next factory")).toBeVisible();
+  // Saved in the background: a reload before the write lands would see a first run again.
+  await expect.poll(() => savedTour(page)).toEqual({ step: 0, finished: true });
   await page.reload();
   await expect(page.getByText("Plan your next factory")).toBeVisible();
 
@@ -112,6 +133,7 @@ test("skipping the first run keeps it away, and the palette brings the tour back
   await expect(tourCard(page)).toHaveAttribute("data-tour-step", "add");
   await page.getByRole("button", { name: "Close the tour" }).click();
   await expect(tourCard(page)).toBeHidden();
+  await expect.poll(() => savedTour(page)).toEqual({ step: 1, finished: true });
 
   await page.reload();
   await expect(page.getByRole("tab", { name: "Copper wire" })).toBeVisible();
