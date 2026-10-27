@@ -1,7 +1,7 @@
 // The inspector wired to the editing manager: each committed edit is sent through the connector, and an edit
 // the manager refuses (or that fails on the way) shows an error toast.
 import { useConnector } from "../../core/connector";
-import { toast } from "../toasts";
+import { errorMessage, toast } from "../toasts";
 import { applyFieldEdit, type FieldEdit, type FieldEditTarget } from "./edit";
 import { Inspector, type InspectedNode } from "./inspector";
 
@@ -19,7 +19,7 @@ export function InspectorPanel({ selection }: InspectorPanelProps) {
       const result = await applyFieldEdit(connector.editing, selection.target, edit);
       if (!result.ok) reportFailure(result.error.map((issue) => issue.message).join(" "));
     } catch (error) {
-      reportFailure(error instanceof Error ? error.message : String(error));
+      reportFailure(errorMessage(error));
     }
   }
 

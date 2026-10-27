@@ -31,6 +31,11 @@ export function toast({ tone = "info", ...input }: ToastInput): number {
   return id;
 }
 
+/** A failed call's message, for a toast's description. */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function dismissToast(id: number): void {
   useToasts.setState(({ toasts }) => ({ toasts: toasts.filter((shown) => shown.id !== id) }));
 }

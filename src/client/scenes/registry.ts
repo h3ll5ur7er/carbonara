@@ -16,6 +16,7 @@ export type SceneRegistry = Record<string, Scene>;
 export const scenes: SceneRegistry = {
   gallery: { title: "Primitives gallery", load: () => import("./gallery") },
   inspector: { title: "Side panels and the inspector", load: () => import("./inspector") },
+  palette: { title: "Command palette with quick-add", load: () => import("./palette") },
 };
 
 export type ScenePick =

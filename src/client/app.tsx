@@ -3,6 +3,11 @@
 import { Library } from "lucide-react";
 import { lazy, Suspense, type ReactNode } from "react";
 import { Canvas } from "./canvas/canvas";
+import { useCommandShortcuts } from "./core/commands-keys";
+import { formatShortcut, platformOf } from "./core/commands-shortcuts";
+import { CommandPalette } from "./features/command-palette/command-palette";
+import { useQuickAdd } from "./features/command-palette/use-quick-add";
+import { appRegistry } from "./shell/app-commands";
 import { InspectorPanel, type InspectorPanelProps } from "./shell/inspector/inspector-panel";
 import { SidePanel } from "./shell/side-panel";
 import { Toaster } from "./shell/toaster";
@@ -24,28 +29,46 @@ export function App() {
   return <AppShell />;
 }
 
+/** The document on screen, as far as the shell needs it. */
+export interface OpenDocument {
+  id: string;
+  name: string;
+  packId: string;
+}
+
+const platform = platformOf(navigator.platform);
+
 export interface AppShellProps {
+  /** The open document; none until the workspace opens one. */
+  document?: OpenDocument | null;
   /** The canvas and what sits on it; the empty canvas by default. Canvas scenes pass their own. */
   canvas?: ReactNode;
   /** What the inspector shows; nothing selected by default. */
   selection?: InspectorPanelProps["selection"];
 }
 
-export function AppShell({ canvas = <EmptyCanvas />, selection = null }: AppShellProps) {
+export function AppShell({ document = null, canvas = <EmptyCanvas />, selection = null }: AppShellProps) {
+  useCommandShortcuts(appRegistry, platform);
+  const quickAdd = useQuickAdd(document);
+  const keys = (id: string) => {
+    const shortcut = appRegistry.get(id)?.shortcut;
+    return shortcut ? formatShortcut(shortcut, platform) : undefined;
+  };
   return (
     <TooltipProvider>
       <div className="flex h-dvh w-dvw flex-col overflow-hidden bg-canvas font-sans text-fg">
-        <TopBar />
+        <TopBar documentName={document?.name ?? "Untitled factory"} registry={appRegistry} platform={platform} />
         <main className="relative min-h-0 flex-1">
           {canvas}
-          <SidePanel side="left" title="Library">
+          <SidePanel side="left" title="Library" shortcut={keys("view.toggleLibrary")}>
             <LibraryPlaceholder />
           </SidePanel>
-          <SidePanel side="right" title="Inspector">
+          <SidePanel side="right" title="Inspector" shortcut={keys("view.toggleInspector")}>
             <InspectorPanel selection={selection} />
           </SidePanel>
         </main>
       </div>
+      <CommandPalette registry={appRegistry} platform={platform} quickAdd={quickAdd} />
       <Toaster />
     </TooltipProvider>
   );

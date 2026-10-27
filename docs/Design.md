@@ -59,6 +59,16 @@ The shell ([[src/client/app.tsx]], `src/client/shell/`) is a top bar over a full
 
 - **Side panels:** the left one (Library, closed by default) and the right one (Inspector, open by default). Each has a close button and a resizable inner edge: drag it, or focus it and use the arrow keys (Shift for bigger steps), Home and End for the limits, Enter to close. The top bar toggles them. Open state and widths live in a session store (`shell/panels.ts`); the limits are in `shell/panel-layout.ts`.
 - **Inspector:** renders the selected node's plugin fields from their `FieldDescriptor`s ([[Architecture/Plugins]]), with no plugin UI code. `number` becomes a slider with a stepper and the unit, `choice` a select, `toggle` a switch. A value that is missing, of the wrong kind or out of range shows the default or the nearest allowed value. Each committed edit is one `setNodeFields` command to `editing.apply`, labelled for the undo history ("Set Clock speed to 150 %"); the control keeps the new value until the call returns, and a refused edit shows an error toast. The inspector itself only calls `onFieldEdit`; `InspectorPanel` does the wiring.
+- **Commands:** every action is registered once in the command registry ([[src/client/core/commands.ts]]) with an id, a title, a group, an icon and a shortcut; the app's commands are in [[src/client/shell/app-commands.ts]]. The command palette, the app menu (behind the wordmark), the keyboard and the tooltips all read the registry, so a new action needs only a registration. Shortcuts are written as `Mod+Shift+K` (`Mod` is Ctrl, or Cmd on a Mac) and shown in each platform's style; plain-key shortcuts don't fire while a text field has focus. A duplicate id or shortcut throws when the registry is built.
+
+| Command | Shortcut |
+| --- | --- |
+| Command palette | `Ctrl+K` |
+| Toggle library | `Ctrl+B` |
+| Toggle inspector | `Ctrl+I` |
+| Switch light and dark theme | `Ctrl+Shift+L` |
+
+- **Command palette** (`Ctrl+K`, or the search field in the top bar): type to filter, arrow keys to move, Enter to run, Escape to close. With a document open, typing an item or recipe name also lists **quick-add** entries: every recipe of the document's pack, found by its name, its outputs and their aliases, and its buildings, showing where it runs and what it turns into what. Picking one sends one `addNode` command to `editing.apply` ("Add Iron Plate") and confirms with a toast. Quick-added nodes land at the origin until the canvas can say where the user is looking.
 - **Toasts:** `toast({ title, description, tone })` from anywhere in the client; `info` and `success` close after 4 s, `error` after 8 s. At most three show at once. Screen readers announce them and F8 jumps to them.
 
 ## Flows as the hero visual

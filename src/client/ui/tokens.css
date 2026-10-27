@@ -100,7 +100,7 @@
   /* The knob of switches and sliders: light in both themes. */
   --color-knob: light-dark(oklch(1 0 0), oklch(0.97 0.003 260));
   /* Dims the app behind a modal dialog. */
-  --color-scrim: light-dark(oklch(0.3 0.02 260 / 0.22), oklch(0.08 0.005 260 / 0.55));
+  --color-scrim: light-dark(oklch(0.3 0.02 260 / 0.14), oklch(0.08 0.005 260 / 0.55));
 
   /* Shadow tints, used by the shadows below. */
   --color-shadow: light-dark(oklch(0.3 0.03 260 / 0.1), oklch(0 0 0 / 0.5));
