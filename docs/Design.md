@@ -145,7 +145,7 @@ The side panels float over the canvas, so the canvas reads which are open and tr
 
 | Stage | Shows |
 | --- | --- |
-| Goals | One row per goal: an item picker (type to search names, aliases and ids; what recipes make first, raw resources marked) and a rate in the document's unit, 1/s worth by default. *Add a goal*; options *Use as few* (Resources or Buildings) and *Alternate recipes*. *Plan* asks the `planning` manager ([[Architecture/Planning]]) |
+| Goals | One row per goal: an item picker (type to search names, aliases and ids; what recipes make first, raw resources marked) and a rate in the document's unit, 1/s worth by default. *Add a goal*; options *Use as few* (Resources or Buildings), *Alternate recipes*, one select per building family (the default building on the left, the building its recipes run in on the right: Stone furnace → Steel furnace), and *Resource weights*, folded away, a weight per raw resource (1 each). *Plan* asks the `planning` manager ([[Architecture/Planning]]) |
 | Proposal | The goals as chips; three stats (machines to build, power in MW, total raw input); buildings by count; raw inputs with a bar against the map's limit (healthy, amber above 90%, red over); byproducts; a red callout for what the map can't supply. *Discard*, *Adjust* (back to the goals, now the proposal's, the ghost stays until the next plan), *Accept* (focused, so Enter accepts) |
 | Accepted | "Added to …", with *Undo* (the whole plan is one step), *Plan more* and *Done* |
 

@@ -23,18 +23,30 @@ const model: Model = {
   constraints: [],
 };
 const costs = (weighed: Model) => weighed.nodes.map((node) => node.cost);
+const items = ["ore", "plate", "slag"];
+const by = (objective: "resources" | "buildings", resourceWeights: Record<string, number> = {}) => ({
+  objective,
+  resourceWeights,
+});
 
 describe("the planning objective", () => {
   it("minimises raw resources first, then machines", () => {
-    expect(costs(weigh(model, "resources"))).toEqual([1, TIE_BREAK, 0, 0, TIE_BREAK]);
+    expect(costs(weigh(model, by("resources"), items))).toEqual([1, TIE_BREAK, 0, 0, TIE_BREAK]);
   });
 
   it("minimises machines first, then raw resources", () => {
-    expect(costs(weigh(model, "buildings"))).toEqual([TIE_BREAK, 1, 0, 0, 1]);
+    expect(costs(weigh(model, by("buildings"), items))).toEqual([TIE_BREAK, 1, 0, 0, 1]);
+  });
+
+  it("weighs each raw resource by its weight, 1 when it has none", () => {
+    expect(costs(weigh(model, by("resources", { ore: 4, slag: 9 }), items))).toEqual([4, TIE_BREAK, 0, 0, TIE_BREAK]);
+    expect(costs(weigh(model, by("buildings", { ore: 4 }), items))[0]).toBeCloseTo(4 * TIE_BREAK, 12);
+    // Names that are also on plain objects aren't weights.
+    expect(costs(weigh(model, by("resources"), ["constructor"]))[0]).toBe(1);
   });
 
   it("changes nothing but the costs", () => {
-    const weighed = weigh(model, "buildings");
+    const weighed = weigh(model, by("buildings"), items);
     expect(weighed.nodes.map(({ cost: _cost, ...node }) => node)).toEqual(
       model.nodes.map(({ cost: _cost, ...node }) => node),
     );

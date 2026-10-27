@@ -1,19 +1,11 @@
 // Comparing recipes: which recipes are candidates for an item, and which of their plans is best.
-import type { Document } from "../../contracts/document";
 import type { PlanOptions, ProposalSummary, RecipeComparison } from "../../contracts/managers";
 import type { Id, PackData } from "../../contracts/pack";
-import type { Plugin } from "../../contracts/plugin";
 import { allowedRecipes, makes } from "./superstructure";
 
 /** The recipes the plan may use that make the item, in pack order. */
-export function rivals(
-  pack: PackData,
-  plugin: Plugin | undefined,
-  document: Document,
-  options: PlanOptions,
-  item: Id,
-): Id[] {
-  return allowedRecipes(pack, plugin, document, options)
+export function rivals(pack: PackData, unavailable: ReadonlySet<Id>, options: PlanOptions, item: Id): Id[] {
+  return allowedRecipes(pack, unavailable, options)
     .filter((recipe) => makes(recipe, item))
     .map((recipe) => recipe.id);
 }

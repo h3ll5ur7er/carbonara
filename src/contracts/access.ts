@@ -2,7 +2,7 @@
 // Each access component implements its interface; managers get it injected by the composition root.
 import type { Document } from "./document";
 import type { DocumentInfo, PackInfo, Proposal, ProposalStatus } from "./managers";
-import type { PackData } from "./pack";
+import type { Id, PackData } from "./pack";
 import type { Plugin, PluginDescription } from "./plugin";
 import type { Result } from "./result";
 import type { AnalysisResults } from "./results";
@@ -46,12 +46,16 @@ export interface PluginRuntime {
   compile(document: Document): Promise<CompiledModel>;
   /** The plugin's fields, settings and metrics under these document settings (`settings.plugin`). */
   describe(settings: Record<string, unknown>): Promise<PluginDescription>;
+  /** The recipes the plugin's `recipeAvailable` rules out under these document settings, defaults filled in. */
+  unavailableRecipes(settings: Record<string, unknown>): Promise<Id[]>;
   /** Stops an isolated plugin; the runtime can't be used afterwards. */
   dispose?(): void;
 }
 
 export interface CompiledModel {
   model: Model;
+  /** The model's items by index: what its rates and edges mean. */
+  items: Id[];
   /** Maps the solver's answer back to the document, with the plugin's derived metrics. */
   results(outcome: Result<Solution, Unsolvable>, version: number): Promise<AnalysisResults>;
   /** The blueprint graphs that can be expanded: their index in `model.blueprints`, by blueprint id. */

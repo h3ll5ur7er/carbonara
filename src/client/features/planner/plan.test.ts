@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Proposal } from "../../../contracts/managers";
 import { templatePack } from "../../scenes/template-pack";
-import { findItems, goalsOf, planLabel, proposalGhost, targetsPerSecond } from "./plan";
+import { PackData } from "../../../contracts/pack";
+import {
+  buildingFamilies,
+  findItems,
+  goalsOf,
+  planLabel,
+  preferBuilding,
+  proposalGhost,
+  targetsPerSecond,
+} from "./plan";
 
 const proposal: Proposal = {
   id: "proposal-1",
@@ -112,5 +121,34 @@ describe("planning in the client", () => {
     const all = findItems(templatePack, "");
     expect(all[0]?.id).not.toBe("ferrite-ore");
     expect(all).toHaveLength(templatePack.items.length);
+  });
+
+  it("groups buildings that stand in for each other into families, by their default building", () => {
+    const building = (id: string) => ({ id, name: id.toUpperCase() });
+    const recipe = (id: string, buildings: string[]) => ({ id, buildings, time: 1, out: { [id]: 1 } });
+    const pack = PackData.parse({
+      units: { rate: "per_second" },
+      items: [],
+      buildings: ["stone", "steel", "electric", "am1", "am2", "am3", "foundry", "refinery"].map(building),
+      recipes: [
+        recipe("plate", ["stone", "steel", "electric"]),
+        recipe("gear", ["am1", "am2", "am3"]),
+        recipe("engine", ["am2", "am3", "foundry"]),
+        recipe("oil", ["refinery"]),
+      ],
+      logistics: [],
+      resources: [],
+    });
+    const families = buildingFamilies(pack);
+    expect(families.map(({ base, members }) => [base.id, members.map(({ id }) => id)])).toEqual([
+      ["stone", ["stone", "steel", "electric"]],
+      ["am1", ["am1", "am2", "am3", "foundry"]],
+    ]);
+    const [furnaces, assemblers] = families as [(typeof families)[0], (typeof families)[0]];
+    let preferred = preferBuilding([], furnaces, "steel");
+    preferred = preferBuilding(preferred, assemblers, "am3");
+    expect(preferred).toEqual(["steel", "am3"]);
+    expect(preferBuilding(preferred, furnaces, "electric")).toEqual(["am3", "electric"]);
+    expect(preferBuilding(preferred, furnaces, "stone")).toEqual(["am3"]);
   });
 });

@@ -77,10 +77,15 @@ describe("a plugin in its sandbox", () => {
     for (const document of documents) {
       const [there, local] = [await isolated.value.compile(document), await here.compile(document)];
       expect(there.model).toEqual(local.model);
+      expect(there.items).toEqual(local.items);
       const solution = ok(solutionFor(local.model.nodes.length, local.model.edges.length));
       expect(await there.results(solution, 4)).toEqual(await local.results(solution, 4));
     }
     expect(await isolated.value.describe({ boosters: 2 })).toEqual(await here.describe({ boosters: 2 }));
+    for (const settings of [{}, { unlocked: [] }]) {
+      expect(await isolated.value.unavailableRecipes(settings)).toEqual(await here.unavailableRecipes(settings));
+    }
+    expect(await here.unavailableRecipes({ unlocked: [] })).toContain("iron-plate-from-ore");
   });
 
   it("refuses a plugin that doesn't load, or doesn't export a plugin", async () => {

@@ -54,13 +54,14 @@ export function startBackend(
 
   // The planner's proposals: made by the planning manager, accepted by the editing manager.
   const proposals = createMemoryProposalStore();
+  const layout = elkInWorker();
 
   const dispatch = createDispatcher(managers, {
     workspace: createWorkspaceManager({ documents, packs, events: bus, newId, restoreProblems: () => restoreProblems }),
-    editing: createEditingManager({ documents, events: bus, newId, layout: elkInWorker(), proposals }),
+    editing: createEditingManager({ documents, events: bus, newId, layout, proposals }),
     packs: createPacksManager({ library: packs, bus }),
     analysis: createAnalysisManager({ bus, documents, packs }),
-    planning: createPlanningManager({ documents, packs, proposals, events: bus }),
+    planning: createPlanningManager({ documents, packs, proposals, events: bus, layout }),
   });
   transport.listen(async (message) => {
     await restored;

@@ -2,7 +2,7 @@
 // the canvas with how far its ghost was moved. The "Plan production…" command toggles it. It follows the planning
 // manager's proposals (`proposalChanged`): one made anywhere, by the planner itself or an MCP client, opens here.
 import { create } from "zustand";
-import type { Events, PlanOptions, Proposal } from "../../../contracts/managers";
+import { DEFAULT_PLAN_OPTIONS, type Events, type PlanOptions, type Proposal } from "../../../contracts/managers";
 import type { Subscribable } from "../../../utilities/rpc";
 import type { Point } from "../../canvas/adapter";
 import type { GoalRow } from "./plan";
@@ -44,7 +44,7 @@ const fresh = (): Omit<PlannerState, "open"> => ({
   documentId: null,
   stage: "goals",
   goals: [newGoal()],
-  options: { objective: "resources", alternates: true, exclude: [] },
+  options: DEFAULT_PLAN_OPTIONS,
   proposal: null,
   offset: { x: 0, y: 0 },
   error: null,

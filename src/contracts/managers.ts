@@ -81,8 +81,25 @@ export const PlanOptions = z.object({
     .describe("What to use as little of: raw resources, or buildings."),
   alternates: z.boolean().default(true).describe("Whether alternate recipes may be used."),
   exclude: z.array(Id).default([]).describe("Recipes the plan must not use."),
+  buildings: z
+    .array(Id)
+    .default([])
+    .describe(
+      "Buildings to prefer, such as steel-furnace or assembling-machine-3: each recipe runs in the first of " +
+        "these it can, otherwise in its default building (the first of its buildings).",
+    ),
+  resourceWeights: z
+    .record(Id, z.number().positive())
+    .default({})
+    .describe(
+      "What one item per second of a raw resource weighs against the others, by item; 1 when not named. " +
+        "Weigh scarce or unwanted resources higher.",
+    ),
 });
 export type PlanOptions = z.output<typeof PlanOptions>;
+
+/** The options as they are when nobody chose any. */
+export const DEFAULT_PLAN_OPTIONS: PlanOptions = PlanOptions.parse({});
 
 /** What a proposal adds up to. All rates are items per second. */
 export interface ProposalSummary {
@@ -137,7 +154,7 @@ export interface RecipeComparison {
 
 const planRequest = z.object({
   documentId: z.string().min(1),
-  options: PlanOptions.default({ objective: "resources", alternates: true, exclude: [] }),
+  options: PlanOptions.default(DEFAULT_PLAN_OPTIONS),
 });
 
 export const managers = {

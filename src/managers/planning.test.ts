@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import ELK from "elkjs/lib/elk.bundled.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import templatePlugin from "../../packs/_template/plugin/index";
 import { createMemoryDocumentStore } from "../access/documents/memory";
@@ -6,10 +7,17 @@ import { createMemoryProposalStore } from "../access/proposals/memory";
 import type { LoadedPack, PackStore } from "../contracts/access";
 import type { Command } from "../contracts/commands";
 import { CURRENT_DOCUMENT_VERSION, type Document, type Graph } from "../contracts/document";
-import type { Events, PlanOptions, PlanTarget, Proposal } from "../contracts/managers";
+import {
+  DEFAULT_PLAN_OPTIONS,
+  type Events,
+  type PlanOptions,
+  type PlanTarget,
+  type Proposal,
+} from "../contracts/managers";
 import { compile, toResults } from "../engines/compiler";
 import { templatePack } from "../engines/compiler/template.fixture";
 import { applyCommands, type ResolvedCommand } from "../engines/editing/commands";
+import { proposalLayout } from "../engines/planning";
 import { loadSolver, solve } from "../engines/solver";
 import { createEventBus } from "../utilities/events";
 import { createPlanningManager } from "./planning";
@@ -57,11 +65,11 @@ function setUp(document = factory(), pack: PackStore = packs) {
   const events = createEventBus<Events>();
   const changes: string[] = [];
   events.subscribe("proposalChanged", ({ proposal, status }) => changes.push(`${proposal.id} ${status}`));
-  const planning = createPlanningManager({ documents, packs: pack, proposals, events });
+  const planning = createPlanningManager({ documents, packs: pack, proposals, events, layout: new ELK() });
   return Object.assign(planning, { proposals, events, changes });
 }
 
-const defaults: PlanOptions = { objective: "resources", alternates: true, exclude: [] };
+const defaults: PlanOptions = DEFAULT_PLAN_OPTIONS;
 
 async function plan(targets: PlanTarget[], options: Partial<PlanOptions> = {}, document = factory()) {
   const result = await setUp(document).planProduction({
@@ -271,6 +279,82 @@ describe("planning production", () => {
         options: defaults,
       }),
     ).toMatchObject({ ok: false, error: [{ path: ["targets", 0, "item"] }] });
+  });
+});
+
+describe("smarter plans", () => {
+  it("run recipes in the buildings asked for: fast assemblers halve the motor assemblers", async () => {
+    const plain = await plan([{ item: "motor", perSecond: 0.25 }]);
+    const fast = await plan([{ item: "motor", perSecond: 0.25 }], { buildings: ["fast-assembler"] });
+    // Motors 2.5, gears 0.5, circuits 1.25, wire 0.4375 assemblers at speed 1; half of each at speed 2.
+    expect(plain.summary.buildings.assembler).toBe(3 + 1 + 2 + 1);
+    expect(fast.summary.buildings).toMatchObject({ "fast-assembler": 2 + 1 + 1 + 1 });
+    expect(fast.summary.buildings.assembler).toBeUndefined();
+    const motor = added(fast).find(({ node }) => node.kind === "recipe" && node.recipe === "motor");
+    expect(motor?.node).toEqual({ kind: "recipe", recipe: "motor", building: "fast-assembler" });
+    // The accepted plan solves as proposed.
+    const results = await analyse(accept(fast));
+    expect(results.diagnostics.filter((diagnostic) => diagnostic.kind !== "surplus")).toEqual([]);
+    expect(results.totals.buildings).toEqual(fast.summary.buildings);
+  });
+
+  it("weigh raw resources: when water is dear, iron is smelted from ore and coal instead", async () => {
+    const dear = await plan([{ item: "iron-plate", perSecond: 1 }], { resourceWeights: { water: 100 } });
+    expect(recipesIn(dear)).toEqual(["iron-plate-from-ore"]);
+    expect(dear.summary.raw).toEqual({ "ferrite-ore": expect.closeTo(2, 9), coal: expect.closeTo(1, 9) });
+  });
+
+  it("ask the plugin which recipes the save allows, with its settings' defaults filled in", async () => {
+    // Without a profile the setting is at its default, which rules the washer out.
+    const plugin = {
+      ...templatePlugin,
+      settingsFields: () => ({ purist: { kind: "toggle" as const, label: "Purist", default: true } }),
+      recipeAvailable: (recipe: { id: string }, { settings }: { settings: Record<string, unknown> }) =>
+        !(settings.purist === true && recipe.id === "wash-ferrite"),
+    };
+    const pack: PackStore = { list: packs.list, get: async () => ({ ...template, plugin }) };
+    const planning = setUp(factory(), pack);
+    const result = await planning.planProduction({
+      documentId: "doc",
+      targets: [{ item: "iron-plate", perSecond: 1 }],
+      options: defaults,
+    });
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    expect(recipesIn(result.value)).not.toContain("wash-ferrite");
+    const compared = await planning.compareRecipes({
+      documentId: "doc",
+      item: "clean-ferrite",
+      perSecond: 1,
+      options: defaults,
+    });
+    expect(compared).toEqual({ ok: true, value: [] });
+  });
+
+  it("put each flow on the smallest belt or pipe that carries it", async () => {
+    const proposal = await plan([{ item: "iron-plate", perSecond: 20 }]);
+    const flows = connected(proposal).map(({ edge }) => edge);
+    const carrying = (item: string) => flows.filter((edge) => edge.item === item).map((edge) => edge.logistics);
+    // 20 plates a second: more than a conveyor (15/s), within a fast one (30/s). Water goes by pipe.
+    expect(carrying("iron-plate")).toEqual(["conveyor-2"]);
+    expect(new Set(carrying("water"))).toEqual(new Set(["pipe"]));
+    const results = await analyse(accept(proposal));
+    expect(results.diagnostics.filter((diagnostic) => diagnostic.kind !== "surplus")).toEqual([]);
+  });
+
+  it("are laid out by the layout engine, without cards on top of each other", async () => {
+    const proposal = await plan([{ item: "motor", perSecond: 0.25 }]);
+    const { shapes } = proposalLayout(proposal, template.data);
+    const boxes = added(proposal).map(({ id, position }) => ({ id, ...position, ...shapes[id ?? ""] }));
+    for (const [index, a] of boxes.entries()) {
+      for (const b of boxes.slice(index + 1)) {
+        const apart =
+          a.x + (a.width ?? 0) <= b.x ||
+          b.x + (b.width ?? 0) <= a.x ||
+          a.y + (a.height ?? 0) <= b.y ||
+          b.y + (b.height ?? 0) <= a.y;
+        expect(apart, `${a.id} and ${b.id}`).toBe(true);
+      }
+    }
   });
 });
 

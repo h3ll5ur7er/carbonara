@@ -2,7 +2,7 @@
 // proposal becomes a ghost, and its undo step gets a name.
 import type { Graph } from "../../../contracts/document";
 import type { PlanTarget, Proposal } from "../../../contracts/managers";
-import type { Id, Item, PackData, RateUnit } from "../../../contracts/pack";
+import type { Building, Id, Item, PackData, RateUnit } from "../../../contracts/pack";
 import { clean } from "../../../utilities/numbers";
 import { fromPerSecond, toPerSecond } from "../../../utilities/units";
 import type { Point } from "../../canvas/adapter";
@@ -55,6 +55,49 @@ export function planLabel(targets: PlanTarget[], pack: PackData, unit: RateUnit)
     return `${rate.value}${rate.unit} ${names.get(target.item) ?? target.item}`;
   });
   return `Plan ${parts.join(", ")}`;
+}
+
+/** Buildings that stand in for each other: a default building and the others its recipes may run in. */
+export interface BuildingFamily {
+  /** The default building of the family's recipes (the first of their buildings). */
+  base: Building;
+  /** Every building of the family, the base first, in pack order. */
+  members: Building[];
+}
+
+/**
+ * The pack's building families, for choosing which building recipes run in: one per default building that has
+ * alternatives, merged with the family it's itself an alternative in (assembler 2 recipes join assembler 1's).
+ */
+export function buildingFamilies(pack: PackData): BuildingFamily[] {
+  const families = new Map<Id, Set<Id>>();
+  for (const { buildings } of pack.recipes) {
+    const [base] = buildings;
+    if (base === undefined || buildings.length < 2) continue;
+    const members = families.get(base) ?? new Set([base]);
+    buildings.forEach((building) => members.add(building));
+    families.set(base, members);
+  }
+  for (const [base, members] of families) {
+    const host = [...families].find(([other, them]) => other !== base && them.has(base));
+    if (!host) continue;
+    members.forEach((member) => host[1].add(member));
+    families.delete(base);
+  }
+  const order = pack.buildings;
+  return [...families].flatMap(([base, members]) => {
+    const found = order.find((building) => building.id === base);
+    if (!found) return [];
+    const others = order.filter((building) => members.has(building.id) && building.id !== base);
+    return [{ base: found, members: [found, ...others] }];
+  });
+}
+
+/** The preferred buildings (`PlanOptions.buildings`) with a family's choice changed; the base means none. */
+export function preferBuilding(buildings: readonly Id[], family: BuildingFamily, choice: Id): Id[] {
+  const members = new Set(family.members.map((member) => member.id));
+  const others = buildings.filter((building) => !members.has(building));
+  return choice === family.base.id ? others : [...others, choice];
 }
 
 /**

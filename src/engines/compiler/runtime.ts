@@ -4,7 +4,7 @@ import type { LoadedPack, PluginRuntime } from "../../contracts/access";
 import type { PackData } from "../../contracts/pack";
 import type { Plugin } from "../../contracts/plugin";
 import { compile } from "./compile";
-import { describePlugin } from "./hooks";
+import { describePlugin, unavailableRecipes } from "./hooks";
 import { findBlueprint } from "./instances";
 import { toResults } from "./results";
 
@@ -14,6 +14,7 @@ export function localRuntime(pack: PackData, plugin: Plugin): PluginRuntime {
       const compiled = compile({ document, pack, plugin });
       return {
         model: compiled.model,
+        items: compiled.items,
         results: async (outcome, version) => toResults(compiled, outcome, plugin, version),
         blueprints: Object.fromEntries((compiled.blueprints ?? []).map(({ graph }, index) => [graph, index])),
         async blueprintResults(graph, outcome, version) {
@@ -24,6 +25,7 @@ export function localRuntime(pack: PackData, plugin: Plugin): PluginRuntime {
       };
     },
     describe: async (settings) => describePlugin(pack, plugin, settings),
+    unavailableRecipes: async (settings) => unavailableRecipes(pack, plugin, settings),
   };
 }
 

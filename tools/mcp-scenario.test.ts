@@ -88,7 +88,7 @@ function carbonara() {
     editing: createEditingManager({ documents, events: bus, newId, layout: new ELK(), proposals }),
     analysis: createAnalysisManager({ bus, documents, packs }),
     packs: { listPacks: async () => [factorio.info], getPackData: async () => factorio.data },
-    planning: createPlanningManager({ documents, packs, proposals, events: bus }),
+    planning: createPlanningManager({ documents, packs, proposals, events: bus, layout: new ELK() }),
   });
   const backendListeners: ((message: unknown) => void)[] = [];
   // Events reach the client as they do from the backend worker.
@@ -195,7 +195,7 @@ describe("Steel, 2 full yellow belts, through MCP", () => {
     const targets = {
       documentId: "active",
       targets: [{ item: "steel-plate", perSecond: belts.value.perSecond }],
-      options: { exclude: withoutSpaceAge(pack) },
+      options: { exclude: withoutSpaceAge(pack), buildings: ["steel-furnace"] },
     };
     expect(await client.call("plan_production", targets)).toMatchObject({
       ok: false,
@@ -205,8 +205,8 @@ describe("Steel, 2 full yellow belts, through MCP", () => {
     const planned = expectOk(await client.call<Result<Proposal>>("plan_production", targets));
     if (!planned.ok) throw new Error(planned.error.map(({ message }) => message).join("\n"));
     const proposal = planned.value;
-    // 9000 iron ore per minute, in each recipe's default building: 960 stone furnaces (speed 1).
-    expect(proposal.summary).toMatchObject({ buildings: { "stone-furnace": 960 }, raw: { "iron-ore": 150 } });
+    // 9000 iron ore per minute, smelted in steel furnaces (speed 2): 240 for iron plates, 240 for steel.
+    expect(proposal.summary).toMatchObject({ buildings: { "steel-furnace": 480 }, raw: { "iron-ore": 150 } });
 
     // The person sees it: the planner card opens with the proposal as a ghost on the factory's tab.
     expect(usePlanner.getState()).toMatchObject({
