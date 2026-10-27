@@ -142,7 +142,7 @@ Known simplifications:
 - Heat has no temperature: reactors and heat exchangers count as hot enough, and heat pipes lose nothing. A reactor burns its fuel whether or not its heat is used, as in the game; the plan's rates are what a running reactor burns.
 - Electricity made and electricity used aren't linked: generators make the `electricity` item, consumers report a `power` metric. A sink of `electricity` with a target sizes a power plant.
 - A fusion reactor array's plasma temperatures average out in the game; here each node makes one temperature, and its generators are set to take it.
-- Solar panels, accumulators and lightning collectors aren't in the pack; fuel is of normal quality.
+- Solar panels, accumulators and lightning collectors aren't in the pack ([[CARB-110]]); fuel is of normal quality.
 - Pollution, surface conditions (which planet a recipe needs) and spoilage aren't modelled.
 
 ## Isolation and trust
