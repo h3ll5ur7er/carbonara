@@ -8,6 +8,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useStore,
+  useReactFlow,
   useStoreApi,
   type Connection,
   type EdgeChange,
@@ -15,6 +16,7 @@ import {
   type FitViewOptions,
   type NodeChange,
   type NodeTypes,
+  type OnConnectEnd,
   type OnNodeDrag,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -66,6 +68,7 @@ function FlowCanvas({
   onMoveNodes,
   onConnect,
   onViewCentre,
+  onPortDropped,
 }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
@@ -106,6 +109,31 @@ function FlowCanvas({
     [onConnect],
   );
 
+  const { screenToFlowPosition } = useReactFlow<FlowNode, FlowEdgeType>();
+  const onConnectEnd: OnConnectEnd = useCallback(
+    (event, connection) => {
+      // Only a drop on the empty pane asks for a new node; a drop on a node or port is a connection attempt.
+      const target = event.target instanceof Element ? event.target : null;
+      if (connection.isValid || !connection.fromHandle?.id || !connection.fromNode) return;
+      if (!target?.classList.contains("react-flow__pane")) return;
+      const view = scene.nodes.find((node) => node.id === connection.fromNode?.id);
+      const port = view?.ports.find((candidate) => candidate.handle === connection.fromHandle?.id);
+      const item = view?.kind === "junction" ? view.item?.id : port?.item.id;
+      if (!view || !port || !item) return;
+      const point = "changedTouches" in event ? event.changedTouches[0] : event;
+      if (!point) return;
+      const bounds = target.getBoundingClientRect();
+      onPortDropped({
+        node: view.id,
+        item,
+        side: port.direction,
+        flow: screenToFlowPosition({ x: point.clientX, y: point.clientY }),
+        screen: { x: point.clientX - bounds.left, y: point.clientY - bounds.top },
+      });
+    },
+    [scene, screenToFlowPosition, onPortDropped],
+  );
+
   const store = useStoreApi<FlowNode, FlowEdgeType>();
   const reportCentre = useCallback(() => {
     const { transform, width, height } = store.getState();
@@ -125,6 +153,7 @@ function FlowCanvas({
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
         onConnect={handleConnect}
+        onConnectEnd={onConnectEnd}
         onInit={reportCentre}
         onMoveEnd={reportCentre}
         // Bottom centre is the one place the floating side panels never cover.

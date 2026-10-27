@@ -137,3 +137,60 @@ test("only nodes on screen are mounted while zoomed in", async ({ page }) => {
   expect(mounted).toBeGreaterThan(0);
   expect(mounted).toBeLessThan(100);
 });
+
+/** Drags a connection from a node's port and lets go `by` pixels away, over empty canvas. */
+async function dragFromPort(page: Page, node: string, handle: string, by: { x: number; y: number }) {
+  const box = await page.locator(`[data-id="${node}"] [data-handleid="${handle}"]`).boundingBox();
+  if (!box) throw new Error(`port ${node}/${handle} not on screen`);
+  const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + by.x, start.y + by.y, { steps: 12 });
+  await page.mouse.up();
+}
+
+test("dragging an output into empty space offers its consumers and connects the one picked", async ({ page }) => {
+  await openScene(page, "chain&zoom=1&focus=gears");
+  const edges = await page.locator(".react-flow__edge").count();
+  await dragFromPort(page, "gears", "out:iron-gear", { x: 100, y: -220 });
+
+  const picker = page.getByRole("dialog", { name: "Connect a consumer" });
+  await expect(picker.getByRole("option")).toHaveText([/Motor/, /Iron Gear output/]);
+  await expect(picker.getByRole("combobox")).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+
+  await expect(picker).toBeHidden();
+  const commands = await appliedCommands(page);
+  expect(commands).toEqual([
+    expect.objectContaining({ type: "addNode", node: { kind: "sink", item: "iron-gear" } }),
+    expect.objectContaining({ type: "connect", edge: expect.objectContaining({ from: "gears", item: "iron-gear" }) }),
+  ]);
+  const added = commands[0]?.type === "addNode" ? commands[0].id : undefined;
+  await expect(page.locator(`[data-id="${added}"]`)).toContainText("Iron Gear");
+  await expect(page.locator(".react-flow__edge")).toHaveCount(edges + 1);
+});
+
+test("dragging an input offers its producers, typing narrows them, and Escape adds nothing", async ({ page }) => {
+  await openScene(page, "chain&zoom=1&focus=gears");
+  await dragFromPort(page, "gears", "in:iron-plate", { x: -140, y: -220 });
+
+  const picker = page.getByRole("dialog", { name: "Connect a producer" });
+  // The recipe the document already uses comes first, the alternate next, the source last.
+  await expect(picker.getByRole("option")).toHaveText([/Iron Plate.*used 1×/, /Coal Smelting/, /Iron Plate source/]);
+  await page.keyboard.type("coal");
+  await expect(picker.getByRole("option")).toHaveText([/Coal Smelting/]);
+  await page.keyboard.press("Escape");
+
+  await expect(picker).toBeHidden();
+  expect(await appliedCommands(page)).toEqual([]);
+});
+
+for (const colorScheme of ["dark", "light"] as const) {
+  test(`the recipe picker in ${colorScheme}`, async ({ page }) => {
+    await openScene(page, "chain&zoom=1&focus=gears", colorScheme);
+    await dragFromPort(page, "gears", "in:iron-plate", { x: -140, y: -220 });
+    await expect(page.getByRole("dialog", { name: "Connect a producer" })).toBeVisible();
+    await expect(page).toHaveScreenshot(`picker-${colorScheme}.png`, { animations: "disabled" });
+  });
+}

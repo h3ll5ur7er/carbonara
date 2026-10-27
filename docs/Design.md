@@ -121,6 +121,10 @@ The side panels float over the canvas, so the canvas reads which are open and tr
 ## Core interactions
 
 - Dragging from a port into empty space opens a **recipe picker filtered by that item**, showing producers or consumers depending on the port direction. It's ranked by how often you use each recipe and previews alternates side by side.
+  - An output offers the recipes that consume the item and an output (sink); an input offers the recipes that make it and a source, the source first when the item is a raw resource ([[src/client/features/recipe-picker/picker.ts]]).
+  - Order: recipes used most in the document, then those making the item as their main product (alternates included) above byproduct makers, then standard before alternate, then by name. Usage is counted in the open document until preferences can remember picks across documents.
+  - The panel opens beside the drop, on the side away from the port, clear of the side panels; typing narrows by every word (names, buildings, items, aliases, "alternate"); ↑↓ move and preview, Enter adds, Esc or a click outside cancels.
+  - The new node's connecting port lands under the pointer (snapped to the grid horizontally), and adding plus connecting is one `editing.apply` batch, so it's one undo step.
 - A **command palette** (`Ctrl+K`) reaches every action. Typing "iron plate" quick-adds a node.
 - **Collapse to subgraph** (`Ctrl+G`), zoom-into transitions and breadcrumbs ([[Architecture/Subgraphs]]).
 - **Goal planner:** pick target outputs and rates; the app proposes the whole chain as a ghost you can accept, adjust or discard.

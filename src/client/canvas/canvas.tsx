@@ -1,13 +1,17 @@
 // The factory canvas. Hides how a document is drawn (React Flow today, behind the CanvasAdapter seam) and
 // turns what the user does on it into `editing` commands sent through the connector.
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CommandInput } from "../../contracts/commands";
 import type { Document, LocalId } from "../../contracts/document";
 import type { PackData } from "../../contracts/pack";
 import type { AnalysisResults } from "../../contracts/results";
 import { useConnector } from "../core/connector";
 import { usePanels } from "../shell/panels";
-import type { CanvasAdapter, CanvasViewProps, Insets, Viewport } from "./adapter";
+import type { Issue } from "../../contracts/issues";
+import { pickCommands, recipeUsage, type PickerEntry } from "../features/recipe-picker/picker";
+import { RecipePicker } from "../features/recipe-picker/recipe-picker";
+import { errorMessage, toast } from "../shell/toasts";
+import type { CanvasAdapter, CanvasViewProps, Insets, PortDrop, Viewport } from "./adapter";
 import "./canvas.css";
 import { createResultSlots } from "./model/result-slots";
 import { createSceneBuilder, type CanvasScene } from "./model/scene";
@@ -60,6 +64,7 @@ function EmptyCanvas() {
       rateUnit="per_minute"
       onMoveNodes={ignore}
       onConnect={ignore}
+      onPortDropped={ignore}
       onViewCentre={setViewportCentre}
     />
   );
@@ -98,9 +103,14 @@ function DocumentCanvas({
 
   const apply = useCallback(
     async (commands: CommandInput[], label: string) => {
-      const result = await connector.editing.apply({ documentId: document.id, commands, label });
-      // Until toasts exist (CARB-22), a refused edit is only logged.
-      if (!result.ok) console.warn(`${label} was refused`, result.error);
+      try {
+        const result = await connector.editing.apply({ documentId: document.id, commands, label });
+        if (!result.ok) {
+          toast({ tone: "error", title: `Couldn't ${label.toLowerCase()}`, description: issuesText(result.error) });
+        }
+      } catch (error) {
+        toast({ tone: "error", title: `Couldn't ${label.toLowerCase()}`, description: errorMessage(error) });
+      }
     },
     [connector, document.id],
   );
@@ -119,16 +129,67 @@ function DocumentCanvas({
     [apply, graph],
   );
 
-  return (
-    <Renderer
-      scene={scene}
-      {...(viewport && { initialViewport: viewport })}
-      insets={insets}
-      results={slots}
-      rateUnit={document.settings.rateUnit ?? pack.units.rate}
-      onMoveNodes={onMoveNodes}
-      onConnect={onConnect}
-      onViewCentre={setViewportCentre}
-    />
+  // The recipe picker, while a connection dropped in empty space waits for its other end.
+  const [drop, setDrop] = useState<(PortDrop & { bounds: { left: number; right: number; height: number } }) | null>(
+    null,
   );
+  const container = useRef<HTMLDivElement>(null);
+  const onPortDropped = useCallback(
+    (dropped: PortDrop) => {
+      const width = container.current?.clientWidth ?? 0;
+      const height = container.current?.clientHeight ?? 0;
+      setDrop({ ...dropped, bounds: { left: insets.left, right: width - insets.right, height } });
+    },
+    [insets],
+  );
+  const usage = useMemo(() => (shown ? recipeUsage(shown) : {}), [shown]);
+  const request = useMemo(() => drop && { item: drop.item, side: drop.side }, [drop]);
+  const rateUnit = document.settings.rateUnit ?? pack.units.rate;
+  const onPick = useCallback(
+    (entry: PickerEntry) => {
+      if (!drop) return;
+      setDrop(null);
+      const pick = { graph, from: drop, entry, drop: drop.flow, id: newNodeId(entry) };
+      void apply(pickCommands(pack, pick), `Add ${entry.title}`);
+    },
+    [apply, drop, graph, pack],
+  );
+
+  return (
+    <div ref={container} className="relative size-full">
+      <Renderer
+        scene={scene}
+        {...(viewport && { initialViewport: viewport })}
+        insets={insets}
+        results={slots}
+        rateUnit={rateUnit}
+        onMoveNodes={onMoveNodes}
+        onConnect={onConnect}
+        onPortDropped={onPortDropped}
+        onViewCentre={setViewportCentre}
+      />
+      {drop && request && (
+        <RecipePicker
+          pack={pack}
+          request={request}
+          usage={usage}
+          rateUnit={rateUnit}
+          at={drop.screen}
+          bounds={drop.bounds}
+          onPick={onPick}
+          onClose={() => setDrop(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** A readable, practically unique id for a new node: what it runs, plus a random suffix. */
+function newNodeId(entry: PickerEntry): LocalId {
+  const base = entry.kind === "recipe" ? entry.id : `${entry.kind}-${entry.item.id}`;
+  return `${base}-${crypto.randomUUID().slice(0, 6)}`;
+}
+
+function issuesText(issues: Issue[]): string {
+  return issues.map((issue) => issue.message).join(" ");
 }

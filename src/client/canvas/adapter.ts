@@ -12,6 +12,16 @@ export interface Point {
   y: number;
 }
 
+export interface PortDrop {
+  node: LocalId;
+  item: Id;
+  /** The side of the port the drag started from. */
+  side: "in" | "out";
+  /** Where it was dropped: in flow units, and in pixels from the canvas's top-left corner. */
+  flow: Point;
+  screen: Point;
+}
+
 export interface Insets {
   left: number;
   right: number;
@@ -37,6 +47,8 @@ export interface CanvasViewProps {
   onMoveNodes(positions: Record<LocalId, Point>): void;
   /** The user connected two ports. */
   onConnect(edge: { from: LocalId; to: LocalId; item: Id }): void;
+  /** A connection from a port was dropped in empty space: time to offer what could go there. */
+  onPortDropped(drop: PortDrop): void;
   /** The view settled; `centre` is the flow position in the middle of the visible canvas. */
   onViewCentre(centre: Point): void;
 }
