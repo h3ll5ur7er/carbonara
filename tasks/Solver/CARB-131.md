@@ -2,7 +2,7 @@
 id: CARB-131
 title: Re-solving for new pins from the last solve misses the optimum in a proptest case
 type: bug
-status: backlog
+status: done
 priority: medium
 labels: [solver]
 ---
@@ -18,5 +18,5 @@ The seed line above goes into `crates/solver/tests/incremental.proptest-regressi
 
 **Done when** the case passes (a fix in the warm start, or the test compares what the tiers promise if both answers are optimal), with the seed kept in the regressions file.
 
-- [ ] Reproduce with the seed and find which tier first differs
-- [ ] Fix, or tighten what the test compares, with a reason
+- [x] Reproduce with the seed and find which tier first differs: tier 1 (deficits) has two optima, 0.75/s short at the consumer or at its supplier's raw input; the warm start found the second, the fresh solve the first, and the held zeros carry that into cost (0.5 vs 0.25) and surplus
+- [x] Tightened: both tests compare the tiers up to the first slack tier that isn't zero (`unique_tiers`), since every optimum agrees only on those; documented in [[Architecture/Solver]], Objective tiers. The seed stays in the regressions file. Making a shortage's place canonical is [[CARB-132]]
