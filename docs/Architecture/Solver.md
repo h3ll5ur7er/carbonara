@@ -66,7 +66,7 @@ The LP library sits behind the `Backend` trait ([[crates/solver/src/program.rs]]
 ## Performance
 
 1. **Off the UI thread:** the solver runs in the backend worker. `analysis` tags each solve with a generation number and drops stale results.
-2. **Incremental:** the graph is split into weakly connected components, and only *dirty* components are re-solved. Results are cached by a hash of each component's IR.
+2. **Incremental:** the graph is split into weakly connected components ([[crates/solver/src/decompose.rs]]); edges and plugin constraints both join nodes. Each component becomes a model of its own, renumbered (nodes, edges and items dense and in their original order) so an unchanged component gives the same model wherever it sits. A `Solver` ([[crates/solver/src/incremental.rs]]) caches each component's solution by a hash of its model, checks the model for equality on a hit, and keeps only what the last solve used: one `Solver` per document, so the next edit hits and nothing older lingers. `solve` without a `Solver` still goes component by component; `solve_whole` solves one big LP (tests use it to check that both reach the same optimum).
 3. **Hierarchy:** subgraphs compile to macro recipes; see [[Architecture/Subgraphs]].
 4. **Results bypass React state:** results travel as typed arrays and land in the client's result store. Each node component subscribes to its own slot, so a solve re-renders only the nodes whose numbers changed.
 5. **Backend trait:** `microlp` first, `clarabel` behind the same trait for very large models.

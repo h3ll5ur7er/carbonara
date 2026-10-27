@@ -6,69 +6,6 @@ use carbonara_solver::solve;
 use common::*;
 use proptest::prelude::*;
 
-const ITEMS: u32 = 4;
-
-fn amount() -> impl Strategy<Value = f64> {
-    prop::sample::select(vec![0.25, 0.5, 1.0, 1.5, 2.0, 3.0])
-}
-
-fn optional_amount() -> impl Strategy<Value = Option<f64>> {
-    prop::option::weighted(0.3, (0..20u32).prop_map(|n| f64::from(n) * 0.5))
-}
-
-fn node() -> impl Strategy<Value = Node> {
-    let rates =
-        prop::collection::vec((0..ITEMS, amount(), any::<bool>()), 1..4).prop_map(|rates| {
-            rates
-                .into_iter()
-                .map(|(item, amount, output)| Rate {
-                    item,
-                    per_second: if output { amount } else { -amount },
-                })
-                .collect::<Vec<_>>()
-        });
-    let process = (
-        rates,
-        optional_amount(),
-        optional_amount(),
-        prop::sample::select(vec![0.0, 0.5, 1.0, 2.0]),
-    )
-        .prop_map(|(rates, max, pin, cost)| Node {
-            kind: NodeKind::Process,
-            rates,
-            max,
-            pin,
-            cost,
-        });
-    prop_oneof![4 => process, 1 => Just(junction())]
-}
-
-/// Random factories, cycles and mismatched edges included. Costs are non-negative, so every one is solvable.
-fn factory() -> impl Strategy<Value = Model> {
-    prop::collection::vec(node(), 1..10).prop_flat_map(|nodes| {
-        let count = nodes.len() as u32;
-        let edges = prop::collection::vec(
-            (
-                0..count,
-                0..count,
-                0..ITEMS,
-                prop::option::weighted(0.3, amount()),
-            ),
-            0..14,
-        )
-        .prop_map(|edges| {
-            edges
-                .into_iter()
-                .map(|(from, to, item, capacity)| Edge {
-                    capacity,
-                    ..edge(from, to, item)
-                })
-                .collect::<Vec<_>>()
-        });
-        (Just(nodes), edges).prop_map(|(nodes, edges)| model(ITEMS, nodes, edges))
-    })
-}
-
 /// Net rate of an item at a node; recipes may list an item on both sides.
 fn net_rate(node: &Node, item: u32) -> f64 {
     node.rates

@@ -5,10 +5,15 @@
 /// Version of the solver IR this crate understands.
 pub const IR_VERSION: u32 = 1;
 
+mod decompose;
 mod formulation;
+mod incremental;
 pub mod ir;
 pub mod program;
 pub mod validate;
+
+pub use decompose::{Component, components};
+pub use incremental::Solver;
 
 use formulation::{Hold, Tier};
 use ir::{Comparison, Model, Solution, Unsolvable};
@@ -53,12 +58,13 @@ impl From<BackendError> for SolveError {
     }
 }
 
-/// Solves a model with the default backend.
+/// Solves a model component by component with the default backend.
 pub fn solve(model: &Model) -> Result<Solution, SolveError> {
-    solve_with(model, &MicroLp)
+    Solver::new(MicroLp).solve(model)
 }
 
-pub fn solve_with(model: &Model, backend: &impl Backend) -> Result<Solution, SolveError> {
+/// Solves a model as one LP, however many components it has.
+pub fn solve_whole(model: &Model, backend: &impl Backend) -> Result<Solution, SolveError> {
     validate(model)?;
     let mut formulation = formulation::formulate(model);
     let values = minimise_in_order(&mut formulation.program, &formulation.tiers, backend)?;
