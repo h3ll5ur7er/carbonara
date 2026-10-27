@@ -9,6 +9,7 @@ import type { EventMessage, Request } from "../../contracts/rpc";
 import { createAnalysisManager } from "../../managers/analysis";
 import { createEditingManager } from "../../managers/editing";
 import { createPacksManager } from "../../managers/packs";
+import { createPlanningManager } from "../../managers/planning";
 import { createWorkspaceManager } from "../../managers/workspace";
 import { createIndexedDbStorage } from "../../platforms/web/indexeddb";
 import { loadModule } from "../../platforms/web/module-loader";
@@ -42,6 +43,7 @@ export function startBackend(transport: Transport): void {
     editing: createEditingManager({ documents, events: bus, newId }),
     packs: createPacksManager({ library: packs, bus }),
     analysis: createAnalysisManager({ bus, documents, packs }),
+    planning: createPlanningManager({ documents, packs }),
   });
   transport.listen(async (message) => {
     await restored;
