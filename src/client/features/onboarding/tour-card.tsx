@@ -139,7 +139,8 @@ function Card({ id, index }: { id: TourStepId; index: number }) {
         "rounded-xl bg-glass shadow-overlay backdrop-blur-glass backdrop-saturate-150",
       )}
     >
-      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line-subtle pr-1.5 pl-4">
+      {/* Divs, not header and footer: outside a section element those are the page's banner and contentinfo. */}
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-line-subtle pr-1.5 pl-4">
         <GraduationCap className="size-3.5 text-accent-fg" aria-hidden />
         <span className="flex-1 truncate text-xs font-semibold tracking-wide text-fg-muted uppercase">
           Tour
@@ -148,7 +149,7 @@ function Card({ id, index }: { id: TourStepId; index: number }) {
           )}
         </span>
         {!last && <IconButton label="Close the tour" icon={<X />} size="sm" tooltip={false} onClick={skipTour} />}
-      </header>
+      </div>
       {/* Steps that move on by themselves are announced. */}
       <div aria-live="polite" className="flex flex-col gap-1.5 px-4 pt-3.5 pb-1">
         <h2 id={titleId} className="text-base font-semibold tracking-tight text-fg">
@@ -156,7 +157,7 @@ function Card({ id, index }: { id: TourStepId; index: number }) {
         </h2>
         <p className="text-sm text-fg-muted">{step.body}</p>
       </div>
-      <footer className="flex items-center gap-2 px-4 pt-3 pb-3.5">
+      <div className="flex items-center gap-2 px-4 pt-3 pb-3.5">
         {counted ? <Progress index={index} /> : <span className="flex-1" />}
         {first && (
           <Button variant="ghost" size="sm" onClick={skipTour}>
@@ -179,7 +180,7 @@ function Card({ id, index }: { id: TourStepId; index: number }) {
           {first ? "Start the tour" : last ? "Finish" : step.action ? "Skip step" : "Next"}
           {!last && !step.action ? <ArrowRight aria-hidden /> : null}
         </Button>
-      </footer>
+      </div>
     </section>
   );
 }

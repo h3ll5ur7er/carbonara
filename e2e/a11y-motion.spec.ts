@@ -46,6 +46,16 @@ async function expectInstantCamera(page: Page, key: string) {
   expect(await viewport(page)).toBe(next);
 }
 
+test.describe.configure({ timeout: 90_000 });
+
+// The first load on a fresh dev server compiles the app, which can take longer than `openInApp` waits for.
+test.beforeEach(async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByLabel("Factory canvas")).toBeVisible({ timeout: 20_000 });
+  // Away again: a share link differs only by its fragment, which wouldn't load the page anew.
+  await page.goto("about:blank");
+});
+
 test("with reduced motion, overlays, the canvas, ghosts and subgraphs move instantly", async ({ page }) => {
   await openInApp(page, chain);
   await expect.poll(() => moving(page)).toEqual([]);

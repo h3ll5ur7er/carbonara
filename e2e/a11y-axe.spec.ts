@@ -50,6 +50,11 @@ for (const colorScheme of ["dark", "light"] as const) {
   test.describe(`the live app in ${colorScheme}`, () => {
     test.beforeEach(async ({ page }) => {
       await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+      // The first load on a fresh dev server compiles the app, which can take longer than `openInApp` waits for.
+      await page.goto("/");
+      await expect(page.getByLabel("Factory canvas")).toBeVisible({ timeout: 20_000 });
+      // Away again: a share link differs only by its fragment, which wouldn't load the page anew.
+      await page.goto("about:blank");
     });
 
     test("welcome passes axe", async ({ page }) => {
@@ -118,6 +123,25 @@ for (const colorScheme of ["dark", "light"] as const) {
       await openInApp(page, chain, colorScheme);
       await page.keyboard.press("?");
       await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
+      await audit(page);
+    });
+
+    test("a port's recipe picker passes axe", async ({ page }) => {
+      await openInApp(page, chain, colorScheme);
+      await page.locator('.react-flow__node[data-id="wire"] [data-handleid="in:copper-plate"]').focus();
+      await page.keyboard.press("Enter");
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("dialog", { name: "Connect a producer" })).toBeVisible();
+      await audit(page);
+    });
+
+    test("a tour step passes axe", async ({ page }) => {
+      await page.goto("/?first-run");
+      await page
+        .getByRole("list", { name: "Games" })
+        .getByRole("button", { name: /Template Works/ })
+        .click();
+      await expect(page.locator("[data-tour-step]")).toBeVisible();
       await audit(page);
     });
   });

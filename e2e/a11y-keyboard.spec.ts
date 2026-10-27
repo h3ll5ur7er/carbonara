@@ -47,10 +47,14 @@ async function connectWithKeys(page: Page, from: Locator, to: Locator, backwards
   await page.keyboard.press("Enter");
 }
 
+// Long flows through the live app (worker, solver): more time than one step of a shorter spec.
+test.describe.configure({ timeout: 90_000 });
+
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await expect(page.getByText("Plan your next factory")).toBeVisible();
+  // The first load on a fresh dev server compiles the app: slower than a step.
+  await expect(page.getByText("Plan your next factory")).toBeVisible({ timeout: 20_000 });
 });
 
 test("builds, connects, targets and plans a factory with the keyboard alone", async ({ page }) => {
@@ -61,7 +65,8 @@ test("builds, connects, targets and plans a factory with the keyboard alone", as
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.type("Keyboard works");
   await page.keyboard.press("Enter");
-  await expect(dialog).toBeHidden();
+  // Creating waits for the backend worker, which a busy machine slows down.
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
   await expect(page.getByRole("tab", { name: "Keyboard works", selected: true })).toBeVisible();
 
   // Add two recipes through the palette.
