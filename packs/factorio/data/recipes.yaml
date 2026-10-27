@@ -68,7 +68,7 @@ recipes:
     time: 5
     in: { water: 50, crude-oil: 100 }
     out: { heavy-oil: 25, light-oil: 45, petroleum-gas: 55 }
-    tags: [productivity]
+    tags: [productivity, no-quality]
   - id: advanced-oxide-asteroid-crushing
     name: Advanced oxide asteroid crushing
     buildings: [crusher]
@@ -315,7 +315,7 @@ recipes:
     time: 5
     in: { crude-oil: 100 }
     out: { petroleum-gas: 45 }
-    tags: [productivity]
+    tags: [productivity, no-quality]
   - id: battery
     name: Battery
     buildings: [chemical-plant, cryogenic-plant]
@@ -686,7 +686,7 @@ recipes:
     time: 2
     in: { carbonic-asteroid-chunk: 1 }
     out: { carbonic-asteroid-chunk: 0.4, metallic-asteroid-chunk: 0.2, oxide-asteroid-chunk: 0.2 }
-    tags: [space-age]
+    tags: [space-age, no-quality]
   - id: cargo-bay
     name: Cargo bay
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3]
@@ -863,7 +863,7 @@ recipes:
     time: 5
     in: { coal: 10, heavy-oil: 25, steam: 50 }
     out: { heavy-oil: 90, light-oil: 20, petroleum-gas: 10 }
-    tags: [productivity]
+    tags: [productivity, ignored-by-productivity:heavy-oil=25]
   - id: coal-recycling
     name: Coal recycling
     buildings: [recycler]
@@ -1006,6 +1006,7 @@ recipes:
     time: 0.2
     in: { crude-oil: 50, barrel: 1 }
     out: { crude-oil-barrel: 1 }
+    tags: [no-quality]
   - id: crude-oil-barrel-recycling
     name: Crude oil barrel recycling
     buildings: [recycler]
@@ -1047,7 +1048,7 @@ recipes:
     time: 20
     in: { ice: 3, lithium-plate: 1, fluoroketone-cold: 6 }
     out: { cryogenic-science-pack: 1, fluoroketone-hot: 3 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, ignored-by-productivity:fluoroketone-hot=3]
   - id: cryogenic-science-pack-recycling
     name: Cryogenic science pack recycling
     buildings: [recycler]
@@ -1275,56 +1276,63 @@ recipes:
     time: 0.2
     in: { crude-oil-barrel: 1 }
     out: { crude-oil: 50, barrel: 1 }
+    tags: [no-quality]
   - id: empty-fluoroketone-cold-barrel
     name: Empty Fluoroketone (Cold) barrel
     buildings: [assembling-machine-2, assembling-machine-3]
     time: 0.2
     in: { fluoroketone-cold-barrel: 1 }
     out: { fluoroketone-cold: 50, barrel: 1 }
-    tags: [space-age]
+    tags: [space-age, no-quality]
   - id: empty-fluoroketone-hot-barrel
     name: Empty Fluoroketone (Hot) barrel
     buildings: [assembling-machine-2, assembling-machine-3]
     time: 0.2
     in: { fluoroketone-hot-barrel: 1 }
     out: { fluoroketone-hot: 50, barrel: 1 }
-    tags: [space-age]
+    tags: [space-age, no-quality]
   - id: empty-heavy-oil-barrel
     name: Empty Heavy oil barrel
     buildings: [assembling-machine-2, assembling-machine-3]
     time: 0.2
     in: { heavy-oil-barrel: 1 }
     out: { heavy-oil: 50, barrel: 1 }
+    tags: [no-quality]
   - id: empty-light-oil-barrel
     name: Empty Light oil barrel
     buildings: [assembling-machine-2, assembling-machine-3]
     time: 0.2
     in: { light-oil-barrel: 1 }
     out: { light-oil: 50, barrel: 1 }
+    tags: [no-quality]
   - id: empty-lubricant-barrel
     name: Empty Lubricant barrel
     buildings: [assembling-machine-2, assembling-machine-3]
     time: 0.2
     in: { lubricant-barrel: 1 }
     out: { lubricant: 50, barrel: 1 }
+    tags: [no-quality]
   - id: empty-petroleum-gas-barrel
     name: Empty Petroleum gas barrel
     buildings: [assembling-machine-2, assembling-machine-3]
     time: 0.2
     in: { petroleum-gas-barrel: 1 }
     out: { petroleum-gas: 50, barrel: 1 }
+    tags: [no-quality]
   - id: empty-sulfuric-acid-barrel
     name: Empty Sulfuric acid barrel
     buildings: [assembling-machine-2, assembling-machine-3]
     time: 0.2
     in: { sulfuric-acid-barrel: 1 }
     out: { sulfuric-acid: 50, barrel: 1 }
+    tags: [no-quality]
   - id: empty-water-barrel
     name: Empty Water barrel
     buildings: [assembling-machine-2, assembling-machine-3]
     time: 0.2
     in: { water-barrel: 1 }
     out: { water: 50, barrel: 1 }
+    tags: [no-quality]
   - id: energy-shield-equipment
     name: Energy shield
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3]
@@ -1541,7 +1549,7 @@ recipes:
     time: 6
     in: { raw-fish: 2, nutrients: 100, water: 100 }
     out: { raw-fish: 3 }
-    tags: [space-age]
+    tags: [space-age, no-quality]
   - id: fission-reactor-equipment
     name: Portable fission reactor
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3]
@@ -1620,7 +1628,7 @@ recipes:
     time: 0.2
     in: { fluoroketone-cold: 50, barrel: 1 }
     out: { fluoroketone-cold-barrel: 1 }
-    tags: [space-age]
+    tags: [space-age, no-quality]
   - id: fluoroketone-cold-barrel-recycling
     name: Fluoroketone (Cold) barrel recycling
     buildings: [recycler]
@@ -1641,7 +1649,7 @@ recipes:
     time: 0.2
     in: { fluoroketone-hot: 50, barrel: 1 }
     out: { fluoroketone-hot-barrel: 1 }
-    tags: [space-age]
+    tags: [space-age, no-quality]
   - id: fluoroketone-hot-barrel-recycling
     name: Fluoroketone (Hot) barrel recycling
     buildings: [recycler]
@@ -1870,6 +1878,7 @@ recipes:
     time: 0.2
     in: { heavy-oil: 50, barrel: 1 }
     out: { heavy-oil-barrel: 1 }
+    tags: [no-quality]
   - id: heavy-oil-barrel-recycling
     name: Heavy oil barrel recycling
     buildings: [recycler]
@@ -1883,7 +1892,7 @@ recipes:
     time: 2
     in: { water: 30, heavy-oil: 40 }
     out: { light-oil: 30 }
-    tags: [productivity]
+    tags: [productivity, no-quality]
   - id: holmium-ore-recycling
     name: Holmium ore recycling
     buildings: [recycler]
@@ -2077,7 +2086,7 @@ recipes:
     time: 60
     in: { uranium-235: 40, uranium-238: 5 }
     out: { uranium-235: 41, uranium-238: 2 }
-    tags: [productivity]
+    tags: [productivity, ignored-by-productivity:uranium-235=40, ignored-by-productivity:uranium-238=2, no-quality]
   - id: lab
     name: Lab
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3]
@@ -2163,6 +2172,7 @@ recipes:
     time: 0.2
     in: { light-oil: 50, barrel: 1 }
     out: { light-oil-barrel: 1 }
+    tags: [no-quality]
   - id: light-oil-barrel-recycling
     name: Light oil barrel recycling
     buildings: [recycler]
@@ -2176,7 +2186,7 @@ recipes:
     time: 2
     in: { water: 30, light-oil: 30 }
     out: { petroleum-gas: 20 }
-    tags: [productivity]
+    tags: [productivity, no-quality]
   - id: lightning-collector
     name: Lightning collector
     buildings: [electromagnetic-plant]
@@ -2306,13 +2316,14 @@ recipes:
     time: 1
     in: { heavy-oil: 10 }
     out: { lubricant: 10 }
-    tags: [productivity]
+    tags: [productivity, no-quality]
   - id: lubricant-barrel
     name: Fill Lubricant barrel
     buildings: [assembling-machine-2, assembling-machine-3]
     time: 0.2
     in: { lubricant: 50, barrel: 1 }
     out: { lubricant-barrel: 1 }
+    tags: [no-quality]
   - id: lubricant-barrel-recycling
     name: Lubricant barrel recycling
     buildings: [recycler]
@@ -2367,7 +2378,7 @@ recipes:
     time: 2
     in: { metallic-asteroid-chunk: 1 }
     out: { metallic-asteroid-chunk: 0.4, carbonic-asteroid-chunk: 0.2, oxide-asteroid-chunk: 0.2 }
-    tags: [space-age]
+    tags: [space-age, no-quality]
   - id: metallurgic-science-pack
     name: Metallurgic science pack
     buildings: [foundry]
@@ -2483,14 +2494,14 @@ recipes:
     time: 2
     in: { biter-egg: 1 }
     out: { nutrients: 20 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, no-quality]
   - id: nutrients-from-fish
     name: Nutrients from fish
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3, biochamber]
     time: 2
     in: { raw-fish: 1 }
     out: { nutrients: 20 }
-    tags: [space-age]
+    tags: [space-age, no-quality]
   - id: nutrients-from-spoilage
     name: Nutrients from spoilage
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3, biochamber]
@@ -2586,7 +2597,7 @@ recipes:
     time: 1
     in: { oxide-asteroid-chunk: 1 }
     out: { oxide-asteroid-chunk: 0.4, metallic-asteroid-chunk: 0.2, carbonic-asteroid-chunk: 0.2 }
-    tags: [space-age]
+    tags: [space-age, no-quality]
   - id: passive-provider-chest
     name: Passive provider chest
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3]
@@ -2606,7 +2617,7 @@ recipes:
     time: 15
     in: { pentapod-egg: 1, nutrients: 30, water: 60 }
     out: { pentapod-egg: 2 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, ignored-by-productivity:pentapod-egg=1]
   - id: pentapod-egg-recycling
     name: Pentapod egg recycling
     buildings: [recycler]
@@ -2660,6 +2671,7 @@ recipes:
     time: 0.2
     in: { petroleum-gas: 50, barrel: 1 }
     out: { petroleum-gas-barrel: 1 }
+    tags: [no-quality]
   - id: petroleum-gas-barrel-recycling
     name: Petroleum gas barrel recycling
     buildings: [recycler]
@@ -2984,7 +2996,7 @@ recipes:
       lithium-plate: 2
       fluoroketone-cold: 10
     out: { quantum-processor: 1, fluoroketone-hot: 5 }
-    tags: [space-age, productivity]
+    tags: [space-age, productivity, ignored-by-productivity:fluoroketone-hot=5]
   - id: quantum-processor-recycling
     name: Quantum processor recycling
     buildings: [recycler]
@@ -3582,7 +3594,7 @@ recipes:
     time: 1
     in: { steam: 1000 }
     out: { water: 90 }
-    tags: [space-age]
+    tags: [space-age, no-quality]
   - id: steam-engine
     name: Steam engine
     buildings: [assembling-machine-1, assembling-machine-2, assembling-machine-3]
@@ -3775,6 +3787,7 @@ recipes:
     time: 0.2
     in: { sulfuric-acid: 50, barrel: 1 }
     out: { sulfuric-acid-barrel: 1 }
+    tags: [no-quality]
   - id: sulfuric-acid-barrel-recycling
     name: Sulfuric acid barrel recycling
     buildings: [recycler]
@@ -4125,6 +4138,7 @@ recipes:
     time: 0.2
     in: { water: 50, barrel: 1 }
     out: { water-barrel: 1 }
+    tags: [no-quality]
   - id: water-barrel-recycling
     name: Water barrel recycling
     buildings: [recycler]

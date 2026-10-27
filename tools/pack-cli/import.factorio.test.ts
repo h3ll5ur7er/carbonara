@@ -60,6 +60,28 @@ describe("the Factorio importer", () => {
     expect(items).toContainEqual({ id: "molten-iron", name: "Molten iron", form: "fluid" });
   });
 
+  it("adds a variant of every solid item for each quality above normal, named with the quality", () => {
+    const { items } = run().data;
+    expect(items).toContainEqual({ id: "iron-plate@uncommon", name: "Iron plate (Uncommon)", form: "solid" });
+    expect(items?.filter((item) => item.id.startsWith("iron-plate@")).map((item) => item.id)).toEqual([
+      "iron-plate@uncommon",
+      "iron-plate@rare",
+      "iron-plate@epic",
+      "iron-plate@legendary",
+    ]);
+    // Fluids have no quality, and the variants follow their item.
+    const ids = items?.map((item) => item.id) ?? [];
+    expect(ids).not.toContain("crude-oil@rare");
+    expect(ids.indexOf("iron-plate@uncommon")).toBe(ids.indexOf("iron-plate") + 1);
+  });
+
+  it("names quality variants from the ids without a locale, and makes none without the quality mod", () => {
+    expect(find(run(gameFiles(dumpExcerpt, {})).data.items, "iron-plate@rare").name).toBe("Iron plate (Rare)");
+    const dump = structuredClone(dumpExcerpt);
+    delete dump.quality;
+    expect(run(gameFiles(dump)).data.items?.some((item) => item.id.includes("@"))).toBe(false);
+  });
+
   it("fills in localised names with parameters, and names buildings after their entity", () => {
     const { data } = run();
     expect(find(data.recipes, "crude-oil-barrel").name).toBe("Fill Crude oil barrel");
@@ -133,10 +155,16 @@ describe("the Factorio importer", () => {
     });
   });
 
-  it("keeps catalysts on both sides", () => {
+  it("keeps catalysts on both sides, and tags the amounts productivity leaves out", () => {
     expect(find(run().data.recipes, "kovarex-enrichment-process")).toMatchObject({
       in: { "uranium-235": 40, "uranium-238": 5 },
       out: { "uranium-235": 41, "uranium-238": 2 },
+      tags: [
+        "productivity",
+        "ignored-by-productivity:uranium-235=40",
+        "ignored-by-productivity:uranium-238=2",
+        "no-quality",
+      ],
     });
   });
 
@@ -163,12 +191,13 @@ describe("the Factorio importer", () => {
     expect(itemIds).not.toContain("blueprint");
   });
 
-  it("tags recipes with the expansion mods they need, recycling, and whether productivity applies", () => {
+  it("tags recipes with the expansion mods they need, recycling, and whether productivity and quality apply", () => {
     const { recipes } = run().data;
     expect(find(recipes, "casting-iron").tags).toEqual(["space-age", "productivity"]);
     expect(find(recipes, "molten-iron-from-lava").tags).toEqual(["space-age", "productivity"]);
     expect(find(recipes, "iron-gear-wheel-recycling").tags).toEqual(["recycler", "recycling"]);
-    expect(find(recipes, "crude-oil-barrel")).not.toHaveProperty("tags");
+    // Recipes whose products can't get a better quality.
+    expect(find(recipes, "crude-oil-barrel").tags).toEqual(["no-quality"]);
     // A base recipe stays untagged even though a Space Age machine can make it too.
     expect(find(recipes, "electronic-circuit").tags).toEqual(["productivity"]);
   });
@@ -180,6 +209,7 @@ describe("the Factorio importer", () => {
       name: "Assembling machine 1",
       speed: 0.5,
       power: { consume: 0.0775 },
+      fields: { energy: { drain: 0.0025 } },
     });
     expect(find(buildings, "assembling-machine-2")).toMatchObject({ speed: 0.75, power: { consume: 0.155 } });
     expect(find(buildings, "assembling-machine-3")).toMatchObject({ speed: 1.25, power: { consume: 0.3875 } });
@@ -187,10 +217,15 @@ describe("the Factorio importer", () => {
     expect(find(buildings, "electric-mining-drill")).toMatchObject({ speed: 0.5, power: { consume: 0.09 } });
   });
 
-  it("keeps what the mechanics plugin needs in fields: module slots, base effects, fuel and the expansion", () => {
+  it("keeps what the mechanics plugin needs in fields: module slots, base effects, drain, fuel and the expansion", () => {
     const { buildings } = run().data;
     expect(find(buildings, "assembling-machine-3").fields).toEqual({
       modules: { slots: 4, effects: "consumption,speed,productivity,pollution,quality" },
+      energy: { drain: 0.0125 },
+    });
+    // Without allowed effects, a building takes every module.
+    expect(find(buildings, "electric-mining-drill").fields).toEqual({
+      modules: { slots: 3, effects: "consumption,speed,productivity,pollution,quality" },
     });
     expect(find(buildings, "stone-furnace")).toEqual({
       id: "stone-furnace",
@@ -202,6 +237,7 @@ describe("the Factorio importer", () => {
     expect(find(buildings, "foundry").fields).toEqual({
       modules: { slots: 4, effects: "consumption,speed,productivity,pollution,quality" },
       "base-effect": { productivity: 0.5 },
+      energy: { drain: 0.0833333333333 },
       mod: { name: "space-age" },
     });
     expect(find(buildings, "biochamber").fields).toMatchObject({ energy: { source: "burner", fuel: "nutrients" } });
@@ -358,7 +394,8 @@ describe("the committed Factorio pack", () => {
   it("has an icon file for every icon it names", () => {
     // An item and the building it places share their id and their icon.
     const icons = new Set([...data.items, ...data.buildings].flatMap((entry) => (entry.icon ? [entry.icon] : [])));
-    expect(icons.size).toBeGreaterThan(data.items.length * 0.9);
+    const qualityVariant = (id: string) => id.includes("@");
+    expect(icons.size).toBeGreaterThan(data.items.filter((item) => !qualityVariant(item.id)).length * 0.9);
     for (const icon of icons) expect(existsSync(join(folder, icon)), icon).toBe(true);
     expect(readdirSync(join(folder, "icons"))).toHaveLength(icons.size); // and no icon nobody uses
   });

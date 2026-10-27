@@ -78,6 +78,7 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
       ],
       main_product: "",
       allow_productivity: true,
+      allow_quality: false,
       order: "b[uranium-products]-c[kovarex-enrichment-process]",
       subgroup: "uranium-processing",
     },
@@ -166,6 +167,7 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
         { type: "item", name: "barrel", amount: 1, ignored_by_stats: 1 },
       ],
       results: [{ type: "item", name: "crude-oil-barrel", amount: 1, ignored_by_stats: 1 }],
+      allow_quality: false,
       order: "a[fluid]-b[oil]-a[crude-oil]",
       subgroup: "fill-barrel",
     },
@@ -1103,6 +1105,28 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
       flags: ["placeable-neutral", "player-creation"],
     },
   },
+  quality: {
+    "quality-unknown": { type: "quality", name: "quality-unknown", level: 0, hidden: true },
+    normal: {
+      type: "quality",
+      name: "normal",
+      level: 0,
+      next: "uncommon",
+      next_probability: 1,
+      chain_probability: 0.1,
+    },
+    uncommon: {
+      type: "quality",
+      name: "uncommon",
+      level: 1,
+      next: "rare",
+      next_probability: 1,
+      chain_probability: 0.1,
+    },
+    rare: { type: "quality", name: "rare", level: 2, next: "epic", next_probability: 1, chain_probability: 0.1 },
+    epic: { type: "quality", name: "epic", level: 3, next: "legendary", next_probability: 1, chain_probability: 0.1 },
+    legendary: { type: "quality", name: "legendary", level: 5 },
+  },
   pipe: {
     pipe: {
       type: "pipe",
@@ -1120,4 +1144,5 @@ export const localeExcerpt: Record<string, string> = {
   "space-age.cfg":
     "[entity-name]\nbiochamber=Biochamber\nscrap=Scrap\ncalcite=Calcite\nbig-mining-drill=Big mining drill\nagricultural-tower=Agricultural tower\nasteroid-collector=Asteroid collector\nelectromagnetic-plant=Electromagnetic plant\nfoundry=Foundry\nturbo-transport-belt=Turbo transport belt\nyumako-tree=Yumako tree\n[fluid-name]\nlava=Lava\nmolten-iron=Molten iron\n[item-name]\nyumako-mash=Yumako mash\nnutrients=Nutrients\nyumako-seed=Yumako seed\nice=Ice\nscrap=Scrap\nmetallic-asteroid-chunk=Metallic asteroid chunk\nbig-mining-drill=Big mining drill\ncalcite=Calcite\nholmium-ore=Holmium ore\nlithium=Lithium\nturbo-transport-belt=Turbo transport belt\nyumako=Yumako\n[recipe-name]\nmolten-iron-from-lava=Molten iron from lava\nyumako-processing=Yumako processing\ncasting-iron=Casting iron\n",
   "recycler.cfg": "[entity-name]\nrecycler=Recycler\n[recipe-name]\nrecycling=__1__ recycling\n",
+  "quality.cfg": "[quality-name]\nnormal=Normal\nuncommon=Uncommon\nrare=Rare\nepic=Epic\nlegendary=Legendary\n",
 };

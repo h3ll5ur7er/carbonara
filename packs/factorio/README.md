@@ -2,7 +2,13 @@
 
 Plan factories for [Factorio](https://factorio.com/) 2.1 by Wube Software, with the Space Age expansion: every item and fluid a machine or extractor deals with, every recipe a machine runs (recycling included) with every machine that can run it, belts from yellow to turbo, pipes, and the resources drills, pumps, agricultural towers and asteroid collectors extract. Rates are per second, as in the game.
 
-Modules, beacons, quality, heat and fluid temperatures come with a later version of the plugin.
+The plugin models modules and beacons, built-in productivity (foundry, electromagnetic plant, biochamber), quality, and power:
+
+- **Per node:** speed, productivity, efficiency and quality modules (and their tier), beacons in range with their speed and efficiency modules, how many machines share each beacon, and the quality the node crafts at.
+- **Save setting:** Space Age. Off, expansion recipes and buildings get a warning.
+- **Metrics:** power use and beacon power in MW (drain included), and the fuel burner buildings burn.
+
+Heat, fluid temperatures and power generation (boilers, engines, turbines, reactors) come with a later version.
 
 ## Space Age and the other expansion mods
 
@@ -12,12 +18,19 @@ Content from the expansion is marked so a plugin can filter it:
 - **Buildings** from an expansion mod have `fields.mod.name` (`space-age`, `recycler`).
 - Recycling recipes are also tagged `recycling`, and recipes that accept productivity bonuses `productivity`.
 
+## Productivity and quality
+
+- `ignored-by-productivity:<item>=<amount>` tags the part of a result productivity doesn't multiply (`ignored_by_productivity`, such as Kovarex's 40 U-235), per craft on average.
+- `no-quality` tags recipes whose products can't get a better quality (`allow_quality: false`).
+- Every solid item has a variant per quality above normal: `iron-plate@uncommon`, `@rare`, `@epic`, `@legendary`. Fluids have none. Recipes stay at normal quality; the plugin maps a node's items to the quality it crafts at.
+
 ## Building fields
 
-Read by the mechanics plugin later (CARB-44); nothing interprets them yet.
+Read by the mechanics plugin.
 
-- `modules: { slots, effects }`: module slots and the effects the building accepts (comma-separated).
+- `modules: { slots, effects }`: module slots and the effects the building accepts (comma-separated; a prototype without `allowed_effects` accepts all).
 - `base-effect`: built-in effects, such as the foundry's and the electromagnetic plant's `productivity: 0.5`.
+- `energy: { drain }`: what an electric building draws even when idle, in MW (1/30 of its usage for crafting machines).
 - `energy: { source, fuel }`: buildings that burn fuel (`burner`, with fuel categories) instead of drawing electricity.
 - `mod: { name }`: see above.
 
@@ -52,8 +65,8 @@ pnpm pack:build packs/factorio
 
 The importer reads the dump but leaves these out; extend it when a plugin needs them:
 
-- Fluid temperatures (`steam` is one item; recipe temperature limits are dropped), heat, and power generation: boilers, steam engines and turbines, reactors, solar panels, fusion. Steam has no recipe, so it's a raw input for now.
-- Productivity details: `ignored_by_productivity` and `maximum_productivity` of results, and beacons and modules themselves.
+- Fluid temperatures (`steam` is one item; the temperatures recipes give their products are dropped, and no recipe limits an ingredient's), heat, and power generation: boilers, steam engines and turbines, reactors, solar panels, fusion. Only acid neutralisation makes steam; elsewhere it's a raw input for now.
+- `maximum_productivity` of recipes: none sets it in 2.1.14, so all have the default +300 %. Modules, beacons and quality levels are prototypes the data doesn't hold; their numbers are in `plugin/effects.ts`, from the Lua prototypes (see `CREDITS.md`). Update them there with a new game version.
 - Space Age conditions: recipe and building `surface_conditions` (which planet or space), spoilage and spoil results, plant seeds and growth times, the fluid uranium mining needs, and belt stacking.
-- Quality: quality levels and the recycling of quality items (recycling recipes are in, at normal quality).
+- Quality of buildings, modules and beacons (their bonuses), and per-item quality limits (`affected_by_quality`, ingredient `quality_min` …), which no 2.1.14 recipe uses.
 - Mining rates: resource `mining_time` and drill `mining_speed` are only kept as the drill's `speed`.
