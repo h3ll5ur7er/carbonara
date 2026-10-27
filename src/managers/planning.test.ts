@@ -285,6 +285,22 @@ describe("planning production", () => {
     // A plate a second takes a craft a second: a coal from the map or from drying sludge, and a slag spare.
     expect(summary.raw.coal ?? 0).toBeGreaterThan(0);
     expect(summary.byproducts).toMatchObject({ slag: expect.closeTo(1, 9) });
+    // The ghost and the layout draw the furnaces with ports for their coal and slag.
+    const buildingOf = (recipe: string) => template.data.recipes.find(({ id }) => id === recipe)?.buildings[0];
+    const furnaces = added(result.value).filter(
+      ({ node }) => node.kind === "recipe" && (node.building ?? buildingOf(node.recipe)) === "furnace",
+    );
+    expect(furnaces.length).toBeGreaterThan(0);
+    const { shapes } = proposalLayout(result.value, template.data);
+    for (const { id } of furnaces) {
+      const items = result.value.results.effectiveItems?.[id as string];
+      expect(items?.in).toContain("coal");
+      expect(items?.out).toContain("slag");
+      expect(shapes[id as string]?.ports.map((port) => `${port.side}:${port.item}`)).toEqual([
+        ...(items?.in ?? []).map((item) => `in:${item}`),
+        ...(items?.out ?? []).map((item) => `out:${item}`),
+      ]);
+    }
     const applied = accept(result.value);
     const solved = await (async () => {
       const compiled = compile({ document: applied, pack: template.data, plugin: burning });

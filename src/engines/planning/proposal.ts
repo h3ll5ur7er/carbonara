@@ -7,9 +7,9 @@ import type { Document, Edge, Graph, LocalId, Node, Position } from "../../contr
 import type { NodeShape, PortShape } from "../../contracts/layout";
 import type { Proposal, ProposalSummary } from "../../contracts/managers";
 import type { Id, PackData } from "../../contracts/pack";
-import type { AnalysisResults, EdgeResult, NodeResult } from "../../contracts/results";
+import type { AnalysisResults, EdgeResult, NodeItems, NodeResult } from "../../contracts/results";
 import { clean } from "../../utilities/numbers";
-import { addTo } from "../../utilities/records";
+import { addTo, own } from "../../utilities/records";
 import { toPerSecond } from "../../utilities/units";
 import type { Role, Superstructure } from "./superstructure";
 
@@ -75,9 +75,12 @@ export function propose({ superstructure, results, pack, document }: ProposeInpu
 
   const commands: Command[] = [];
   const nodeResults: Record<LocalId, NodeResult> = {};
-  for (const entry of planned.values()) {
+  let effectiveItems: Record<LocalId, NodeItems> | undefined;
+  for (const [id, entry] of planned) {
     commands.push({ type: "addNode", graph: "root", id: entry.id, node: entry.node, position: { x: 0, y: 0 } });
     nodeResults[entry.id] = entry.result;
+    const items = results.effectiveItems && own(results.effectiveItems, id);
+    if (items) (effectiveItems ??= {})[entry.id] = items;
   }
   const edgeResults: Record<LocalId, EdgeResult> = {};
   const carriers = logisticsByItem(pack);
@@ -95,22 +98,23 @@ export function propose({ superstructure, results, pack, document }: ProposeInpu
     documentId: document.id,
     targets: superstructure.targets,
     commands,
-    results: { nodes: nodeResults, edges: edgeResults },
+    results: { nodes: nodeResults, edges: edgeResults, ...(effectiveItems && { effectiveItems }) },
     summary: summarise(planned, roles, results, pack),
   };
 }
 
 /** The proposal's graph and how its nodes are drawn: what the layout engine's `arrange` needs. */
 export function proposalLayout(
-  { commands }: Pick<Proposal, "commands">,
+  { commands, results }: Pick<Proposal, "commands"> & { results?: Pick<Proposal["results"], "effectiveItems"> },
   pack: PackData,
 ): { graph: Graph; shapes: Record<LocalId, NodeShape> } {
   const graph: Graph = { nodes: {}, edges: {} };
   const shapes: Record<LocalId, NodeShape> = {};
+  const effective = results?.effectiveItems;
   for (const command of commands) {
     if (command.type === "addNode" && command.id !== undefined) {
       graph.nodes[command.id] = command.node;
-      shapes[command.id] = shapeOf(command.node, pack);
+      shapes[command.id] = shapeOf(command.node, pack, undefined, effective && own(effective, command.id));
     } else if (command.type === "connect" && command.id !== undefined) {
       graph.edges[command.id] = command.edge;
     }
@@ -259,12 +263,13 @@ const PORT_ROW = 28;
 const ROWS_TOP = 64 + 24 + 6;
 const rowCentre = (row: number) => ROWS_TOP + row * PORT_ROW + PORT_ROW / 2;
 
-function shapeOf(node: Node, pack: PackData, position?: Position): NodeShape {
+/** How a node is drawn; a recipe node with `items` has ports for those, as the canvas draws its effective recipe. */
+function shapeOf(node: Node, pack: PackData, position?: Position, items?: NodeItems): NodeShape {
   switch (node.kind) {
     case "recipe": {
       const recipe = pack.recipes.find((candidate) => candidate.id === node.recipe);
-      const inputs = Object.keys(recipe?.in ?? {});
-      const outputs = Object.keys(recipe?.out ?? {});
+      const inputs = items?.in ?? Object.keys(recipe?.in ?? {});
+      const outputs = items?.out ?? Object.keys(recipe?.out ?? {});
       const ports: PortShape[] = [
         ...inputs.map((item, row): PortShape => ({ side: "in", item, x: 0, y: rowCentre(row) })),
         ...outputs.map((item, row): PortShape => ({

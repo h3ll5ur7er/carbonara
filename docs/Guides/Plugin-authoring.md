@@ -134,8 +134,10 @@ Say what's wrong in words a player understands, with the numbers: "Above 1100 °
 
 This is where most mechanics live: clock speeds, modules, beacons, fuels, productivity bonuses. Return the recipe per craft as one machine runs it; Carbonara multiplies by the machine count. Anything about the node may go into the formula, because it's fixed while the solver works.
 
-> [!IMPORTANT]
-> Keep the recipe's items. The canvas draws a node's ports from the recipe in your data, so an item the effective recipe adds (a fuel) has no port to connect a flow to, and one it drops leaves a port that carries nothing. Put every item a recipe may use into the data (here, the wood) and let the plugin change the amounts ([[CARB-95]]).
+The effective recipe may take and make other items than the recipe in your data: add a fuel that depends on a node setting, a burnt fuel cell, quality variants (`iron-plate@rare`). Every item it uses must be in your data's `items`; an unknown one is an error on the node. The canvas draws the node's ports from the items it uses (amounts above zero), in the order you return them, so a flow can be connected to an added fuel at once. An item the effective recipe stops using loses its port; a flow still attached to it keeps a port marked *not used*, and the node shows the problem until the flow is removed ([[CARB-95]]).
+
+> [!NOTE]
+> The canvas learns the effective items from the solve's results, so a new node shows your data's items for the moment its first solve takes, and a node whose settings change keeps its ports until the next solve has finished. Keep the recipe in your data close to how most nodes run it (Factorio's furnaces leave the fuel out, because it's the node's choice).
 
 ### Budgets: `constraints`
 

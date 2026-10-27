@@ -51,6 +51,7 @@ The `compiler` engine calls the hooks from one module, [[src/engines/compiler/ho
 5. `effectiveRecipe` → the node's rates. An answer that isn't a recipe (time not positive, amounts not finite) is an `error` diagnostic and the node is left out.
 6. `constraints` over the compiled recipe nodes (in id order) → the IR's `constraints`. Terms on nodes that aren't compiled recipe nodes are dropped, constraints without terms too; a constraint with non-finite numbers or an unknown comparison is refused with an error diagnostic. Plugin constraints are hard: a solve that can't meet them is `infeasible` ([[Architecture/Solver]]), so budgets should be `atMost` against activities that may be zero.
 7. After the solve, `toResults` calls `derive` per recipe node with its machine count; the metrics land in `NodeResult.derived`.
+8. Recipe nodes whose effective recipe takes or makes other items than the pack's recipe (amounts above zero, compared in order) carry those items in `NodeInfo.items`, and the results list them by node in `AnalysisResults.effectiveItems`, solved or not ([[#Ports from effective recipes]]).
 
 A plugin's answers are treated as input: checked, never trusted. Diagnostics carry the kind `warning` for things that don't change what's solved.
 
@@ -59,6 +60,22 @@ A plugin's answers are treated as input: checked, never trusted. Diagnostics car
 Clients never run plugin code. `packs.describePlugin({ packId, settings })` ([[src/contracts/managers.ts]]) returns a `PluginDescription`: node fields by building id, the settings fields and the metrics, computed by `describePlugin` in the hooks module wherever the plugin runs. The inspector loads it per document ([[src/client/shell/inspector/plugin-description.ts]]) and reloads it when the document's plugin settings change.
 
 Where a pack's plugin runs is a `PluginRuntime` ([[src/contracts/access.ts]]): `compile(document)` → the model (with its item ids by index) plus a `results(outcome, version)` that maps the solution back; `compiler()` → a `DocumentCompiler` that compiles one document's versions one after another and redoes only what changed (the analysis manager keeps one per document; [[Architecture/Solver]], Performance); `describe(settings)`; and `unavailableRecipes(settings)`: the recipes `recipeAvailable` rules out, with the settings' defaults filled in, which the planner leaves out. Plugin hooks are taken to be pure: a node whose object didn't change keeps what the hooks said about it, and a node whose fields change is compiled again. The sandbox's compiler compiles every version from scratch, since the whole document crosses into the sandbox anyway. `compile(document)` uses a fresh compiler each time, so one-off compiles (the planner's probes and superstructures) never share a document's memo. `runtimeOf(pack)` ([[src/engines/compiler/runtime.ts]]) gives built-in packs a local runtime around the same compiler functions; the analysis and packs managers only talk to runtimes.
+
+### Ports from effective recipes
+
+The canvas draws a recipe node's ports from the items it uses ([[CARB-95]]): the effective recipe's where `AnalysisResults.effectiveItems` names the node, else the pack recipe's. Where that knowledge comes from was a choice between three:
+
+| Option | Why not, or why |
+| --- | --- |
+| A `describeNode`-like call per node or per document | One more round trip per edit (into the sandbox for third-party packs) that runs the same hooks the compile just ran, and the client would have to sequence it with the solve |
+| Ports from `NodeResult.inputs` and `outputs` | Only exists for solved nodes: an infeasible solve or a node left out would drop its ports, and zero rates can't be told from unused items |
+| **`effectiveItems` in the results** (chosen) | The compiler has the effective recipe anyway; it's computed per node once, kept in the node's draft (an incremental compile recomputes it exactly when the node's object changes), crosses the sandbox with the results, and is there even when nothing solves. Sparse: only nodes that differ from the pack, so a 50k-node factory without such nodes carries nothing extra |
+
+- **Before the first solve** a node has its pack recipe's ports, so it can be connected at once; the effective items replace them when the results arrive.
+- **No flicker:** the client keeps the last effective items of the document until newer results come ([[src/client/canvas/model/scene.ts]] `createEffectiveItemsKeeper`), and keeps the same objects while they say the same, so a node's view is rebuilt only when its ports really change: once, after the solve that changed them.
+- **Dropped items:** a flow whose item the node no longer uses keeps a *stray* port (`PortView.stray`), drawn after the others with a "not used" mark; the compiler's diagnostic ("carries coal, which this node doesn't use") is the problem on the node.
+- **Third-party packs:** the sandbox maps results with the same compiler, so `effectiveItems` comes back with them; the backend keeps only entries that are lists of item ids ([[src/shells/web/plugin-sandbox.ts]]).
+- **Ghosts and layout:** planner proposals carry `results.effectiveItems` under their own node ids, which the ghost and the layout engine's shapes use; a paste from the graph on screen borrows the copied nodes' items. Auto-arrange measures nodes as the canvas draws them.
 
 ## How mechanics map onto hooks
 

@@ -1,11 +1,13 @@
 // Test support: a plugin for the template pack that uses every compile hook, so tests can see each one at work.
 import type { Document, Node } from "../../contracts/document";
 import { definePlugin, isAlternate, unlockedRecipes } from "../../contracts/plugin";
+import { own } from "../../utilities/records";
 import { waterLoop } from "./template.fixture";
 
 /**
- * Furnaces have a speed (50–200 %), a mode and a booster that doubles their output. Boosters are scarce: the
- * document's `boosters` setting caps how many boosted furnaces may run. Alternates need unlocking.
+ * Furnaces have a speed (50–200 %), a mode and a booster that doubles their output. At full speed (200 %) they
+ * also burn coal, an item their recipe doesn't name. Boosters are scarce: the document's `boosters` setting caps how
+ * many boosted furnaces may run. Alternates need unlocking.
  */
 export const fixturePlugin = definePlugin({
   id: "fixture",
@@ -26,7 +28,9 @@ export const fixturePlugin = definePlugin({
   effectiveRecipe: ({ recipe, fields }) => {
     const boost = fields.boosted === true ? 2 : 1;
     const out = Object.fromEntries(Object.entries(recipe.out).map(([item, amount]) => [item, amount * boost]));
-    return { time: recipe.time / (Number(fields.speed ?? 100) / 100), in: recipe.in, out };
+    const speed = Number(fields.speed ?? 100);
+    const inputs = speed >= 200 ? { ...recipe.in, coal: (own(recipe.in, "coal") ?? 0) + 0.5 } : recipe.in;
+    return { time: recipe.time / (speed / 100), in: inputs, out };
   },
   constraints: (nodes, { settings }) => [
     {

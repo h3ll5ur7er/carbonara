@@ -83,9 +83,9 @@ export function EfficiencyRing({ efficiency, label }: { efficiency: number | und
 }
 
 /** Marks a port the node is short of; the shape carries the meaning, not only the colour. */
-export function ShortIcon() {
+export function ShortIcon({ label = "Short" }: { label?: string }) {
   return (
-    <svg viewBox="0 0 12 12" className="size-3 shrink-0 text-flow-over-capacity" aria-label="Short" role="img">
+    <svg viewBox="0 0 12 12" className="size-3 shrink-0 text-flow-over-capacity" aria-label={label} role="img">
       <path d="M6 1.5 11 10.5H1Z" fill="currentColor" />
       <path d="M6 5v2.5" stroke="var(--color-surface-2)" strokeWidth="1.3" strokeLinecap="round" />
       <circle cx="6" cy="9" r="0.7" fill="var(--color-surface-2)" />

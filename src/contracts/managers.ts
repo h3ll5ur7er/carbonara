@@ -11,7 +11,7 @@ import type { Issue } from "./issues";
 import { Id, type PackData, type PackManifest, type RateUnit } from "./pack";
 import type { PluginDescription } from "./plugin";
 import { Preferences } from "./preferences";
-import type { AnalysisResults, EdgeResult, NodeResult } from "./results";
+import type { AnalysisResults, EdgeResult, NodeItems, NodeResult } from "./results";
 import type { Result } from "./result";
 
 export type McpGroup = "read" | "plan" | "edit" | "authoring";
@@ -147,8 +147,15 @@ export interface Proposal {
    * flows between them (`connect`). Accepting applies them as one `editing.apply` batch: one undo step.
    */
   commands: Command[];
-  /** The planned solve, by the commands' node and edge ids, to preview machine counts and flows. */
-  results: { nodes: Record<string, NodeResult>; edges: Record<string, EdgeResult> };
+  /**
+   * The planned solve, by the commands' node and edge ids, to preview machine counts and flows, with the items of
+   * recipe nodes whose effective recipe differs from the pack's (as in `AnalysisResults.effectiveItems`).
+   */
+  results: {
+    nodes: Record<string, NodeResult>;
+    edges: Record<string, EdgeResult>;
+    effectiveItems?: Record<string, NodeItems>;
+  };
   summary: ProposalSummary;
 }
 
