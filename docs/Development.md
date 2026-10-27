@@ -50,6 +50,16 @@ Run `pnpm e2e` too when you changed anything the user can see.
 - End-to-end and screenshot tests live in `e2e/`. Screenshot baselines are in `e2e/__screenshots__/`. After an intentional visual change, update them with `pnpm e2e --update-snapshots` and commit the new images with the change.
 - Playwright uses the Chromium that is preinstalled in the cloud environment. `@playwright/test` is pinned to the matching version, so don't upgrade it on its own.
 
+## Deployment
+
+Every push to the default branch that passes CI is deployed to GitHub Pages by the `deploy` job in `.github/workflows/ci.yml`: https://h3ll5ur7er.github.io/carbonara/. The build uses `vite build --base=/<repo>/` because Pages serves the app below the repository name. To try that build locally:
+
+```bash
+pnpm build:wasm && pnpm exec vite build --base=/carbonara/ && pnpm exec vite preview --base=/carbonara/
+```
+
+Share links use the URL fragment, so they work on Pages without server-side routing.
+
 ## Known gaps
 
 - `wasm-opt` is off (`crates/solver-wasm/Cargo.toml`) because wasm-pack downloads it from GitHub releases, which isn't reachable everywhere. Turn it back on when the benchmarks say binary size or speed matter.
