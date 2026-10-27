@@ -20,6 +20,7 @@ import {
   FileImage,
   Gauge,
   ChevronsDown,
+  ChevronsDownUp,
   ChevronsRight,
   Focus,
   Frame,
@@ -285,6 +286,14 @@ export const canvasCommands: CommandDefinition[] = [
     keywords: ["group", "box", "area", "label", "section"],
     icon: Frame,
     run: () => canvasEditActions()?.frameSelection(),
+  },
+  {
+    id: "arrange.toggleCollapse",
+    title: "Collapse or expand frame",
+    group: "Arrange",
+    keywords: ["fold", "unfold", "hide", "group", "minimise", "minimize", "open", "close"],
+    icon: ChevronsDownUp,
+    run: () => canvasEditActions()?.toggleCollapse(),
   },
   {
     id: "edit.addNote",

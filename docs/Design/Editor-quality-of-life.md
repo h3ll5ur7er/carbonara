@@ -137,7 +137,7 @@ All of them are in the palette and the app menu; the node's context menu offers 
 - **Edit in place:** double-click a note (or a frame's label) to edit it; `Ctrl+Enter` in a note or `Enter` in a label, or clicking away, keeps it (`setText`), `Escape` drops it. Keys typed there stay in the field.
 - **Resize** a selected note or frame by its handles; the new size is one edit when you let go. Locked ones don't show handles.
 - Tag colours are hues on the item-tint scale (canvas.css), so they work in both themes. Frames still take their tint from `tone`.
-- Not done yet: collapsing frames.
+- **Collapse a frame** with the chevron in its top-right corner (it shows while the pointer is over the frame or the button has focus) or "Collapse or expand frame" in the palette, for the selected frames. A collapsed frame folds to its label bar ("COPPER 5 nodes", two grid steps high, as wide as the frame) and the nodes whose centre it holds are hidden; flows that leave or enter them run to the bar's right or left end, and flows among them aren't drawn ([[src/client/canvas/model/scene.ts]], `fold`). The bar's chevron expands it. Dragging the bar takes what it holds along, so it's all still inside when it opens; snapping, the lasso and fitting ignore hidden nodes. Stored on the frame (`collapsed: true`), changed with `setCollapsed` (one edit, "Collapse frame"); a frame inside a collapsed frame is held too. Arranging still lays the held nodes out as if the frame were open.
 
 ### Navigating: bookmarks, back and forward
 

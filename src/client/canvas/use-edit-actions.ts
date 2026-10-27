@@ -155,6 +155,16 @@ export function useEditActions({
         const locked = !ids.every((id) => layout?.[id]?.locked);
         void apply([{ type: "setLocked", graph, ids, locked }], locked ? "Lock" : "Unlock");
       },
+      toggleCollapse() {
+        const frames = selection.current.nodes.flatMap((id) => {
+          const node = shown?.nodes[id];
+          return node?.kind === "frame" ? [{ id, collapsed: !!node.collapsed }] : [];
+        });
+        if (frames.length === 0) return;
+        const collapsed = !frames.every((frame) => frame.collapsed);
+        const ids = frames.map((frame) => frame.id);
+        void apply([{ type: "setCollapsed", graph, ids, collapsed }], collapsed ? "Collapse frame" : "Expand frame");
+      },
       showRatesIn(choice) {
         // The fastest solid carrier: what "belts" means in factory games.
         const fastest = [...pack.logistics]

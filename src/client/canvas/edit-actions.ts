@@ -25,6 +25,8 @@ export interface CanvasEditActions extends NavigationActions, ClipboardActions {
   tag(tag: TagColour | null): void;
   /** Locks the selected nodes, or unlocks them when they all are locked already. */
   toggleLock(): void;
+  /** Collapses the selected frames to their label bar, or expands them when they all are collapsed already. */
+  toggleCollapse(): void;
   /** Shows rates in a rate unit (`per_minute`), a belt (`belt:<id>`), or `belts`: the pack's fastest belt. */
   showRatesIn(choice: string): void;
   /** Switches machine counts between "4 × 100% + 1 × 37.5%" and "5 × 87.5%". */

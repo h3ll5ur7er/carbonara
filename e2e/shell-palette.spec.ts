@@ -158,6 +158,7 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Straighten chain\s*Shift\s*S/,
     /Lock or unlock selection\s*Shift\s*L/,
     /Frame selection\s*Shift\s*G/,
+    /Collapse or expand frame/,
     /Tag red/,
     /Tag orange/,
     /Tag yellow/,

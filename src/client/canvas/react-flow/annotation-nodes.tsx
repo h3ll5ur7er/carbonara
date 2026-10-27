@@ -1,6 +1,7 @@
 // Nodes that route or annotate rather than produce: junctions, sticky notes, group frames, and a
 // placeholder for kinds the canvas does not draw yet.
 import { NodeResizer } from "@xyflow/react";
+import { ChevronRight, ChevronsDownUp } from "lucide-react";
 import { memo, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from "react";
 import { GRID } from "../model/geometry";
 import { ItemChip, Rate, tint } from "../parts";
@@ -143,16 +144,60 @@ const FRAME_LABEL = {
   chip: "top-6 left-8 text-3xl",
 } as const;
 
+/** A collapsed frame's label: it fills the bar at every zoom. */
+const COLLAPSED_LABEL = { full: "text-xs", compact: "text-xl", chip: "text-3xl" } as const;
+
 export const FrameNode = memo(function FrameNode({ id, data: { view }, selected }: FlowNodeProps<"frame">) {
   const lod = useLod();
-  const { editText } = useAnnotationEdits();
+  const { editText, toggleCollapsed } = useAnnotationEdits();
   const [editing, setEditing] = useState(false);
+  const border = selected ? "border-accent" : "border-line-strong";
+  if (view.members !== undefined) {
+    // Collapsed: a bar with the label and how much it holds; flows of what it holds meet at its ends.
+    return (
+      <div
+        style={tint(view.tone ?? id)}
+        className={`item-tint relative flex size-full items-center gap-2 rounded-xl border border-dashed bg-(--item-wash) pr-4 pl-1.5 ${border}`}
+      >
+        <button
+          type="button"
+          aria-label={`Expand frame ${view.label}`}
+          onClick={() => toggleCollapsed(id)}
+          className="nodrag grid size-8 shrink-0 place-items-center rounded-lg text-(--item-fg) transition-colors hover:bg-surface-3 focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          <ChevronRight className="size-4" aria-hidden />
+        </button>
+        <span className={`truncate font-semibold tracking-wider text-(--item-fg) uppercase ${COLLAPSED_LABEL[lod]}`}>
+          {view.label}
+        </span>
+        {lod === "full" && (
+          <span className="shrink-0 text-xs text-fg-subtle">
+            {view.members} {view.members === 1 ? "node" : "nodes"}
+          </span>
+        )}
+        {view.ports.map((port) => (
+          <PortHandle key={port.handle} port={port} />
+        ))}
+      </div>
+    );
+  }
   return (
     <div
       style={tint(view.tone ?? id)}
-      className={`item-tint relative size-full rounded-xl border border-dashed bg-(--item-wash) ${selected ? "border-accent" : "border-line-strong"}`}
+      className={`group/frame item-tint relative size-full rounded-xl border border-dashed bg-(--item-wash) ${border}`}
     >
       <Resizer id={id} visible={!!selected && !view.locked} minWidth={GRID * 6} minHeight={GRID * 4} />
+      {lod === "full" && (
+        // Out of the way until the frame is pointed at or the button has focus.
+        <button
+          type="button"
+          aria-label={`Collapse frame ${view.label}`}
+          onClick={() => toggleCollapsed(id)}
+          className="nodrag absolute top-1.5 right-1.5 grid size-7 place-items-center rounded-lg text-(--item-fg) opacity-0 transition-[opacity,background-color] group-hover/frame:opacity-100 hover:bg-surface-3 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          <ChevronsDownUp className="size-4" aria-hidden />
+        </button>
+      )}
       {editing ? (
         <InPlaceText
           label="Frame label"

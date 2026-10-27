@@ -53,6 +53,7 @@ const LABELS: Record<Command["type"], string> = {
   setPluginSettings: "Change save profile",
   setRate: "Change rate",
   setLocked: "Lock nodes",
+  setCollapsed: "Collapse frames",
   removeAndBridge: "Delete and bridge",
   setSettings: "Change settings",
   setRecipe: "Change recipe",
@@ -214,6 +215,20 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
         if (!edge) continue;
         if (command.logistics === null) delete edge.logistics;
         else edge.logistics = command.logistics;
+      }
+      return;
+    }
+    case "setCollapsed": {
+      for (const [index, id] of command.ids.entries()) {
+        const node = graph.nodes[id];
+        if (!node) return issue(["ids", index], `Unknown node ${id}`);
+        if (node.kind !== "frame") return issue(["ids", index], `${id} is not a frame`);
+      }
+      for (const id of command.ids) {
+        const node = graph.nodes[id];
+        if (node?.kind !== "frame") continue;
+        if (command.collapsed && !node.collapsed) node.collapsed = true;
+        else if (!command.collapsed && node.collapsed) delete node.collapsed;
       }
       return;
     }

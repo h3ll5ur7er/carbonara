@@ -87,6 +87,14 @@ export const Command = z.discriminatedUnion("type", [
   z
     .object({ type: z.literal("setLocked"), graph: GraphScope, ids: z.array(LocalId).min(1), locked: z.boolean() })
     .describe("Locks nodes in place (dragging, nudging and arranging leave them), or unlocks them."),
+  z
+    .object({
+      type: z.literal("setCollapsed"),
+      graph: GraphScope,
+      ids: z.array(LocalId).min(1),
+      collapsed: z.boolean(),
+    })
+    .describe("Folds frames to their label bar, hiding the nodes they hold on the canvas, or unfolds them."),
 ]);
 export type Command = z.infer<typeof Command>;
 export type CommandInput = z.input<typeof Command>;

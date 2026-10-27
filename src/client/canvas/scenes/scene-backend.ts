@@ -103,6 +103,14 @@ function apply(draft: Draft<Document>, command: Command, newId: () => string) {
         else delete position.locked;
       }
       return;
+    case "setCollapsed":
+      for (const id of command.ids) {
+        const node = graph.nodes[id];
+        if (node?.kind !== "frame") continue;
+        if (command.collapsed) node.collapsed = true;
+        else delete node.collapsed;
+      }
+      return;
     default:
       // Scenes only follow the edits that change what their canvas shows; the editing engine has the full rules.
       return;

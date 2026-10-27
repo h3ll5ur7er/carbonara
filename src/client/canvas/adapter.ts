@@ -67,6 +67,8 @@ export interface CanvasViewProps {
   onEditText(node: LocalId, text: string): void;
   /** A note or frame was resized (top-left corner and size, flow units). */
   onResize(node: LocalId, rect: { x: number; y: number; width: number; height: number }): void;
+  /** A frame's fold button was pressed: collapse it to its label bar, or expand it. */
+  onToggleCollapsed(frame: LocalId): void;
   /** Backspace on the canvas: delete the selection (and bridge, with Mod+Shift), as the Delete key's command does. */
   onDelete(bridge: boolean): void;
   /** A preview to draw over the scene (ghost/ghost.ts); its numbers are in `results` under ghost ids. */

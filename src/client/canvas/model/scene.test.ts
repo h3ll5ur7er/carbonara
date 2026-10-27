@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Graph } from "../../../contracts/document";
 import { PackData } from "../../../contracts/pack";
+import { COLLAPSED_FRAME_HEIGHT } from "./geometry";
 import { createSceneBuilder, handleId } from "./scene";
 
 const pack = PackData.parse({
@@ -108,6 +109,50 @@ describe("buildScene", () => {
     ]);
     const goal = turned.find((node) => node.id === "goal");
     expect(goal?.ports[0]).toMatchObject({ x: (goal?.width ?? 0) / 2, y: 0 });
+  });
+
+  it("folds a collapsed frame to its label bar, hides what it holds and draws their flows to the bar", () => {
+    const folded: Graph = {
+      ...graph,
+      nodes: { ...graph.nodes, area: { kind: "frame", label: "Smelting", collapsed: true } },
+    };
+    const layout = { ...positions, split: { x: 800, y: 0 }, goal: { x: 1000, y: 0 }, memo: { x: 0, y: 600 } };
+    const scene = createSceneBuilder()(folded, layout, pack);
+    const view = (id: string) => scene.nodes.find((node) => node.id === id);
+    expect(view("mine")?.hiddenBy).toBe("area");
+    expect(view("smelter")?.hiddenBy).toBe("area");
+    expect(view("split")?.hiddenBy).toBeUndefined();
+    expect(view("memo")?.hiddenBy).toBeUndefined();
+    expect(view("area")).toMatchObject({ kind: "frame", width: 600, height: COLLAPSED_FRAME_HEIGHT, members: 2 });
+    expect(view("area")?.ports.map((port) => [port.handle, port.side])).toEqual([
+      ["in", "left"],
+      ["out", "right"],
+    ]);
+    // The flow inside the frame is hidden; the one leaving it starts at the bar.
+    expect(scene.edges.map((edge) => [edge.id, edge.source, edge.sourceHandle, edge.target])).toEqual([
+      ["b", "area", "out", "split"],
+      ["c", "split", "out", "goal"],
+    ]);
+  });
+
+  it("hides a collapsed frame inside another along with the rest", () => {
+    const nested: Graph = {
+      nodes: {
+        outer: { kind: "frame", label: "Outer", collapsed: true },
+        inner: { kind: "frame", label: "Inner", collapsed: true },
+        mine: { kind: "source", item: "ore" },
+      },
+      edges: {},
+    };
+    const layout = {
+      outer: { x: 0, y: 0, width: 1000, height: 1000 },
+      inner: { x: 100, y: 100, width: 400, height: 400 },
+      mine: { x: 200, y: 200 },
+    };
+    const nodes = createSceneBuilder()(nested, layout, pack).nodes;
+    expect(nodes.find((node) => node.id === "inner")?.hiddenBy).toBe("outer");
+    expect(nodes.find((node) => node.id === "mine")?.hiddenBy).toBe("outer");
+    expect(nodes.find((node) => node.id === "outer")).toMatchObject({ members: 2 });
   });
 
   it("gives sources one output, sinks one input and junctions one of each", () => {

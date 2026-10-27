@@ -97,6 +97,7 @@ function FlowCanvas({
   onDelete,
   onEditText,
   onResize,
+  onToggleCollapsed,
   onViewSettled,
 }: CanvasViewProps) {
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
@@ -120,8 +121,16 @@ function FlowCanvas({
   const lod = useStore((state) => lodTier(state.transform[2]));
   const particles = useStore((state) => particlesShown(state.transform[2]));
   const context = useMemo(
-    () => ({ results, rateUnit, machineGroups, lod, editText: onEditText, resize: onResize }),
-    [results, rateUnit, machineGroups, lod, onEditText, onResize],
+    () => ({
+      results,
+      rateUnit,
+      machineGroups,
+      lod,
+      editText: onEditText,
+      resize: onResize,
+      toggleCollapsed: onToggleCollapsed,
+    }),
+    [results, rateUnit, machineGroups, lod, onEditText, onResize, onToggleCollapsed],
   );
 
   const store = useStoreApi<FlowNode, FlowEdgeType>();
@@ -368,7 +377,7 @@ function FlowCanvas({
       const shape = polygon.map((point) => screenToFlowPosition(point));
       const candidates = store
         .getState()
-        .nodes.filter((node) => node.type !== "frame")
+        .nodes.filter((node) => node.type !== "frame" && !node.hidden)
         .map((node) => ({ id: node.id, ...node.position, width: node.width ?? 0, height: node.height ?? 0 }));
       const chosen = new Set(insideLasso(candidates, shape));
       setNodes((current) =>
@@ -576,6 +585,8 @@ function toFlowNode(view: NodeView, previous?: FlowNode): FlowNode {
     data: { view },
     ...(view.kind === "frame" && { zIndex: -1 }),
     ...(view.locked && { draggable: false, className: "is-locked" }),
+    // Inside a collapsed frame: its flows run to the frame's bar (model/scene.ts, `fold`).
+    ...(view.hiddenBy && { hidden: true }),
     ...(previous?.selected && { selected: true }),
     ...(previous?.dragging && { dragging: true }),
   };

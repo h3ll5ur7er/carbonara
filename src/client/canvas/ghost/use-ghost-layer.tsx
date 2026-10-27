@@ -122,7 +122,7 @@ export function useGhostLayer({ ghost, onPlace, onCancel, reveal }: GhostLayerOp
         ? []
         : store
             .getState()
-            .nodes.filter((node) => !isGhost(node.id) && node.type !== "frame")
+            .nodes.filter((node) => !isGhost(node.id) && node.type !== "frame" && !node.hidden)
             .map(rectOf)
             .filter((rect) => intersects(rect, visible));
       const followed = followPointer(ghost.bounds, at, others, {

@@ -3,6 +3,7 @@
 import type { Graph, LocalId, Node, Position, TagColour } from "../../../contracts/document";
 import type { Id, Item, ItemForm, PackData, Recipe } from "../../../contracts/pack";
 import {
+  COLLAPSED_FRAME_HEIGHT,
   FRAME_SIZE,
   JUNCTION_SIZE,
   NOTE_SIZE,
@@ -45,6 +46,8 @@ interface NodeViewBase {
   locked?: true;
   /** The colour tag the user gave it. */
   tag?: TagColour;
+  /** Inside this collapsed frame: not drawn, its flows drawn to the frame's bar instead. */
+  hiddenBy?: LocalId;
 }
 
 export type NodeView = NodeViewBase &
@@ -54,7 +57,8 @@ export type NodeView = NodeViewBase &
     | { kind: "sink"; item: ItemView; targetPerSecond?: number }
     | { kind: "junction"; item?: ItemView }
     | { kind: "note"; text: string }
-    | { kind: "frame"; label: string; tone?: string }
+    /** `members`: collapsed to its label bar, hiding that many nodes. */
+    | { kind: "frame"; label: string; tone?: string; members?: number }
     /** Kinds the canvas does not draw yet (subgraph instances and ports). */
     | { kind: "placeholder"; label: string }
   );
@@ -148,17 +152,22 @@ export function createSceneBuilder() {
     }
     cache = next;
 
-    const views = new Map([...frames, ...others].map((view) => [view.id, view]));
+    const { nodes, hiddenBy } = fold([...frames, ...others], graph);
+    const views = new Map(nodes.map((view) => [view.id, view]));
     const edges: EdgeView[] = [];
     for (const [id, edge] of Object.entries(graph.edges)) {
-      const source = views.get(edge.from);
-      const target = views.get(edge.to);
-      const sourceHandle = source && portFor(source, "out", edge.item);
-      const targetHandle = target && portFor(target, "in", edge.item);
-      if (!sourceHandle || !targetHandle) continue;
-      edges.push({ id, source: edge.from, target: edge.to, sourceHandle, targetHandle, item: edge.item });
+      // A flow into or out of a collapsed frame's nodes runs to its bar; one within the frame isn't drawn.
+      const from = hiddenBy.get(edge.from);
+      const to = hiddenBy.get(edge.to);
+      if (from && from === to) continue;
+      const source = views.get(from ?? edge.from);
+      const target = views.get(to ?? edge.to);
+      const sourceHandle = from ? "out" : source && portFor(source, "out", edge.item);
+      const targetHandle = to ? "in" : target && portFor(target, "in", edge.item);
+      if (!source || !target || !sourceHandle || !targetHandle) continue;
+      edges.push({ id, source: source.id, target: target.id, sourceHandle, targetHandle, item: edge.item });
     }
-    return { nodes: [...frames, ...others], edges };
+    return { nodes, edges };
   };
 }
 
@@ -287,6 +296,55 @@ function nodeView(
         ports: [],
       };
   }
+}
+
+/**
+ * Collapsed frames folded to their label bar, with an input on its left end and an output on its right that the
+ * flows of the nodes it holds run to. A node is held by the largest collapsed frame larger than itself that its
+ * centre lies in (a frame inside another collapsed one is held too); held nodes stay in the scene, marked
+ * `hiddenBy`.
+ */
+function fold(views: NodeView[], graph: Graph): { nodes: NodeView[]; hiddenBy: Map<LocalId, LocalId> } {
+  const hiddenBy = new Map<LocalId, LocalId>();
+  const collapsed = views
+    .filter((view) => {
+      const node = graph.nodes[view.id];
+      return node?.kind === "frame" && node.collapsed;
+    })
+    .sort((a, b) => b.width * b.height - a.width * a.height);
+  if (collapsed.length === 0) return { nodes: views, hiddenBy };
+  for (const view of views) {
+    const x = view.position.x + view.width / 2;
+    const y = view.position.y + view.height / 2;
+    const frame = collapsed.find(
+      (candidate) =>
+        candidate.width * candidate.height > view.width * view.height &&
+        x >= candidate.position.x &&
+        x <= candidate.position.x + candidate.width &&
+        y >= candidate.position.y &&
+        y <= candidate.position.y + candidate.height,
+    );
+    if (frame) hiddenBy.set(view.id, frame.id);
+  }
+  const members = new Map<LocalId, number>();
+  for (const frame of hiddenBy.values()) members.set(frame, (members.get(frame) ?? 0) + 1);
+  const anyItem: ItemView = { id: "", name: "Any item", form: "solid" };
+  const nodes = views.map((view): NodeView => {
+    const frame = hiddenBy.get(view.id);
+    if (frame) return { ...view, hiddenBy: frame };
+    if (view.kind !== "frame" || !collapsed.includes(view)) return view;
+    const middle = COLLAPSED_FRAME_HEIGHT / 2;
+    return {
+      ...view,
+      height: COLLAPSED_FRAME_HEIGHT,
+      members: members.get(view.id) ?? 0,
+      ports: [
+        { ...port("in", anyItem, 0, middle), handle: "in" },
+        { ...port("out", anyItem, view.width, middle), handle: "out" },
+      ],
+    };
+  });
+  return { nodes, hiddenBy };
 }
 
 /** What the user set on the position besides where it is: a lock, a colour tag. */

@@ -118,6 +118,7 @@ function EmptyCanvas() {
       onDelete={ignore}
       onEditText={ignore}
       onResize={ignore}
+      onToggleCollapsed={ignore}
       onViewSettled={ignore}
       onViewCentre={setViewportCentre}
       onSelectionChange={ignore}
@@ -204,12 +205,19 @@ function DocumentCanvas({
 
   const onMoveNodes: CanvasViewProps["onMoveNodes"] = useCallback(
     (moved) => {
+      // A collapsed frame takes what it holds along, so they're still inside when it opens.
+      const carried = scene.nodes.flatMap((view) => {
+        const frame = view.hiddenBy && moved[view.hiddenBy];
+        const from = view.hiddenBy && layout?.[view.hiddenBy];
+        if (!frame || !from || moved[view.id]) return [];
+        return [[view.id, { x: view.position.x + frame.x - from.x, y: view.position.y + frame.y - from.y }] as const];
+      });
       const positions = Object.fromEntries(
-        Object.entries(moved).map(([id, point]) => [id, { ...layout?.[id as LocalId], ...point }]),
+        [...Object.entries(moved), ...carried].map(([id, point]) => [id, { ...layout?.[id as LocalId], ...point }]),
       );
       void apply([{ type: "moveNodes", graph, positions }], "Move");
     },
-    [apply, graph, layout],
+    [apply, graph, layout, scene],
   );
   const onConnect: CanvasViewProps["onConnect"] = useCallback(
     (edge) => void apply([{ type: "connect", graph, edge }], "Connect"),
@@ -270,6 +278,18 @@ function DocumentCanvas({
     (id, text) => {
       const kind = shown?.nodes[id]?.kind;
       void apply([{ type: "setText", graph, id, text }], kind === "frame" ? "Rename frame" : "Edit note");
+    },
+    [apply, graph, shown],
+  );
+  const onToggleCollapsed: CanvasViewProps["onToggleCollapsed"] = useCallback(
+    (id) => {
+      const node = shown?.nodes[id];
+      if (node?.kind !== "frame") return;
+      const collapsed = !node.collapsed;
+      void apply(
+        [{ type: "setCollapsed", graph, ids: [id], collapsed }],
+        collapsed ? "Collapse frame" : "Expand frame",
+      );
     },
     [apply, graph, shown],
   );
@@ -349,6 +369,7 @@ function DocumentCanvas({
           onDelete={onDelete}
           onEditText={onEditText}
           onResize={onResize}
+          onToggleCollapsed={onToggleCollapsed}
           onViewSettled={navigation.onViewSettled}
           ghost={ghostScene}
           {...(placeGhost && { onGhostPlace: placeGhost })}

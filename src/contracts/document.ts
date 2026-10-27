@@ -37,7 +37,15 @@ export const Node = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("instance"), blueprint: LocalId }),
   z.object({ kind: z.literal("port"), direction: z.enum(["in", "out"]), item: Id }).describe("A blueprint's boundary."),
   z.object({ kind: z.literal("note"), text: z.string() }),
-  z.object({ kind: z.literal("frame"), label: z.string(), tone: z.string().optional() }),
+  z.object({
+    kind: z.literal("frame"),
+    label: z.string(),
+    tone: z.string().optional(),
+    collapsed: z
+      .literal(true)
+      .optional()
+      .describe("Folded to its label bar: the canvas hides the nodes it holds and draws their flows to the bar."),
+  }),
 ]);
 export type Node = z.infer<typeof Node>;
 export type NodeKind = Node["kind"];

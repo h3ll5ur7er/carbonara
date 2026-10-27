@@ -131,6 +131,13 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),
       locked: fc.boolean(),
     }),
+    fc.record({
+      type: fc.constant("setCollapsed" as const),
+      graph,
+      // The frame, plus nodes the command must refuse.
+      ids: fc.uniqueArray(fc.constantFrom("area", ...pools.nodes.slice(0, 1)), { minLength: 1, maxLength: 2 }),
+      collapsed: fc.boolean(),
+    }),
   );
 }
 

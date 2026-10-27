@@ -398,6 +398,32 @@ describe("locking nodes", () => {
   });
 });
 
+describe("collapsing frames", () => {
+  it("folds a frame and unfolds it again", () => {
+    const { document: folded } = edit({ type: "setCollapsed", graph: "root", ids: ["area"], collapsed: true });
+    expect(folded.graph.nodes["area"]).toEqual({ kind: "frame", label: "Smelting", tone: "orange", collapsed: true });
+    const result = applyCommands(folded, [{ type: "setCollapsed", graph: "root", ids: ["area"], collapsed: false }]);
+    expect(result.ok && result.value.document.graph.nodes["area"]).toEqual({
+      kind: "frame",
+      label: "Smelting",
+      tone: "orange",
+    });
+  });
+
+  it("changes nothing when the frames already are as asked", () => {
+    expect(edit({ type: "setCollapsed", graph: "root", ids: ["area"], collapsed: false }).patches).toEqual([]);
+  });
+
+  it("rejects nodes that aren't frames", () => {
+    expect(rejection({ type: "setCollapsed", graph: "root", ids: ["ore"], collapsed: true })).toEqual([
+      { path: ["commands", 0, "ids", 0], message: "ore is not a frame" },
+    ]);
+    expect(rejection({ type: "setCollapsed", graph: "root", ids: ["ghost"], collapsed: true })).toEqual([
+      { path: ["commands", 0, "ids", 0], message: "Unknown node ghost" },
+    ]);
+  });
+});
+
 describe("setting fields and pins", () => {
   it("merges fields into a recipe node", () => {
     const { document: next, patches } = edit({
