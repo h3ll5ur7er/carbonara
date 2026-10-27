@@ -77,7 +77,16 @@ The zod schemas in [[src/contracts/pack.ts]] are the source of truth for the sha
 
 ## Reading a pack
 
-Whether it comes from a `.cpack` or an unpacked folder, a pack is a set of files, and one pure function decides whether they make a valid pack: `readPackFiles` in [[src/engines/packs/files.ts]]. It parses `manifest.yaml`, checks the plugin file exists, merges the files in `data/` in name order (arrays are concatenated; `units` may be defined in only one file), validates the result and checks every reference. Problems come back as issues whose path starts with the file name.
+Whether it comes from a `.cpack` or an unpacked folder, a pack is a set of files, and one pure function decides whether they make a valid pack: `readPackFiles` in [[src/engines/packs/files.ts]]. It parses `manifest.yaml`, checks the `engine` range, checks the plugin file exists, merges the files in `data/` in name order (arrays are concatenated; `units` may be defined in only one file; unknown top-level sections are refused), validates the result and checks every reference.
+
+Problems come back as issues whose path starts with the file name and that carry the YAML line and column ([[src/engines/packs/source.ts]] keeps each file's parsed document and `LineCounter`; JSON files go through the same parser). A map entry is located at its key; a missing field at the closest node that exists; a reference problem in the merged data (`recipes[12].in.coal`) at the file and entry it came from. `describeIssue` ([[src/utilities/issues.ts]]) writes an issue the way the app and the CLI show it:
+
+```
+data/recipes.yaml:7:11: recipes[0].in.coal: Unknown item 'coal'
+manifest.yaml:4:1: engine: Needs pack format ^2, but this version of Carbonara reads pack format 1.0.0
+```
+
+**Pack format.** `PACK_FORMAT` in [[src/engines/packs/format.ts]] is the pack format and plugin API version this build implements (now `1.0.0`). A manifest's `engine` range (`^1`, `~1.2`, `1.2.3`, npm semantics) must include it, or the pack is refused before its data is read. Bump the minor version for additive changes and the major for breaking ones. The broken fixture packs in [[src/engines/packs/broken-packs.test.ts]] pin the message for each kind of mistake; add one when you add a rule.
 
 ## Built-in and third-party packs
 
