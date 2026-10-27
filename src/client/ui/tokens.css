@@ -1,0 +1,177 @@
+/*
+ * Design tokens: every colour, size, radius, shadow and motion value the UI uses (see docs/Design.md, Tokens).
+ * Components use the Tailwind utilities generated from these (`bg-surface-2`, `text-fg-muted`, `rounded-md`),
+ * never raw values.
+ *
+ * Themes: dark is the default. Light applies with `data-theme="light"` on <html>, or with
+ * `prefers-color-scheme: light` when the user has made no explicit choice (no `data-theme`).
+ * Colours are written once as `light-dark(<light>, <dark>)`, so switching only sets `color-scheme`.
+ */
+
+/* ---------- Theme selection ---------- */
+
+:root {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* ---------- Runtime inputs ---------- */
+
+:root {
+  /* The pack accent. A game pack overrides it with its `theme.accent`, on <html> or on any subtree. */
+  --pack-accent: #f5a623;
+
+  /* Flow saturation: healthy, above 90% of capacity, over capacity or in deficit. */
+  --flow-healthy: light-dark(oklch(0.6 0.11 185), oklch(0.78 0.12 185));
+  --flow-near-capacity: light-dark(oklch(0.7 0.16 65), oklch(0.82 0.15 75));
+  --flow-over-capacity: light-dark(oklch(0.57 0.21 25), oklch(0.68 0.2 25));
+
+  --duration-instant: 80ms;
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --duration-slow: 360ms;
+}
+
+/* Colour-blind-safe flow palette (Okabe–Ito): blue, yellow, vermillion also differ in lightness. */
+:root[data-palette="colorblind"] {
+  --flow-healthy: light-dark(oklch(0.52 0.13 245), oklch(0.74 0.12 235));
+  --flow-near-capacity: light-dark(oklch(0.74 0.15 80), oklch(0.9 0.16 105));
+  --flow-over-capacity: light-dark(oklch(0.55 0.18 40), oklch(0.64 0.19 42));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 0ms;
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+}
+
+/* ---------- Static tokens ---------- */
+
+/* `static` emits every variable, so code outside Tailwind (React Flow props) can use them too. */
+@theme static {
+  /* No stock palette: only the colours below exist. */
+  --color-*: initial;
+
+  /* Surfaces, by elevation: the canvas at the bottom, then chrome, cards, overlays, pressed. */
+  --color-canvas: light-dark(oklch(0.968 0.004 255), oklch(0.165 0.008 260));
+  /* A soft pool of light in the middle of the canvas. */
+  --color-canvas-glow: light-dark(oklch(0.995 0.002 255), oklch(0.215 0.012 260));
+  --color-surface-1: light-dark(oklch(0.985 0.003 255), oklch(0.195 0.009 260));
+  --color-surface-2: light-dark(oklch(1 0 0), oklch(0.225 0.01 260));
+  --color-surface-3: light-dark(oklch(0.955 0.005 255), oklch(0.265 0.011 260));
+  --color-surface-4: light-dark(oklch(0.925 0.006 255), oklch(0.305 0.012 260));
+  /* Translucent panels over the canvas; pair with `backdrop-blur-glass`. */
+  --color-glass: light-dark(oklch(0.99 0.002 255 / 0.72), oklch(0.2 0.009 260 / 0.7));
+
+  /* Text and icons, from primary to disabled. */
+  --color-fg: light-dark(oklch(0.24 0.015 260), oklch(0.95 0.004 260));
+  --color-fg-muted: light-dark(oklch(0.44 0.015 260), oklch(0.76 0.01 260));
+  --color-fg-subtle: light-dark(oklch(0.56 0.014 260), oklch(0.6 0.012 260));
+  --color-fg-faint: light-dark(oklch(0.7 0.01 260), oklch(0.44 0.012 260));
+  /* Text on an accent fill. Pack accents are warm and light, so this is a dark ink. */
+  --color-on-accent: oklch(0.2 0.02 60);
+
+  /* Hairlines. */
+  --color-line-subtle: light-dark(oklch(0.3 0.02 260 / 0.07), oklch(1 0 0 / 0.06));
+  --color-line: light-dark(oklch(0.3 0.02 260 / 0.12), oklch(1 0 0 / 0.1));
+  --color-line-strong: light-dark(oklch(0.3 0.02 260 / 0.2), oklch(1 0 0 / 0.16));
+
+  /* The canvas dot grid: every dot, and every fourth one. */
+  --color-grid-dot: light-dark(oklch(0.35 0.03 260 / 0.22), oklch(0.8 0.02 260 / 0.17));
+  --color-grid-dot-major: light-dark(oklch(0.35 0.03 260 / 0.3), oklch(0.8 0.02 260 / 0.26));
+
+  /* Shadow tints, used by the shadows below. */
+  --color-shadow: light-dark(oklch(0.3 0.03 260 / 0.1), oklch(0 0 0 / 0.5));
+  --color-highlight: light-dark(oklch(1 0 0 / 0.9), oklch(1 0 0 / 0.06));
+
+  /* Typography. Inter for UI text; JetBrains Mono with tabular figures for every number. */
+  --font-*: initial;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans--font-feature-settings: "cv05", "cv08";
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-mono--font-feature-settings: "tnum", "zero";
+
+  /* A dense UI scale: 11, 12, 13, 14, 16, 20, 24, 32 px at the default root size. */
+  --text-*: initial;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.375rem;
+  --text-lg: 1rem;
+  --text-lg--line-height: 1.5rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 2.5rem;
+
+  /* Spacing: Tailwind's 4 px step (`p-3` is 12 px). */
+  --spacing: 0.25rem;
+
+  --radius-*: initial;
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Elevation: a top highlight, a hairline and a soft drop, growing with the level. */
+  --shadow-*: initial;
+  --shadow-sm: inset 0 1px 0 0 var(--color-highlight), 0 1px 2px 0 var(--color-shadow);
+  --shadow-panel:
+    inset 0 1px 0 0 var(--color-highlight), 0 0 0 1px var(--color-line-subtle), 0 8px 24px -12px var(--color-shadow);
+  --shadow-overlay:
+    inset 0 1px 0 0 var(--color-highlight), 0 0 0 1px var(--color-line), 0 24px 48px -16px var(--color-shadow);
+
+  --blur-*: initial;
+  --blur-glass: 20px;
+
+  /* Motion. Durations are `--duration-*` above (they drop to 0 for reduced motion). */
+  --ease-*: initial;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --default-transition-duration: var(--duration-fast);
+  --default-transition-timing-function: var(--ease-out);
+}
+
+/* ---------- Tokens that follow the runtime inputs ---------- */
+
+/* Resolved where they are used, so an accent or palette set on a subtree applies to it.
+ * Declared after the static tokens, whose `--color-*: initial` would otherwise remove them. */
+@theme inline {
+  --color-accent: var(--pack-accent);
+  --color-accent-hover: light-dark(
+    color-mix(in oklab, var(--pack-accent) 88%, black),
+    color-mix(in oklab, var(--pack-accent) 85%, white)
+  );
+  /* Accent as text or an icon on a neutral surface; darkened in light so it stays legible. */
+  --color-accent-fg: light-dark(color-mix(in oklab, var(--pack-accent) 62%, black), var(--pack-accent));
+  --color-accent-soft: color-mix(in oklab, var(--pack-accent) 16%, transparent);
+  --color-accent-glow: color-mix(in oklab, var(--pack-accent) 40%, transparent);
+  --drop-shadow-glow: 0 0 6px
+    light-dark(
+      color-mix(in oklab, var(--pack-accent) 25%, transparent),
+      color-mix(in oklab, var(--pack-accent) 40%, transparent)
+    );
+
+  --color-flow-healthy: var(--flow-healthy);
+  --color-flow-near-capacity: var(--flow-near-capacity);
+  --color-flow-over-capacity: var(--flow-over-capacity);
+}
