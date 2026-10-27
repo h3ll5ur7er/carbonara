@@ -84,9 +84,11 @@ test.describe("keyboard", () => {
     const select = page.getByRole("combobox", { name: "Recipe" });
     await select.focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("listbox")).toBeVisible();
+    // The list takes focus a moment after it opens; keys pressed before that are lost.
+    await expect(page.getByRole("option", { selected: true })).toBeFocused();
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("option", { name: "Iron Gear" })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(select).toHaveText("Iron Gear");
     await expect(select).toBeFocused();

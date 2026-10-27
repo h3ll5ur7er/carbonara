@@ -15,7 +15,8 @@ export default defineConfig({
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002, threshold: 0.05 } },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
   webServer: {
-    command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,
+    // Vite directly, not through pnpm: the e2e runs inside the Playwright image, which has no pnpm (scripts/e2e.mjs).
+    command: `node node_modules/vite/bin/vite.js --host 127.0.0.1 --port ${port} --strictPort`,
     url,
     reuseExistingServer: !process.env.CI,
   },
