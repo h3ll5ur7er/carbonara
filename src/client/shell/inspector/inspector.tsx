@@ -1,6 +1,6 @@
 // The inspector: the selected node and the settings its pack's plugin declares, as field descriptors.
 // It knows nothing about documents; edits leave through `onFieldEdit` (see `applyFieldEdit` for the wiring).
-import { Factory, MousePointerClick } from "lucide-react";
+import { CircleAlert, Factory, MousePointerClick, TriangleAlert } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import type { FieldDescriptor, FieldValue } from "../../../contracts/plugin";
 import { NumberInput } from "../../ui/number-input";
@@ -19,6 +19,10 @@ export interface InspectedNode {
   production?: Production | undefined;
   fields: Record<string, FieldDescriptor>;
   values: Record<string, FieldValue>;
+  /** What the pack's plugin derived after the solve, formatted: "Power use", "13.4 MW". */
+  metrics?: { label: string; value: string }[] | undefined;
+  /** Warnings and errors about this node, from the compiler and the pack's plugin. */
+  problems?: { kind: "error" | "warning"; message: string }[] | undefined;
 }
 
 export interface InspectorProps {
@@ -43,9 +47,11 @@ export function Inspector({ node, onFieldEdit, onProductionEdit }: InspectorProp
           {node.subtitle && <p className="truncate text-xs text-fg-subtle">{node.subtitle}</p>}
         </div>
       </div>
+      {node.problems && node.problems.length > 0 && <Problems problems={node.problems} />}
       {node.production && (
         <ProductionSection production={node.production} onEdit={(value) => onProductionEdit?.(value)} />
       )}
+      {node.metrics && node.metrics.length > 0 && <Metrics metrics={node.metrics} />}
       <section aria-label="Settings" className="flex flex-col gap-4 border-t border-line-subtle px-4 pt-3.5 pb-5">
         <h4 className="text-2xs font-medium tracking-wide text-fg-faint uppercase">Settings</h4>
         {fields.length === 0 && (
@@ -137,6 +143,42 @@ function Field({
         </Row>
       );
   }
+}
+
+function Problems({ problems }: { problems: NonNullable<InspectedNode["problems"]> }) {
+  return (
+    <ul aria-label="Problems" className="flex flex-col gap-1.5 px-4 pb-3.5">
+      {problems.map((problem, index) => {
+        const Icon = problem.kind === "error" ? CircleAlert : TriangleAlert;
+        return (
+          <li key={index} className="flex items-start gap-2 text-xs text-fg-muted">
+            <Icon
+              className={`mt-px size-3.5 shrink-0 ${problem.kind === "error" ? "text-danger" : "text-flow-near-capacity"}`}
+              aria-label={problem.kind === "error" ? "Error" : "Warning"}
+            />
+            <span>{problem.message}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** What the pack's plugin derived after the solve, such as power. */
+function Metrics({ metrics }: { metrics: NonNullable<InspectedNode["metrics"]> }) {
+  return (
+    <section aria-label="Metrics" className="flex flex-col gap-1.5 border-t border-line-subtle px-4 pt-3.5 pb-4">
+      <h4 className="text-2xs font-medium tracking-wide text-fg-faint uppercase">Metrics</h4>
+      <dl className="flex flex-col gap-1">
+        {metrics.map((metric) => (
+          <div key={metric.label} className="flex min-h-6 items-center justify-between gap-3 text-sm">
+            <dt className="truncate text-fg-muted">{metric.label}</dt>
+            <dd className="font-mono text-fg tabular-nums">{metric.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
 }
 
 /** What an empty production value means, by kind. */

@@ -6,6 +6,7 @@ import type { OpenDocument } from "./access";
 import type { Patch } from "./patches";
 import type { Issue } from "./issues";
 import type { PackData, PackManifest } from "./pack";
+import type { PluginDescription } from "./plugin";
 import type { AnalysisResults } from "./results";
 import type { Result } from "./result";
 
@@ -97,6 +98,10 @@ export const managers = {
       description: "List the installed game packs.",
     }),
     getPackData: method<PackData>()(z.object({ packId: z.string().min(1) })),
+    /** The pack plugin's node fields, document settings and metrics under a document's `settings.plugin`. */
+    describePlugin: method<PluginDescription>()(
+      z.object({ packId: z.string().min(1), settings: z.record(z.string(), z.unknown()).default({}) }),
+    ),
     inspectPack: method<PackInspection>()(z.object({ bytes: z.instanceof(Uint8Array) })),
     installPack: method<Result<PackInfo>>()(z.object({ bytes: z.instanceof(Uint8Array) })),
     removePack: method<undefined>()(z.object({ packId: z.string().min(1) })),

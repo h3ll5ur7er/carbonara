@@ -33,7 +33,7 @@ describe("the pack library", () => {
     expect(await packs.list()).toEqual([builtIn.info]);
     const loaded = await packs.get("works");
     expect(loaded?.info).toEqual(builtIn.info);
-    expect(loaded?.plugin.id).toBe("works-core");
+    expect(loaded?.plugin?.id).toBe("works-core");
     expect(loaded?.data.items[0]?.id).toBe("ore");
   });
 
@@ -57,7 +57,7 @@ describe("the pack library", () => {
     await library(storage).install(thirdParty("kept"));
     const reopened = library(storage);
     expect((await reopened.list()).map((info) => info.manifest.id)).toEqual(["works", "kept"]);
-    expect((await reopened.get("kept"))?.plugin.id).toBe("kept-plugin");
+    expect((await reopened.get("kept"))?.plugin?.id).toBe("kept-plugin");
   });
 
   it("replaces an installed pack with a new version", async () => {
@@ -66,18 +66,18 @@ describe("the pack library", () => {
     await packs.install({ ...thirdParty("aaa", `export default { id: "second" };`), hash: "d".repeat(64) });
     expect((await packs.list()).filter((info) => info.manifest.id === "aaa")).toHaveLength(1);
     expect((await packs.get("aaa"))?.info.hash).toBe("d".repeat(64));
-    expect((await packs.get("aaa"))?.plugin.id).toBe("second");
+    expect((await packs.get("aaa"))?.plugin?.id).toBe("second");
   });
 
   it("lets an installed pack stand in for the built-in with its id until it's removed", async () => {
     const packs = library();
     await packs.install(thirdParty("works"));
     expect(await packs.list()).toMatchObject([{ manifest: { id: "works" }, builtIn: false }]);
-    expect((await packs.get("works"))?.plugin.id).toBe("works-plugin");
+    expect((await packs.get("works"))?.plugin?.id).toBe("works-plugin");
 
     expect(await packs.remove("works")).toBe(true);
     expect(await packs.list()).toEqual([builtIn.info]);
-    expect((await packs.get("works"))?.plugin.id).toBe("works-core");
+    expect((await packs.get("works"))?.plugin?.id).toBe("works-core");
   });
 
   it("removes installed packs but not built-in ones", async () => {

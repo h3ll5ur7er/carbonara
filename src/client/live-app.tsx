@@ -8,6 +8,7 @@ import { appRegistry } from "./shell/app-commands";
 import { AppShell, EmptyState } from "./shell/app-shell";
 import { inspectNode, productionEdit } from "./shell/inspector/inspect";
 import type { InspectorPanelProps } from "./shell/inspector/inspector-panel";
+import { usePluginDescription } from "./shell/inspector/plugin-description";
 import { useConnector } from "./core/connector";
 import { useActiveDocument, useModels, useWorkspace, type ActiveDocument } from "./core/models";
 import { createDocumentActions, setDocumentActions } from "./features/documents/actions";
@@ -104,18 +105,19 @@ function useInspected(
   { info, document, packData, results }: ActiveDocument,
   selection: { documentId: string; nodeIds: string[] } | null,
 ): InspectorPanelProps["selection"] {
+  const plugin = usePluginDescription(info?.packId, document?.settings.plugin);
   return useMemo(() => {
     const nodeId =
       selection?.documentId === info?.id && selection?.nodeIds.length === 1 ? selection.nodeIds[0] : undefined;
     if (!nodeId || !info || !document || !packData) return null;
-    const node = inspectNode({ document, pack: packData, results, nodeId });
+    const node = inspectNode({ document, pack: packData, results, nodeId, plugin });
     if (!node) return null;
     return {
       target: { documentId: info.id, nodeId },
       node,
       productionEdit: (value) => productionEdit(document, packData, nodeId, value),
     };
-  }, [selection, info, document, packData, results]);
+  }, [selection, info, document, packData, results, plugin]);
 }
 
 /** Opens the document of a share link the page was opened with, then removes it from the address bar. */
