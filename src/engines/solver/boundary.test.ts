@@ -107,7 +107,7 @@ describe("the solver's WebAssembly boundary", () => {
     }
   });
 
-  it("solves instances of blueprints", async () => {
+  it("solves instances of blueprints and expands their insides", async () => {
     // The chain's smelter as a blueprint (ore port → smelter pinned to 2 machines → ingot port), placed once.
     const placed: Model = {
       items: 2,
@@ -146,6 +146,9 @@ describe("the solver's WebAssembly boundary", () => {
       expect(around.value.activity[1]).toBeCloseTo(3, 9);
       expect(rounded(around.value.instances?.[0]?.ports)).toEqual([3, 3]);
       expect(solver.lastSummarised()).toBe(1);
+      const inside = solver.expand(placed, 0);
+      if (!inside.ok) throw new Error("expected a solution");
+      expect(rounded(inside.value.activity)).toEqual([3, 6, 3]);
     } finally {
       solver.dispose();
     }

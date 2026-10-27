@@ -88,7 +88,17 @@ export const managers = {
     redo: method<DocumentInfo>()(documentRef),
   },
   analysis: {
+    /**
+     * The latest results of a graph: `root`, or a blueprint id for the inside of all its instances together
+     * (the blueprint as designed when it has none). Blueprints are solved only when asked for.
+     */
     getResults: method<AnalysisResults | null>()(documentRef.extend({ graph: z.string().default("root") })),
+    /**
+     * While a blueprint graph is watched, every solve of its document publishes its results with
+     * `resultsChanged` too (the root graph's always are). Watches count: each needs its `unwatchResults`.
+     */
+    watchResults: method<undefined>()(documentRef.extend({ graph: z.string().min(1) })),
+    unwatchResults: method<undefined>()(documentRef.extend({ graph: z.string().min(1) })),
   },
   packs: {
     listPacks: method<PackInfo[]>()(none, {

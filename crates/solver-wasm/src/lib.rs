@@ -48,6 +48,12 @@ impl Solver {
         outcome(self.0.solve(&model))
     }
 
+    /// The inside of a blueprint's instances in the model, for the boundary flows they get there.
+    pub fn expand(&mut self, model: JsValue, blueprint: u32) -> Result<JsValue, JsError> {
+        let model: Model = serde_wasm_bindgen::from_value(model)?;
+        outcome(self.0.expand(&model, blueprint))
+    }
+
     /// Components the last solve had to solve (the others came from the cache).
     #[wasm_bindgen(js_name = lastSolved)]
     pub fn last_solved(&self) -> usize {

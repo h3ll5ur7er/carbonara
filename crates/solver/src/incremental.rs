@@ -6,8 +6,8 @@ use crate::decompose::{Component, components, merge};
 use crate::fingerprint::fingerprint;
 use crate::ir::{Model, Solution};
 use crate::program::{Backend, MicroLp};
-use crate::subgraphs::{Summaries, flatten};
-use crate::{SolveError, solve_flat, validate};
+use crate::subgraphs::{Summaries, expansion, flatten};
+use crate::{InvalidModel, SolveError, solve_flat, validate};
 use std::collections::HashMap;
 
 type Cache = HashMap<u64, (Model, Solution)>;
@@ -67,6 +67,26 @@ impl<B: Backend> Solver<B> {
             solve_components(&flat.model, &self.backend, &mut self.cache)?;
         self.cache = used;
         Ok((flat.solution(&solution), (solved, reused, summarised)))
+    }
+
+    /// The inside of a blueprint's instances, for the boundary flows they get in the model's solution
+    /// (docs/Architecture/Subgraphs.md, "Expand"). Reuses the model's cached solution and summaries, and
+    /// leaves the counts of the last solve alone.
+    pub fn expand(&mut self, model: &Model, blueprint: u32) -> Result<Solution, SolveError> {
+        let (around, _) = self.solve_counting(model)?;
+        if blueprint as usize >= model.blueprints.len() {
+            let problem = format!("expand: no blueprint {blueprint}");
+            return Err(SolveError::Invalid(InvalidModel(problem)));
+        }
+        let inside = expansion(model, &around, blueprint);
+        let flat = flatten(
+            &inside,
+            inside.graph(),
+            &mut self.summaries.context(&self.backend),
+        )?;
+        self.summaries.take_computed();
+        let (solution, ..) = solve_components(&flat.model, &self.backend, &mut Cache::new())?;
+        Ok(flat.solution(&solution))
     }
 
     /// Components the last solve had to solve.

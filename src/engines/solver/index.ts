@@ -42,6 +42,12 @@ export async function solve(model: Model): Promise<SolveResult> {
 export interface IncrementalSolver {
   /** Throws on inconsistent models, which are compiler bugs. */
   solve(model: Model): SolveResult;
+  /**
+   * The inside of the instances of `model.blueprints[blueprint]`, solved for the boundary flows they get
+   * in the model's solution (all instances together; the blueprint as designed when it has none). Indices
+   * are the blueprint's. Reuses the model's cached solution.
+   */
+  expand(model: Model, blueprint: number): SolveResult;
   /** Components the last solve had to solve; the others came from the cache. */
   lastSolved(): number;
   /** Blueprint summaries the last solve had to compute; the others came from the cache. */
@@ -55,6 +61,7 @@ export async function createSolver(): Promise<IncrementalSolver> {
   const solver = new Solver();
   return {
     solve: (model) => solver.solve(model) as SolveResult,
+    expand: (model, blueprint) => solver.expand(model, blueprint) as SolveResult,
     lastSolved: () => solver.lastSolved(),
     lastSummarised: () => solver.lastSummarised(),
     dispose: () => solver.free(),

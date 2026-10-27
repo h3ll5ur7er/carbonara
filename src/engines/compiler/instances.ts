@@ -189,6 +189,15 @@ export function compileWithBlueprints(
   };
 }
 
+/** A blueprint of a compiled document by id, with its index in the model. */
+export function findBlueprint(compiled: Compiled, graph: LocalId): { index: number; compiled: Compiled } | undefined {
+  const blueprints = compiled.blueprints ?? [];
+  const index = blueprints.findIndex((blueprint) => blueprint.graph === graph);
+  const found = blueprints[index];
+  // Nested instances in the blueprint's results look their blueprints up in the document's.
+  return found && { index, compiled: { ...found, blueprints } };
+}
+
 /** What an instance takes in and gives out through its ports, by item. */
 export function addBoundaryFlows(
   info: NodeInfo,

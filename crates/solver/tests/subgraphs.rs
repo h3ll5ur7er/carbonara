@@ -464,6 +464,81 @@ mod several_ways_of_running {
     }
 }
 
+mod expanding {
+    use super::*;
+
+    fn expanded(model: &Model, blueprint: u32) -> Solution {
+        match Solver::new(MicroLp).expand(model, blueprint) {
+            Ok(solution) => solution,
+            Err(error) => panic!("expected a solution, got {error:?}"),
+        }
+    }
+
+    #[test]
+    fn an_instances_inside_is_solved_for_its_boundary_flows() {
+        let solution = expanded(&placing(designed(2.0), 3.0), 0);
+        assert_all_close(&solution.activity, &[3.0, 6.0, 3.0]);
+        assert!(solution.pin_misses.is_empty() && solution.deficit.is_empty());
+    }
+
+    #[test]
+    fn expanding_reuses_the_solution_around_and_leaves_its_counts_alone() {
+        let model = placing(designed(2.0), 3.0);
+        let mut solver = Solver::new(MicroLp);
+        assert!(solver.solve(&model).is_ok());
+        assert_eq!((solver.last_solved(), solver.last_summarised()), (1, 1));
+        assert!(solver.expand(&model, 0).is_ok());
+        assert_eq!((solver.last_solved(), solver.last_summarised()), (1, 1));
+        assert_eq!((solver.cached(), solver.cached_summaries()), (1, 1));
+    }
+
+    #[test]
+    fn a_blueprint_without_instances_is_solved_as_designed() {
+        let mut model = placing(designed(2.0), 3.0);
+        model.blueprints.push(designed(4.0));
+        let solution = expanded(&model, 1);
+        assert_all_close(&solution.activity, &[2.0, 4.0, 2.0]);
+    }
+
+    #[test]
+    fn the_inside_of_several_instances_is_their_sum() {
+        let mut model = placing(designed(2.0), 3.0);
+        model.nodes.extend([instance(0), pinned(sink(INGOT), 1.0)]);
+        model
+            .edges
+            .extend([into_port(0, 3, ORE, 0), out_of_port(3, 4, INGOT, 1)]);
+        let solution = expanded(&model, 0);
+        assert_all_close(&solution.activity, &[4.0, 8.0, 4.0]);
+    }
+
+    #[test]
+    fn a_belt_inside_is_checked_when_the_blueprint_is_expanded() {
+        // The parent plans around the blueprint without its belt limits; the inside reports them.
+        let mut blueprint = designed(2.0);
+        blueprint.edges[1].capacity = Some(2.0);
+        let model = placing(blueprint, 3.0);
+        assert!(solved(&model).overflow.is_empty());
+        let inside = expanded(&model, 0);
+        assert_eq!(inside.overflow.len(), 1);
+        assert_eq!(inside.overflow[0].edge, 1);
+        assert_close(inside.overflow[0].per_second, 1.0);
+    }
+
+    #[test]
+    fn nested_blueprints_expand_through_their_parents() {
+        let outer = Blueprint {
+            nodes: vec![port_in(ORE), instance(1), port_out(INGOT)],
+            edges: vec![into_port(0, 1, ORE, 0), out_of_port(1, 2, INGOT, 1)],
+            constraints: vec![],
+            ports: vec![0, 2],
+        };
+        let mut model = placing(outer, 2.0);
+        model.blueprints.push(designed(1.0));
+        assert_all_close(&expanded(&model, 0).activity, &[2.0, 4.0, 2.0]);
+        assert_all_close(&expanded(&model, 1).activity, &[2.0, 4.0, 2.0]);
+    }
+}
+
 proptest! {
     #![proptest_config(ProptestConfig {
         max_global_rejects: 1_000_000,
@@ -533,6 +608,18 @@ proptest! {
         let (a, b) = (scores(&model, &original), scores(&bigger_model, &bigger));
         for (tier, (a, b)) in ["pin misses", "deficit", "cost", "surplus"].iter().zip(a.iter().zip(&b)) {
             prop_assert!((a * factor - b).abs() <= 1e-5 * (1.0 + b.abs()), "{tier}: {a} × {factor} ≠ {b}");
+        }
+    }
+
+    #[test]
+    fn an_expanded_instance_agrees_with_the_graph_around_it(blueprint in blueprint(), targets in targets()) {
+        let model = placed(&blueprint, &targets);
+        let mut solver = Solver::new(MicroLp);
+        let around = solver.solve(&model).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+        let inside = solver.expand(&model, 0).map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+        for (p, &port) in blueprint.ports.iter().enumerate() {
+            let (a, b) = (inside.activity[port as usize], around.instances[0].ports[p]);
+            prop_assert!((a - b).abs() <= 1e-5 * (1.0 + b.abs()), "port {p}: {a} inside, {b} around");
         }
     }
 }

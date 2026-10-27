@@ -4,6 +4,7 @@ import { definePlugin } from "../../contracts/plugin";
 import { ok } from "../../contracts/result";
 import type { Solution } from "../../contracts/solver";
 import { compile } from "./compile";
+import { findBlueprint } from "./instances";
 import { toResults } from "./results";
 import { platesModule, templatePack } from "./template.fixture";
 
@@ -159,5 +160,36 @@ describe("mapping instances back to the document", () => {
           "Pin machines inside it to fix their ratios, and it compiles into a macro recipe.",
       },
     ]);
+  });
+});
+
+describe("mapping a blueprint's inside back to its graph", () => {
+  it("finds a blueprint by id with its index in the model", () => {
+    const compiled = compile({ document: platesModule(), pack, plugin: noPlugin });
+    expect(findBlueprint(compiled, "plates")?.index).toBe(0);
+    expect(findBlueprint(compiled, "root")).toBeUndefined();
+  });
+
+  it("names the blueprint's own nodes and edges", () => {
+    const compiled = compile({ document: platesModule(), pack, plugin: noPlugin });
+    const plates = findBlueprint(compiled, "plates");
+    if (!plates) throw new Error("expected the blueprint");
+    // What expanding the instance answers: in, out, smelt.
+    const inside: Solution = {
+      activity: [2, 2, 6],
+      flow: [2, 2],
+      surplus: [],
+      deficit: [],
+      overflow: [{ edge: 0, perSecond: 1 }],
+      pinMisses: [],
+    };
+    const results = toResults(plates.compiled, ok(inside), noPlugin, 4);
+    expect([results.graph, results.version]).toEqual(["plates", 4]);
+    expect(results.nodes.smelt?.activity).toBe(6);
+    expect(results.nodes.in).toEqual({ activity: 2, inputs: {}, outputs: { "clean-ferrite": 2 } });
+    expect(results.edges["in-smelt"]).toEqual({ perSecond: 2, capacity: 15 });
+    expect(results.diagnostics).toEqual([{ kind: "overflow", edge: "in-smelt", perSecond: 1 }]);
+    // Ports aren't raw inputs: they come from outside the blueprint.
+    expect(results.totals).toEqual({ raw: {}, buildings: { furnace: 6 } });
   });
 });

@@ -2,13 +2,16 @@
 //! by the boundary flows it can produce: one macro recipe when it runs in one way only, a few modes the
 //! LP around it combines, or nothing (it is inlined) when it can run in too many independent ways.
 //! Summaries are cached by the blueprint's closure, so all instances of a blueprint share one and an edit
-//! of one blueprint recomputes only its own.
+//! of one blueprint recomputes only its own. Top-down, a blueprint's inside is solved for the boundary
+//! flows its instances got (`expansion`).
 
 mod closure;
+mod expand;
 mod flatten;
 mod hull;
 mod summary;
 
+pub use expand::expansion;
 pub use flatten::{Flat, flatten};
 
 use crate::SolveError;

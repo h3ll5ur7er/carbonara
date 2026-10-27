@@ -40,7 +40,13 @@ Blueprints placed inside blueprints are summarised first; their summary is part 
 
 ## Expand (top-down, lazy)
 
-When you open an instance, its internal LP is solved with the boundary flows fixed to the values from the parent solution. That's cheap, and it only happens for what is on screen ([[CARB-38]]).
+A blueprint's inside is solved for the boundary flows its instances got: its body as a model, with its port nodes pinned to the instances' flows and its pins times their scale ([[crates/solver/src/subgraphs/expand.rs]]). Pins are soft, so if the inside can't match, the misses say why; belt overflow inside shows here.
+
+- `analysis.getResults({ documentId, graph: <blueprint id> })` returns the inside of **all instances of that blueprint together**: flows and scales summed (nested instances included), limits multiplied by the number of instances. With one instance, the usual case, that is exactly that instance. A blueprint without instances is solved as designed: its pins as they are, its ports open.
+- It is solved **lazily**: only when asked for, once per document version, reusing the solved model's cached components and summaries. Its results carry the document version they belong to.
+- **Watching.** `analysis.watchResults({ documentId, graph })` makes every solve of the document publish that blueprint's results with `resultsChanged` too, until `analysis.unwatchResults` with the same arguments. Watches count, so two views of one blueprint each watch and unwatch. Closing the document drops its watches. The root graph's results are always published; clients that show only the root ignore other graphs.
+
+Per-instance results (one instance of several) are not offered yet: when the UI needs them ([[CARB-39]]), `getResults` can take a path of instance ids.
 
 ## Results
 
@@ -53,6 +59,7 @@ In [[crates/solver/tests/subgraphs.rs]]:
 
 - **Compiled vs inlined:** for random blueprints (random bodies, ports, pins, limits; placed once, or inside another blueprint) with unlimited supply, summarised and inlined plans score the same in every objective tier. Plans that tie may route differently, so they are compared by score, not by flows.
 - **Scale invariance:** scaling a blueprint's pins and limits and its targets scales what every objective tier scores and keeps the instance's scale.
+- **Expansion:** an expanded instance's ports carry the flows the graph around gave it.
 - **Cache:** instances share one summary; an edit around them reuses it; editing one blueprint recomputes only its own.
 
 When the graph around can't supply an instance, a shortage can be explained in several places at the same cost (inside or around the instance), just as in a flat graph, and summarised and inlined plans may explain it differently.
