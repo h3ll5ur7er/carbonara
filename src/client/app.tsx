@@ -1,6 +1,11 @@
 // The app shell: top bar over a full-bleed canvas, with slots for the side panels.
+import { lazy, Suspense } from "react";
 import { Canvas } from "./canvas/canvas";
 import { TopBar } from "./top-bar";
+
+/** Development only: `?scene=<name>` shows a canvas fixture scene (docs/Design.md, Visual QA). */
+const sceneName = import.meta.env.DEV ? new URLSearchParams(location.search).get("scene") : null;
+const SceneCanvas = import.meta.env.DEV ? lazy(() => import("./canvas/scenes/scene-canvas")) : null;
 
 export function App() {
   return (
@@ -8,9 +13,15 @@ export function App() {
       <TopBar />
       <main className="relative min-h-0 flex-1">
         <div className="canvas-backdrop absolute inset-0">
-          <Canvas />
+          {sceneName && SceneCanvas ? (
+            <Suspense>
+              <SceneCanvas name={sceneName} />
+            </Suspense>
+          ) : (
+            <Canvas />
+          )}
         </div>
-        <EmptyState />
+        {!sceneName && <EmptyState />}
         {/* Side panel slots, collapsed until panels exist. */}
         <aside aria-label="Left panel" className="absolute inset-y-3 left-3 hidden" />
         <aside aria-label="Right panel" className="absolute inset-y-3 right-3 hidden" />
