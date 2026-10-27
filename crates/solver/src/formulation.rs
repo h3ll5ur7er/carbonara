@@ -167,6 +167,8 @@ pub fn formulate(model: &Model) -> Formulation {
             );
             pins.push((n as u32, pin));
             misses.extend([(above, 1.0), (below, 1.0)]);
+            // A pin is what users change most: re-solving for a new one can start from the last solve.
+            program.parameters.push(program.rows.len() - 1);
         }
     }
 

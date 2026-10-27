@@ -1,7 +1,8 @@
 //! Times solving a model natively, warm (one LP for all tiers) against cold (one LP per tier).
-//! `cargo run --release --example profile -- model.json [rounds]`, with a model the compiler built (as
-//! JSON). Also times validating it and re-solving it with every component cached.
-use carbonara_solver::ir::Model;
+//! `cargo run --release --example profile -- model.json [rounds] [edited.json]`, with a model the compiler
+//! built (as JSON). Also times validating it and re-solving it with every component cached; with a second
+//! model (the first after an edit), it times edits back and forth as the WebAssembly `Solver` gets them.
+use carbonara_solver::ir::{Model, ModelChanges};
 use carbonara_solver::program::{Backend, BackendError, MicroLp, Program, Var};
 use carbonara_solver::solve_whole;
 use std::time::Instant;
@@ -27,17 +28,15 @@ fn time(backend: &impl Backend, model: &Model) -> f64 {
     start.elapsed().as_secs_f64() * 1e3
 }
 
+fn read(path: &str) -> Option<Model> {
+    let text = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
 fn main() {
-    let Some(path) = std::env::args().nth(1) else {
-        eprintln!("usage: profile <model.json>");
+    let Some(model) = std::env::args().nth(1).as_deref().and_then(read) else {
+        eprintln!("usage: profile <model.json> [rounds] [edited.json]");
         return;
-    };
-    let model: Model = match std::fs::read_to_string(path).map(|text| serde_json::from_str(&text)) {
-        Ok(Ok(model)) => model,
-        _ => {
-            eprintln!("not a model");
-            return;
-        }
     };
     let rounds: usize = std::env::args()
         .nth(2)
@@ -62,4 +61,34 @@ fn main() {
             start.elapsed().as_secs_f64() * 1e3
         );
     }
+    let Some(edited) = std::env::args().nth(3).as_deref().and_then(read) else {
+        return;
+    };
+    let mut solver = carbonara_solver::Solver::new(MicroLp);
+    let _ = solver.solve_changes(ModelChanges::between(&Model::default(), &model));
+    let (mut edits, mut unchanged) = (Vec::new(), Vec::new());
+    for round in 0..rounds.max(1) * 2 {
+        let (from, to) = if round % 2 == 0 {
+            (&model, &edited)
+        } else {
+            (&edited, &model)
+        };
+        let changes = ModelChanges::between(from, to);
+        let start = Instant::now();
+        let _ = solver.solve_changes(changes);
+        edits.push(start.elapsed().as_secs_f64() * 1e3);
+        let start = Instant::now();
+        let _ = solver.solve_changes(ModelChanges::between(to, to));
+        unchanged.push(start.elapsed().as_secs_f64() * 1e3);
+    }
+    let median = |times: &mut Vec<f64>| {
+        times.sort_by(f64::total_cmp);
+        times[times.len() / 2]
+    };
+    println!(
+        "edits: {:.1} ms (median, {} components re-solved), no change: {:.1} ms",
+        median(&mut edits),
+        solver.last_solved(),
+        median(&mut unchanged)
+    );
 }

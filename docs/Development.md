@@ -28,7 +28,7 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 | `pnpm typecheck` | TypeScript only |
 | `pnpm test` / `pnpm test:watch` | Vitest unit and property tests |
 | `pnpm e2e` | Playwright end-to-end and screenshot tests, inside the pinned Playwright Docker image (starts the dev server itself) |
-| `E2E_PERF=1 pnpm e2e` | Only the canvas frame-budget tests (`e2e/*perf.spec.ts`), which the normal run leaves out because they depend on machine load |
+| `E2E_PERF=1 pnpm e2e` | Only the canvas frame-budget tests (`e2e/*perf.spec.ts`), which the normal run leaves out because they depend on machine load. CI runs them, with `pnpm bench`, in the blocking job *Performance budgets* |
 | `pnpm e2e:host` | The same tests on this machine's browser — quicker to start, but screenshots may differ from the baselines |
 | `pnpm format` / `pnpm format:check` | Prettier |
 | `pnpm schema` | Regenerates the JSON Schemas in `schemas/` from the zod contracts |
@@ -36,7 +36,7 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 | `pnpm carbonara-pack <command>` | The pack CLI: `new`, `validate` (which also type-checks the plugin), `build`, `dev`, `import` ([[Guides/Pack authoring]], [[Architecture/Game-packs#Authoring]]) |
 | `pnpm pack:build <folder> [--out dist/packs]` | Bundles a pack folder's plugin and zips it into `<out>/<id>-<version>.cpack` |
 | `pnpm pack:import <pack> <file>… [--icons <folder>]…` | Regenerates a pack's data and icons with its plugin's importer |
-| `pnpm bench` | Edit → results timings on generated 500 / 1k / 10k / 50k-node factories, with the WebAssembly module as built (`pnpm build:wasm` builds release). Exits with 1 when a budget from [[Architecture/Solver]] is exceeded |
+| `pnpm bench` | Edit → results timings on generated 500 / 1k / 10k / 50k-node factories, with the WebAssembly module as built (`pnpm build:wasm` builds release). Exits with 1 when a budget from [[Architecture/Solver]] is exceeded; `pnpm bench 10k` runs only the scenarios whose name contains "10k" |
 | `pnpm desktop:dev` / `pnpm desktop:build` | The desktop app with hot reload, or its installers ([[#Desktop]]) |
 | `pnpm tauri <command>` | The Tauri CLI, run in `src/shells/tauri` |
 | `cargo test` | Rust tests (solver; the MCP server, with scripted MCP clients over HTTP and stdio); the desktop shell is left out, see [[#Desktop]] |

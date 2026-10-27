@@ -1,17 +1,16 @@
-// The perf scene: 1,000 nodes and 800 flows, 200 copies of a five-node copper line (ore → plate → wire →
-// junction → output) in a 10 × 20 grid. Loads vary per line so every flow colour and width appears.
+// The perf scenes: copies of a five-node copper line (ore → plate → wire → junction → output) in a grid.
+// `perf` has 1,000 nodes and 800 flows (200 lines, 10 × 20); `perf-50k` has 50,000 nodes (10,000 lines,
+// 100 × 100), the size of the megafactory in bench/. Loads vary per line so every flow colour and width appears.
 import type { SceneNode, SceneSpec } from "./build";
 
-const LINES_PER_ROW = 10;
-const ROWS = 20;
 const LINE_WIDTH = 1728;
 const ROW_HEIGHT = 240;
 /** Copper furnaces per line; 21 runs the ore belt near capacity, 25 over it. */
 const FURNACES = [3, 6, 12, 21, 25];
 
-function line(index: number, nodes: Record<string, SceneNode>, edges: SceneSpec["edges"]) {
-  const x = (index % LINES_PER_ROW) * LINE_WIDTH;
-  const y = Math.floor(index / LINES_PER_ROW) * ROW_HEIGHT;
+function line(index: number, perRow: number, nodes: Record<string, SceneNode>, edges: SceneSpec["edges"]) {
+  const x = (index % perRow) * LINE_WIDTH;
+  const y = Math.floor(index / perRow) * ROW_HEIGHT;
   const furnaces = FURNACES[index % FURNACES.length] ?? 1;
   const ore = (furnaces * 2) / 3;
   const plates = furnaces / 3;
@@ -37,11 +36,14 @@ function line(index: number, nodes: Record<string, SceneNode>, edges: SceneSpec[
   edges[id("e-out")] = { from: id("split"), to: id("out"), item: "copper-wire", logistics: belt, perSecond: wire };
 }
 
-function build(): SceneSpec {
+function build(name: string, perRow: number, rows: number): SceneSpec {
   const nodes: Record<string, SceneNode> = {};
   const edges: SceneSpec["edges"] = {};
-  for (let index = 0; index < LINES_PER_ROW * ROWS; index++) line(index, nodes, edges);
-  return { name: "perf", rateUnit: "per_minute", nodes, edges };
+  for (let index = 0; index < perRow * rows; index++) line(index, perRow, nodes, edges);
+  return { name, rateUnit: "per_minute", nodes, edges };
 }
 
-export const perf: SceneSpec = build();
+export const perf: SceneSpec = build("perf", 10, 20);
+
+/** Built when first shown: 50,000 nodes take a while. */
+export const perf50k = (): SceneSpec => build("perf-50k", 100, 100);

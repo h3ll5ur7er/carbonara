@@ -65,9 +65,9 @@ jobs:
   bench:
     name: Performance budgets
     runs-on: ubuntu-latest
-    # The budgets from docs/Architecture/Solver.md aren't met yet (see CARB-12): the job reports the
-    # numbers and fails, but doesn't block. Remove this line once they are met.
-    continue-on-error: true
+    # Blocking: a budget from docs/Architecture/Solver.md or docs/Design.md (Performance) that no longer
+    # holds fails the build (CARB-73). Both steps print their numbers.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup # builds the WebAssembly module in release mode

@@ -1,9 +1,11 @@
 // Analysis manager: the use case "a document changed → solve it → tell the clients". It sequences the
 // documents and packs stores, the compiler and the solver; the rules live in those engines.
-// Each document gets its own incremental solver, so an edit re-solves only the components it touched.
+// Each document gets its own compiler and incremental solver, so an edit recompiles only the nodes it touched and
+// re-solves only the components they belong to.
 // Blueprint graphs are solved lazily: when asked for, or after every solve while someone watches them.
-import type { CompiledModel, DocumentStore, PackStore } from "../contracts/access";
+import type { CompiledModel, DocumentCompiler, DocumentStore, LoadedPack, PackStore } from "../contracts/access";
 import type { Events, ManagerImplementation } from "../contracts/managers";
+import type { Patch } from "../contracts/patches";
 import type { AnalysisResults } from "../contracts/results";
 import { runtimeOf } from "../engines/compiler";
 import { createSolver, type IncrementalSolver } from "../engines/solver";
@@ -16,6 +18,10 @@ export interface AnalysisDependencies {
 }
 
 interface DocumentState {
+  /** The pack's compiler for this document, while the pack stays the same. */
+  compiler?: { pack: LoadedPack; compiler: DocumentCompiler };
+  /** The version compiled last, and the patches since, while every change since came with its patches. */
+  patched?: { version: number; patches: Patch[] } | undefined;
   solver?: IncrementalSolver;
   results?: AnalysisResults;
   /** What the latest results were solved from, for blueprint graphs asked for later. */
@@ -79,7 +85,10 @@ export function createAnalysisManager({ bus, documents, packs }: AnalysisDepende
         unsolved(documentId, version, "root", `The pack "${document.pack.id}" isn't installed`),
       );
     // Built-in plugins compile right here; third-party ones in their sandbox, in one round trip.
-    const compiled = await runtimeOf(pack).compile(document);
+    if (state.compiler?.pack !== pack) state.compiler = { pack, compiler: runtimeOf(pack).compiler() };
+    const patches = state.patched?.version === version ? state.patched.patches : undefined;
+    state.patched = { version, patches: [] };
+    const compiled = await state.compiler.compiler.compile(document, patches);
     state.solver ??= await createSolver();
     const results = await compiled.results(state.solver.solve(compiled.model), version);
     state.solved = { version, compiled };
@@ -130,7 +139,14 @@ export function createAnalysisManager({ bus, documents, packs }: AnalysisDepende
     states.delete(documentId);
   }
 
-  bus.subscribe("documentChanged", ({ documentId }) => void schedule(documentId));
+  bus.subscribe("documentChanged", ({ documentId, version, patches }) => {
+    const state = states.get(documentId);
+    // Patches tell the compiler what changed, as long as none are missing.
+    if (state?.patched?.version === version - 1)
+      state.patched = { version, patches: [...state.patched.patches, ...patches] };
+    else if (state) state.patched = undefined;
+    void schedule(documentId);
+  });
   bus.subscribe("documentsChanged", ({ documents: open }) => {
     const ids = new Set(open.map((info) => info.id));
     for (const documentId of states.keys()) if (!ids.has(documentId)) forget(documentId);

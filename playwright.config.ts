@@ -7,7 +7,7 @@ const url = `http://127.0.0.1:${port}`;
 export default defineConfig({
   testDir: "e2e",
   // Frame-time budgets depend on how busy the machine is, so they run on their own (`E2E_PERF=1`), in the
-  // non-blocking "Performance budgets" CI job, rather than holding up every e2e run.
+  // "Performance budgets" CI job, rather than holding up every e2e run.
   ...(process.env.E2E_PERF ? { testMatch: /perf\.spec\.ts$/ } : { testIgnore: /perf\.spec\.ts$/ }),
   snapshotPathTemplate: "e2e/__screenshots__/{testFilePath}/{arg}{ext}",
   fullyParallel: true,

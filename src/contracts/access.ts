@@ -1,5 +1,6 @@
 // What managers need from the access components that more than one manager uses.
 // Each access component implements its interface; managers get it injected by the composition root.
+import type { Patch } from "./patches";
 import type { Document } from "./document";
 import type { DocumentInfo, PackInfo, Proposal, ProposalStatus, RecentDocument } from "./managers";
 import type { Id, PackData } from "./pack";
@@ -49,12 +50,25 @@ export type LoadedPack = { info: PackInfo; data: PackData } & (
 export interface PluginRuntime {
   /** Compiles the document into the solver IR (one round trip when the plugin is isolated). */
   compile(document: Document): Promise<CompiledModel>;
+  /**
+   * Compiles one document's versions one after another: each compile, and each mapping of its results, redoes
+   * only what changed since the one before (docs/Architecture/Solver.md, Performance). Keep one per document.
+   */
+  compiler(): DocumentCompiler;
   /** The plugin's fields, settings and metrics under these document settings (`settings.plugin`). */
   describe(settings: Record<string, unknown>): Promise<PluginDescription>;
   /** The recipes the plugin's `recipeAvailable` rules out under these document settings, defaults filled in. */
   unavailableRecipes(settings: Record<string, unknown>): Promise<Id[]>;
   /** Stops an isolated plugin; the runtime can't be used afterwards. */
   dispose?(): void;
+}
+
+export interface DocumentCompiler {
+  /**
+   * `patches`, when given, turn the document of the last compile into this one, and the compiler looks only at
+   * what they touch. Without them, it compares the whole document with the last one.
+   */
+  compile(document: Document, patches?: Patch[]): Promise<CompiledModel>;
 }
 
 export interface CompiledModel {

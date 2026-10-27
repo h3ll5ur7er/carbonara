@@ -9,17 +9,26 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 pub fn fingerprint(model: &Model, extra: &[u32]) -> u64 {
     let mut hasher = DefaultHasher::new();
     model.items.hash(&mut hasher);
-    graph(model.graph(), &mut hasher);
+    graph(model.graph(), &mut hasher, true);
     model.blueprints.len().hash(&mut hasher);
     for blueprint in &model.blueprints {
-        graph(blueprint.graph(), &mut hasher);
+        graph(blueprint.graph(), &mut hasher, true);
         blueprint.ports.hash(&mut hasher);
     }
     extra.hash(&mut hasher);
     hasher.finish()
 }
 
-fn graph(graph: Graph, hasher: &mut DefaultHasher) {
+/// A hash of a flat model's shape: everything but the values of its pins (which nodes have one counts).
+/// Models of one shape make LPs that differ only in right-hand sides, so one can start from the other.
+pub fn shape(model: &Model) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    model.items.hash(&mut hasher);
+    graph(model.graph(), &mut hasher, false);
+    hasher.finish()
+}
+
+fn graph(graph: Graph, hasher: &mut DefaultHasher, pins: bool) {
     let number = |value: f64, hasher: &mut DefaultHasher| value.to_bits().hash(hasher);
     graph.nodes.len().hash(hasher);
     for node in graph.nodes {
@@ -30,7 +39,9 @@ fn graph(graph: Graph, hasher: &mut DefaultHasher) {
             number(rate.per_second, hasher);
         }
         node.max.map(f64::to_bits).hash(hasher);
-        node.pin.map(f64::to_bits).hash(hasher);
+        node.pin
+            .map(|pin| if pins { pin.to_bits() } else { 0 })
+            .hash(hasher);
         number(node.cost, hasher);
         node.blueprint.hash(hasher);
     }

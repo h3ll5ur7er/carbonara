@@ -46,7 +46,7 @@ export async function isolatePlugin(
     return fail([{ path: ["plugin/index.js"], message: error instanceof Error ? error.message : String(error) }]);
   }
 
-  return ok({
+  const runtime: PluginRuntime = {
     async compile(document) {
       const sandbox = await started();
       const answer = (await sandbox.call({ call: "compile", document })) as CompileAnswer;
@@ -78,6 +78,10 @@ export async function isolatePlugin(
         },
       };
     },
+    compiler() {
+      // The sandbox compiles each version from scratch: the whole document crosses into it anyway.
+      return { compile: (document) => runtime.compile(document) };
+    },
     async describe(settings) {
       return (await (await started()).call({ call: "describe", settings })) as PluginDescription;
     },
@@ -90,7 +94,8 @@ export async function isolatePlugin(
       void running?.then((connection) => connection.stop());
       running = undefined;
     },
-  });
+  };
+  return ok(runtime);
 }
 
 function strings(value: unknown): value is string[] {

@@ -1,5 +1,6 @@
 // The solver IR, generated from crates/solver/src/ir.rs by `cargo test`. Edit the Rust types, not these.
 export type { Blueprint as ModelBlueprint } from "./ir/Blueprint";
+export type { Changes } from "./ir/Changes";
 export type { Comparison } from "./ir/Comparison";
 export type { Constraint } from "./ir/Constraint";
 export type { Edge as ModelEdge } from "./ir/Edge";
@@ -7,11 +8,13 @@ export type { EdgeSlack } from "./ir/EdgeSlack";
 export type { Inlined } from "./ir/Inlined";
 export type { InstanceSolution } from "./ir/InstanceSolution";
 export type { Model } from "./ir/Model";
+export type { ModelChanges } from "./ir/ModelChanges";
 export type { Node as ModelNode } from "./ir/Node";
 export type { NodeKind as ModelNodeKind } from "./ir/NodeKind";
 export type { NodeSlack } from "./ir/NodeSlack";
 export type { PortSlack } from "./ir/PortSlack";
 export type { Rate } from "./ir/Rate";
 export type { Solution } from "./ir/Solution";
+export type { SolutionChanges } from "./ir/SolutionChanges";
 export type { Term } from "./ir/Term";
 export type { Unsolvable } from "./ir/Unsolvable";

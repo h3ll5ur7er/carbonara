@@ -7,7 +7,8 @@ import type { Events } from "../contracts/managers";
 import type { AnalysisResults } from "../contracts/results";
 import { compile } from "../engines/compiler";
 import { platesModule, templatePack, waterLoop } from "../engines/compiler/template.fixture";
-import { applyCommands } from "../engines/editing/commands";
+import { copyNodes, pasteCommands } from "../engines/editing/clipboard";
+import { applyCommands, type ResolvedCommand } from "../engines/editing/commands";
 import { loadSolver } from "../engines/solver";
 import { createEventBus } from "../utilities/events";
 import { createAnalysisManager } from "./analysis";
@@ -70,10 +71,23 @@ function setUp(packs = [template]) {
   const analysis = createAnalysisManager({ bus, documents, packs: memoryPacks(packs) });
   const published: AnalysisResults[] = [];
   bus.subscribe("resultsChanged", (results) => published.push(results));
-  /** What the editing manager does: store the document, then announce the change. */
+  /** What the editing manager does: store the document, then announce the change (here: all of it). */
   const edit = (document: Document) => {
     const { version } = documents.put(document);
-    bus.publish("documentChanged", { documentId: document.id, version, patches: [] });
+    bus.publish("documentChanged", {
+      documentId: document.id,
+      version,
+      patches: [{ op: "replace", path: [], value: document }],
+    });
+  };
+  /** Commands applied as the editing manager applies them, announced with the patches they make. */
+  const command = (documentId: string, commands: ResolvedCommand[]) => {
+    const open = documents.get(documentId);
+    if (!open) throw new Error("not open");
+    const applied = applyCommands(open.document, commands);
+    if (!applied.ok) throw new Error(JSON.stringify(applied.error));
+    const { version } = documents.put(applied.value.document);
+    bus.publish("documentChanged", { documentId, version, patches: applied.value.patches });
   };
   const nextResults = () =>
     new Promise<AnalysisResults>((resolve) => {
@@ -82,7 +96,17 @@ function setUp(packs = [template]) {
         resolve(results);
       });
     });
-  return { bus, documents, analysis, published, edit, nextResults };
+  return { bus, documents, analysis, published, edit, command, nextResults };
+}
+
+/** Every number to 12 significant digits. */
+function rounded(value: unknown): unknown {
+  if (typeof value === "number") return Number(value.toPrecision(12));
+  if (Array.isArray(value)) return value.map(rounded);
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, rounded(inner)]));
+  }
+  return value;
 }
 
 function withTarget(perSecond: number): Document {
@@ -119,6 +143,48 @@ describe("the analysis manager", () => {
     expect(diagnostics).toEqual([
       { kind: "surplus", node: "purify", item: "sludge", perSecond: expect.closeTo(0.125, 9) },
     ]);
+  });
+
+  it("follows edits by their patches, with the results a fresh solve of each version gets", async () => {
+    const { edit, command, documents, analysis } = setUp();
+    edit(waterLoop());
+    await analysis.getResults({ documentId: "doc-water", graph: "root" });
+    let pasted = 0;
+    // A paste, as the editing manager makes one: new nodes and flows, and their layout.
+    const paste = (document: Document): ResolvedCommand[] => {
+      const copied = copyNodes(document, "root", ["plates", "wash"]);
+      if (!copied.ok) throw new Error(JSON.stringify(copied.error));
+      const options = { offset: { x: 400, y: 0 }, connections: true };
+      const made = pasteCommands(document, "root", copied.value, options, () => `pasted${pasted++}`);
+      if (!made.ok) throw new Error(JSON.stringify(made.error));
+      return made.value.commands;
+    };
+    const edits: (ResolvedCommand[] | typeof paste)[] = [
+      [{ type: "setPin", graph: "root", id: "smelt", pin: { type: "machines", count: 2 } }],
+      [{ type: "setRate", graph: "root", id: "plates", perSecond: 2 }],
+      [{ type: "removeNodes", graph: "root", ids: ["purify"] }],
+      [{ type: "setPin", graph: "root", id: "smelt", pin: null }],
+      // Blueprints made, renamed, edited inside and dissolved: patches under `blueprints/…`.
+      [{ type: "collapse", graph: "root", ids: ["smelt", "wash"], blueprint: "cell", instance: "cell1", name: "Cell" }],
+      [{ type: "renameBlueprint", blueprint: "cell", name: "Smelting cell" }],
+      [{ type: "setPin", graph: "cell", id: "smelt", pin: { type: "machines", count: 4 } }],
+      [{ type: "setRate", graph: "root", id: "plates", perSecond: 1.5 }],
+      [{ type: "expand", graph: "root", id: "cell1" }],
+      [{ type: "setRate", graph: "root", id: "plates", perSecond: 3 }],
+      paste,
+      [{ type: "setRate", graph: "root", id: "plates", perSecond: 1 }],
+    ];
+    for (const step of edits) {
+      const current = documents.get("doc-water")?.document as Document;
+      command("doc-water", typeof step === "function" ? step(current) : step);
+      const followed = await analysis.getResults({ documentId: "doc-water", graph: "root" });
+      // Another manager, which sees each version whole.
+      const fresh = setUp();
+      fresh.edit(documents.get("doc-water")?.document as Document);
+      const expected = await fresh.analysis.getResults({ documentId: "doc-water", graph: "root" });
+      // The solver re-solves from its last solve, so the last bits may differ.
+      expect(rounded(followed)).toEqual(rounded({ ...expected, version: followed?.version }));
+    }
   });
 
   it("drops results that a newer edit made stale", async () => {

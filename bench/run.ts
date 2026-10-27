@@ -1,10 +1,12 @@
-// `pnpm bench`: measures edit → results (compile, incremental solve, map back) on generated factories,
-// with the release WebAssembly build, and checks the budgets from docs/Architecture/Solver.md.
-// Exits with 1 when a budget is exceeded.
+// `pnpm bench`: measures edit → results (compile, incremental solve, map back) on generated factories the way the
+// analysis manager does it (one compiler and one incremental solver per document), with the release WebAssembly
+// build, and checks the budgets from docs/Architecture/Solver.md. Exits with 1 when a budget is exceeded.
+// `pnpm bench 10k` runs only the scenarios whose name contains "10k".
 import { readFileSync } from "node:fs";
 import templatePlugin from "../packs/_template/plugin/index";
 import type { Document } from "../src/contracts/document";
-import { compile, toResults } from "../src/engines/compiler";
+import type { DocumentCompiler } from "../src/contracts/access";
+import { localRuntime } from "../src/engines/compiler";
 import { templatePack } from "../src/engines/compiler/template.fixture";
 import { createSolver, loadSolver, type IncrementalSolver } from "../src/engines/solver";
 import {
@@ -12,16 +14,18 @@ import {
   editBlueprint,
   editMotor,
   editTarget,
+  addSink,
   expandedNodes,
   generateFactory,
   generateSubgraphFactory,
+  type Edited,
 } from "./factories";
 
 interface Scenario {
   name: string;
   factory: Document;
-  /** The document after the nth edit. */
-  edit: (edit: number) => Document;
+  /** The nth edit, made to the document after the edit before it. */
+  edit: (document: Document, edit: number) => Edited;
   /** Components each edit re-solves. */
   resolves: number;
   /** Median edit → results, in milliseconds. */
@@ -37,7 +41,7 @@ function flat(name: string, lines: number, nodesPerLine: number, edits: number, 
   return {
     name,
     factory,
-    edit: (edit) => editMotor(factory, line, cell, edit),
+    edit: (document, edit) => editMotor(document, line, cell, edit),
     resolves: 1,
     edits,
     ...(budget !== undefined && { budget }),
@@ -51,7 +55,7 @@ function subgraphs(name: string, lines: number, cells: number, edits: number, bu
   return {
     name,
     factory,
-    edit: (edit) => editTarget(factory, line, cell, edit),
+    edit: (document, edit) => editTarget(document, line, cell, edit),
     resolves: 1,
     edits,
     ...(budget !== undefined && { budget }),
@@ -62,6 +66,11 @@ const builtFromSubgraphs = subgraphs("50k-node factory built from subgraphs, 100
 
 const SCENARIOS: Scenario[] = [
   flat("500-node component", 1, 500, 30, 100),
+  {
+    // A pin edit starts from the component's last LP; this one changes the LP's shape, so it can't.
+    ...flat("the same, adding a sink", 1, 500, 15),
+    edit: (document, edit) => addSink(document, 0, Math.floor(cellsFor(500) / 2), edit),
+  },
   flat("1k-node factory, 2 components", 2, 500, 30),
   flat("10k-node flat graph, 20 components", 20, 500, 20, 150),
   flat("50k-node flat graph, 100 components", 100, 500, 10),
@@ -70,7 +79,7 @@ const SCENARIOS: Scenario[] = [
     // Every instance's summary changes, so every line re-solves: measured, not budgeted.
     factory: builtFromSubgraphs.factory,
     name: "the same, editing the blueprint",
-    edit: (edit) => editBlueprint(builtFromSubgraphs.factory, edit),
+    edit: editBlueprint,
     resolves: 100,
     edits: 5,
   },
@@ -90,19 +99,24 @@ interface Timing {
   cpu: number;
 }
 
-function analyse(document: Document, solver: IncrementalSolver, version: number): Timing {
+/** What the analysis manager does for an edit: compile with the document's compiler, solve, map back. */
+async function analyse(
+  { document, patches }: Edited,
+  compiler: DocumentCompiler,
+  solver: IncrementalSolver,
+  version: number,
+): Promise<Timing> {
   const start = performance.now();
   const cpuAtStart = process.cpuUsage();
-  const compiled = compile({ document, pack, plugin });
-  if (compiled.diagnostics.length > 0) {
-    throw new Error(`The generated factory doesn't compile: ${JSON.stringify(compiled.diagnostics[0])}`);
-  }
+  const compiled = await compiler.compile(document, patches);
   const compiledAt = performance.now();
   const outcome = solver.solve(compiled.model);
   if (!outcome.ok) throw new Error(`The generated factory is ${outcome.error}`);
   const solvedAt = performance.now();
-  toResults(compiled, outcome, plugin, version);
+  const results = await compiled.results(outcome, version);
   const end = performance.now();
+  const error = results.diagnostics.find((diagnostic) => diagnostic.kind === "error");
+  if (error) throw new Error(`The generated factory doesn't compile: ${JSON.stringify(error)}`);
   const { user, system } = process.cpuUsage(cpuAtStart);
   const cpu = (user + system) / 1000;
   return { compile: compiledAt - start, solve: solvedAt - compiledAt, map: end - solvedAt, total: end - start, cpu };
@@ -118,10 +132,14 @@ const ms = (value: number) => `${value.toFixed(1)} ms`;
 async function measure(scenario: Scenario) {
   const solver = await createSolver();
   try {
-    const cold = analyse(scenario.factory, solver, 1).total;
+    const compiler = localRuntime(pack, plugin).compiler();
+    let document = scenario.factory;
+    const cold = (await analyse({ document, patches: [] }, compiler, solver, 1)).total;
     const timings: Timing[] = [];
     for (let edit = 1; edit <= scenario.edits; edit++) {
-      timings.push(analyse(scenario.edit(edit), solver, edit + 1));
+      const next = scenario.edit(document, edit);
+      document = next.document;
+      timings.push(await analyse(next, compiler, solver, edit + 1));
       if (solver.lastSolved() !== scenario.resolves) {
         throw new Error(`An edit re-solved ${solver.lastSolved()} components, not ${scenario.resolves}`);
       }
@@ -146,7 +164,8 @@ let exceeded = false;
 console.log(
   "scenario | nodes | first solve | edit → results median | p95 | CPU median | compile / solve / map | budget",
 );
-for (const scenario of SCENARIOS) {
+const only = process.argv[2];
+for (const scenario of SCENARIOS.filter(({ name }) => only === undefined || name.includes(only))) {
   const result = await measure(scenario);
   const over = scenario.budget !== undefined && result.median > scenario.budget;
   exceeded ||= over;

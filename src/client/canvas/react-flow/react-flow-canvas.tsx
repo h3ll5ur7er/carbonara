@@ -49,6 +49,7 @@ import { SinkNode, SourceNode } from "./terminal-nodes";
 import { toPng, toSvg } from "html-to-image";
 import { imageFrame } from "../model/image-frame";
 import { withTag } from "./tag-badge";
+import { useGraphWindow } from "./graph-window";
 import { motionDurations, useMoveTween } from "./tween";
 import type { FlowEdge as FlowEdgeType, FlowNode } from "./types";
 
@@ -228,6 +229,15 @@ function FlowCanvas({
     [edges, insert.target],
   );
 
+  const graphWindow = useGraphWindow({
+    scene: shownScene,
+    nodes,
+    edges: shownEdges,
+    exporting,
+    padding: fitOptions(insets).padding ?? 0,
+  });
+  const { windowed } = graphWindow;
+
   const altHeld = useAltHeld();
   const onReconnect = useCallback(
     (old: FlowEdgeType, connection: Connection) => {
@@ -299,16 +309,22 @@ function FlowCanvas({
     if (width > 0) onViewSettled({ x, y, zoom }, { width, height });
   }, [reportCentre, store, onViewSettled]);
 
+  const { start: startWindow, fitTo, allNodes } = graphWindow;
+  const onInit = useCallback(() => {
+    startWindow(!initialViewport);
+    onMoveEnd();
+  }, [startWindow, initialViewport, onMoveEnd]);
+
   useEffect(() => {
     // Moves made here settle without React Flow saying so: report them, for back and forward.
     const settled = () => onMoveEnd();
     const fit = (nodes?: FlowNode[]) =>
       // The whole graph shows at most at 100%; a selection may be zoomed in on up to the canvas maximum.
-      void fitView({
-        ...fitOptions(insets),
-        ...(nodes && { nodes, maxZoom: MAX_ZOOM }),
-        duration: motionDuration(),
-      }).then(settled);
+      void (
+        windowed
+          ? fitTo(nodes, nodes ? MAX_ZOOM : 1, motionDuration())
+          : fitView({ ...fitOptions(insets), ...(nodes && { nodes, maxZoom: MAX_ZOOM }), duration: motionDuration() })
+      ).then(settled);
     setCanvasActions({
       zoomToFit: () => fit(),
       zoomToSelection: () => {
@@ -322,10 +338,13 @@ function FlowCanvas({
             node.selected === chosen.has(node.id) ? node : { ...node, selected: chosen.has(node.id) },
           ),
         );
-        const targets = store.getState().nodes.filter((node) => chosen.has(node.id));
+        const targets = (windowed ? allNodes() : store.getState().nodes).filter((node) => chosen.has(node.id));
         // Close enough to read the cards, never closer than real size.
         if (targets.length > 0) {
-          void fitView({ ...fitOptions(insets), nodes: targets, duration: motionDuration() }).then(settled);
+          const fitted = windowed
+            ? fitTo(targets, 1, motionDuration())
+            : fitView({ ...fitOptions(insets), nodes: targets, duration: motionDuration() });
+          void fitted.then(settled);
         }
       },
       image: async (format) => {
@@ -389,7 +408,7 @@ function FlowCanvas({
       },
     });
     return () => setCanvasActions(undefined);
-  }, [fitView, getNodesBounds, setViewport, screenToFlowPosition, insets, store, onMoveEnd]);
+  }, [fitView, fitTo, allNodes, windowed, getNodesBounds, setViewport, screenToFlowPosition, insets, store, onMoveEnd]);
 
   const onLasso = useCallback(
     (polygon: Point[], additive: boolean) => {
@@ -469,8 +488,8 @@ function FlowCanvas({
       >
         <LassoArea onLasso={onLasso}>
           <ReactFlow<FlowNode, FlowEdgeType>
-            nodes={ghostLayer.nodes.length > 0 ? [...nodes, ...ghostLayer.nodes] : nodes}
-            edges={ghostLayer.edges.length > 0 ? [...shownEdges, ...ghostLayer.edges] : shownEdges}
+            nodes={ghostLayer.nodes.length > 0 ? [...graphWindow.nodes, ...ghostLayer.nodes] : graphWindow.nodes}
+            edges={ghostLayer.edges.length > 0 ? [...graphWindow.edges, ...ghostLayer.edges] : graphWindow.edges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
@@ -498,7 +517,7 @@ function FlowCanvas({
             onConnectEnd={onConnectEnd}
             onNodeDoubleClick={onNodeDoubleClick}
             onSelectionChange={reportSelection}
-            onInit={onMoveEnd}
+            onInit={onInit}
             onMoveEnd={onMoveEnd}
             // Bottom centre is the one place the floating side panels never cover.
             attributionPosition="bottom-center"
@@ -509,9 +528,10 @@ function FlowCanvas({
             maxZoom={MAX_ZOOM}
             aria-label="Factory canvas"
             className={`lod-${lod} ${particles ? "" : "particles-off"} ${following ? "ghost-following" : ""}`}
-            // Culling pays off while part of the graph is on screen. At chip zoom most of it is, and mounting
-            // and unmounting chips at the screen edges on every pan frame costs more than drawing them all.
-            onlyRenderVisibleElements={lod !== "chip" && !exporting}
+            // Culling pays off while part of the graph is on screen. At chip zoom most of a graph that isn't
+            // windowed is, and mounting and unmounting chips at the screen edges on every pan frame costs more
+            // than drawing them all.
+            onlyRenderVisibleElements={(lod !== "chip" || windowed) && !exporting}
           >
             <Background
               id="minor"

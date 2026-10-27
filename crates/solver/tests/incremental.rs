@@ -3,7 +3,7 @@ mod common;
 
 use carbonara_solver::ir::*;
 use carbonara_solver::program::MicroLp;
-use carbonara_solver::{Solver, components, solve, solve_whole};
+use carbonara_solver::{SolveError, Solver, components, solve, solve_whole};
 use common::*;
 use proptest::prelude::*;
 
@@ -212,4 +212,101 @@ proptest! {
         prop_assert_eq!(solver.solve(&after), solve(&after));
         prop_assert!(solver.last_solved() <= components(&replacement).len());
     }
+
+    #[test]
+    fn re_solving_for_new_pins_from_the_last_solve_reaches_the_same_optimum(
+        factory in factory(),
+        pins in prop::collection::vec(prop::sample::select(vec![0.0, 0.25, 1.0, 2.0, 3.5, 7.0]), 10),
+    ) {
+        // The same factory, every pin moved: each component starts from its last LP.
+        let mut solver = Solver::new(MicroLp);
+        prop_assert!(solver.solve(&factory).is_ok());
+        let mut edited = factory.clone();
+        for (node, pin) in edited.nodes.iter_mut().zip(&pins) {
+            if node.pin.is_some() {
+                node.pin = Some(*pin);
+            }
+        }
+        let (Ok(warm), Ok(cold)) = (solver.solve(&edited), solve(&edited)) else {
+            return Err(TestCaseError::fail("expected solutions"));
+        };
+        let (a, b) = (objectives(&edited, &warm), objectives(&edited, &cold));
+        for tier in 0..5 {
+            prop_assert!((a[tier] - b[tier]).abs() <= 1e-6 * (1.0 + b[tier].abs()), "tier {tier}: {a:?} vs {b:?}");
+        }
+        // Met pins are met exactly, as from scratch.
+        for (index, node) in edited.nodes.iter().enumerate() {
+            let missed = |solution: &Solution| solution.pin_misses.iter().any(|miss| miss.node == index as u32);
+            if let (Some(pin), false) = (node.pin, missed(&cold)) {
+                prop_assert!(!missed(&warm), "node {index} misses its pin");
+                prop_assert!((warm.activity[index] - pin).abs() <= 1e-9 * (1.0 + pin));
+            }
+        }
+    }
+
+    #[test]
+    fn solving_changes_gives_what_solving_each_model_whole_gives(
+        parts in prop::collection::vec(factory(), 1..4),
+        edits in prop::collection::vec((any::<prop::sample::Index>(), prop::option::of(factory())), 1..5),
+        blueprint in blueprint(),
+        targets in targets(),
+    ) {
+        // Lines replaced, added and removed one after another, and a model with a blueprint between them.
+        let mut models = vec![side_by_side(&parts)];
+        let mut current = parts;
+        for (at, replacement) in edits {
+            let at = at.index(current.len());
+            match replacement {
+                Some(part) if at % 2 == 0 => current[at] = part,
+                Some(part) => current.push(part),
+                None if current.len() > 1 => { current.remove(at); }
+                None => {}
+            }
+            models.push(side_by_side(&current));
+        }
+        models.insert(models.len() / 2, placed(&blueprint, &targets));
+
+        let mut solver = Solver::new(MicroLp);
+        let (mut before, mut solution) = (Model::default(), Solution::default());
+        for model in models {
+            let changes = ModelChanges::between(&before, &model);
+            match (solver.solve_changes(changes), solve(&model)) {
+                (Ok(changes), Ok(expected)) => {
+                    prop_assert!(changes.apply(&mut solution).is_ok());
+                    prop_assert_eq!(&solution, &expected);
+                }
+                (Err(error), Err(expected)) => prop_assert_eq!(error, expected),
+                (got, expected) => prop_assert!(false, "{got:?} vs {expected:?}"),
+            }
+            before = model;
+        }
+    }
+}
+
+#[test]
+fn changes_that_dont_fit_leave_the_model_as_it_was() {
+    let mut solver = Solver::new(MicroLp);
+    let first = chain(1.0);
+    let Ok(sent) = solver.solve_changes(ModelChanges::between(&Model::default(), &first)) else {
+        panic!("expected a solution");
+    };
+    let mut solution = Solution::default();
+    assert!(sent.apply(&mut solution).is_ok());
+    // A node past the end, with a gap before it.
+    let mut broken = ModelChanges::between(&first, &first);
+    broken.nodes = Changes {
+        length: 5,
+        set: vec![(4, sink(1))],
+    };
+    assert!(matches!(
+        solver.solve_changes(broken),
+        Err(SolveError::Invalid(_))
+    ));
+    // Nothing changed, so nothing comes back.
+    let Ok(again) = solver.solve_changes(ModelChanges::between(&first, &first)) else {
+        panic!("expected a solution");
+    };
+    assert!(again.activity.set.is_empty() && again.flow.set.is_empty() && again.surplus.is_none());
+    assert!(again.apply(&mut solution).is_ok());
+    assert_eq!(Ok(solution), solve(&first));
 }

@@ -196,11 +196,14 @@ Large graphs stay smooth through three measures ([[CARB-18]]):
 | --- | --- |
 | Levels of detail | [[src/client/canvas/model/lod.ts]]: full cards from zoom 0.6, compact cards (building tile, title and machine count in large type) from 0.25, chips below (neutral blocks with the recipe's monogram; sources and sinks in their item's tint; red rings for trouble; frame labels grow so frames stay landmarks). One subscriber to the zoom for the whole canvas, so nodes re-render only when the tier changes. Every tier keeps the same size and ports, so edges never move |
 | Culling | React Flow's `onlyRenderVisibleElements` while zoomed in. At chip zoom most of the graph is on screen, and mounting and unmounting chips at the screen edges on every pan frame cost more than drawing them all, so culling is off there. Nodes carry their known size as `measured`, so culled nodes still count when fitting |
+| Windowing large graphs | Above 2,000 nodes React Flow gets only the window around the view ([[src/client/canvas/model/window.ts]]): the nodes within half a view of it, both ends of every flow crossing it, and whatever is selected or dragged. A grid of buckets over the nodes and flows finds them; the window moves only when the view leaves it (or is a sixteenth of it, after zooming in). React Flow scans every node it has on every pan frame (culling, its selection listener), so this is what keeps a 50,000-node graph as cheap to pan as a 1,000-node one. Culling stays on at chip zoom there. Fitting the whole graph or a far node reads every node itself; picture export draws all of them |
 | Results outside React | Per-slot results (see Nodes, How the canvas is built); particles stop when zoomed out |
+
+**Chips of a large graph are the limit.** At chip zoom a 50,000-node graph puts thousands of nodes on screen, and each is a React component with DOM elements and a store subscription: 2,400 of them cost 160–220 ms a frame whether culled (they mount and unmount at the edges) or not. Drawing that tier on one canvas instead of as nodes is [[CARB-100]].
 
 Tried and dropped: promoting the viewport to its own compositor layer while panning (`will-change: transform`). It halved the compact tier's frame time but made the overview much worse, because culling invalidated the layer every frame, and without culling at the overview it gained nothing.
 
-**The perf harness** (`e2e/canvas-perf.spec.ts`, scene `perf`: 1,000 nodes, 800 flows) pans through React Flow's real input path once per animation frame and reads the main thread's CPU time per frame from Chrome (`ThreadTime`). That is the stable measure: frame intervals on a shared machine mostly measure the other processes. Under 16.7 ms the main thread can hold 60 fps (raster and compositing run on other threads). CI runs it against the dev server, keeps the best of three runs (on a shared machine the fastest run is the closest to the code's own cost), with budgets of 16.7 ms for full and compact cards and 25 ms for the whole graph on screen.
+**The perf harness** (`e2e/canvas-perf.spec.ts`, scene `perf`: 1,000 nodes, 800 flows; scene `perf-50k`: 50,000 nodes, 40,000 flows) pans through React Flow's real input path once per animation frame and reads the main thread's CPU time per frame from Chrome (`ThreadTime`). That is the stable measure: frame intervals on a shared machine mostly measure the other processes. Under 16.7 ms the main thread can hold 60 fps (raster and compositing run on other threads). CI runs it against the dev server, keeps the best of three runs (on a shared machine the fastest run is the closest to the code's own cost), with budgets of 16.7 ms for full and compact cards and 25 ms for the whole graph on screen. The 50,000-node scene is held to the card budgets.
 
 Measured on a 4-vCPU cloud VM with software rendering, main-thread ms per frame:
 
@@ -209,6 +212,9 @@ Measured on a 4-vCPU cloud VM with software rendering, main-thread ms per frame:
 | Full cards, zoom 1 | ~21 | 5.6–5.8 | 3.2–3.9 |
 | Compact cards, zoom 0.4 | ~99 | 10.5–10.8 | 5.0–6.5 |
 | Chips, whole graph on screen | 1,000 | 14.7–17.4 | 12–17 |
+| 50,000 nodes, full cards, zoom 1 ([[CARB-59]]) | ~21 | 5.6–6.7 (15.1 before windowing) | — |
+| 50,000 nodes, compact cards, zoom 0.4 | ~99 | 10–11 (22.4 before windowing) | — |
+| 50,000 nodes, chips, zoom 0.08 | ~2,400 | 160–220 | — |
 
 Before levels of detail and culling the full-card view took about 10 fps on the same machine, mostly from particles animating on off-screen flows. The production numbers need a build that keeps the scenes: `VITE_CANVAS_SCENES=true vite build`, then `vite preview` and `?scene=perf&zoom=…&focus=wire-95`. Frame rates on that VM varied between 15 and 57 fps for the same code with the machine's load, so they aren't a budget; the 20-node chain itself only reached 40–50 fps there.
 
