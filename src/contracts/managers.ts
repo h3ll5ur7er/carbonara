@@ -1,7 +1,9 @@
 // Every manager method a client may call, with validated arguments and, where it is exposed, its MCP tool.
 // The RPC dispatcher, the client connector and the MCP server are all derived from this file.
 import { z } from "zod";
+import { Clipboard, PasteOffset } from "./clipboard";
 import { Command, GraphScope } from "./commands";
+import { LocalId } from "./document";
 import { ArrangeOptions } from "./layout";
 import type { OpenDocument } from "./access";
 import type { Patch } from "./patches";
@@ -52,6 +54,15 @@ export interface DocumentInfo {
   packId: string;
   /** Increases with every change; events and results carry it. */
   version: number;
+}
+
+/** What `editing.paste` did. */
+export interface Pasted {
+  document: DocumentInfo;
+  /** The new nodes, in the clipboard's order. */
+  nodeIds: LocalId[];
+  /** What this graph can't hold and was left out, for the person: "1 subgraph this factory doesn't have". */
+  leftOut: string[];
 }
 
 export interface PackInfo {
@@ -174,6 +185,22 @@ export const managers = {
     redo: method<DocumentInfo>()(documentRef),
     /** Lays the graph (or some of its nodes) out automatically; one `moveNodes` step, labelled "Arrange". */
     arrange: method<Result<DocumentInfo>>()(documentRef.extend({ graph: GraphScope, ...ArrangeOptions.shape })),
+    /** What the clipboard holds after copying these nodes: them, the flows among them and those they leave. */
+    copy: method<Result<Clipboard>>()(documentRef.extend({ graph: GraphScope, nodeIds: z.array(LocalId).min(1) })),
+    /**
+     * Adds a copy's nodes under fresh ids, `offset` from where they were, with the flows among them; with
+     * `connections`, also the flows to the nodes they were connected to (same document and graph). One undo step,
+     * "Paste 5 nodes" unless `label` says otherwise.
+     */
+    paste: method<Result<Pasted>>()(
+      documentRef.extend({
+        graph: GraphScope,
+        clipboard: Clipboard,
+        offset: PasteOffset.default({ x: 0, y: 0 }),
+        connections: z.boolean().default(false),
+        label: z.string().optional(),
+      }),
+    ),
   },
   analysis: {
     /**

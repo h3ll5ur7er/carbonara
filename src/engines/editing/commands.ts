@@ -236,7 +236,7 @@ function checkNode(document: Document, scope: string, node: Node): Issue | undef
   if (node.kind === "port" && scope === "root") return issue(["node", "kind"], "Ports only exist inside blueprints");
   if (node.kind !== "instance") return;
   if (!document.blueprints[node.blueprint]) return issue(["node", "blueprint"], `Unknown blueprint ${node.blueprint}`);
-  if (contains(document, node.blueprint, scope, new Set())) {
+  if (containsBlueprint(document, node.blueprint, scope)) {
     return issue(["node", "blueprint"], `Blueprint ${node.blueprint} can't contain itself`);
   }
 }
@@ -335,7 +335,7 @@ function allGraphs(document: Document): Graph[] {
 }
 
 /** The ids of an instance node's ports in that direction; nothing for other nodes. */
-function portsOf(document: Document, node: Node | undefined, direction: "in" | "out"): string[] {
+export function portsOf(document: Document, node: Node | undefined, direction: "in" | "out"): string[] {
   if (node?.kind !== "instance") return [];
   const nodes = document.blueprints[node.blueprint]?.graph.nodes ?? {};
   return Object.keys(nodes).filter((id) => {
@@ -345,6 +345,10 @@ function portsOf(document: Document, node: Node | undefined, direction: "in" | "
 }
 
 /** Whether placing `blueprint` into the graph `scope` would make a blueprint contain itself. */
+export function containsBlueprint(document: Document, blueprint: string, scope: string): boolean {
+  return contains(document, blueprint, scope, new Set());
+}
+
 function contains(document: Document, blueprint: string, scope: string, seen: Set<string>): boolean {
   if (blueprint === scope) return true;
   if (seen.has(blueprint)) return false;

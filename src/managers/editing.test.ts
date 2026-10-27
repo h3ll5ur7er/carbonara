@@ -213,3 +213,54 @@ describe("arranging", () => {
     expect(changes).toEqual([]);
   });
 });
+
+describe("copy and paste", () => {
+  it("copies nodes and pastes them as one undo step under fresh ids", async () => {
+    const { editing, current, changes } = setup();
+    const copied = await editing.copy({ documentId: "doc-1", graph: "root", nodeIds: ["ore", "smelt"] });
+    if (!copied.ok) throw new Error("copy failed");
+    const pasted = await editing.paste({
+      documentId: "doc-1",
+      graph: "root",
+      clipboard: copied.value,
+      offset: { x: 24, y: 48 },
+      connections: false,
+    });
+    if (!pasted.ok) throw new Error("paste failed");
+    expect(pasted.value.nodeIds).toEqual(["ore-id1", "smelt-id2"]);
+    expect(pasted.value.leftOut).toEqual([]);
+    expect(pasted.value.document.version).toBe(2);
+    expect((await current()).layout.root?.["ore-id1"]).toEqual({ x: 24, y: 48 });
+    expect(changes.map((change) => change.label)).toEqual(["Paste 2 nodes"]);
+
+    await editing.undo({ documentId: "doc-1" });
+    expect(await current()).toEqual(original);
+  });
+
+  it("names the step as asked, and says what it left out", async () => {
+    const { editing, changes } = setup();
+    const copied = await editing.copy({ documentId: "doc-1", graph: "rods", nodeIds: ["in", "make"] });
+    if (!copied.ok) throw new Error("copy failed");
+    const pasted = await editing.paste({
+      documentId: "doc-1",
+      graph: "root",
+      clipboard: copied.value,
+      offset: { x: 0, y: 0 },
+      connections: false,
+      label: "Duplicate 2 nodes",
+    });
+    expect(pasted.ok && pasted.value.leftOut).toEqual(["1 subgraph port (ports only exist inside subgraphs)"]);
+    expect(changes.map((change) => change.label)).toEqual(["Duplicate 2 nodes"]);
+  });
+
+  it("refuses unknown documents, graphs and nodes", async () => {
+    const { editing } = setup();
+    expect((await editing.copy({ documentId: "ghost", graph: "root", nodeIds: ["ore"] })).ok).toBe(false);
+    expect((await editing.copy({ documentId: "doc-1", graph: "root", nodeIds: ["nope"] })).ok).toBe(false);
+    const copied = await editing.copy({ documentId: "doc-1", graph: "root", nodeIds: ["ore"] });
+    if (!copied.ok) throw new Error("copy failed");
+    const into = { clipboard: copied.value, offset: { x: 0, y: 0 }, connections: false };
+    expect((await editing.paste({ documentId: "ghost", graph: "root", ...into })).ok).toBe(false);
+    expect((await editing.paste({ documentId: "doc-1", graph: "nope", ...into })).ok).toBe(false);
+  });
+});
