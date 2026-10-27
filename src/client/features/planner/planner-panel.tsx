@@ -2,12 +2,11 @@
 // unit) and options, plan, and the proposal appears on the canvas as a ghost while the card sums it up
 // (machines, power, raw inputs against the map, byproducts, shortfalls). Accept adds it as one undo step,
 // Adjust goes back to the goals with the ghost still shown, Discard drops it.
-import { Check, Factory, Pickaxe, Plus, Recycle, TriangleAlert, Undo2, WandSparkles, X, Zap } from "lucide-react";
-import { useEffect, useId, useMemo, type ReactNode } from "react";
+import { Check, Plus, Recycle, Undo2, WandSparkles, X } from "lucide-react";
+import { useEffect, useId, useMemo } from "react";
 import type { PackData, RateUnit } from "../../../contracts/pack";
 import type { Point } from "../../canvas/adapter";
 import type { Ghost } from "../../canvas/ghost/ghost";
-import { formatNumber } from "../../canvas/model/format";
 import { ItemChip, Rate } from "../../canvas/parts";
 import { useConnector } from "../../core/connector";
 import { usePanels } from "../../shell/panels";
@@ -18,10 +17,19 @@ import { NumberInput } from "../../ui/number-input";
 import { Tabs, TabsList, TabsTrigger } from "../../ui/tabs";
 import { Switch } from "../../ui/toggle";
 import { ItemPicker } from "./item-picker";
-import { acceptedCommands, planLabel, proposalGhost, summaryFacts, targetsPerSecond, type GoalRow } from "./plan";
+import { summaryFacts } from "../totals/summary";
+import {
+  BuildingRows,
+  ItemRows,
+  RawRows,
+  SectionTitle,
+  Shortfalls,
+  SummaryList,
+  SummaryStats,
+} from "../totals/summary-view";
+import { acceptedCommands, planLabel, proposalGhost, targetsPerSecond, type GoalRow } from "./plan";
 import { closePlanner, newGoal, resetPlanner, usePlanner, type PlannerState } from "./planner-store";
 import { fromPerSecond, rateSuffix } from "../../../utilities/units";
-import { monogram } from "../../canvas/model/item-chip";
 
 /** The card's width, in pixels; the canvas keeps fitted graphs clear of it. */
 export const PLANNER_WIDTH = 344;
@@ -90,10 +98,6 @@ export function PlannerPanel({ document, pack, rateUnit }: PlannerTarget) {
       )}
     </section>
   );
-}
-
-function SectionTitle({ children }: { children: ReactNode }) {
-  return <h3 className="text-2xs font-medium tracking-wide text-fg-faint uppercase">{children}</h3>;
 }
 
 function GoalsForm({ planner, document, pack, rateUnit }: PlannerTarget & { planner: PlannerState }) {
@@ -223,7 +227,6 @@ function ProposalCard({ planner, pack, rateUnit }: { planner: PlannerState; pack
   const proposal = planner.proposal;
   if (!proposal) return null;
   const facts = summaryFacts(proposal.summary, pack);
-  const rawTotal = facts.raw.reduce((total, entry) => total + entry.perSecond, 0);
   const items = new Map(pack.items.map((item) => [item.id, item]));
 
   async function accept() {
@@ -266,64 +269,19 @@ function ProposalCard({ planner, pack, rateUnit }: { planner: PlannerState; pack
               );
             })}
           </ul>
-          <dl className="grid grid-cols-3 gap-1.5">
-            <Stat icon={<Factory />} label="Machines" value={String(facts.machines)} />
-            <Stat icon={<Zap />} label="Power" value={formatNumber(proposal.summary.powerMW)} unit="MW" />
-            <Stat icon={<Pickaxe />} label="Raw input" value={<Rate perSecond={rawTotal} unit={rateUnit} />} />
-          </dl>
-          {facts.shortfalls.length > 0 && (
-            <div
-              role="alert"
-              className="flex gap-2.5 rounded-md bg-danger-soft px-3 py-2.5 text-xs text-danger inset-ring inset-ring-danger/25"
-            >
-              <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
-              <div className="flex flex-col gap-1">
-                <p className="font-medium">The map can’t supply all of it</p>
-                {facts.shortfalls.map(({ item, perSecond }) => (
-                  <p key={item.id} className="text-fg-muted">
-                    Short of <Rate perSecond={perSecond} unit={rateUnit} className="text-danger" /> {item.name}
-                  </p>
-                ))}
-              </div>
-            </div>
-          )}
+          <SummaryStats facts={facts} powerMW={proposal.summary.powerMW} unit={rateUnit} />
+          <Shortfalls title="The map can’t supply all of it" shortfalls={facts.shortfalls} unit={rateUnit} />
         </div>
-        <FactList title="Buildings" label="Buildings">
-          {facts.buildings.map((building) => (
-            <li key={building.id} className="flex h-7 items-center gap-2.5">
-              <span
-                aria-hidden
-                className="grid size-5 shrink-0 place-items-center rounded-xs bg-accent-soft text-2xs font-semibold text-accent-fg"
-              >
-                {monogram(building.name)}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">{building.name}</span>
-              <span className="font-mono text-sm text-fg">× {building.count}</span>
-            </li>
-          ))}
-        </FactList>
-        <FactList title="Raw inputs" label="Raw inputs">
-          {facts.raw.map(({ item, perSecond, limitPerSecond }) => (
-            <li key={item.id} className="flex flex-col gap-1 py-1">
-              <div className="flex items-center gap-2.5">
-                <ItemChip item={item} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">{item.name}</span>
-                <Rate perSecond={perSecond} unit={rateUnit} className="text-sm text-fg" />
-              </div>
-              {limitPerSecond !== undefined && <LimitBar used={perSecond} limit={limitPerSecond} unit={rateUnit} />}
-            </li>
-          ))}
-        </FactList>
+        <SummaryList title="Buildings">
+          <BuildingRows buildings={facts.buildings} />
+        </SummaryList>
+        <SummaryList title="Raw inputs">
+          <RawRows raw={facts.raw} unit={rateUnit} />
+        </SummaryList>
         {facts.byproducts.length > 0 && (
-          <FactList title="Byproducts" label="Byproducts" icon={<Recycle />}>
-            {facts.byproducts.map(({ item, perSecond }) => (
-              <li key={item.id} className="flex h-7 items-center gap-2.5">
-                <ItemChip item={item} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">{item.name}</span>
-                <Rate perSecond={perSecond} unit={rateUnit} className="text-sm text-fg" />
-              </li>
-            ))}
-          </FactList>
+          <SummaryList title="Byproducts" icon={<Recycle />}>
+            <ItemRows rates={facts.byproducts} unit={rateUnit} />
+          </SummaryList>
         )}
       </div>
       <footer className="flex shrink-0 items-center gap-2 border-t border-line-subtle px-4 py-3">
@@ -338,61 +296,6 @@ function ProposalCard({ planner, pack, rateUnit }: { planner: PlannerState; pack
         </Button>
       </footer>
     </>
-  );
-}
-
-function Stat({ icon, label, value, unit }: { icon: ReactNode; label: string; value: ReactNode; unit?: string }) {
-  return (
-    <div className="flex flex-col gap-1 rounded-md bg-surface-2/70 px-2.5 py-2 inset-ring inset-ring-line-subtle">
-      <dt className="flex items-center gap-1 text-2xs text-fg-subtle [&_svg]:size-3">
-        {icon}
-        {label}
-      </dt>
-      <dd className="truncate font-mono text-base font-medium text-fg">
-        {value}
-        {unit && <span className="ml-0.5 text-xs text-fg-subtle">{unit}</span>}
-      </dd>
-    </div>
-  );
-}
-
-function FactList({
-  title,
-  label,
-  icon,
-  children,
-}: {
-  title: string;
-  label: string;
-  icon?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section aria-label={label} className="flex flex-col gap-1.5 border-t border-line-subtle px-4 pt-3 pb-3.5">
-      <SectionTitle>
-        <span className="flex items-center gap-1 [&_svg]:size-3">
-          {icon}
-          {title}
-        </span>
-      </SectionTitle>
-      <ul className="flex flex-col">{children}</ul>
-    </section>
-  );
-}
-
-/** How much of a raw resource's map limit the plan takes; amber near it, red over it. */
-function LimitBar({ used, limit, unit }: { used: number; limit: number; unit: RateUnit }) {
-  const share = used / limit;
-  const tone = share > 1 ? "bg-flow-over-capacity" : share > 0.9 ? "bg-flow-near-capacity" : "bg-flow-healthy";
-  return (
-    <div className="flex items-center gap-2 pl-7.5">
-      <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-4">
-        <div className={cx("h-full rounded-full", tone)} style={{ width: `${Math.min(share, 1) * 100}%` }} />
-      </div>
-      <span className="font-mono text-2xs text-fg-subtle">
-        {formatNumber(share * 100)}% of <Rate perSecond={limit} unit={unit} className="text-2xs" />
-      </span>
-    </div>
   );
 }
 

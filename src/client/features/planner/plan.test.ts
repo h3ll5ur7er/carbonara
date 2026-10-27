@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Proposal } from "../../../contracts/managers";
 import { templatePack } from "../../scenes/template-pack";
-import { acceptedCommands, findItems, planLabel, proposalGhost, summaryFacts, targetsPerSecond } from "./plan";
+import { acceptedCommands, findItems, planLabel, proposalGhost, targetsPerSecond } from "./plan";
 
 const proposal: Proposal = {
   documentId: "doc",
@@ -90,22 +90,6 @@ describe("planning in the client", () => {
         "per_second",
       ),
     ).toBe("Plan 0.25/s Motor, 1/s Circuit");
-  });
-
-  it("sums a proposal up for its card: machines, power, raw inputs against the map", () => {
-    const facts = summaryFacts(
-      { ...proposal.summary, buildings: { furnace: 3, assembler: 2 }, raw: { "ferrite-ore": 400, water: 2 } },
-      templatePack,
-    );
-    expect(facts.machines).toBe(5);
-    expect(facts.buildings).toEqual([
-      { id: "furnace", name: "Furnace", count: 3 },
-      { id: "assembler", name: "Assembler", count: 2 },
-    ]);
-    expect(facts.raw).toEqual([
-      { item: expect.objectContaining({ id: "ferrite-ore" }), perSecond: 400, limitPerSecond: 500 },
-      { item: expect.objectContaining({ id: "water" }), perSecond: 2 },
-    ]);
   });
 
   it("finds items by name, alias or id, names that start with the words first", () => {

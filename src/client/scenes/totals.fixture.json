@@ -1,0 +1,359 @@
+{
+  "document": {
+    "format": "carbonara",
+    "version": 1,
+    "id": "scene-totals",
+    "name": "Gear and wire works",
+    "pack": {
+      "id": "template",
+      "version": "1.0.0",
+      "hash": "sha256-template"
+    },
+    "graph": {
+      "nodes": {
+        "source-ferrite-ore": {
+          "kind": "source",
+          "item": "ferrite-ore"
+        },
+        "source-cuprite-ore": {
+          "kind": "source",
+          "item": "cuprite-ore"
+        },
+        "source-water": {
+          "kind": "source",
+          "item": "water"
+        },
+        "iron-gear": {
+          "kind": "recipe",
+          "recipe": "iron-gear"
+        },
+        "copper-wire": {
+          "kind": "recipe",
+          "recipe": "copper-wire"
+        },
+        "iron-plate": {
+          "kind": "recipe",
+          "recipe": "iron-plate"
+        },
+        "copper-plate": {
+          "kind": "recipe",
+          "recipe": "copper-plate"
+        },
+        "wash-ferrite": {
+          "kind": "recipe",
+          "recipe": "wash-ferrite"
+        },
+        "purify-water": {
+          "kind": "recipe",
+          "recipe": "purify-water"
+        },
+        "output-iron-gear": {
+          "kind": "sink",
+          "item": "iron-gear",
+          "targetPerSecond": 230
+        },
+        "output-copper-wire": {
+          "kind": "sink",
+          "item": "copper-wire",
+          "targetPerSecond": 320
+        },
+        "byproduct-slag": {
+          "kind": "sink",
+          "item": "slag"
+        },
+        "byproduct-sludge": {
+          "kind": "sink",
+          "item": "sludge"
+        }
+      },
+      "edges": {
+        "iron-gear-output-iron-gear": {
+          "from": "iron-gear",
+          "to": "output-iron-gear",
+          "item": "iron-gear"
+        },
+        "copper-wire-output-copper-wire": {
+          "from": "copper-wire",
+          "to": "output-copper-wire",
+          "item": "copper-wire"
+        },
+        "iron-plate-iron-gear": {
+          "from": "iron-plate",
+          "to": "iron-gear",
+          "item": "iron-plate"
+        },
+        "copper-plate-copper-wire": {
+          "from": "copper-plate",
+          "to": "copper-wire",
+          "item": "copper-plate"
+        },
+        "wash-ferrite-iron-plate": {
+          "from": "wash-ferrite",
+          "to": "iron-plate",
+          "item": "clean-ferrite"
+        },
+        "source-ferrite-ore-wash-ferrite": {
+          "from": "source-ferrite-ore",
+          "to": "wash-ferrite",
+          "item": "ferrite-ore"
+        },
+        "source-cuprite-ore-copper-plate": {
+          "from": "source-cuprite-ore",
+          "to": "copper-plate",
+          "item": "cuprite-ore"
+        },
+        "source-water-wash-ferrite": {
+          "from": "source-water",
+          "to": "wash-ferrite",
+          "item": "water"
+        },
+        "purify-water-wash-ferrite": {
+          "from": "purify-water",
+          "to": "wash-ferrite",
+          "item": "water"
+        },
+        "purify-water-byproduct-sludge": {
+          "from": "purify-water",
+          "to": "byproduct-sludge",
+          "item": "sludge"
+        },
+        "wash-ferrite-purify-water": {
+          "from": "wash-ferrite",
+          "to": "purify-water",
+          "item": "dirty-water"
+        },
+        "copper-plate-byproduct-slag": {
+          "from": "copper-plate",
+          "to": "byproduct-slag",
+          "item": "slag"
+        }
+      }
+    },
+    "blueprints": {},
+    "layout": {
+      "root": {
+        "source-ferrite-ore": {
+          "x": 0,
+          "y": 312
+        },
+        "source-cuprite-ore": {
+          "x": 0,
+          "y": 48
+        },
+        "source-water": {
+          "x": 0,
+          "y": 432
+        },
+        "iron-gear": {
+          "x": 1176,
+          "y": 264
+        },
+        "copper-wire": {
+          "x": 768,
+          "y": 480
+        },
+        "iron-plate": {
+          "x": 768,
+          "y": 264
+        },
+        "copper-plate": {
+          "x": 360,
+          "y": 0
+        },
+        "wash-ferrite": {
+          "x": 360,
+          "y": 240
+        },
+        "purify-water": {
+          "x": 768,
+          "y": 816
+        },
+        "output-iron-gear": {
+          "x": 1584,
+          "y": 312
+        },
+        "output-copper-wire": {
+          "x": 1584,
+          "y": 528
+        },
+        "byproduct-slag": {
+          "x": 768,
+          "y": 696
+        },
+        "byproduct-sludge": {
+          "x": 1176,
+          "y": 864
+        }
+      }
+    },
+    "settings": {
+      "rateUnit": "per_minute"
+    }
+  },
+  "results": {
+    "documentId": "scene-totals",
+    "version": 1,
+    "graph": "root",
+    "nodes": {
+      "byproduct-slag": {
+        "activity": 160,
+        "inputs": {
+          "slag": 160
+        },
+        "outputs": {}
+      },
+      "byproduct-sludge": {
+        "activity": 57.5,
+        "inputs": {
+          "sludge": 57.5
+        },
+        "outputs": {}
+      },
+      "copper-plate": {
+        "activity": 480,
+        "inputs": {
+          "cuprite-ore": 320
+        },
+        "outputs": {
+          "copper-plate": 160,
+          "slag": 160
+        }
+      },
+      "copper-wire": {
+        "activity": 80,
+        "inputs": {
+          "copper-plate": 160
+        },
+        "outputs": {
+          "copper-wire": 320
+        }
+      },
+      "iron-gear": {
+        "activity": 230,
+        "inputs": {
+          "iron-plate": 460
+        },
+        "outputs": {
+          "iron-gear": 230
+        }
+      },
+      "iron-plate": {
+        "activity": 1380,
+        "inputs": {
+          "clean-ferrite": 460
+        },
+        "outputs": {
+          "iron-plate": 460
+        }
+      },
+      "output-copper-wire": {
+        "activity": 320,
+        "inputs": {
+          "copper-wire": 320
+        },
+        "outputs": {}
+      },
+      "output-iron-gear": {
+        "activity": 230,
+        "inputs": {
+          "iron-gear": 230
+        },
+        "outputs": {}
+      },
+      "purify-water": {
+        "activity": 230,
+        "inputs": {
+          "dirty-water": 230
+        },
+        "outputs": {
+          "water": 172.5,
+          "sludge": 57.5
+        }
+      },
+      "source-cuprite-ore": {
+        "activity": 320,
+        "inputs": {},
+        "outputs": {
+          "cuprite-ore": 320
+        }
+      },
+      "source-ferrite-ore": {
+        "activity": 460,
+        "inputs": {},
+        "outputs": {
+          "ferrite-ore": 460
+        }
+      },
+      "source-water": {
+        "activity": 57.5,
+        "inputs": {},
+        "outputs": {
+          "water": 57.5
+        }
+      },
+      "wash-ferrite": {
+        "activity": 460,
+        "inputs": {
+          "ferrite-ore": 460,
+          "water": 230
+        },
+        "outputs": {
+          "dirty-water": 230,
+          "clean-ferrite": 460
+        }
+      }
+    },
+    "edges": {
+      "copper-plate-byproduct-slag": {
+        "perSecond": 160
+      },
+      "copper-plate-copper-wire": {
+        "perSecond": 160
+      },
+      "copper-wire-output-copper-wire": {
+        "perSecond": 320
+      },
+      "iron-gear-output-iron-gear": {
+        "perSecond": 230
+      },
+      "iron-plate-iron-gear": {
+        "perSecond": 460
+      },
+      "purify-water-byproduct-sludge": {
+        "perSecond": 57.5
+      },
+      "purify-water-wash-ferrite": {
+        "perSecond": 172.5
+      },
+      "source-cuprite-ore-copper-plate": {
+        "perSecond": 320
+      },
+      "source-ferrite-ore-wash-ferrite": {
+        "perSecond": 460
+      },
+      "source-water-wash-ferrite": {
+        "perSecond": 57.5
+      },
+      "wash-ferrite-iron-plate": {
+        "perSecond": 460
+      },
+      "wash-ferrite-purify-water": {
+        "perSecond": 230
+      }
+    },
+    "diagnostics": [],
+    "totals": {
+      "raw": {
+        "cuprite-ore": 320,
+        "ferrite-ore": 460,
+        "water": 57.5
+      },
+      "buildings": {
+        "furnace": 1860,
+        "assembler": 310,
+        "purifier": 230,
+        "washer": 460
+      }
+    }
+  }
+}

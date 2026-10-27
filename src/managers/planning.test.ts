@@ -331,4 +331,31 @@ describe("the planner scene's fixture", () => {
     if (process.env.UPDATE_FIXTURES || !existsSync(file)) writeFileSync(file, `${JSON.stringify(fixture, null, 2)}\n`);
     expect(JSON.parse(readFileSync(file, "utf8"))).toEqual(fixture);
   });
+
+  /** The `totals` scene: a planned gear and wire works that takes more cuprite than the map has. */
+  it("is a planned factory and its analysis for the totals scene", async () => {
+    const totals = new URL("../client/scenes/totals.fixture.json", import.meta.url);
+    const empty = { ...factory(), id: "scene-totals", name: "Gear and wire works" };
+    const proposal = await plan(
+      [
+        { item: "iron-gear", perSecond: 230 },
+        { item: "copper-wire", perSecond: 280 },
+      ],
+      {},
+      empty,
+    );
+    const document: Document = { ...accept(proposal, empty), settings: { rateUnit: "per_minute" } };
+    // Ferrite runs at 92% of the map's 500/s. The wire was planned at 280/s (280 cuprite/s of the map's 300);
+    // asking for 320/s takes 320 cuprite/s, more than the map has.
+    const wire = Object.entries(document.graph.nodes).find(
+      ([, node]) => node.kind === "sink" && node.item === "copper-wire",
+    );
+    const busy = { ...document, graph: { ...document.graph, nodes: { ...document.graph.nodes } } };
+    if (wire) busy.graph.nodes[wire[0]] = { kind: "sink", item: "copper-wire", targetPerSecond: 320 };
+    const results = await analyse(busy);
+    const fixture = JSON.parse(JSON.stringify({ document: busy, results })) as unknown;
+    if (process.env.UPDATE_FIXTURES || !existsSync(totals))
+      writeFileSync(totals, `${JSON.stringify(fixture, null, 2)}\n`);
+    expect(JSON.parse(readFileSync(totals, "utf8"))).toEqual(fixture);
+  });
 });

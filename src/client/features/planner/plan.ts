@@ -1,8 +1,8 @@
 // The goal planner's rules in the client: goals in the document's unit become targets per second, a proposal
-// becomes a ghost and, accepted, the commands that add it where the ghost was left; summaries for its card.
+// becomes a ghost and, accepted, the commands that add it where the ghost was left.
 import type { Command } from "../../../contracts/commands";
 import type { Graph } from "../../../contracts/document";
-import type { PlanTarget, Proposal, ProposalSummary } from "../../../contracts/managers";
+import type { PlanTarget, Proposal } from "../../../contracts/managers";
 import type { Id, Item, PackData, RateUnit } from "../../../contracts/pack";
 import { toPerSecond } from "../../../utilities/units";
 import type { Point } from "../../canvas/adapter";
@@ -58,45 +58,6 @@ export function planLabel(targets: PlanTarget[], pack: PackData, unit: RateUnit)
     return `${rate.value}${rate.unit} ${names.get(target.item) ?? target.item}`;
   });
   return `Plan ${parts.join(", ")}`;
-}
-
-export interface SummaryFacts {
-  /** Buildings to build, all kinds together. */
-  machines: number;
-  buildings: { id: Id; name: string; count: number }[];
-  raw: { item: Item; perSecond: number; limitPerSecond?: number }[];
-  byproducts: { item: Item; perSecond: number }[];
-  shortfalls: { item: Item; perSecond: number }[];
-}
-
-/** A summary with the pack's names and map limits, largest first. */
-export function summaryFacts(summary: ProposalSummary, pack: PackData): SummaryFacts {
-  const items = new Map(pack.items.map((item) => [item.id, item]));
-  const item = (id: Id): Item => items.get(id) ?? { id, name: id, form: "solid" };
-  const limits = new Map(pack.resources.map((resource) => [resource.item, resource.limit]));
-  const largest = <T extends { perSecond: number }>(list: T[]) => list.sort((a, b) => b.perSecond - a.perSecond);
-  const rates = (amounts: Record<Id, number>) =>
-    largest(Object.entries(amounts).map(([id, perSecond]) => ({ item: item(id), perSecond })));
-  const buildingNames = new Map(pack.buildings.map((building) => [building.id, building.name]));
-  const buildings = Object.entries(summary.buildings)
-    .map(([id, count]) => ({ id, name: buildingNames.get(id) ?? id, count }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  return {
-    machines: buildings.reduce((total, building) => total + building.count, 0),
-    buildings,
-    raw: largest(
-      Object.entries(summary.raw).map(([id, perSecond]) => {
-        const limit = limits.get(id);
-        return {
-          item: item(id),
-          perSecond,
-          ...(limit !== undefined && { limitPerSecond: toPerSecond(limit, pack.units.rate) }),
-        };
-      }),
-    ),
-    byproducts: rates(summary.byproducts),
-    shortfalls: rates(summary.shortfalls),
-  };
 }
 
 /**

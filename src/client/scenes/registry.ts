@@ -42,6 +42,7 @@ export const scenes: SceneRegistry = {
   palette: { title: "Command palette with quick-add", load: () => import("./palette") },
   // Features.
   planner: { title: "The goal planner's proposal as a ghost", load: () => import("./planner") },
+  totals: { title: "Factory totals against the map's limits", load: () => import("./totals") },
 };
 
 export type ScenePick =

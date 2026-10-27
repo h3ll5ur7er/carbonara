@@ -68,6 +68,7 @@ The shell ([[src/client/app.tsx]], `src/client/shell/`) is a top bar over a full
 | Toggle inspector | `Ctrl+I` |
 | Switch light and dark theme | `Ctrl+Shift+L` |
 | Plan production… | `P` |
+| Toggle totals | `T` |
 
 - **Command palette** (`Ctrl+K`, or the search field in the top bar): type to filter, arrow keys to move, Enter to run, Escape to close. With a document open, typing an item or recipe name also lists **quick-add** entries: every recipe of the document's pack, found by its name, its outputs and their aliases, and its buildings, showing where it runs and what it turns into what. Picking one sends one `addNode` command to `editing.apply` ("Add Iron Plate") and confirms with a toast. Quick-added nodes land at the origin until the canvas can say where the user is looking.
 - **Toasts:** `toast({ title, description, tone })` from anywhere in the client; `info` and `success` close after 4 s, `error` after 8 s. At most three show at once. Screen readers announce them and F8 jumps to them.
@@ -147,6 +148,12 @@ The side panels float over the canvas, so the canvas reads which are open and tr
 
 The proposal appears on the canvas as a **ghost** beside the factory, brought into view with the nearby part of the factory when cards stay readable at that zoom (otherwise the ghost alone). Accepting sends the proposal's commands, moved to where the ghost was left, as one `editing.apply` batch labelled "Plan 15/min Motor". Escape closes the card.
 
+### Totals
+
+The totals dashboard sits at the canvas's bottom-left ([[src/client/features/totals/totals-panel.tsx]]), following the latest solve. Collapsed, it's a pill: machines, power and, in red with a warning sign, any raw resource drawn beyond the map's limit. Expanded (click it, or `T`, "Toggle totals"), a card like the planner's summary: machines, power in MW and total raw input as tiles (compact as `50.3k` when large); raw resources with a bar against the pack's `resources.limit` (healthy, amber above 90%, red with a warning sign over it); buildings by count; what leaves through outputs; and a red callout for shortages. The expanded card counts as an inset for fitting; while the planner is open it hides, since the planner sums up its proposal.
+
+The numbers ([[src/client/features/totals/summary.ts]]) are the analysis's `totals` (raw inputs, buildings rounded up per node) plus power (the plugin's derived `powerMW`, else the building's `power.consume` × machines), sink throughput as outputs, and deficits and surpluses from the diagnostics. The planner's card uses the same summary parts. Build cost waits for packs to describe costs.
+
 ### Ghosts
 
 A ghost previews nodes and flows that aren't in the document yet: planner proposals today, pastes and blueprint drags later ([[Design/Editor quality of life]], Clipboard and ghost placement). It lives in `src/client/canvas/ghost/`:
@@ -185,7 +192,7 @@ Full keyboard navigation (between nodes and ports), visible focus rings, ARIA on
 
 ## Visual QA
 
-Playwright screenshot tests cover a set of canonical scenes: empty state, a 20-node chain, a congested graph, inside a subgraph, the ghost paste, and each in dark and light. UI work is checked against these scenes before it's merged, and an intentional visual change updates the baseline in the same commit. The scenes, how to add one and how to update the baselines are on [[Development]] (Scenes, Screenshot tests). The goal planner has a scene of its own, `planner` (`e2e/planner-scene.spec.ts`): a real proposal for 15 motors a minute beside a small copper line, read from `src/client/scenes/planner.fixture.json`, which `src/managers/planning.test.ts` keeps in step with the planner (`UPDATE_FIXTURES=1` regenerates it).
+Playwright screenshot tests cover a set of canonical scenes: empty state, a 20-node chain, a congested graph, inside a subgraph, the ghost paste, and each in dark and light. UI work is checked against these scenes before it's merged, and an intentional visual change updates the baseline in the same commit. The scenes, how to add one and how to update the baselines are on [[Development]] (Scenes, Screenshot tests). The goal planner and the totals have scenes of their own: `planner` (`e2e/planner-scene.spec.ts`), a real proposal for 15 motors a minute beside a small copper line, and `totals` (`e2e/planner-totals.spec.ts`), a planned gear and wire works with ferrite near the map's limit and cuprite over it. Both read fixtures in `src/client/scenes/` that `src/managers/planning.test.ts` produces with the real engines and keeps current (`UPDATE_FIXTURES=1` regenerates them).
 
 The canvas scenes are fixtures in `src/client/canvas/scenes/`, built on the template pack (read straight from `packs/_template`). In development, `?scene=<name>` shows one, for example `/?scene=chain`; add `&zoom=1&focus=<node id>` to look at it up close. Edits in a scene go through the real connector and RPC dispatcher to a scene backend that applies them in memory, and that backend lists them in `window.carbonaraScene.commands` for e2e tests. The scene code is left out of production builds.
 

@@ -2,7 +2,7 @@
 id: CARB-47
 title: Show factory totals
 type: feature
-status: todo
+status: review
 priority: medium
 labels: [planner, ui]
 wave: "2"
@@ -13,5 +13,7 @@ Totals dashboard: raw resources against map limits, power, building counts, buil
 
 **Done when** totals match the analysis results for the canonical scenes (screenshot + unit tests).
 
-- [ ] Dashboard
-- [ ] Tests
+- [x] Dashboard
+- [x] Tests
+
+The canonical canvas scenes carry hand-built results without totals, so the checks run on a `totals` scene whose document and results come from the real engines ([[src/client/features/totals/summary.test.ts]], `e2e/planner-totals.spec.ts`). Build cost waits for packs to describe what buildings cost.
