@@ -2,7 +2,7 @@
 id: CARB-71
 title: Deploy the web app to GitHub Pages
 type: chore
-status: in-progress
+status: done
 priority: high
 labels: [tooling, release]
 wave: "1"
@@ -15,5 +15,7 @@ Every push to the default branch that passes CI deploys the web app to GitHub Pa
 
 - [x] `deploy` job after `web`, `rust` and `e2e`, default branch only
 - [x] Build with `--base=/<repo>/`; checked locally with `vite preview` under `/carbonara/` (app renders, backend worker loads, no console errors)
-- [ ] First deploy live
+- [x] First deploy live (CI run 16, job `deploy` succeeded on b09a378)
 - [x] [[Development]] documents it
+
+The cloud sandbox can't reach `github.io`, so the live page wasn't opened from there; the same build was smoke-tested locally under `/carbonara/`.
