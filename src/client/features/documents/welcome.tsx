@@ -7,6 +7,7 @@ import { useConnector } from "../../core/connector";
 import { useModels } from "../../core/models";
 import { errorMessage, toast } from "../../shell/toasts";
 import { Button } from "../../ui/button";
+import { Mark } from "../../ui/mark";
 import { GamePicker } from "../onboarding/game-picker";
 import { useTour } from "../onboarding/tour-store";
 import { firstRunSuppressed } from "../onboarding/use-onboarding";
@@ -25,10 +26,11 @@ function StartOrReopen() {
   const recent = useRecent();
   return (
     <div className="absolute inset-0 grid place-items-center overflow-y-auto">
-      <div className="canvas-clearing flex w-full max-w-md flex-col items-center gap-5 px-16 py-14 text-center">
-        <div className="flex flex-col gap-1.5">
-          <p className="text-xl font-semibold tracking-tight text-fg">Plan your next factory</p>
-          <p className="text-sm text-fg-subtle">
+      <div className="canvas-clearing flex w-full max-w-lg flex-col items-center gap-6 px-16 py-14 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <Mark className="size-10" />
+          <p className="text-2xl font-semibold tracking-tight text-fg">Plan your next factory</p>
+          <p className="max-w-sm text-sm text-balance text-fg-muted">
             Start an empty factory for one of your games, or open a <span className="font-mono">.carbonara</span> file.
             Shared links open here too.
           </p>
