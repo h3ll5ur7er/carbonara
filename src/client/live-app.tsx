@@ -20,6 +20,12 @@ import { CheatSheet } from "./features/shortcuts/cheat-sheet";
 import { Welcome } from "./features/documents/welcome";
 import { McpHost } from "./features/mcp/host";
 import { errorMessage, toast } from "./shell/toasts";
+import { scopedTo } from "./features/subgraphs/path";
+import { useSubgraphView, type SubgraphView } from "./features/subgraphs/use-subgraph-view";
+import { useBlueprintPlacement, type BlueprintPlacement } from "./features/subgraphs/use-blueprint-placement";
+import { BlueprintLibrary } from "./features/subgraphs/library-panel";
+import { libraryEntries } from "./features/subgraphs/library";
+import "./features/subgraphs/subgraphs.css";
 
 export function LiveApp() {
   const connector = useConnector();
@@ -35,12 +41,19 @@ export function LiveApp() {
 
   useOpenSharedDocument();
   useReportRestoreProblems();
-  const [selection, setSelection] = useState<{ documentId: string; nodeIds: string[] } | null>(null);
+  const subgraph = useSubgraphView({ ...active, leaveShortcut: keysOf("subgraph.leave") });
+  const { graph } = subgraph;
+  const [selection, setSelection] = useState<Selection | null>(null);
   const onSelectionChange = useCallback(
-    (nodeIds: string[]) => setSelection(info ? { documentId: info.id, nodeIds } : null),
-    [info],
+    (nodeIds: string[]) => setSelection(info ? { documentId: info.id, graph, nodeIds } : null),
+    [info, graph],
   );
-  const inspected = useInspected(active, selection);
+  const inspected = useInspected(active, subgraph, selection);
+  const placement = useBlueprintPlacement(active.document, graph);
+  const entries = useMemo(
+    () => (active.document && active.packData ? libraryEntries(active.document, active.packData, graph) : []),
+    [active.document, active.packData, graph],
+  );
 
   return (
     <>
@@ -49,12 +62,30 @@ export function LiveApp() {
         tabs={<DocumentTabs />}
         canvas={
           info ? (
-            <DocumentCanvas {...active} onSelectionChange={onSelectionChange} />
+            <DocumentCanvas
+              {...active}
+              subgraph={subgraph}
+              placement={placement}
+              onSelectionChange={onSelectionChange}
+            />
           ) : (
             <WelcomeCanvas loaded={loaded} />
           )
         }
         selection={inspected}
+        {...(info && {
+          library: (
+            <BlueprintLibrary
+              entries={entries}
+              placing={placement.placing}
+              collapseKeys={keysOf("subgraph.collapse")}
+              onPick={placement.pick}
+              onPlaceInView={placement.placeInView}
+              onDrop={placement.drop}
+              onCancel={placement.cancel}
+            />
+          ),
+        })}
       />
       <NewDocumentDialog />
       <McpHost />
@@ -63,25 +94,48 @@ export function LiveApp() {
   );
 }
 
-/** The active document on the canvas, with its live results; a hint how to start while it's empty. */
+interface Selection {
+  documentId: string;
+  graph: string;
+  nodeIds: string[];
+}
+
+/**
+ * The active document on the canvas, at the subgraph level it's opened to, with its live results; a hint how to
+ * start while it's empty. The overlays (totals, heatmap, overviews) describe the graph on screen.
+ */
 function DocumentCanvas({
   info,
   document,
   packData,
-  results,
+  subgraph,
+  placement,
   onSelectionChange,
-}: ActiveDocument & { onSelectionChange(nodeIds: string[]): void }) {
-  const overlays = useFactoryOverlays({ info, document, pack: packData, results: results ?? null });
-  const empty = !document || Object.keys(document.graph.nodes).length === 0;
+}: ActiveDocument & {
+  subgraph: SubgraphView;
+  placement: BlueprintPlacement;
+  onSelectionChange(nodeIds: string[]): void;
+}) {
+  const { graph, results, viewport, motion, onOpenSubgraph, header } = subgraph;
+  const shown = useMemo(() => document && scopedTo(document, graph), [document, graph]);
+  const overlays = useFactoryOverlays({ info, document: shown, pack: packData, results });
+  const empty = !shown || Object.keys(shown.graph.nodes).length === 0;
   return (
     <>
-      <div className="canvas-backdrop absolute inset-0">
+      {/* A canvas per level: diving into a subgraph grows its canvas in, coming back up settles the one above. */}
+      <div key={graph} className={`canvas-backdrop absolute inset-0 ${motion ? `subgraph-${motion}` : ""}`}>
         <Canvas
           {...(document && { document })}
           {...(packData && { pack: packData })}
-          results={results ?? null}
+          results={results}
+          graph={graph}
+          {...(viewport && { viewport })}
           onSelectionChange={onSelectionChange}
+          onOpenSubgraph={onOpenSubgraph}
+          header={header}
           {...overlays.canvas}
+          // A blueprint on its way from the library takes the ghost while it follows the pointer.
+          {...placement.canvas}
         />
       </div>
       {overlays.layers}
@@ -92,10 +146,12 @@ function DocumentCanvas({
   );
 }
 
-const shortcutOf = (id: string) => {
+const shortcutOf = (id: string) => keysOf(id)?.join(" ") ?? "the command palette";
+
+function keysOf(id: string): string[] | undefined {
   const shortcut = appRegistry.get(id)?.shortcut;
-  return shortcut ? formatShortcut(shortcut, platformOf(navigator.platform)).join(" ") : "the command palette";
-};
+  return shortcut ? formatShortcut(shortcut, platformOf(navigator.platform)) : undefined;
+}
 
 /** The canvas backdrop with the welcome over it, once we know nothing is open (no flash while loading). */
 function WelcomeCanvas({ loaded }: { loaded: boolean }) {
@@ -109,30 +165,38 @@ function WelcomeCanvas({ loaded }: { loaded: boolean }) {
   );
 }
 
-/** The inspector's view of the active document: its one selected node, its save profile while none is selected. */
+/**
+ * The inspector's view of the active document: its one selected node (in the graph on screen), its save profile
+ * while none is selected.
+ */
 function useInspected(
-  { info, document, packData, results }: ActiveDocument,
-  selection: { documentId: string; nodeIds: string[] } | null,
+  { info, document, packData }: ActiveDocument,
+  { graph, results }: SubgraphView,
+  selection: Selection | null,
 ): InspectorPanelProps["selection"] {
   const plugin = usePluginDescription(info?.packId, document?.settings.plugin);
   return useMemo(() => {
-    const nodeId =
-      selection?.documentId === info?.id && selection?.nodeIds.length === 1 ? selection.nodeIds[0] : undefined;
+    const current = selection?.documentId === info?.id && selection?.graph === graph ? selection : null;
+    const nodeId = current?.nodeIds.length === 1 ? current.nodeIds[0] : undefined;
     if (!info || !document || !packData) return null;
-    const selected = selection?.documentId === info.id ? selection.nodeIds.length : 0;
-    if (selected === 0) {
+    if (!current || current.nodeIds.length === 0) {
       const settings = document.settings.plugin ?? {};
       return { profile: { documentId: info.id, pack: packData, settings, plugin } };
     }
     if (!nodeId) return null;
-    const node = inspectNode({ document, pack: packData, results, nodeId, plugin });
+    // The inspector reads the root graph: inside a subgraph, it's given the blueprint's graph as the root.
+    const shown = scopedTo(document, graph);
+    const node = inspectNode({ document: shown, pack: packData, results: results ?? undefined, nodeId, plugin });
     if (!node) return null;
     return {
-      target: { documentId: info.id, nodeId },
+      target: { documentId: info.id, nodeId, graph },
       node,
-      productionEdit: (value) => productionEdit(document, packData, nodeId, value),
+      productionEdit: (value) => {
+        const edit = productionEdit(shown, packData, nodeId, value);
+        return edit && { ...edit, commands: edit.commands.map((command) => ({ ...command, graph })) };
+      },
     };
-  }, [selection, info, document, packData, results, plugin]);
+  }, [selection, info, document, packData, results, plugin, graph]);
 }
 
 /** Opens the document of a share link the page was opened with, then removes it from the address bar. */

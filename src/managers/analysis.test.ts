@@ -5,7 +5,9 @@ import type { DocumentStore, LoadedPack, OpenDocument, PackStore } from "../cont
 import type { Document } from "../contracts/document";
 import type { Events } from "../contracts/managers";
 import type { AnalysisResults } from "../contracts/results";
+import { compile } from "../engines/compiler";
 import { platesModule, templatePack, waterLoop } from "../engines/compiler/template.fixture";
+import { applyCommands } from "../engines/editing/commands";
 import { loadSolver } from "../engines/solver";
 import { createEventBus } from "../utilities/events";
 import { createAnalysisManager } from "./analysis";
@@ -223,6 +225,72 @@ describe("the analysis manager", () => {
       [2, expect.closeTo(6, 9)],
       [3, expect.closeTo(9, 9)],
     ]);
+  });
+
+  it("solves two instances of a blueprint with one summary, and an edit of the blueprint changes both", async () => {
+    // The plates module placed twice, each copy with an ore supply and a target of its own.
+    const once = platesModule(2);
+    const twice = applyCommands(once, [
+      {
+        type: "addNode",
+        graph: "root",
+        id: "ferrite2",
+        node: { kind: "source", item: "clean-ferrite" },
+        position: { x: 0, y: 0 },
+      },
+      {
+        type: "addNode",
+        graph: "root",
+        id: "module2",
+        node: { kind: "instance", blueprint: "plates" },
+        position: { x: 0, y: 0 },
+      },
+      {
+        type: "addNode",
+        graph: "root",
+        id: "out2",
+        node: { kind: "sink", item: "iron-plate", targetPerSecond: 2 },
+        position: { x: 0, y: 0 },
+      },
+      {
+        type: "connect",
+        graph: "root",
+        id: "in2",
+        edge: { from: "ferrite2", to: "module2", toPort: "in", item: "clean-ferrite" },
+      },
+      {
+        type: "connect",
+        graph: "root",
+        id: "out2",
+        edge: { from: "module2", fromPort: "out", to: "out2", item: "iron-plate" },
+      },
+    ]);
+    if (!twice.ok) throw new Error(JSON.stringify(twice.error));
+    const document = twice.value.document;
+    // One blueprint in the model: both instances place the same one, so the solver summarises it once.
+    const { model } = compile({ document, pack: templatePack(), plugin: templatePlugin });
+    expect(model.blueprints).toHaveLength(1);
+    expect(model.nodes.filter((node) => node.kind === "instance").map((node) => node.blueprint)).toEqual([0, 0]);
+
+    const { edit, nextResults } = setUp();
+    let results = nextResults();
+    edit(document);
+    const before = await results;
+    // Designed for 3 furnaces (1 plate/s): each copy runs twice over for its 2 plates/s.
+    expect(before.nodes.module?.activity).toBeCloseTo(2, 9);
+    expect(before.nodes.module2?.activity).toBeCloseTo(2, 9);
+
+    // Six furnaces inside: the design makes 2 plates/s, so each copy runs once.
+    const bigger = applyCommands(document, [
+      { type: "setPin", graph: "plates", id: "smelt", pin: { type: "machines", count: 6 } },
+    ]);
+    if (!bigger.ok) throw new Error(JSON.stringify(bigger.error));
+    results = nextResults();
+    edit(bigger.value.document);
+    const after = await results;
+    expect(after.nodes.module?.activity).toBeCloseTo(1, 9);
+    expect(after.nodes.module2?.activity).toBeCloseTo(1, 9);
+    expect(after.nodes.module2?.outputs["iron-plate"]).toBeCloseTo(2, 9);
   });
 
   it("forgets closed documents", async () => {

@@ -17,6 +17,7 @@ const ITEMS: Record<Target, string[][]> = {
   node: [
     ["view.zoomToSelection", "arrange.leftToRight", "align.straightenChain"],
     ["arrange.frameSelection", "arrange.toggleLock"],
+    ["subgraph.collapse", "subgraph.open", "subgraph.expand"],
     ["edit.delete", "edit.deleteAndBridge"],
   ],
   flow: [["edit.delete"]],
