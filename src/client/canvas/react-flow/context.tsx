@@ -16,6 +16,8 @@ export interface CanvasContextValue {
   toggleCollapsed(frame: LocalId): void;
   /** A subgraph instance asks to be opened (its card's button). */
   openSubgraph(node: LocalId): void;
+  /** A port asks for the recipe picker, as if a connection from it was dropped beside it (the keyboard's way). */
+  pickForPort(node: LocalId, handle: string): void;
   /** How much of each node to draw at the current zoom. */
   lod: LodTier;
 }
@@ -46,6 +48,11 @@ export function useAnnotationEdits(): Pick<CanvasContextValue, "editText" | "res
 /** How a subgraph instance asks to be opened. */
 export function useOpenSubgraph(): CanvasContextValue["openSubgraph"] {
   return useCanvasContext().openSubgraph;
+}
+
+/** How a port asks for the recipe picker. */
+export function usePortPicker(): CanvasContextValue["pickForPort"] {
+  return useCanvasContext().pickForPort;
 }
 
 export function useLod(): LodTier {

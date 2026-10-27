@@ -29,6 +29,7 @@ import type { Move } from "../model/tween";
 import { connectionItem, portOf } from "../model/connect";
 import { particlesShown } from "../model/flow-style";
 import { lodTier } from "../model/lod";
+import { nodeLabel } from "../model/node-label";
 import { GRID } from "../model/geometry";
 import type { CanvasScene, EdgeView, NodeView } from "../model/scene";
 import { insideLasso, nudgeOffset } from "../model/selection";
@@ -124,6 +125,9 @@ function FlowCanvas({
   // One subscriber to the zoom for the whole canvas: nodes re-render only when the tier changes.
   const lod = useStore((state) => lodTier(state.transform[2]));
   const particles = useStore((state) => particlesShown(state.transform[2]));
+  // The keyboard's way to the recipe picker (set below), stable so the context doesn't change with every scene.
+  const pickLatest = useRef<(node: string, handle: string) => void>(ignore);
+  const pickForPort = useCallback((node: string, handle: string) => pickLatest.current(node, handle), []);
   const context = useMemo(
     () => ({
       results,
@@ -134,8 +138,9 @@ function FlowCanvas({
       resize: onResize,
       toggleCollapsed: onToggleCollapsed,
       openSubgraph: onOpenSubgraph,
+      pickForPort,
     }),
-    [results, rateUnit, machineGroups, lod, onEditText, onResize, onToggleCollapsed, onOpenSubgraph],
+    [results, rateUnit, machineGroups, lod, onEditText, onResize, onToggleCollapsed, onOpenSubgraph, pickForPort],
   );
 
   const store = useStoreApi<FlowNode, FlowEdgeType>();
@@ -169,7 +174,7 @@ function FlowCanvas({
 
   const snapping = useSnapping();
   const { snapChanges } = snapping;
-  const { screenToFlowPosition, fitView, setViewport } = useReactFlow<FlowNode, FlowEdgeType>();
+  const { screenToFlowPosition, flowToScreenPosition, fitView, setViewport } = useReactFlow<FlowNode, FlowEdgeType>();
   const { getNodesBounds } = useReactFlow<FlowNode, FlowEdgeType>();
   // Shows a new ghost, with the graph around it while cards stay readable at the zoom that takes.
   const reveal = useCallback(
@@ -266,35 +271,58 @@ function FlowCanvas({
   const handleConnect = useCallback(
     (connection: Connection) => {
       const item = connectionItem(normalise(connection));
-      if (item) onConnect(connected(connection, item));
+      if (!item) return;
+      onConnect(connected(connection, item));
+      const name = scene.nodes.flatMap((node) => node.ports).find((port) => port.item.id === item)?.item.name;
+      store.setState({ ariaLiveMessage: `Connected ${name ?? item}.` });
     },
-    [onConnect],
+    [onConnect, scene, store],
   );
 
+  /** Asks for the recipe picker for a port, the connection's loose end at `flow`, `client` on screen. */
+  const dropFrom = useCallback(
+    (nodeId: string, handle: string, flow: Point, client: Point) => {
+      const view = scene.nodes.find((node) => node.id === nodeId);
+      const port = view?.ports.find((candidate) => candidate.handle === handle);
+      const item = view?.kind === "junction" ? view.item?.id : port?.item.id;
+      const bounds = root.current?.getBoundingClientRect();
+      if (!view || !port || !item || !bounds) return;
+      onPortDropped({
+        node: view.id,
+        item,
+        ...(port.port !== undefined && { port: port.port }),
+        side: port.direction,
+        flow,
+        screen: { x: client.x - bounds.left, y: client.y - bounds.top },
+      });
+    },
+    [scene, onPortDropped],
+  );
   const onConnectEnd: OnConnectEnd = useCallback(
     (event, connection) => {
       // Only a drop on the empty pane asks for a new node; a drop on a node or port is a connection attempt.
       const target = event.target instanceof Element ? event.target : null;
       if (connection.isValid || !connection.fromHandle?.id || !connection.fromNode) return;
       if (!target?.classList.contains("react-flow__pane")) return;
-      const view = scene.nodes.find((node) => node.id === connection.fromNode?.id);
-      const port = view?.ports.find((candidate) => candidate.handle === connection.fromHandle?.id);
-      const item = view?.kind === "junction" ? view.item?.id : port?.item.id;
-      if (!view || !port || !item) return;
       const point = "changedTouches" in event ? event.changedTouches[0] : event;
       if (!point) return;
-      const bounds = target.getBoundingClientRect();
-      onPortDropped({
-        node: view.id,
-        item,
-        ...(port.port !== undefined && { port: port.port }),
-        side: port.direction,
-        flow: screenToFlowPosition({ x: point.clientX, y: point.clientY }),
-        screen: { x: point.clientX - bounds.left, y: point.clientY - bounds.top },
-      });
+      const client = { x: point.clientX, y: point.clientY };
+      dropFrom(connection.fromNode.id, connection.fromHandle.id, screenToFlowPosition(client), client);
     },
-    [scene, screenToFlowPosition, onPortDropped],
+    [dropFrom, screenToFlowPosition],
   );
+  // The keyboard's drop: a few grid steps out from the port, the way it faces.
+  useLayoutEffect(() => {
+    pickLatest.current = (nodeId, handle) => {
+      const node = store.getState().nodeLookup.get(nodeId);
+      const port = node?.data.view.ports.find((candidate) => candidate.handle === handle);
+      if (!node || !port) return;
+      const { x, y } = node.internals.positionAbsolute;
+      const away = (port.direction === "out" ? 1 : -1) * KEYBOARD_DROP;
+      const flow = { x: x + port.x + away, y: y + port.y };
+      dropFrom(nodeId, handle, flow, flowToScreenPosition(flow));
+    };
+  }, [store, dropFrom, flowToScreenPosition]);
 
   const reportCentre = useCallback(() => {
     const { transform, width, height } = store.getState();
@@ -429,8 +457,15 @@ function FlowCanvas({
   );
 
   // Arrow keys nudge the selection; the move is one edit. Captured, so React Flow's own nudging stays out.
+  // Escape first lets go of a connection started on a port (click or Enter), before it deselects anything.
   const onKeyDownCapture = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Escape" && store.getState().connectionClickStartHandle) {
+        event.preventDefault();
+        event.stopPropagation();
+        store.setState({ connectionClickStartHandle: null, ariaLiveMessage: "Connection cancelled." });
+        return;
+      }
       // With Ctrl or Cmd, arrows are shortcuts (into and out of subgraphs), not nudges.
       const offset = event.ctrlKey || event.metaKey ? undefined : nudgeOffset(event.key, event, GRID);
       const editable =
@@ -566,6 +601,9 @@ const ignore = () => undefined;
 /** How close to a flow's end, in screen pixels, an Alt-drag picks it up. */
 const RECONNECT_RADIUS = 14;
 
+/** How far out from a port, in flow units, the keyboard's recipe picker places the new node's port. */
+const KEYBOARD_DROP = GRID * 6;
+
 /** Middle and right mouse buttons pan; the left one selects. */
 const PAN_BUTTONS = [1, 2];
 
@@ -643,6 +681,7 @@ function toFlowNode(view: NodeView, previous?: FlowNode): FlowNode {
     // Known sizes count as measured, so culled nodes that were never drawn still take part in fitting.
     measured: { width: view.width, height: view.height },
     handles: view.ports.map(handleBounds),
+    ariaLabel: nodeLabel(view),
     data: { view },
     ...(view.kind === "frame" && { zIndex: -1 }),
     ...(view.locked && { draggable: false, className: "is-locked" }),

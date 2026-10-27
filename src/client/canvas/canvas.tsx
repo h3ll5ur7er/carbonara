@@ -26,6 +26,7 @@ import { SelectionToolbar } from "./selection-toolbar";
 import { UnitsPicker } from "./units-picker";
 import { MultiEdit } from "./multi-edit";
 import { canvasActions } from "./viewport";
+import { focusNodeWhenShown } from "./focus";
 import { FindPanel } from "../features/find/find-panel";
 import { recipeChangeCommands, type FindResult } from "../features/find/find";
 import { useFind } from "../features/find/find-store";
@@ -365,14 +366,21 @@ function DocumentCanvas({
     null,
   );
   const container = useRef<HTMLDivElement>(null);
+  /** What had the focus when the picker opened (a port, from the keyboard): it gets it back on cancel. */
+  const opener = useRef<Element | null>(null);
   const onPortDropped = useCallback(
     (dropped: PortDrop) => {
       const width = container.current?.clientWidth ?? 0;
       const height = container.current?.clientHeight ?? 0;
+      opener.current = window.document.activeElement;
       setDrop({ ...dropped, bounds: { left: insets.left, right: width - insets.right, height } });
     },
     [insets],
   );
+  const onPickerClose = useCallback(() => {
+    setDrop(null);
+    if (opener.current instanceof HTMLElement && opener.current.isConnected) opener.current.focus();
+  }, []);
   const usage = useMemo(() => (shown ? recipeUsage(shown) : {}), [shown]);
   const request = useMemo(() => drop && { item: drop.item, side: drop.side }, [drop]);
   const rateUnit = useMemo(() => rateDisplayOf(document.settings, pack), [document.settings, pack]);
@@ -383,6 +391,8 @@ function DocumentCanvas({
       const from = { node: drop.node, item: drop.item, side: drop.side, ...(drop.port && { port: drop.port }) };
       const pick = { graph, from, entry, drop: drop.flow, id: newNodeId(entry) };
       void apply(clearOfOthers(pickCommands(pack, pick), scene, pack), `Add ${entry.title}`);
+      // The keyboard carries on from the new node.
+      focusNodeWhenShown(pick.id);
     },
     [apply, drop, graph, pack, scene],
   );
@@ -452,7 +462,7 @@ function DocumentCanvas({
           at={drop.screen}
           bounds={drop.bounds}
           onPick={onPick}
-          onClose={() => setDrop(null)}
+          onClose={onPickerClose}
         />
       )}
     </div>
