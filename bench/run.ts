@@ -14,6 +14,7 @@ import {
   editBlueprint,
   editMotor,
   editTarget,
+  addSink,
   expandedNodes,
   generateFactory,
   generateSubgraphFactory,
@@ -65,6 +66,11 @@ const builtFromSubgraphs = subgraphs("50k-node factory built from subgraphs, 100
 
 const SCENARIOS: Scenario[] = [
   flat("500-node component", 1, 500, 30, 100),
+  {
+    // A pin edit starts from the component's last LP; this one changes the LP's shape, so it can't.
+    ...flat("the same, adding a sink", 1, 500, 15),
+    edit: (document, edit) => addSink(document, 0, Math.floor(cellsFor(500) / 2), edit),
+  },
   flat("1k-node factory, 2 components", 2, 500, 30),
   flat("10k-node flat graph, 20 components", 20, 500, 20, 150),
   flat("50k-node flat graph, 100 components", 100, 500, 10),

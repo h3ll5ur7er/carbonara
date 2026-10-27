@@ -238,3 +238,13 @@ export function editMotor(document: Document, line: number, cell: number, edit: 
     };
   });
 }
+
+/** The same factory with one more sink on a cell's motor bus: the component's LP changes shape. */
+export function addSink(document: Document, line: number, cell: number, edit: number): Edited {
+  return edited(document, (draft) => {
+    const sink = `l${line}-extra${edit}`;
+    const bus = `l${line}-c${cell}-motor-bus`;
+    draft.graph.nodes[sink] = { kind: "sink", item: "motor" };
+    draft.graph.edges[`${bus}>${sink}`] = { from: bus, to: sink, item: "motor" };
+  });
+}
