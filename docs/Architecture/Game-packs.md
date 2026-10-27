@@ -153,7 +153,7 @@ Conventions the importer follows ([[packs/satisfactory/plugin/importer.ts]]):
 - Ids are the game's display names in kebab case (`iron-ingot`, `miner-mk1`); alternates are `alt-…` and tagged `alternate`. Fluids are in m³, rates per minute.
 - Recipes are what machines run; build-gun and workbench recipes are left out, and so are items no machine, generator or resource node deals with (equipment, consumables).
 - Each generator fuel becomes a recipe tagged `power` that burns one unit at full power, so fuel, water and nuclear waste flow through the graph.
-- Machines whose power depends on the recipe (Particle Accelerator, Converter, Quantum Encoder) get the middle of their range for now. Every building has `fields.clock`; the mechanics are [[CARB-43]].
+- Machines whose power depends on the recipe (Particle Accelerator, Converter, Quantum Encoder) get the middle of their range for now. Every building has `fields.clock`, the clock range the plugin's mechanics read ([[Architecture/Plugins]], Satisfactory).
 - The map's resource limits aren't in the game's data, so the importer keeps them in a table.
 
 ## Assets and permissions

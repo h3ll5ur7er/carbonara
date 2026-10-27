@@ -50,6 +50,7 @@ const LABELS: Record<Command["type"], string> = {
   moveNodes: "Move nodes",
   setNodeFields: "Change fields",
   setPin: "Change pin",
+  setPluginSettings: "Change save profile",
   setRate: "Change rate",
 };
 
@@ -62,6 +63,14 @@ export function describeCommands(commands: Command[]): string {
 
 /** Mutates the draft, or returns the problem (relative to the command) without touching it. */
 function applyCommand(document: Document, command: ResolvedCommand): Issue | undefined {
+  if (command.type === "setPluginSettings") {
+    const settings = (document.settings.plugin ??= {});
+    for (const [key, value] of Object.entries(command.settings)) {
+      if (value === null) Reflect.deleteProperty(settings, key);
+      else settings[key] = structuredClone(value);
+    }
+    return;
+  }
   const scope = command.graph;
   const graph = graphOf(document, scope);
   if (!graph) return issue(["graph"], `Unknown graph ${scope}`);

@@ -100,7 +100,7 @@ function WelcomeCanvas({ loaded }: { loaded: boolean }) {
   );
 }
 
-/** The inspector's view of the one selected node of the active document; nothing for none or several. */
+/** The inspector's view of the active document: its one selected node, its save profile while none is selected. */
 function useInspected(
   { info, document, packData, results }: ActiveDocument,
   selection: { documentId: string; nodeIds: string[] } | null,
@@ -109,7 +109,13 @@ function useInspected(
   return useMemo(() => {
     const nodeId =
       selection?.documentId === info?.id && selection?.nodeIds.length === 1 ? selection.nodeIds[0] : undefined;
-    if (!nodeId || !info || !document || !packData) return null;
+    if (!info || !document || !packData) return null;
+    const selected = selection?.documentId === info.id ? selection.nodeIds.length : 0;
+    if (selected === 0) {
+      const settings = document.settings.plugin ?? {};
+      return { profile: { documentId: info.id, pack: packData, settings, plugin } };
+    }
+    if (!nodeId) return null;
     const node = inspectNode({ document, pack: packData, results, nodeId, plugin });
     if (!node) return null;
     return {

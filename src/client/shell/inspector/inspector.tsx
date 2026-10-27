@@ -72,7 +72,8 @@ export function Inspector({ node, onFieldEdit, onProductionEdit }: InspectorProp
   );
 }
 
-function Field({
+/** One field descriptor as a control; the Save profile uses it for the plugin's document settings too. */
+export function Field({
   descriptor,
   value,
   onEdit,
