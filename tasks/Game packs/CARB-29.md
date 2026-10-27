@@ -2,7 +2,7 @@
 id: CARB-29
 title: Produce the Satisfactory pack data
 type: feature
-status: review
+status: done
 priority: high
 labels: [packs, satisfactory]
 wave: "1"
@@ -35,3 +35,5 @@ Importer from `Docs.json` (as the pack's importer hook), icons as WebP, `CREDITS
 - **Resource limits:** not in Docs.json; the 12 totals SatisfactoryTools uses for 1.0+ live in `MAP_LIMITS` in the importer.
 - **Icons:** items are matched by the game's texture name, buildings by display name (wiki-style file names); the largest image wins and is converted to 64×64 WebP with sharp. We didn't use SatisfactoryTools' images because its licence forbids derivative use. Sources and terms are in `packs/satisfactory/CREDITS.md`; permission to ship them is [[CARB-31]].
 - **Tests:** Vitest only runs tests below `tools/`, and `tsconfig` doesn't include `packs/`, so the importer's tests are `tools/pack-cli/import.satisfactory.test.ts` (they typecheck the plugin through their imports).
+
+Reviewed by the integrator: spot-checked recipes, belts and pipes against the game; `pnpm pack:build packs/satisfactory` validates. Publishing still waits on [[CARB-31]].
