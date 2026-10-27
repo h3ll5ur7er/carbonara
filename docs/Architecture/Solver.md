@@ -60,7 +60,8 @@ The LP library sits behind the `Backend` trait ([[crates/solver/src/program.rs]]
 
 ## Readable results
 
-- Values are cleaned of floating-point noise and rationalised with continued fractions. The UI can then show `2/3` and `66.6667%`, and split machine counts into "4 × 100% + 1 × 37.5%".
+- Values are cleaned of floating-point noise and rationalised with continued fractions ([[src/utilities/numbers.ts]]). A value counts as a fraction when one with denominator ≤ 1000 is within 1e-7 relative of it, above the solver's noise (about 1e-8). The UI can then show `2/3` (`formatFraction`, denominators ≤ 100) and `66.6667%` (`formatPercent`, at most four decimals), and split machine counts into "4 × 100% + 1 × 37.5%" (`splitMachines`, `formatMachines`: whole machines first, then one machine for the rest).
+- Rates are converted between items per second and the pack's or user's unit, and formatted as `12.5/min`, in [[src/utilities/units.ts]].
 - **Diagnostics:** every non-zero slack maps to a concrete annotation: "−12.5/min Iron Plate", "belt over capacity by 15/min", "unused byproduct".
 
 ## Performance
