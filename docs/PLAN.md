@@ -11,6 +11,7 @@ A game-agnostic, node-based factory planner. It works in the browser and can be 
 3. **The UI thread never waits.** Solving, plugin hooks, auto-layout and data-pack parsing all run in workers. The canvas only reads results.
 4. **Hierarchy is the scaling strategy.** A subgraph compiles to a "macro recipe". The top level only solves macro nodes, and the inside of a subgraph is solved only when you open it.
 5. **Contracts first, then parallel work.** The data-pack schema, document schema, solver IR and plugin API are fixed in Wave 0 so that the later waves can be built in parallel without conflicts.
+6. **The AI is just another user.** Every change, whether it comes from the mouse, the command palette, a paste or the MCP server, goes through the same command pipeline. That gives every change undo, a history entry and a ghost preview.
 
 ---
 
@@ -30,6 +31,7 @@ A game-agnostic, node-based factory planner. It works in the browser and can be 
 | Layout | ELK.js (layered) in a worker | Good automatic layout for left-to-right production chains |
 | Persistence | IndexedDB (Dexie) autosave; `.carbonara` files (gzipped JSON); share links | Works offline, and documents are portable |
 | Desktop | Tauri 2 (same web bundle, native file I/O, menus, file associations, auto-update) | Little extra code needed |
+| MCP server | `rmcp` (official Rust MCP SDK) inside the Tauri app: Streamable HTTP on localhost, plus a stdio bridge | Works with Claude Desktop, Claude Code and any other MCP client |
 | Tests | Vitest, `cargo test` + `proptest`, Playwright e2e + screenshot regression, `criterion` benchmarks | Visual regressions and performance budgets are checked in CI |
 | Tooling | pnpm workspaces + Cargo workspace, Biome (lint/format), GitHub Actions | One install, one CI |
 
@@ -44,7 +46,8 @@ carbonara/
 │  └─ desktop/             # Tauri 2 shell (src-tauri/), wraps apps/web build
 ├─ crates/
 │  ├─ solver/              # graph IR, LP model builder, subgraph compiler, decomposition
-│  └─ solver-wasm/         # wasm-bindgen bindings, postcard decode/encode
+│  ├─ solver-wasm/         # wasm-bindgen bindings, postcard decode/encode
+│  └─ mcp/                 # MCP server (rmcp): tools, resources, prompts, IPC bridge to the engine
 ├─ packages/
 │  ├─ schema/              # zod: PackManifest, PackData, Document, migrations; emits JSON Schema
 │  ├─ engine/              # pack loader, doc→IR compiler, plugin host, solver worker, result store
@@ -52,10 +55,10 @@ carbonara/
 │  ├─ ui/                  # design system: tokens, primitives, icons, panels
 │  ├─ plugin-api/          # public types + definePlugin() for pack authors
 │  └─ pack-cli/            # `carbonara-pack`: validate, bundle plugin, zip → .cpack, dev watch
-├─ packs/                  # each folder builds into one .cpack (data + plugin together)
-│  ├─ demo/                # small original pack (no copyrighted data) for dev, tests, onboarding
-│  ├─ satisfactory/        # clock speed, somersloops, alternates, power curve, Docs.json importer
-│  └─ factorio/            # modules, beacons, quality, heat, fluid temps, data-raw importer
+├─ packs/                  # each folder builds into one .cpack (data + icons + plugin together)
+│  ├─ _template/           # small original example pack: scaffold for `carbonara-pack new`, test fixture
+│  ├─ satisfactory/        # full data + icons; clock speed, somersloops, alternates, power curve
+│  └─ factorio/            # full data + icons; modules, beacons, quality, heat, fluid temps
 └─ bench/                  # generated mega-factories (1k / 10k / 50k nodes) + perf harness
 ```
 
@@ -80,6 +83,7 @@ satisfactory.cpack              # zip archive, custom extension
 │  └─ index.js                  # bundled ESM: definePlugin({...}), see §7
 ├─ icons/                       # PNG/SVG/WebP referenced from data
 ├─ locales/                     # optional: en.yaml, de.yaml … for item/recipe names
+├─ CREDITS.md                   # asset sources, permissions, attribution
 └─ README.md                    # shown in the pack manager
 ```
 
@@ -120,16 +124,18 @@ recipes:
     out: { iron-ingot: 13 }
     tags: [alternate]
 logistics:
-  - { id: belt-mk1, carries: solid, capacity: 60 }
+  - { id: belt-mk1, name: Conveyor Belt Mk.1, aliases: [mk1 belt], carries: solid, capacity: 60 }  # aliases help the MCP tools understand plain language
   - { id: pipe-mk1, carries: fluid, capacity: 300 }
 resources:
   - { id: iron-ore, extractors: [miner-mk1, miner-mk2], nodes: { impure: 39, normal: 42, pure: 46 } }
 ```
 
-- **Loading:** you drop a `.cpack` on the app, open it via a file dialog, or double-click it on desktop (Tauri file association). The engine worker unzips it, validates the manifest and data with zod, and checks that the `engine` range is compatible. Readable errors give the file name plus the YAML line and column. Because the pack contains code, installing it shows a trust prompt (see §7). Installed packs are stored in IndexedDB/OPFS (web) or the app data folder (desktop).
+- **Built-in packs:** the app ships with every pack we maintain (Satisfactory and Factorio to start). They're built from `packs/*` at app build time, come preinstalled and trusted, and update with the app. They can also be updated on their own, without a new app release.
+- **Loading third-party packs:** you drop a `.cpack` on the app, open it via a file dialog, or double-click it on desktop (Tauri file association). The engine worker unzips it, validates the manifest and data with zod, and checks that the `engine` range is compatible. Readable errors give the file name plus the YAML line and column. Because the pack contains code, installing it shows a trust prompt (see §7). Installed packs are stored in IndexedDB/OPFS (web) or the app data folder (desktop).
 - **Identity:** a pack is content-addressed (a hash of the whole archive). Documents record pack id, version and hash. Opening a document whose pack is missing or a different version offers to install or migrate.
-- **Authoring:** `carbonara-pack` (in `packages/pack-cli`) scaffolds a new pack from a template (with a no-op plugin), validates it, bundles the plugin's TypeScript with esbuild, and zips it into a `.cpack`. **Dev mode** loads an unpacked pack folder and hot-reloads it when files change. On the web this uses the File System Access API; on desktop it watches the folder.
-- **Licensing:** we ship only the original demo pack complete. The Satisfactory and Factorio packs ship their plugin and an **importer** (a plugin hook), but no game data or icons. On first load, the pack asks for a file from your own install (`CommunityResources/Docs/*.json` for Satisfactory, `factorio --dump-data` for Factorio). It generates `data/` and icons locally and saves the completed pack, so we never redistribute game assets.
+- **Authoring:** `carbonara-pack new` scaffolds a new pack from `packs/_template`, a small original example game with a no-op plugin. The same CLI (in `packages/pack-cli`) validates the pack, bundles the plugin's TypeScript with esbuild, and zips it into a `.cpack`. **Dev mode** loads an unpacked pack folder and hot-reloads it when files change. On the web this uses the File System Access API; on desktop it watches the folder.
+- **Data & icons:** every pack bundles its full data and icons, so there are no install-path lookups at runtime. For maintainers, the pack's **importer** hook (run with `carbonara-pack import satisfactory --from <Docs.json>`) regenerates `data/` when a game updates. Icons are sourced once, normalized to WebP at fixed sizes by the icon pipeline, and recorded in the pack's `CREDITS.md`.
+- **Permission to use assets:** before we publish a build that includes a game's pack, we get the publisher's OK or confirm their fan-content policy covers it, and record the result in `CREDITS.md`. Each pack is a separate, removable unit, so a takedown request affects only that game's pack.
 - **v1 scope:** one pack per document. Mod packs that extend a base pack (`extends: factorio`) are a later addition, and the manifest leaves room for it.
 
 ### 4.2 Document
@@ -232,7 +238,7 @@ export default definePlugin({
   validate(node, sol) { /* … */ },
   // UI contributions (declarative): panels, commands, node badges, custom node kinds
   contributes: { commands: [...], panels: [...], nodeKinds: [...] },
-  // optional: generate data/ + icons from a file in the user's game install (see §4.1)
+  // optional, maintainer tooling: regenerate data/ from the game's own data files (see §4.1)
   importer: { accepts: ['Docs.json', 'en-US.json'], run(files, ctx) { /* → { data, icons } */ } },
 });
 ```
@@ -267,13 +273,13 @@ How the reference mechanics map onto the plugin hooks:
 **Interactions that make or break it**
 - Dragging from a port into empty space opens a **recipe picker filtered by that item**, with producers or consumers depending on port direction. It is ranked by how often you use each recipe and lets you preview alternates side by side.
 - A **command palette** (`Ctrl+K`) covers every action. You can quick-add nodes by typing "iron plate".
-- Auto-layout runs on the whole graph or the selection, with animated transitions. Alignment guides, snapping, and box or lasso selection are included.
+- Auto-arrange, alignment, copy/paste with a ghost preview and the other quality-of-life features are described in §9.
 - **Collapse to subgraph** (`Ctrl+G`), zoom-into transitions and breadcrumbs.
 - **Goal planner:** pick target outputs and rates, and the app generates the whole chain from the Optimize-mode LP, then lays it out.
 - **Inspector** side panel shows the plugin fields, per-item breakdowns and "what-if" recipe swaps with delta previews.
 - A **Totals dashboard** shows raw resources against map limits, power, building counts and build cost.
 - Undo and redo come with a history panel. The app supports multiple document tabs, autosave and share links.
-- First run opens the demo pack with an interactive onboarding tour.
+- First run asks which game you're playing and opens a starter factory for it, with an interactive onboarding tour.
 
 **Accessibility:** full keyboard navigation (move between nodes and ports), focus rings, ARIA on panels, and reduced-motion support.
 
@@ -281,7 +287,68 @@ How the reference mechanics map onto the plugin hooks:
 
 ---
 
-## 9. Delivery plan (parallel agents)
+## 9. Editor quality-of-life
+
+These features decide whether the editor feels pleasant during a long session. They're first-class scope, not polish.
+
+**Layout & alignment**
+- **Auto-arrange** the whole graph or the selection, left → right (default) or top → bottom. It uses ELK layered layout with ordering that is aware of item flow, to keep edge crossings low, and animates to the new positions. Pinned or locked nodes stay where they are.
+- **Align** left, centre, right, top, middle or bottom. **Distribute** horizontally or vertically. **Straighten chain** lines a linear chain up on one row.
+- Snap to grid (hold `Alt` to bypass), smart alignment guides with spacing indicators, and arrow-key nudging (`Shift` for big steps).
+- Edge styles (orthogonal or smooth), reroute points (double-click an edge), and bundled edges for main buses.
+
+**Clipboard & ghost placement**
+- Copy, cut, paste and duplicate (`Ctrl+C/X/V/D`). Paste doesn't drop nodes immediately; it shows a **ghost**, a translucent copy that follows the cursor with live snapping and guides. Click to place, `Esc` to cancel.
+- Edges inside the selection are kept. **Paste with connections** (`Ctrl+Shift+V`) reconnects edges to the original outside nodes when pasting into the same document.
+- Works across documents and into or out of subgraphs. The clipboard also holds plain text (JSON), so you can paste a setup into Discord and someone else can paste it back. Pasting between different packs warns about ids that don't exist.
+- The same ghost renderer is used for blueprints dragged from the library and for MCP proposals (§10).
+
+**Editing**
+- Drop a node onto an edge to insert it. **Delete & bridge** (`Ctrl+Shift+Del`) removes a node and keeps the flow connected. `Alt`-drag the end of an edge to move it to another port.
+- **Multi-select editing:** change the recipe, clock, modules or belt tier on every selected node at once.
+- **Find** (`Ctrl+F`) items, recipes and nodes across the whole factory, including inside subgraphs, and jump to them. **Replace recipe everywhere.**
+- **Balance** actions: fit a node's machine count to downstream demand or upstream supply. **Round to buildable** switches between "4 × 100% + 1 × 37.5%" and "5 × 87.5%".
+- Lock nodes, group frames (colour, label, collapsible), sticky notes and colour tags.
+- Choose the unit per document: /s, /min, /h, or **belts** ("2.0 × Mk.3 belt").
+
+**Navigation**
+- Zoom to fit or to the selection (`F` / `Shift+F`), minimap, viewport bookmarks (`Ctrl+1…9`), breadcrumbs, and back/forward like a browser.
+- Hover tooltips break a port's rate down by connection. Holding `Alt` while hovering highlights the node's whole upstream and downstream chain.
+
+**General**
+- Context menus everywhere, customizable shortcuts with a cheat sheet (`?`), export to PNG/SVG, and autosave.
+
+---
+
+## 10. MCP server (desktop)
+
+The desktop app runs an MCP server, so any MCP client (Claude Desktop, Claude Code and others) can read and edit your factories and help you build packs. The aim is that "create a steel smelting setup that produces 2 full yellow belts" just works.
+
+**Architecture**
+- The server runs inside the Tauri app (Rust, `rmcp`) and serves Streamable HTTP on `127.0.0.1` with a per-install token. `carbonara mcp` is a stdio bridge in the same binary, for clients that only launch stdio servers. A settings panel offers one-click "copy config" snippets for common clients.
+- Tool calls are forwarded over Tauri IPC to the engine worker in the webview. The engine stays the single source of truth because pack plugins are JS. If the app isn't running, tools return a clear error.
+- **Edits go through the normal command pipeline:** each tool call becomes one undo step, labelled "AI: …" in the history panel.
+- **Proposals instead of surprises:** generative tools don't change the document directly by default. They create a **proposal**, shown as a ghost overlay with a summary card (machines, raw inputs, power) and *Accept*, *Adjust* and *Discard* buttons. A setting allows edits to be applied directly instead.
+- **Permissions:** tools are read-only by default. The *Edit* and *Pack authoring* groups are switched on separately in settings. An activity panel lists every call.
+
+**Initial tools**
+
+| Group | Tools |
+|---|---|
+| Read | `list_packs`, `search_catalog` (items/recipes/buildings), `get_recipe`, `list_documents`, `get_graph` (document, subgraph or selection; summarized for large graphs), `get_totals`, `get_diagnostics` (deficits, overloaded belts, byproducts), `explain_node` |
+| Plan | `convert_rate` ("2 full yellow belts" → items/min, using the pack's logistics data and aliases), `plan_production(targets, options)` → proposal, `compare_recipes(item, rate)` |
+| Edit | `add_nodes`, `connect`, `set_node_fields`, `replace_recipe`, `create_subgraph`, `auto_arrange`, `apply_proposal`, `undo` |
+| Pack authoring | `get_pack_schema`, `get_plugin_api_docs`, `scaffold_pack`, `read_pack_file` / `write_pack_file` (only inside a dev pack folder), `validate_pack`, `reload_dev_pack`, `build_cpack` |
+
+**Resources:** JSON Schemas, the plugin API reference, and a summary of the active document. **Prompts:** "Design a production line" and "Create a pack for <game>".
+
+**Example flow.** "Steel, 2 full yellow belts" → `convert_rate` (yellow belt = 15/s in the Factorio pack, so 30/s = 1800/min) → `plan_production({steel-plate: 1800/min})` → a ghost proposal appears next to your existing factory with "480 steel furnaces (240 smelting iron plate, 240 making steel), 9000 iron ore/min" → you click *Accept* → `auto_arrange` tidies it.
+
+**Web version:** browsers can't host an MCP server, so the web app has no MCP in v1. A companion relay is a possible later addition.
+
+---
+
+## 11. Delivery plan (parallel agents)
 
 The work is split into waves. Each wave fans out to sub-agents in isolated git worktrees, each with a narrow brief and a Definition of Done (tests green, screenshots attached, benchmarks within budget). I act as integrator: I merge each worktree into `claude/dreamy-knuth-362jms`, resolve conflicts, and run review agents (correctness, visual, performance) before each merge.
 
@@ -289,30 +356,32 @@ The work is split into waves. Each wave fans out to sub-agents in isolated git w
 - Monorepo scaffold (pnpm + Cargo workspaces), Biome, CI (lint, typecheck, test, wasm build, Playwright).
 - `packages/schema`: zod `PackManifest`, `PackData` and `Document` v1, plus JSON Schema output.
 - `crates/solver` IR types + `tsify` TS bindings; `packages/plugin-api` types.
-- `packs/demo` (about 15 items and 12 recipes, including a loop and a byproduct, with a no-op plugin), plus a minimal `pack-cli build` that zips it into `demo.cpack`.
+- `packs/_template` (an original example game with about 15 items and 12 recipes, including a loop and a byproduct, with a no-op plugin), plus a minimal `pack-cli build` that zips it into a `.cpack`. It is the pack-author template and the test fixture.
 - Design tokens + an empty app shell that renders a React Flow canvas.
 - **Exit criteria:** `pnpm dev` shows the shell, `cargo test` passes, and CI is green. The contracts are frozen.
 
 ### Wave 1 — Core vertical slice (5 agents in parallel)
 | Agent | Scope | Done when |
 |---|---|---|
-| **Solver** | LP builder, tiered objectives, slack diagnostics, component decomposition + hash cache, WASM bindings, worker + Comlink bridge | proptest conservation invariants hold; solves the demo-pack scenes; 10k-node bench within budget |
-| **Canvas** | `CanvasAdapter`, recipe/source/sink/splitter node components, ports, flow edges with particles, LOD tiers, drag-to-picker | Storybook-style scene screenshots approved; 60 fps pan with 1k nodes |
+| **Solver** | LP builder, tiered objectives, slack diagnostics, component decomposition + hash cache, WASM bindings, worker + Comlink bridge | proptest conservation invariants hold; solves the template-pack and built-in pack scenes; 10k-node bench within budget |
+| **Canvas** | `CanvasAdapter`, recipe/source/sink/splitter node components, ports, flow edges with particles, LOD tiers, drag-to-picker, selection, snapping, guides, nudge, zoom-to-fit | Storybook-style scene screenshots approved; 60 fps pan with 1k nodes |
 | **Shell & design system** | tokens, panels, inspector framework (field-descriptor renderer), command palette, toasts, theming | screenshot suite passes in dark and light; keyboard-navigable |
-| **Game packs** | `.cpack` loader (unzip, manifest + data validation, engine-range check), validation error UI, pack manager panel, `pack-cli` (scaffold, validate, bundle, zip, dev watch), Satisfactory `Docs.json` + Factorio `data-raw` importers, icon pipeline | real data imports cleanly into complete packs; schema fixtures and malformed-archive tests pass |
+| **Game packs** | `.cpack` loader (unzip, manifest + data validation, engine-range check), validation error UI, pack manager panel, `pack-cli` (scaffold, validate, bundle, zip, dev watch, import), Satisfactory `Docs.json` + Factorio `data-raw` importers, icon sourcing + WebP pipeline, built-in pack bundling into the app build | `satisfactory.cpack` and `factorio.cpack` build with full data and icons and load in the app; schema fixtures and malformed-archive tests pass |
 | **Document** | store, Immer patches → undo/redo + worker sync, IndexedDB autosave, `.carbonara` file I/O, migrations | round-trip and undo property tests pass |
 
-**Milestone M1 "It flows":** on the demo pack, place nodes, connect them, and see live rates, deficits and belt saturation.
+**Milestone M1 "It flows":** with a built-in pack, place nodes, connect them, and see live rates, deficits and belt saturation.
 
-### Wave 2 — Depth (4 agents in parallel)
+### Wave 2 — Depth (6 agents in parallel)
 | Agent | Scope |
 |---|---|
 | **Subgraphs** | macro-recipe compiler (1-DOF, multi-mode, inline fallback), collapse/expand UX, breadcrumbs, blueprint library |
 | **Plugins** | plugin host in the worker, hook pipeline, trust UI, plugins for the `satisfactory` + `factorio` packs |
-| **Planner** | Optimize mode, goal planner → generated graph, ELK auto-layout worker, Totals dashboard, Sankey view |
+| **Planner** | Optimize mode, goal planner → proposal (ghost) → generated graph, Totals dashboard, Sankey view |
+| **Editor QoL** | everything in §9: ELK auto-arrange worker (the Planner uses it too), align/distribute, clipboard + ghost renderer, insert-on-edge, delete & bridge, multi-select editing, find/replace, balance actions, frames/notes, bookmarks, shortcut editor |
 | **Desktop & perf** | Tauri 2 shell (file associations for `.carbonara` and `.cpack`, native dialogs, menus, updater), bench harness in CI, perf profiling pass |
+| **MCP** | `crates/mcp` (rmcp server, token auth, stdio bridge), IPC bridge to the engine, the tools and resources from §10, permission settings + activity panel, proposal flow. Tested with a scripted MCP client and an end-to-end "2 yellow belts of steel" scenario. Lands on top of the Desktop shell |
 
-**Milestone M2 "It's a game":** Satisfactory import works with alternates, overclock and somersloops. **M3 "Megafactory":** a 50k-node factory built from subgraphs stays interactive, and the Factorio pack with modules, beacons and quality works.
+**Milestone M2 "It's a game":** the bundled Satisfactory pack works with alternates, overclock and somersloops, and an MCP client can plan a line into the open document as a proposal. **M3 "Megafactory":** a 50k-node factory built from subgraphs stays interactive, and the Factorio pack with modules, beacons and quality works.
 
 ### Wave 3 — Polish (2–3 agents + review)
 Onboarding tour, empty states, micro-interactions, a visual QA pass over every scene, an accessibility audit, docs for pack and plugin authors, and release builds (web deploy + Tauri installers).
@@ -321,7 +390,7 @@ Onboarding tour, empty states, micro-interactions, a visual QA pass over every s
 
 ---
 
-## 10. Risks & mitigations
+## 12. Risks & mitigations
 
 | Risk | Mitigation |
 |---|---|
@@ -330,10 +399,11 @@ Onboarding tour, empty states, micro-interactions, a visual QA pass over every s
 | `microlp` is too slow for huge flat LPs | Solver backend trait with `clarabel` as an alternative; decomposition and hierarchy reduce problem size first |
 | Third-party pack code is a security risk | Plugins run in a worker with no DOM, UI contributions are declarative only, and installing a pack requires an explicit trust prompt showing its hash. Signed packs can come later |
 | A pack update breaks existing documents | Documents pin pack id + version + hash; the `engine` range is checked on load; data id changes go through pack-provided migrations |
-| Game data licensing | Importers read data from the user's own installation; we ship only the original demo pack |
+| Game data and icon licensing | Publisher permission or a covering fan-content policy before publishing; sources and permissions in each pack's `CREDITS.md`; packs are separate units that can be pulled individually |
+| A local MCP server opens a door into the app | Bound to `127.0.0.1` only, per-install token, read-only by default, separate opt-in for edit and authoring tools, file writes limited to dev pack folders, every call logged and undoable |
 | Numerical noise ("59.99999/min") | Tiered solves, epsilon cleanup, and rational display |
 
 ---
 
-## 11. Explicitly out of scope for v1
-Real-time multiplayer (although Immer patches leave a path to Yjs), a map-based resource-node picker, mod managers and mobile layouts.
+## 13. Explicitly out of scope for v1
+Real-time multiplayer (although Immer patches leave a path to Yjs), a map-based resource-node picker, mod managers, mobile layouts, MCP in the web version, and a built-in chat assistant (external MCP clients cover this for now).
