@@ -22,14 +22,16 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "e2e": "playwright test",
+    "e2e": "node scripts/e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "schema": "tsx tools/schema.ts",
+    "mcp:tools": "tsx tools/mcp-tools.ts",
     "carbonara-pack": "tsx tools/pack-cli/main.ts",
     "pack:build": "tsx tools/pack-cli/main.ts build",
     "pack:import": "tsx tools/pack-cli/main.ts import",
-    "bench": "tsx bench/run.ts"
+    "bench": "tsx bench/run.ts",
+    "e2e:host": "playwright test"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",

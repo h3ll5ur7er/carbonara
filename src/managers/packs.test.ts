@@ -18,7 +18,21 @@ const builtIn: BuiltInPack = {
     hash: "b".repeat(64),
     builtIn: true,
   },
-  load: async () => ({ data: PackData.parse({}), plugin: definePlugin({ id: "works" }) }),
+  load: async () => ({
+    data: PackData.parse({ buildings: [{ id: "press", name: "Press" }] }),
+    plugin: definePlugin({
+      id: "works",
+      nodeFields: () => ({ force: { kind: "number", label: "Force", min: 1, max: 9, default: 5 } }),
+      settingsFields: ({ settings }) => ({
+        hard: {
+          kind: "toggle",
+          label: settings.label === undefined ? "Hard mode" : String(settings.label),
+          default: false,
+        },
+      }),
+      metrics: { noise: { label: "Noise", unit: "dB" } },
+    }),
+  }),
 };
 
 const files = {
@@ -120,6 +134,22 @@ describe("the packs manager", () => {
     await packs.removePack({ packId: "demo" });
     expect(await packs.listPacks({})).toEqual([builtIn.info]);
     expect(events.at(-1)).toEqual([builtIn.info]);
+  });
+
+  it("describes a pack plugin's fields, settings and metrics for the inspector", async () => {
+    const { packs } = setup();
+    expect(await packs.describePlugin({ packId: "works", settings: { label: "Brutal" } })).toEqual({
+      nodeFields: { press: { force: { kind: "number", label: "Force", min: 1, max: 9, default: 5 } } },
+      settingsFields: { hard: { kind: "toggle", label: "Brutal", default: false } },
+      metrics: { noise: { label: "Noise", unit: "dB" } },
+    });
+    await packs.installPack({ bytes: archive() });
+    expect(await packs.describePlugin({ packId: "demo", settings: {} })).toEqual({
+      nodeFields: {},
+      settingsFields: {},
+      metrics: {},
+    });
+    await expect(packs.describePlugin({ packId: "nope", settings: {} })).rejects.toThrow("Unknown pack 'nope'");
   });
 
   it("treats removing a pack that isn't installed, and asking for unknown data, as mistakes", async () => {

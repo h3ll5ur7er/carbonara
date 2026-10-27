@@ -6,6 +6,9 @@ const url = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: "e2e",
+  // Frame-time budgets depend on how busy the machine is, so they run on their own (`E2E_PERF=1`), in the
+  // non-blocking "Performance budgets" CI job, rather than holding up every e2e run.
+  ...(process.env.E2E_PERF ? { testMatch: /perf\.spec\.ts$/ } : { testIgnore: /perf\.spec\.ts$/ }),
   snapshotPathTemplate: "e2e/__screenshots__/{testFilePath}/{arg}{ext}",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -15,7 +18,8 @@ export default defineConfig({
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002, threshold: 0.05 } },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
   webServer: {
-    command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,
+    // Vite directly, not through pnpm: the e2e runs inside the Playwright image, which has no pnpm (scripts/e2e.mjs).
+    command: `node node_modules/vite/bin/vite.js --host 127.0.0.1 --port ${port} --strictPort`,
     url,
     reuseExistingServer: !process.env.CI,
   },

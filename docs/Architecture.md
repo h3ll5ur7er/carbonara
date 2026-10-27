@@ -113,7 +113,7 @@ flowchart LR
 
 - **UI thread:** the client keeps a *read model*: a mirror of the open documents plus the latest results. It's updated from manager events (Immer patches and typed-array result deltas). While you drag something, the client moves it locally and sends one `editing.moveNodes` command when you drop it.
 - **Backend worker:** managers, engines, access and the solver's WASM module. Calls use the RPC envelope from [[src/contracts/rpc.ts]]: `{ id, manager, method, args }` → `{ id, ok: true, value } | { id, ok: false, error }`, plus `{ event, payload }` messages.
-- **Plugin worker:** built-in packs run their plugin inside the backend worker. Third-party pack code runs in a separate worker with an opaque origin, so it can't reach our storage; the compiler engine runs there for those packs (see [[Architecture/Plugins]]).
+- **Plugin worker:** built-in packs run their plugin inside the backend worker. Third-party pack code runs in a separate worker with an opaque origin (one per pack, started by the backend worker from a `data:` URL), so it can't reach our storage; the compiler engine runs there for those packs (see [[Architecture/Plugins]], The plugin sandbox).
 - **Tauri:** platform calls that need the main thread (dialogs, Tauri commands) are proxied through the client's connector. The MCP server is part of the Tauri shell and forwards each tool call as an ordinary manager call.
 
 ## Folder layout

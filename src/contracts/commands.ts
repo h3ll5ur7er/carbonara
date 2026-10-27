@@ -25,6 +25,14 @@ export const Command = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("setPin"), graph: GraphScope, id: LocalId, pin: Pin.nullable() }),
   z.object({
+    type: z.literal("setPluginSettings"),
+    /** Settings are document-wide; the scope is kept so that every command has one. */
+    graph: GraphScope,
+    settings: z
+      .record(z.string(), z.unknown())
+      .describe("Merged into the document's `settings.plugin` (the save profile); null removes a setting."),
+  }),
+  z.object({
     type: z.literal("setRate"),
     graph: GraphScope,
     id: LocalId,

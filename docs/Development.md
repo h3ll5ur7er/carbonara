@@ -27,16 +27,19 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 | `pnpm lint` | ESLint only |
 | `pnpm typecheck` | TypeScript only |
 | `pnpm test` / `pnpm test:watch` | Vitest unit and property tests |
-| `pnpm e2e` | Playwright end-to-end and screenshot tests (starts the dev server itself) |
+| `pnpm e2e` | Playwright end-to-end and screenshot tests, inside the pinned Playwright Docker image (starts the dev server itself) |
+| `E2E_PERF=1 pnpm e2e` | Only the canvas frame-budget tests (`e2e/*perf.spec.ts`), which the normal run leaves out because they depend on machine load |
+| `pnpm e2e:host` | The same tests on this machine's browser — quicker to start, but screenshots may differ from the baselines |
 | `pnpm format` / `pnpm format:check` | Prettier |
 | `pnpm schema` | Regenerates the JSON Schemas in `schemas/` from the zod contracts |
+| `pnpm mcp:tools` | Regenerates the MCP server's manifest (`crates/mcp/manifest.json`: tools, resources, prompts) from the manager contracts ([[Architecture/MCP server]]) |
 | `pnpm carbonara-pack <command>` | The pack CLI: `new`, `validate`, `build`, `dev`, `import` ([[Architecture/Game-packs#Authoring]]) |
 | `pnpm pack:build <folder> [--out dist/packs]` | Bundles a pack folder's plugin and zips it into `<out>/<id>-<version>.cpack` |
 | `pnpm pack:import <pack> <file>… [--icons <folder>]…` | Regenerates a pack's data and icons with its plugin's importer |
 | `pnpm bench` | Edit → results timings on generated 500 / 1k / 10k / 50k-node factories, with the WebAssembly module as built (`pnpm build:wasm` builds release). Exits with 1 when a budget from [[Architecture/Solver]] is exceeded |
 | `pnpm desktop:dev` / `pnpm desktop:build` | The desktop app with hot reload, or its installers ([[#Desktop]]) |
 | `pnpm tauri <command>` | The Tauri CLI, run in `src/shells/tauri` |
-| `cargo test` | Rust tests (solver); the desktop shell is left out, see [[#Desktop]] |
+| `cargo test` | Rust tests (solver; the MCP server, with scripted MCP clients over HTTP and stdio); the desktop shell is left out, see [[#Desktop]] |
 | `cargo clippy --all-targets -- -D warnings` / `cargo fmt --check` | Rust lint and format |
 
 ## Before you push
@@ -56,7 +59,8 @@ Run `pnpm e2e` too when you changed anything the user can see, and `cargo clippy
 - Unit and property tests sit next to the code as `*.test.ts` (Vitest, fast-check). Rust tests live in the crates (`cargo test`, proptest).
 - Component tests (`*.test.tsx`) use Testing Library on jsdom. A file opts in with `// @vitest-environment jsdom` on its first line; everything else runs on Node.
 - End-to-end and screenshot tests live in `e2e/`. Screenshot baselines are in `e2e/__screenshots__/<spec file>/`.
-- Playwright uses the Chromium that is preinstalled in the cloud environment. `@playwright/test` is pinned to the matching version, so don't upgrade it on its own.
+- **Screenshots render in one place.** `pnpm e2e` runs Playwright inside `mcr.microsoft.com/playwright:v1.63.0-noble` ([[scripts/e2e.mjs]]), and CI's e2e job runs in the same image. Fonts, anti-aliasing and the browser build all come from the image, so a baseline made on any machine matches CI. Baselines made outside the image (`pnpm e2e:host`) don't: text renders a pixel differently and the strict comparison fails. Docker must be running; in the cloud environment start it with `dockerd &`.
+- `@playwright/test` is pinned to the image's version (1.63.0); upgrade both together.
 - Parallel worktrees each pick their own port: `E2E_PORT=5174 pnpm e2e`.
 
 ### Scenes
