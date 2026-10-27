@@ -22,6 +22,7 @@ const clipboard: Clipboard = {
   },
   layout: { ore: { x: 0, y: 0 }, smelt: { x: 240, y: 0 }, gears: { x: 480, y: 0 }, note: { x: 0, y: 200 } },
   connections: {},
+  blueprints: {},
 };
 
 const pack = PackData.parse({

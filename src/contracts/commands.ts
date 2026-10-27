@@ -1,6 +1,6 @@
 // Edits a client can ask the editing manager for. Each command is undoable; a batch is one undo step.
 import { z } from "zod";
-import { Edge, LocalId, Node, Pin, PlanningSettings, Position, TagColour } from "./document";
+import { Blueprint, Edge, LocalId, Node, Pin, PlanningSettings, Position, TagColour } from "./document";
 import { Id, RateUnit } from "./pack";
 
 /** `root`, or the id of the blueprint whose graph the command edits. */
@@ -123,6 +123,20 @@ export const Command = z.discriminatedUnion("type", [
   z
     .object({ type: z.literal("renameBlueprint"), blueprint: LocalId, name: z.string().min(1) })
     .describe("Renames a blueprint (every instance shows the new name)."),
+  z
+    .object({
+      type: z.literal("addBlueprint"),
+      id: LocalId.optional().describe("The new blueprint's id. Chosen by the manager when left out."),
+      blueprint: Blueprint,
+      layout: z.record(LocalId, Position).default({}).describe("Where its nodes sit inside it."),
+    })
+    .describe(
+      "Adds a blueprint, placed nowhere yet: a copy of one to start a variant, or one a paste brings along. " +
+        "Instances inside it must name blueprints the document has.",
+    ),
+  z
+    .object({ type: z.literal("removeBlueprint"), blueprint: LocalId })
+    .describe("Deletes a blueprint and every instance of it, in every graph, with their flows."),
   z
     .object({
       type: z.literal("setCollapsed"),

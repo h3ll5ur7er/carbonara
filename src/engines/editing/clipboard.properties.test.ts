@@ -61,6 +61,8 @@ const scenarios = documents.chain((document) => {
     copied: fc.uniqueArray(fc.constantFrom(...ids), { minLength: 1 }),
     removedSince: fc.uniqueArray(fc.constantFrom(...ids)),
     otherDocument: fc.boolean(),
+    // What the other document has of the copied instances' blueprint.
+    blueprintThere: fc.constantFrom("same" as const, "none" as const, "different" as const),
     connections: fc.boolean(),
     offset: fc.record({ x: fc.integer({ min: -480, max: 480 }), y: fc.integer({ min: -480, max: 480 }) }),
     // Id suggestions that often collide with each other and with the graph's ids, then unique ones.
@@ -79,6 +81,7 @@ function setUp(scenario: {
   copied: string[];
   removedSince: string[];
   otherDocument: boolean;
+  blueprintThere: "same" | "none" | "different";
   connections: boolean;
   offset: { x: number; y: number };
   suggestions: string[];
@@ -91,6 +94,7 @@ function setUp(scenario: {
     if (!removed.ok) throw new Error("removing existing nodes must work");
     target = removed.value.document;
   }
+  if (scenario.otherDocument) target = withBlueprint(target, scenario.blueprintThere);
   const paste = pasteCommands(
     target,
     "root",
@@ -100,6 +104,28 @@ function setUp(scenario: {
   );
   if (!paste.ok) throw new Error("pasting into the root graph must work");
   return { clipboard: copy.value, target, paste: paste.value, edit: applyCommands(target, paste.value.commands) };
+}
+
+/**
+ * The other document as it has the rods: alike, not at all (and so without instances of them), or another
+ * blueprint under their id (with the same ports, so the instances it places stay whole).
+ */
+function withBlueprint(target: Document, there: "same" | "none" | "different"): Document {
+  if (there === "same") return target;
+  if (there === "different") {
+    const rods = target.blueprints.rods ?? { name: "Rods", graph: { nodes: {}, edges: {} } };
+    const make: Node = { kind: "recipe", recipe: "iron-plate" };
+    return {
+      ...target,
+      blueprints: { rods: { name: "Plates", graph: { ...rods.graph, nodes: { ...rods.graph.nodes, make } } } },
+    };
+  }
+  const instances = Object.keys(target.graph.nodes).filter((id) => target.graph.nodes[id]?.kind === "instance");
+  const stripped =
+    instances.length > 0 ? applyCommands(target, [{ type: "removeNodes", graph: "root", ids: instances }]) : undefined;
+  if (stripped && !stripped.ok) throw new Error("removing existing nodes must work");
+  const document = stripped?.value.document ?? target;
+  return { ...document, blueprints: {}, layout: { root: document.layout.root ?? {} } };
 }
 
 describe("paste invariants", () => {
@@ -150,7 +176,12 @@ describe("paste invariants", () => {
         expect(paste.nodeIds).toHaveLength(kept.length);
         kept.forEach((original, index) => {
           const pasted = paste.nodeIds[index] ?? "";
-          expect(after.graph.nodes[pasted]).toEqual(clipboard.graph.nodes[original]);
+          const copy = clipboard.graph.nodes[original];
+          const node = after.graph.nodes[pasted];
+          if (copy?.kind === "instance" && node?.kind === "instance") {
+            // An instance places a blueprint like the one it placed, under the target's id for it.
+            expect(after.blueprints[node.blueprint]?.graph).toEqual(clipboard.blueprints[copy.blueprint]?.graph);
+          } else expect(node).toEqual(copy);
           const was = clipboard.layout[original] ?? { x: 0, y: 0 };
           expect(after.layout.root?.[pasted]).toMatchObject({
             x: was.x + scenario.offset.x,
@@ -163,6 +194,45 @@ describe("paste invariants", () => {
           [edge.from, edge.to].every((id) => kept.includes(id)),
         );
         expect(among).toHaveLength(copiedAmong.length);
+      }),
+    );
+  });
+
+  it("a paste never leaves an instance without its blueprint, and keeps the blueprints there were", () => {
+    fc.assert(
+      fc.property(scenarios, (scenario) => {
+        const { target, paste, edit } = setUp(scenario);
+        if (!edit.ok) throw new Error("the paste must apply");
+        const after = edit.value.document;
+        for (const node of Object.values(after.graph.nodes)) {
+          if (node.kind === "instance") expect(after.blueprints).toHaveProperty([node.blueprint]);
+        }
+        for (const [id, blueprint] of Object.entries(target.blueprints)) {
+          expect(after.blueprints[id]).toEqual(blueprint);
+        }
+        // Ports may be left out of the root graph, but never a subgraph for want of its blueprint.
+        expect(paste.leftOut.filter((text) => text.includes("doesn't have"))).toEqual([]);
+      }),
+    );
+  });
+
+  it("brings blueprints along in enough of the scenarios to be meaningful", () => {
+    const samples = fc.sample(scenarios, { seed: 1, numRuns: 200 });
+    const bringing = samples.filter((scenario) =>
+      setUp(scenario).paste.commands.some((command) => command.type === "addBlueprint"),
+    );
+    expect(bringing.length).toBeGreaterThan(20);
+  });
+
+  it("pasting the same copy again adds no blueprint: alike ones are reused", () => {
+    fc.assert(
+      fc.property(scenarios, (scenario) => {
+        const { clipboard, edit } = setUp(scenario);
+        if (!edit.ok) throw new Error("the paste must apply");
+        const options = { offset: scenario.offset, connections: false };
+        const again = pasteCommands(edit.value.document, "root", clipboard, options, ids([]));
+        if (!again.ok) throw new Error("pasting into the root graph must work");
+        expect(again.value.commands.filter((command) => command.type === "addBlueprint")).toEqual([]);
       }),
     );
   });

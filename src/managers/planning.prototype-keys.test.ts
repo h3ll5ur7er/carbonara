@@ -45,7 +45,12 @@ async function plan(item: Id, data: PackData): Promise<Proposal> {
     events: createEventBus<Events>(),
     layout: new ELK(),
   });
-  const proposal = await planning.planProduction({ documentId: id, targets: [{ item, perSecond: 1 }], options });
+  const proposal = await planning.planProduction({
+    documentId: id,
+    graph: "root",
+    targets: [{ item, perSecond: 1 }],
+    options,
+  });
   if (!proposal.ok) throw new Error(JSON.stringify(proposal.error));
   return proposal.value;
 }

@@ -6,13 +6,15 @@ import { useConnector } from "../../core/connector";
 import { SaveProfile, type SaveProfileProps } from "../../features/save-profile/save-profile";
 import { errorMessage, toast } from "../toasts";
 import { applyFieldEdit, type FieldEdit, type FieldEditTarget } from "./edit";
-import { Inspector, type InspectedNode } from "./inspector";
+import { Inspector, type InspectedNode, type InstanceActions } from "./inspector";
 
 export interface NodeSelection {
   target: FieldEditTarget;
   node: InspectedNode;
   /** The commands that set the node's production value (see `productionEdit`). */
   productionEdit?: (value: number | null) => { commands: CommandInput[]; label: string } | null;
+  /** A subgraph instance: going into it, and selecting its blueprint's other instances on screen. */
+  subgraph?: Pick<InstanceActions, "open" | "selectSiblings"> | undefined;
 }
 
 export interface InspectorPanelProps {
@@ -28,6 +30,16 @@ export function InspectorPanel({ selection }: InspectorPanelProps) {
 function NodeInspector({ selection }: { selection: NodeSelection | null }) {
   const connector = useConnector();
 
+  async function apply(commands: CommandInput[], label: string) {
+    if (!selection) return;
+    try {
+      const result = await connector.editing.apply({ documentId: selection.target.documentId, commands, label });
+      if (!result.ok) reportFailure(result.error.map((issue) => issue.message).join(" "));
+    } catch (error) {
+      reportFailure(errorMessage(error));
+    }
+  }
+
   async function onFieldEdit(edit: FieldEdit) {
     if (!selection) return;
     try {
@@ -40,16 +52,33 @@ function NodeInspector({ selection }: { selection: NodeSelection | null }) {
 
   async function onProductionEdit(value: number | null) {
     const edit = selection?.productionEdit?.(value);
-    if (!selection || !edit) return;
-    try {
-      const result = await connector.editing.apply({ documentId: selection.target.documentId, ...edit });
-      if (!result.ok) reportFailure(result.error.map((issue) => issue.message).join(" "));
-    } catch (error) {
-      reportFailure(errorMessage(error));
-    }
+    if (edit) await apply(edit.commands, edit.label);
   }
 
-  return <Inspector node={selection?.node ?? null} onFieldEdit={onFieldEdit} onProductionEdit={onProductionEdit} />;
+  const instance = selection?.node.instance;
+  const subgraph = selection?.subgraph;
+  const instanceActions: InstanceActions | undefined =
+    selection && instance && subgraph
+      ? {
+          ...subgraph,
+          rename: (name) =>
+            apply([{ type: "renameBlueprint", blueprint: instance.blueprint, name }], `Rename blueprint to ${name}`),
+          expand: () =>
+            void apply(
+              [{ type: "expand", graph: selection.target.graph ?? "root", id: selection.target.nodeId }],
+              "Expand subgraph",
+            ),
+        }
+      : undefined;
+
+  return (
+    <Inspector
+      node={selection?.node ?? null}
+      onFieldEdit={onFieldEdit}
+      onProductionEdit={onProductionEdit}
+      instanceActions={instanceActions}
+    />
+  );
 }
 
 function reportFailure(description: string) {

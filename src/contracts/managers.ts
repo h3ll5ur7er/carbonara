@@ -166,8 +166,9 @@ export interface Proposal {
   documentId: string;
   targets: PlanTarget[];
   /**
-   * The planned nodes (`addNode`, with ids free in the document and positions next to its factory), then the
-   * flows between them (`connect`). Accepting applies them as one `editing.apply` batch: one undo step.
+   * The planned nodes (`addNode`, with ids free in the graph planned into and positions next to its nodes), then
+   * the flows between them (`connect`). Every command names that graph: `root`, or the blueprint planned inside.
+   * Accepting applies them as one `editing.apply` batch: one undo step.
    */
   commands: Command[];
   /**
@@ -345,18 +346,26 @@ export const managers = {
     unwatchResults: method<undefined>()(documentRef.extend({ graph: z.string().min(1) })),
   },
   planning: {
-    planProduction: method<Result<Proposal>>()(planRequest.extend({ targets: z.array(PlanTarget).min(1) }), {
-      tool: "plan_production",
-      group: "plan",
-      description:
-        "Plan a production chain that makes the target items at the given rates (items per second) with the " +
-        "document's pack, using as few raw resources (or buildings) as possible. Returns a proposal: the nodes " +
-        "and flows to add next to the existing factory, a summary (buildings, raw inputs, byproducts, power) and " +
-        "anything that can't be met. The person sees it in Carbonara as a ghost beside the factory, with Accept, " +
-        "Adjust and Discard. Nothing changes until it's accepted there or with apply_proposal (by its id); a " +
-        "newer plan for the same document replaces it. The preferred buildings and resource weights saved with " +
-        "the document (its settings.planning, changed with edit_graph's setSettings) apply unless options name others.",
-    }),
+    planProduction: method<Result<Proposal>>()(
+      planRequest.extend({
+        graph: GraphScope.describe(
+          "Where the plan goes: root (the factory), or a blueprint id to plan inside that subgraph.",
+        ),
+        targets: z.array(PlanTarget).min(1),
+      }),
+      {
+        tool: "plan_production",
+        group: "plan",
+        description:
+          "Plan a production chain that makes the target items at the given rates (items per second) with the " +
+          "document's pack, using as few raw resources (or buildings) as possible. Returns a proposal: the nodes " +
+          "and flows to add next to the existing factory, a summary (buildings, raw inputs, byproducts, power) and " +
+          "anything that can't be met. The person sees it in Carbonara as a ghost beside the factory, with Accept, " +
+          "Adjust and Discard. Nothing changes until it's accepted there or with apply_proposal (by its id); a " +
+          "newer plan for the same document replaces it. The preferred buildings and resource weights saved with " +
+          "the document (its settings.planning, changed with edit_graph's setSettings) apply unless options name others.",
+      },
+    ),
     compareRecipes: method<Result<RecipeComparison[]>>()(planRequest.extend(PlanTarget.shape), {
       tool: "compare_recipes",
       group: "plan",

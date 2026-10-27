@@ -17,6 +17,8 @@ export interface FactoryOverlaysInput {
   document: Document | undefined;
   pack: PackData | undefined;
   results: AnalysisResults | null;
+  /** The graph on screen (`document` is scoped to it): `root`, or a blueprint id. Plans go into it. */
+  graph?: string | undefined;
 }
 
 export interface FactoryOverlays {
@@ -30,8 +32,14 @@ export interface FactoryOverlays {
 
 const MARGIN = 12;
 
-export function useFactoryOverlays({ info, document, pack, results }: FactoryOverlaysInput): FactoryOverlays {
-  const planner = usePlannerCanvas(document?.id);
+export function useFactoryOverlays({
+  info,
+  document,
+  pack,
+  results,
+  graph = "root",
+}: FactoryOverlaysInput): FactoryOverlays {
+  const planner = usePlannerCanvas(document?.id, graph);
   const totals = useTotalsReserved();
   const heatmap = useHeatmap((state) => state.on);
   const sankey = useSankey((state) => state.open);
@@ -52,6 +60,7 @@ export function useFactoryOverlays({ info, document, pack, results }: FactoryOve
       <>
         <PlannerPanel
           document={{ id: ready.info.id, name: ready.info.name }}
+          graph={graph}
           pack={ready.pack}
           rateUnit={rateUnit}
           planning={ready.document.settings.planning}

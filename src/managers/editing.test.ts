@@ -67,6 +67,17 @@ describe("the editing manager", () => {
     expect(await current()).toEqual(original);
   });
 
+  it("chooses the id of an added blueprint; deleting a blueprint is one step undo takes back", async () => {
+    const { apply, current, editing } = setup();
+    await apply([{ type: "addBlueprint", blueprint: { name: "Variant", graph: { nodes: {}, edges: {} } } }]);
+    expect((await current()).blueprints["id-1"]).toEqual({ name: "Variant", graph: { nodes: {}, edges: {} } });
+    await editing.undo({ documentId: "doc-1" });
+    await apply([{ type: "removeBlueprint", blueprint: "rods" }]);
+    expect((await current()).graph.nodes).not.toHaveProperty("rods");
+    await editing.undo({ documentId: "doc-1" });
+    expect(await current()).toEqual(original);
+  });
+
   it("keeps the ids callers choose", async () => {
     const { apply, current } = setup();
     await apply([{ ...addJunction, id: "bus" }]);

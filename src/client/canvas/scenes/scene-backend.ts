@@ -62,6 +62,8 @@ function apply(draft: Draft<Document>, command: Command, newId: () => string) {
     draft.name = command.name;
     return;
   }
+  // Scenes don't manage blueprints.
+  if (command.type === "addBlueprint" || command.type === "removeBlueprint") return;
   const graph = command.graph === "root" ? draft.graph : draft.blueprints[command.graph]?.graph;
   if (!graph) return;
   const layout = (draft.layout[command.graph] ??= {});

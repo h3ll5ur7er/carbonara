@@ -7,15 +7,18 @@ import type { Document, LocalId } from "../../../contracts/document";
 import type { DocumentInfo } from "../../../contracts/managers";
 import type { AnalysisResults } from "../../../contracts/results";
 import type { Viewport } from "../../canvas/adapter";
-import { canvasActions } from "../../canvas/viewport";
+import { canvasActions, nextCanvasShown } from "../../canvas/viewport";
 import { useConnector } from "../../core/connector";
 import { useModels } from "../../core/models";
 import { errorMessage, toast } from "../../shell/toasts";
 import { Breadcrumbs } from "./breadcrumbs";
-import { crumbsOf, graphOf, instancesOf, livePath } from "./path";
+import { crumbsOf, graphOf, instancesOf, livePath, pathTo, type Crumb } from "./path";
 import { pathOf, setPath, setSubgraphNavigation, useSubgraphs, type Opened } from "./subgraph-store";
 
 const NONE: readonly Opened[] = [];
+
+const sameCrumb = (a: Crumb | undefined, b: Crumb | undefined) =>
+  a !== undefined && b !== undefined && a.instance === b.instance && a.blueprint === b.blueprint;
 
 export interface SubgraphView {
   /** `root`, or the blueprint on screen. */
@@ -27,6 +30,11 @@ export interface SubgraphView {
   /** How the canvas arrived at this level, for its entrance: diving in, coming back up, or neither. */
   motion: "enter" | "leave" | undefined;
   onOpenSubgraph(instance: LocalId): void;
+  /**
+   * Opens the way to a node in another graph (find's jump): up to where the way parts from the levels open now,
+   * then into each subgraph on the way (`pathTo`), then selects the node and brings it into view.
+   */
+  onReveal(graph: string, nodeId: LocalId): Promise<void>;
   /** The breadcrumbs, inside a subgraph. */
   header: ReactNode;
 }
@@ -65,23 +73,26 @@ export function useSubgraphView({
   const [arrival, setArrival] = useState<Arrival | null>(null);
   const arrived = arrival?.documentId === documentId && arrival.graph === graph ? arrival : undefined;
 
+  /** Dives into an instance of the graph on screen: the view zooms into its card, then its blueprint grows in. */
+  const dive = useCallback(
+    async (crumb: Crumb) => {
+      const actions = canvasActions();
+      const above = actions?.view().viewport;
+      const into = await (actions?.zoomInto(crumb.instance) ?? Promise.resolve(undefined)).catch(() => undefined);
+      setPath(documentId, [...pathOf(documentId), { ...crumb, above, into }]);
+      setArrival({ documentId, graph: crumb.blueprint, kind: "enter" });
+    },
+    [documentId],
+  );
+
   const onOpenSubgraph = useCallback(
     (instance: LocalId) => {
       const shown = graph === "root" ? document?.graph : document?.blueprints[graph]?.graph;
       const node = shown?.nodes[instance];
       if (node?.kind !== "instance" || !document?.blueprints[node.blueprint]) return;
-      const blueprint = node.blueprint;
-      const actions = canvasActions();
-      const above = actions?.view().viewport;
-      const dive = actions?.zoomInto(instance) ?? Promise.resolve(undefined);
-      void dive
-        .catch(() => undefined)
-        .then((into) => {
-          setPath(documentId, [...pathOf(documentId), { instance, blueprint, above, into }]);
-          setArrival({ documentId, graph: blueprint, kind: "enter" });
-        });
+      void dive({ instance, blueprint: node.blueprint });
     },
-    [document, documentId, graph],
+    [document, graph, dive],
   );
 
   const leaveTo = useCallback(
@@ -94,6 +105,32 @@ export function useSubgraphView({
       setArrival({ documentId, graph: graphOf(remaining), kind: "leave", from: left.into, to: left.above });
     },
     [documentId],
+  );
+
+  const onReveal = useCallback(
+    async (target: string, nodeId: LocalId) => {
+      const route = document && pathTo(document, target);
+      if (!route) return;
+      const current = pathOf(documentId);
+      if (graphOf(current) !== target) {
+        // Up to where the way there parts from the path open now, then down level by level, each canvas set up
+        // before the next dive starts from it.
+        let common = 0;
+        while (common < current.length && sameCrumb(current[common], route[common])) common++;
+        if (common < current.length) {
+          const shown = nextCanvasShown();
+          leaveTo(common);
+          await shown;
+        }
+        for (const crumb of route.slice(common)) {
+          const shown = nextCanvasShown();
+          await dive(crumb);
+          await shown;
+        }
+      }
+      canvasActions()?.focus([nodeId]);
+    },
+    [document, documentId, dive, leaveTo],
   );
 
   // Back up: the canvas starts zoomed into the instance just left and glides out to where the view was.
@@ -148,6 +185,7 @@ export function useSubgraphView({
     viewport: arrived?.kind === "leave" ? arrived.from : undefined,
     motion: arrived?.kind,
     onOpenSubgraph,
+    onReveal,
     header,
   };
 }

@@ -8,13 +8,13 @@ import type { Issue } from "../../contracts/issues";
 import type { Patch } from "../../contracts/patches";
 import { fail, ok, type Result } from "../../contracts/result";
 import { allGraphs, contains, freeId, graphOf, issue, portsOf } from "./graphs";
-import { collapse, expand } from "./subgraphs";
+import { addBlueprint, collapse, expand } from "./subgraphs";
 import { own } from "../../utilities/records";
 
 // Immer's patch support is opt-in; enabling it twice is harmless.
 enablePatches();
 
-type WithId<C> = C extends { type: "addNode" | "connect" }
+type WithId<C> = C extends { type: "addNode" | "connect" | "addBlueprint" }
   ? Omit<C, "id"> & { id: string }
   : C extends { type: "collapse" }
     ? Omit<C, "blueprint" | "instance"> & { blueprint: string; instance: string }
@@ -70,6 +70,8 @@ const LABELS: Record<Command["type"], string> = {
   collapse: "Collapse into subgraph",
   expand: "Expand subgraph",
   renameBlueprint: "Rename blueprint",
+  addBlueprint: "Add blueprint",
+  removeBlueprint: "Delete blueprint",
   renameDocument: "Rename factory",
 };
 
@@ -108,6 +110,14 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
   }
   if (command.type === "renameDocument") {
     if (document.name !== command.name) document.name = command.name;
+    return;
+  }
+  if (command.type === "addBlueprint") return addBlueprint(document, command);
+  if (command.type === "removeBlueprint") {
+    if (!own(document.blueprints, command.blueprint)) {
+      return issue(["blueprint"], `Unknown blueprint ${command.blueprint}`);
+    }
+    removeBlueprint(document, command.blueprint);
     return;
   }
   const scope = command.graph;
@@ -284,6 +294,21 @@ function checkNode(document: Document, scope: string, node: Node): Issue | undef
   if (contains(document, node.blueprint, scope)) {
     return issue(["node", "blueprint"], `Blueprint ${node.blueprint} can't contain itself`);
   }
+}
+
+/** Removes a blueprint, its layout and every instance of it in the other graphs (with their flows and positions). */
+function removeBlueprint(document: Document, blueprint: string): void {
+  for (const scope of ["root", ...Object.keys(document.blueprints)]) {
+    const graph = scope === blueprint ? undefined : graphOf(document, scope);
+    if (!graph) continue;
+    const placed = Object.keys(graph.nodes).filter((id) => {
+      const node = own(graph.nodes, id);
+      return node?.kind === "instance" && node.blueprint === blueprint;
+    });
+    if (placed.length > 0) removeNodes(document, scope, graph, new Set(placed));
+  }
+  Reflect.deleteProperty(document.blueprints, blueprint);
+  Reflect.deleteProperty(document.layout, blueprint);
 }
 
 /** Removes the nodes with their positions and edges, including edges that reach a removed port from outside. */

@@ -1,9 +1,22 @@
 // The inspector: the selected node and the settings its pack's plugin declares, as field descriptors.
 // It knows nothing about documents; edits leave through `onFieldEdit` (see `applyFieldEdit` for the wiring).
-import { CircleAlert, Factory, Layers, MousePointerClick, TriangleAlert } from "lucide-react";
+import {
+  ArrowDownRight,
+  CircleAlert,
+  Factory,
+  Layers,
+  MousePointerClick,
+  SquareDashedMousePointer,
+  TriangleAlert,
+  Ungroup,
+} from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
+import type { RateUnit } from "../../../contracts/pack";
 import type { FieldDescriptor, FieldValue } from "../../../contracts/plugin";
+import type { ItemView } from "../../canvas/model/scene";
+import { ItemChip, Rate } from "../../canvas/parts";
 import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
 import { NumberInput } from "../../ui/number-input";
 import { formatNumber, nudgeIncrement } from "../../ui/number";
 import { Select } from "../../ui/select";
@@ -26,6 +39,32 @@ export interface InspectedNode {
   metrics?: { label: string; value: string }[] | undefined;
   /** Warnings and errors about this node, from the compiler and the pack's plugin. */
   problems?: { kind: "error" | "warning"; message: string }[] | undefined;
+  /** A subgraph instance: its blueprint, scale and ports. */
+  instance?: InstanceDetails | undefined;
+}
+
+/** What the inspector shows of a subgraph instance (see `inspect.ts`). */
+export interface InstanceDetails {
+  blueprint: string;
+  name: string;
+  rateUnit: RateUnit;
+  /** How many times the blueprint as designed it runs; undefined when it does what its ports need. */
+  scale: number | undefined;
+  /** Whether the graph around it was solved yet. */
+  solved: boolean;
+  /** Its blueprint's ports, inputs first, with what crosses them in items per second. */
+  ports: { port: string; direction: "in" | "out"; item: ItemView; perSecond: number | undefined }[];
+  /** The instances of the same blueprint in the graph on screen, this one included. */
+  siblings: string[];
+}
+
+/** What can be done with a subgraph instance from the inspector. */
+export interface InstanceActions {
+  rename(name: string): unknown;
+  open(): void;
+  expand(): void;
+  /** Selects every instance of its blueprint in the graph on screen. */
+  selectSiblings(): void;
 }
 
 export interface InspectorProps {
@@ -34,16 +73,19 @@ export interface InspectorProps {
   onFieldEdit(edit: FieldEdit): unknown;
   /** Sets the production value (machines, target, limit); null hands it back to the solver or removes it. */
   onProductionEdit?(value: number | null): unknown;
+  /** For a subgraph instance: its buttons and its blueprint's name field do nothing without these. */
+  instanceActions?: InstanceActions | undefined;
 }
 
-export function Inspector({ node, onFieldEdit, onProductionEdit }: InspectorProps) {
+export function Inspector({ node, onFieldEdit, onProductionEdit, instanceActions }: InspectorProps) {
   if (!node) return <NothingSelected />;
   const fields = Object.entries(node.fields);
+  const Icon = node.mixed || node.instance ? Layers : Factory;
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-3 px-4 py-4">
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent-fg inset-ring inset-ring-accent/20">
-          {node.mixed ? <Layers className="size-4.5" aria-hidden /> : <Factory className="size-4.5" aria-hidden />}
+          <Icon className="size-4.5" aria-hidden />
         </span>
         <div className="flex min-w-0 flex-col">
           <h3 className="truncate text-base font-semibold tracking-tight text-fg">{node.title}</h3>
@@ -55,28 +97,159 @@ export function Inspector({ node, onFieldEdit, onProductionEdit }: InspectorProp
         <ProductionSection production={node.production} onEdit={(value) => onProductionEdit?.(value)} />
       )}
       {node.metrics && node.metrics.length > 0 && <Metrics metrics={node.metrics} />}
-      <section aria-label="Settings" className="flex flex-col gap-4 border-t border-line-subtle px-4 pt-3.5 pb-5">
-        <h4 className="text-2xs font-medium tracking-wide text-fg-faint uppercase">Settings</h4>
-        {fields.length === 0 && (
-          <p className="text-sm text-fg-subtle">
-            {node.mixed
-              ? "They share no settings."
-              : node.production?.kind === "machines"
-                ? "This machine has no settings."
-                : "Nothing else to set."}
-          </p>
-        )}
-        {fields.map(([key, descriptor]) => (
-          <Field
-            key={key}
-            descriptor={descriptor}
-            value={node.values[key]}
-            mixed={node.mixed?.includes(key) ?? false}
-            onEdit={(value) => onFieldEdit({ key, descriptor, value })}
-          />
-        ))}
-      </section>
+      {node.instance ? (
+        <InstanceSection key={node.instance.blueprint} instance={node.instance} actions={instanceActions} />
+      ) : (
+        <Settings node={node} fields={fields} onFieldEdit={onFieldEdit} />
+      )}
     </div>
+  );
+}
+
+function Settings({
+  node,
+  fields,
+  onFieldEdit,
+}: {
+  node: InspectedNode;
+  fields: [string, FieldDescriptor][];
+  onFieldEdit(edit: FieldEdit): unknown;
+}) {
+  return (
+    <section aria-label="Settings" className="flex flex-col gap-4 border-t border-line-subtle px-4 pt-3.5 pb-5">
+      <h4 className="text-2xs font-medium tracking-wide text-fg-faint uppercase">Settings</h4>
+      {fields.length === 0 && (
+        <p className="text-sm text-fg-subtle">
+          {node.mixed
+            ? "They share no settings."
+            : node.production?.kind === "machines"
+              ? "This machine has no settings."
+              : "Nothing else to set."}
+        </p>
+      )}
+      {fields.map(([key, descriptor]) => (
+        <Field
+          key={key}
+          descriptor={descriptor}
+          value={node.values[key]}
+          mixed={node.mixed?.includes(key) ?? false}
+          onEdit={(value) => onFieldEdit({ key, descriptor, value })}
+        />
+      ))}
+    </section>
+  );
+}
+
+/**
+ * A subgraph instance: its blueprint's name (renaming it renames every copy), how far it runs, what crosses its
+ * ports, and the ways into it: open it, expand it, or select all its copies on screen.
+ */
+function InstanceSection({ instance, actions }: { instance: InstanceDetails; actions: InstanceActions | undefined }) {
+  const nameId = useId();
+  const scaleId = useId();
+  const copies = instance.siblings.length;
+  return (
+    <>
+      <section aria-label="Blueprint" className="flex flex-col gap-3 border-t border-line-subtle px-4 pt-3.5 pb-4">
+        <h4 className="text-2xs font-medium tracking-wide text-fg-faint uppercase">Blueprint</h4>
+        <Row label="Name" id={nameId}>
+          <NameInput
+            aria-labelledby={nameId}
+            name={instance.name}
+            disabled={!actions}
+            onRename={(name) => actions?.rename(name)}
+          />
+        </Row>
+        <Row label="Scale" id={scaleId}>
+          <span className="text-sm text-fg">
+            {!instance.solved ? (
+              <span className="text-fg-faint">Not solved yet</span>
+            ) : instance.scale !== undefined ? (
+              <>
+                <span className="font-mono tabular-nums">{formatNumber(instance.scale)}×</span>
+                <span className="text-fg-subtle"> as designed</span>
+              </>
+            ) : (
+              <span className="text-fg-subtle">Sized by its flows</span>
+            )}
+          </span>
+        </Row>
+      </section>
+      <section aria-label="Ports" className="flex flex-col gap-1.5 border-t border-line-subtle px-4 pt-3.5 pb-4">
+        <h4 className="text-2xs font-medium tracking-wide text-fg-faint uppercase">Ports</h4>
+        {instance.ports.length === 0 ? (
+          <p className="text-sm text-fg-subtle">Nothing goes in or out.</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {instance.ports.map((port) => (
+              <li key={port.port} className="flex min-h-7 items-center gap-2 text-sm">
+                <ItemChip item={port.item} size="sm" />
+                <span className="min-w-0 flex-1 truncate text-fg-muted">{port.item.name}</span>
+                <span className="text-2xs text-fg-faint">{port.direction === "in" ? "In" : "Out"}</span>
+                <Rate
+                  perSecond={port.perSecond}
+                  unit={instance.rateUnit}
+                  form={port.item.form}
+                  className="w-20 text-right text-xs text-fg"
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <div role="group" aria-label="Subgraph" className="flex flex-wrap gap-2 border-t border-line-subtle px-4 py-3.5">
+        <Button size="sm" variant="secondary" disabled={!actions} onClick={() => actions?.open()}>
+          <ArrowDownRight /> Open
+        </Button>
+        <Button size="sm" variant="secondary" disabled={!actions} onClick={() => actions?.expand()}>
+          <Ungroup /> Expand
+        </Button>
+        {copies > 1 && (
+          <Button size="sm" variant="ghost" disabled={!actions} onClick={() => actions?.selectSiblings()}>
+            <SquareDashedMousePointer /> Select all {copies}
+          </Button>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** A name edited in place: Enter or leaving the field renames, Escape puts the name back. */
+function NameInput({
+  name,
+  disabled,
+  onRename,
+  ...props
+}: {
+  name: string;
+  disabled: boolean;
+  onRename(name: string): void;
+  "aria-labelledby": string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    const next = draft?.trim();
+    setDraft(null);
+    if (next && next !== name) onRename(next);
+  };
+  return (
+    <Input
+      {...props}
+      size="sm"
+      className="w-44"
+      value={draft ?? name}
+      disabled={disabled}
+      onChange={(event) => setDraft(event.currentTarget.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") commit();
+        else if (event.key === "Escape" && draft !== null) {
+          // Escape takes the edit back without closing what the inspector sits in.
+          event.stopPropagation();
+          setDraft(null);
+        }
+      }}
+    />
   );
 }
 

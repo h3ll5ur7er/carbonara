@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Clipboard } from "../../contracts/clipboard";
 import { Document } from "../../contracts/document";
 import { exampleDocument } from "../../contracts/document.fixture";
-import { applyCommands } from "./commands";
+import { applyCommands, type ResolvedCommand } from "./commands";
 import { copyNodes, pasteCommands } from "./clipboard";
 
 const document = Document.parse(exampleDocument);
@@ -143,7 +143,8 @@ describe("pasting", () => {
     expect(intoRoot.leftOut).toEqual(["1 subgraph port (ports only exist inside subgraphs)"]);
     expect(edgesAdded(intoRoot.document)).toBe(0);
 
-    const withInstance = copied(["split", "rods"]);
+    // A copy from before copies carried their blueprints.
+    const withInstance = { ...copied(["split", "rods"]), blueprints: {} };
     const empty = { ...document, id: "doc-2", blueprints: {} };
     const elsewhere = pasted(withInstance, {}, empty);
     expect(elsewhere.nodeIds).toHaveLength(1);
@@ -195,6 +196,98 @@ describe("pasting", () => {
       counter(),
     );
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("blueprints travelling with a copy", () => {
+  /** The rods placed inside a hall, which the factory places too. */
+  const halls = Document.parse({
+    ...exampleDocument,
+    graph: {
+      ...exampleDocument.graph,
+      nodes: { ...exampleDocument.graph.nodes, hall: { kind: "instance", blueprint: "hall" } },
+    },
+    blueprints: {
+      ...exampleDocument.blueprints,
+      hall: { name: "Hall", graph: { nodes: { inner: { kind: "instance", blueprint: "rods" } }, edges: {} } },
+    },
+    layout: { ...exampleDocument.layout, hall: { inner: { x: 24, y: 48 } } },
+  });
+  const empty = Document.parse({ ...exampleDocument, id: "doc-2", graph: { nodes: {}, edges: {} }, blueprints: {} });
+  const addedBlueprints = (paste: { commands: ResolvedCommand[] }) =>
+    paste.commands.flatMap((command) => (command.type === "addBlueprint" ? [command.id] : []));
+
+  it("a copy carries the blueprints its instances place, directly or deeper, with their layouts", () => {
+    expect(copied(["hall"], halls).blueprints).toEqual({
+      hall: { ...halls.blueprints.hall, layout: { inner: { x: 24, y: 48 } } },
+      rods: { ...halls.blueprints.rods, layout: { in: { x: 0, y: 0 } } },
+    });
+    expect(copied(["ore", "smelt"], halls).blueprints).toEqual({});
+  });
+
+  it("pasting into a factory without them adds them first, inner ones first, in the same step", () => {
+    const result = pasted(copied(["split", "rods", "hall"], halls), {}, empty);
+    expect(result.commands.map((command) => command.type).slice(0, 2)).toEqual(["addBlueprint", "addBlueprint"]);
+    expect(addedBlueprints(result)).toEqual(["rods", "hall"]);
+    expect(result.leftOut).toEqual([]);
+    expect(result.document.blueprints).toEqual({ rods: halls.blueprints.rods, hall: halls.blueprints.hall });
+    expect(result.document.layout.hall).toEqual({ inner: { x: 24, y: 48 } });
+    // The flow into the rods' port comes along: the port is there now.
+    const [split, rods] = result.nodeIds;
+    expect(Object.values(result.document.graph.edges)).toEqual([{ ...halls.graph.edges.e4, from: split, to: rods }]);
+  });
+
+  it("reuses the blueprints the factory has alike, so pasting again adds none", () => {
+    expect(addedBlueprints(pasted(copied(["hall"], halls), {}, halls))).toEqual([]);
+    const once = pasted(copied(["hall"], halls), {}, empty);
+    const twice = pasted(copied(["hall"], halls), {}, once.document);
+    expect(addedBlueprints(twice)).toEqual([]);
+    expect(Object.keys(twice.document.blueprints)).toEqual(["rods", "hall"]);
+  });
+
+  it("adds a copy under a fresh id and name when the factory has another blueprint under the same id", () => {
+    const other = Document.parse({
+      ...exampleDocument,
+      id: "doc-2",
+      blueprints: { rods: { ...exampleDocument.blueprints.rods, graph: { nodes: {}, edges: {} } } },
+    });
+    const result = pasted(copied(["rods"], halls), {}, other);
+    const [id] = addedBlueprints(result);
+    expect(id).toMatch(/^rods-[0-9a-f]{6}$/);
+    expect(result.document.blueprints[id ?? ""]).toEqual({ ...halls.blueprints.rods, name: "Iron rods 2" });
+    expect(result.document.blueprints.rods).toEqual(other.blueprints.rods);
+    const [instance] = result.nodeIds;
+    expect(result.document.graph.nodes[instance ?? ""]).toEqual({ kind: "instance", blueprint: id });
+  });
+
+  it("finds an alike blueprint under another id, through the blueprints it places", () => {
+    const renamed = pasted(copied(["hall"], halls), {}, empty).document;
+    const moved = Document.parse({
+      ...renamed,
+      blueprints: {
+        r: renamed.blueprints.rods,
+        h: { name: "Hall", graph: { nodes: { inner: { kind: "instance", blueprint: "r" } }, edges: {} } },
+      },
+      layout: {},
+    });
+    const result = pasted(copied(["hall"], halls), {}, moved);
+    expect(addedBlueprints(result)).toEqual([]);
+    expect(result.document.graph.nodes[result.nodeIds[0] ?? ""]).toEqual({ kind: "instance", blueprint: "h" });
+  });
+
+  it("in the factory it came from, places the blueprint as it is now, even when it was edited since", () => {
+    const clipboard = copied(["rods"], halls);
+    const edited = applyCommands(halls, [{ type: "renameBlueprint", blueprint: "rods", name: "Rods mk2" }]);
+    if (!edited.ok) throw new Error("setup");
+    const result = pasted(clipboard, {}, edited.value.document);
+    expect(addedBlueprints(result)).toEqual([]);
+    expect(result.document.graph.nodes[result.nodeIds[0] ?? ""]).toEqual({ kind: "instance", blueprint: "rods" });
+  });
+
+  it("adds no blueprint for an instance it leaves out", () => {
+    const result = pasted(copied(["hall"], halls), {}, halls, "rods");
+    expect(result.leftOut).toEqual(["1 subgraph that would contain itself"]);
+    expect(addedBlueprints(result)).toEqual([]);
   });
 });
 

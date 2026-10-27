@@ -76,6 +76,8 @@ Documents change only through `Command`s ([[src/contracts/commands.ts]]) sent to
 | `collapse` | Collapses nodes into a subgraph: a new blueprint holds them, an instance takes their place ([[#Collapse and expand]]) |
 | `expand` | Puts a copy of an instance's blueprint in its place and reconnects its flows; the last instance of a blueprint dissolves it |
 | `renameBlueprint` | A blueprint's name. It names no graph |
+| `addBlueprint` | A blueprint placed nowhere yet, with its layout: a copy to start a variant, or one a paste brings along. Its flows must join its own nodes (through ports instances have), its instances must place blueprints the document has (never itself), its layout only its nodes. The manager chooses its id unless the command does. It names no graph |
+| `removeBlueprint` | Deletes a blueprint, its layout and every instance of it in every graph, with their flows and positions. The blueprints it places stay (perhaps placed nowhere now). It names no graph |
 | `renameDocument` | The document's `name` (trimmed, 1 to 120 characters). It names no graph. The workspace re-announces the tabs when a name changes, undo included |
 
 A batch is all or nothing. The engine rejects it, as a value with the path of the offending command (`["commands", 1, "edge", "from"]`), when a command:
@@ -86,7 +88,7 @@ A batch is all or nothing. The engine rejects it, as a value with the path of th
 - connects through a port that the node doesn't have (only instances have ports: `fromPort` must be an `out` port of the blueprint, `toPort` an `in` port);
 - sets fields or a pin on anything but a recipe node, or a rate (`setRate`: a source's limit, a sink's target) on anything but a source or sink.
 
-Removing nodes also removes their positions and every edge that touches them; removing a blueprint's port node also removes the edges that reach that port through the blueprint's instances. Property tests check that `undo(do(x)) = x` for random command sequences and that no edge or position is ever left dangling.
+Removing nodes also removes their positions and every edge that touches them; removing a blueprint's port node also removes the edges that reach that port through the blueprint's instances. Property tests check that `undo(do(x)) = x` for random command sequences and that no edge, position or instance (of a blueprint the document lacks) is ever left dangling.
 
 ### Collapse and expand
 

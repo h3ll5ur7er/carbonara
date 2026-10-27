@@ -273,3 +273,131 @@ describe("renaming a blueprint", () => {
     ]);
   });
 });
+
+/** The rods blueprint placed once more inside a blueprint of its own, which nothing places. */
+const nestedRods = Document.parse({
+  ...exampleDocument,
+  blueprints: {
+    ...exampleDocument.blueprints,
+    hall: {
+      name: "Hall",
+      graph: {
+        nodes: { inner: { kind: "instance", blueprint: "rods" }, sink: { kind: "sink", item: "iron-rod" } },
+        edges: { done: { from: "inner", fromPort: "out", to: "sink", item: "iron-rod" } },
+      },
+    },
+  },
+  layout: { ...exampleDocument.layout, hall: { inner: { x: 0, y: 0 }, sink: { x: 400, y: 0 } } },
+});
+
+describe("adding a blueprint", () => {
+  const rods = nestedRods.blueprints.rods;
+  const copy = (extra: Partial<Extract<ResolvedCommand, { type: "addBlueprint" }>> = {}) =>
+    ({
+      type: "addBlueprint",
+      id: "rods-2",
+      blueprint: { name: "Iron rods copy", graph: rods?.graph ?? { nodes: {}, edges: {} } },
+      layout: { in: { x: 0, y: 0 } },
+      ...extra,
+    }) as const;
+
+  it("adds it with its layout, placed nowhere yet", () => {
+    const next = edit(nestedRods, copy());
+    expect(next.blueprints["rods-2"]).toEqual({ name: "Iron rods copy", graph: rods?.graph });
+    expect(next.layout["rods-2"]).toEqual({ in: { x: 0, y: 0 } });
+    expect(next.graph).toBe(nestedRods.graph);
+  });
+
+  it("may hold instances of the document's blueprints, placed afterwards in the same batch", () => {
+    const hall = nestedRods.blueprints.hall;
+    const next = edit(
+      nestedRods,
+      {
+        type: "addBlueprint",
+        id: "hall-2",
+        blueprint: { name: "Hall 2", graph: hall?.graph ?? { nodes: {}, edges: {} } },
+        layout: {},
+      },
+      {
+        type: "addNode",
+        graph: "root",
+        id: "h2",
+        node: { kind: "instance", blueprint: "hall-2" },
+        position: { x: 0, y: 0 },
+      },
+    );
+    expect(next.graph.nodes["h2"]).toEqual({ kind: "instance", blueprint: "hall-2" });
+  });
+
+  it("refuses ids that are taken or `root`, and graphs that don't hold together", () => {
+    expect(rejection(nestedRods, copy({ id: "rods" }))).toEqual([
+      { path: ["commands", 0, "id"], message: "Blueprint rods already exists" },
+    ]);
+    expect(rejection(nestedRods, copy({ id: "root" }))).toEqual([
+      { path: ["commands", 0, "id"], message: "A blueprint can't be called root" },
+    ]);
+    const graph = (nodes: object, edges: object = {}) => ({ name: "Bad", graph: { nodes, edges } }) as never;
+    expect(
+      rejection(nestedRods, copy({ blueprint: graph({ a: { kind: "instance", blueprint: "nope" } }), layout: {} })),
+    ).toEqual([{ path: ["commands", 0, "blueprint", "graph", "nodes", "a"], message: "Unknown blueprint nope" }]);
+    expect(
+      rejection(nestedRods, copy({ blueprint: graph({ a: { kind: "instance", blueprint: "rods-2" } }), layout: {} })),
+    ).toEqual([
+      { path: ["commands", 0, "blueprint", "graph", "nodes", "a"], message: "Blueprint rods-2 can't contain itself" },
+    ]);
+    expect(
+      rejection(
+        nestedRods,
+        copy({ blueprint: graph({ a: { kind: "junction" } }, { e: { from: "a", to: "b", item: "x" } }), layout: {} }),
+      ),
+    ).toEqual([{ path: ["commands", 0, "blueprint", "graph", "edges", "e"], message: "Unknown node b" }]);
+    expect(
+      rejection(
+        nestedRods,
+        copy({
+          blueprint: graph(
+            { a: { kind: "instance", blueprint: "rods" }, b: { kind: "junction" } },
+            { e: { from: "a", fromPort: "in", to: "b", item: "x" } },
+          ),
+          layout: {},
+        }),
+      ),
+    ).toEqual([{ path: ["commands", 0, "blueprint", "graph", "edges", "e"], message: "a has no out port in" }]);
+    expect(rejection(nestedRods, copy({ layout: { ghost: { x: 0, y: 0 } } }))).toEqual([
+      { path: ["commands", 0, "layout", "ghost"], message: "Unknown node ghost" },
+    ]);
+  });
+});
+
+describe("removing a blueprint", () => {
+  it("removes it, its layout and every instance of it in every graph, with their flows and positions", () => {
+    const next = edit(nestedRods, { type: "removeBlueprint", blueprint: "rods" });
+    expect(next.blueprints).not.toHaveProperty("rods");
+    expect(next.layout).not.toHaveProperty("rods");
+    expect(next.graph.nodes).not.toHaveProperty("rods");
+    expect(next.graph.edges).not.toHaveProperty("e4");
+    expect(next.blueprints["hall"]?.graph).toEqual({ nodes: { sink: { kind: "sink", item: "iron-rod" } }, edges: {} });
+    expect(next.layout["hall"]).toEqual({ sink: { x: 400, y: 0 } });
+  });
+
+  it("keeps the blueprints it places, which nothing may place any more", () => {
+    const next = edit(nestedRods, { type: "removeBlueprint", blueprint: "hall" });
+    expect(Object.keys(next.blueprints)).toEqual(["rods"]);
+    expect(next.graph).toBe(nestedRods.graph);
+  });
+
+  it("refuses an unknown blueprint", () => {
+    expect(rejection(nestedRods, { type: "removeBlueprint", blueprint: "nope" })).toEqual([
+      { path: ["commands", 0, "blueprint"], message: "Unknown blueprint nope" },
+    ]);
+  });
+
+  it("is named for the history", () => {
+    expect(describeCommands([{ type: "removeBlueprint", blueprint: "rods" }])).toBe("Delete blueprint");
+    expect(describeCommands([copyCommand()])).toBe("Add blueprint");
+  });
+});
+
+function copyCommand(): ResolvedCommand {
+  return { type: "addBlueprint", id: "x", blueprint: { name: "X", graph: { nodes: {}, edges: {} } }, layout: {} };
+}

@@ -2,6 +2,7 @@
 // that shows, what the breadcrumbs call each level, and what a new blueprint is called.
 import type { Document, Graph, LocalId } from "../../../contracts/document";
 import type { Id, PackData } from "../../../contracts/pack";
+import { own } from "../../../utilities/records";
 
 /** One opened instance: the node in the graph above, and the blueprint it places. */
 export interface Crumb {
@@ -32,6 +33,26 @@ export function livePath(document: Document, path: readonly Crumb[]): readonly C
     scope = crumb.blueprint;
   }
   return path;
+}
+
+/**
+ * The way from the root graph to a blueprint's graph (find's jump): the fewest levels, through the first instance by
+ * id where a graph places it several times. Empty for `root`; undefined when nothing on the way places it.
+ */
+export function pathTo(document: Document, blueprint: string): Crumb[] | undefined {
+  const ways = new Map<string, Crumb[]>([["root", []]]);
+  const queue = ["root"];
+  for (let scope = queue.shift(); scope !== undefined; scope = queue.shift()) {
+    const here = ways.get(scope) ?? [];
+    if (scope === blueprint) return here;
+    const nodes = Object.entries(graphNamed(document, scope)?.nodes ?? {}).sort(([a], [b]) => (a < b ? -1 : 1));
+    for (const [instance, node] of nodes) {
+      if (node.kind !== "instance" || ways.has(node.blueprint) || !own(document.blueprints, node.blueprint)) continue;
+      ways.set(node.blueprint, [...here, { instance, blueprint: node.blueprint }]);
+      queue.push(node.blueprint);
+    }
+  }
+  return undefined;
 }
 
 /** Each level of the path for the breadcrumbs: the factory, then each blueprint opened. */

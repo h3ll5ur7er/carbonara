@@ -2,6 +2,7 @@
 // (Scenes render `AppShell` with fixed data instead.)
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas } from "./canvas/canvas";
+import { canvasActions } from "./canvas/viewport";
 import { formatShortcut, platformOf } from "./core/commands-shortcuts";
 import { paletteCommandId } from "./features/command-palette/command-palette";
 import { appRegistry } from "./shell/app-commands";
@@ -27,6 +28,7 @@ import { scopedTo } from "./features/subgraphs/path";
 import { useSubgraphView, type SubgraphView } from "./features/subgraphs/use-subgraph-view";
 import { useBlueprintPlacement, type BlueprintPlacement } from "./features/subgraphs/use-blueprint-placement";
 import { BlueprintLibrary } from "./features/subgraphs/library-panel";
+import { useBlueprintManagement } from "./features/subgraphs/use-blueprint-management";
 import { libraryEntries } from "./features/subgraphs/library";
 import "./features/subgraphs/subgraphs.css";
 
@@ -56,6 +58,7 @@ export function LiveApp() {
   );
   const inspected = useInspected(active, subgraph, selection);
   const placement = useBlueprintPlacement(active.document, graph);
+  const manage = useBlueprintManagement(active.document);
   const entries = useMemo(
     () => (active.document && active.packData ? libraryEntries(active.document, active.packData, graph) : []),
     [active.document, active.packData, graph],
@@ -89,6 +92,7 @@ export function LiveApp() {
               onPlaceInView={placement.placeInView}
               onDrop={placement.drop}
               onCancel={placement.cancel}
+              manage={manage}
             />
           ),
         })}
@@ -123,9 +127,9 @@ function DocumentCanvas({
   placement: BlueprintPlacement;
   onSelectionChange(nodeIds: string[]): void;
 }) {
-  const { graph, results, viewport, motion, onOpenSubgraph, header } = subgraph;
+  const { graph, results, viewport, motion, onOpenSubgraph, onReveal, header } = subgraph;
   const shown = useMemo(() => document && scopedTo(document, graph), [document, graph]);
-  const overlays = useFactoryOverlays({ info, document: shown, pack: packData, results });
+  const overlays = useFactoryOverlays({ info, document: shown, pack: packData, results, graph });
   const empty = !shown || Object.keys(shown.graph.nodes).length === 0;
   return (
     <>
@@ -139,6 +143,7 @@ function DocumentCanvas({
           {...(viewport && { viewport })}
           onSelectionChange={onSelectionChange}
           onOpenSubgraph={onOpenSubgraph}
+          onReveal={onReveal}
           header={header}
           {...overlays.canvas}
           // A blueprint on its way from the library takes the ghost while it follows the pointer.
@@ -178,7 +183,7 @@ function WelcomeCanvas({ loaded }: { loaded: boolean }) {
  */
 function useInspected(
   { info, document, packData }: ActiveDocument,
-  { graph, results }: SubgraphView,
+  { graph, results, onOpenSubgraph }: SubgraphView,
   selection: Selection | null,
 ): InspectorPanelProps["selection"] {
   const plugin = usePluginDescription(info?.packId, document?.settings.plugin);
@@ -207,8 +212,16 @@ function useInspected(
       const [first] = nodeIds;
       return node && first ? { target: { documentId: info.id, nodeId: first, nodeIds, graph }, node } : null;
     }
-    const node = inspectNode({ document: shown, pack: packData, results: results ?? undefined, nodeId, plugin });
+    const node = inspectNode({
+      document: shown,
+      factory: document,
+      pack: packData,
+      results: results ?? undefined,
+      nodeId,
+      plugin,
+    });
     if (!node) return null;
+    const siblings = node.instance?.siblings;
     return {
       target: { documentId: info.id, nodeId, graph },
       node,
@@ -216,8 +229,14 @@ function useInspected(
         const edit = productionEdit(shown, packData, nodeId, value);
         return edit && { ...edit, commands: edit.commands.map((command) => ({ ...command, graph })) };
       },
+      ...(siblings && {
+        subgraph: {
+          open: () => onOpenSubgraph(nodeId),
+          selectSiblings: () => canvasActions()?.select(siblings),
+        },
+      }),
     };
-  }, [selection, info, document, packData, results, plugin, graph]);
+  }, [selection, info, document, packData, results, plugin, graph, onOpenSubgraph]);
 }
 
 /** Opens the document of a share link the page was opened with, then removes it from the address bar. */
