@@ -81,9 +81,11 @@ Every manager method is declared once in [[src/contracts/managers.ts]]: its zod 
 
 Managers implement `ManagerImplementation<"name">` and receive validated arguments with defaults filled in. Methods return `Result` for expected failures (an invalid file, a broken pack) and throw only on bugs. Add a method to the contract when a use case needs it, not before.
 
+Access components that several managers share have their interfaces in [[src/contracts/access.ts]]: the `DocumentStore` (documents open in this session) and the `PackStore` (built-in and installed packs, loaded with their plugins).
+
 The **composition root** is [[src/shells/web/backend.ts]]: it creates the managers with their access components and platform, and serves them on the backend worker's port ([[src/shells/web/backend.worker.ts]]).
 
-**Events** (`Events` in the same file) flow from the backend to every client: `documentChanged` (Immer patches and the new version), `documentsChanged`, `resultsChanged` and `packsChanged`. Edits are sent as `Command`s ([[src/contracts/commands.ts]]) to `editing.apply`; a batch is one undo step.
+**Events** (`Events` in the same file) are published on the backend's event bus ([[src/utilities/events.ts]]). Managers subscribe to each other's events instead of calling each other, and the composition root forwards every event to the clients: `documentChanged` (Immer patches and the new version), `documentsChanged`, `resultsChanged` and `packsChanged`. Edits are sent as `Command`s ([[src/contracts/commands.ts]]) to `editing.apply`; a batch is one undo step.
 
 ## Threads and processes
 
