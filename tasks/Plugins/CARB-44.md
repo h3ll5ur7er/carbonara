@@ -2,7 +2,7 @@
 id: CARB-44
 title: Model Factorio mechanics
 type: feature
-status: review
+status: done
 priority: high
 labels: [plugins, factorio]
 wave: "2"

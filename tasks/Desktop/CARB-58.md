@@ -2,7 +2,7 @@
 id: CARB-58
 title: Ship desktop releases with updates
 type: chore
-status: review
+status: done
 priority: medium
 labels: [desktop, release]
 wave: "2"
