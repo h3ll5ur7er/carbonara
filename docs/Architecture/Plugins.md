@@ -107,6 +107,33 @@ Known simplifications:
 ## Isolation and trust
 
 - **Built-in packs** are trusted. Their plugins run in the backend worker, alongside the compiler.
-- **Third-party packs** run in a separate plugin worker with an opaque origin: no DOM, no access to our storage, only the plugin API over messages. The whole compile step for such a pack runs in that worker, so a solve costs one round trip, not one per hook call.
+- **Third-party packs** (every installed `.cpack`, including one that stands in for a built-in pack) run in a **plugin sandbox**: a worker of its own with an opaque origin, one per pack. Only the plugin API crosses, over messages. The whole compile step for such a pack runs in the sandbox, so a solve costs one round trip for the compile and one for the results, not one per hook call.
 - UI contributions are declarative only; plugins never ship React components.
 - Installing a third-party pack needs an explicit trust confirmation that shows its id, version and hash. Signed packs can come later.
+
+### The plugin sandbox
+
+```mermaid
+sequenceDiagram
+  participant A as analysis manager
+  participant R as sandbox runtime (backend side)
+  participant S as plugin sandbox (opaque-origin worker)
+  participant W as solver (WASM)
+  A->>R: compile(document)
+  R->>S: compile {document}
+  S-->>R: {compileId, model}  (compiler engine + plugin hooks)
+  A->>W: solve(model)
+  A->>R: results(outcome, version)
+  R->>S: results {compileId, outcome, version}
+  S-->>R: AnalysisResults (derive ran here)
+  R-->>A: results, pinned to the document and version asked for
+```
+
+- **How it's opaque:** the backend worker starts the sandbox from a `data:` URL ([[src/platforms/web/opaque-worker.ts]]), which gives the worker a fresh opaque origin: IndexedDB and the Cache API refuse it, its requests aren't ours, and workers have no DOM. That needs the sandbox's code as one self-contained module, so `virtual:plugin-sandbox` ([[src/shells/web/plugin-sandbox.vite.ts]]) bundles [[src/shells/web/plugin-sandbox.entry.ts]] (the compiler engine and the message loop) with esbuild, in the dev server and in builds alike. Before loading the plugin, the entry deletes `fetch`, `XMLHttpRequest`, `WebSocket`, `WebTransport`, `EventSource`, `importScripts`, `Worker`, `SharedWorker` and `BroadcastChannel` along the global's prototype chain. The plugin loads from a `data:` URL inside the sandbox.
+- **The message API** ([[src/shells/web/plugin-sandbox-protocol.ts]]): `load {source, data}`, `compile {document}` → `{compileId, model}`, `results {compileId, outcome, version}` → `AnalysisResults`, `describe {settings}` → `PluginDescription`. The sandbox keeps only the latest compile per document ([[src/shells/web/plugin-sandbox-runtime.ts]]).
+- **The backend side** ([[src/shells/web/plugin-sandbox.ts]]) is a `PluginRuntime`. Every call has a time limit (10 s); a sandbox that misses it is stopped and the call fails (the analysis manager shows it as an error on the document); the next call starts a fresh sandbox and loads the plugin again. Answers are untrusted: results get the document id and version they were asked for, so a plugin can't overwrite another document's results.
+- **Wiring:** the pack library ([[src/access/packs/library.ts]]) takes an `isolate` option; with it, installed packs come back as `{ isolated: PluginRuntime }` instead of `{ plugin }`, and installing a pack loads its plugin in a sandbox first (a plugin that doesn't load there is refused). Replacing or removing a pack stops its sandbox. The backend worker ([[src/shells/web/backend.worker.ts]]) provides `isolate`; Node (the CLI, tests) has none and loads plugins directly.
+- **Tests:** [[src/shells/web/plugin-sandbox.test.ts]] runs the sandbox runtime in-process and checks that compile, results and describe equal the in-worker path for the hook fixture plugin; [[e2e/plugins-sandbox.spec.ts]] installs a malicious pack whose plugin reports `origin=null dom=none fetch=undefined idb=denied caches=denied` (in the backend worker it would read `idb=open`), and solves with its hooks.
+
+> [!WARNING]
+> The sandbox keeps third-party code away from our storage and the DOM, and from `fetch`. It can't take away `import()`, so a plugin could still send the documents it compiles to a server by importing a URL. A `data:` URL worker can't be given a Content Security Policy of its own; serving the app with a CSP that limits `script-src` would close this.

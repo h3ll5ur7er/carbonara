@@ -1,8 +1,8 @@
 // Packs access: hides where packs come from and how installed ones are kept. Built-in packs are bundled with the
 // app; installed packs live in a KeyValueStorage (IndexedDB on the web) as their validated data plus their
-// plugin's source, so loading one needs no unzipping or validating again. Plugins load as ES modules through the
-// platform.
-import type { LoadedPack, PackStore } from "../../contracts/access";
+// plugin's source, so loading one needs no unzipping or validating again. Built-in plugins load as ES modules
+// through the platform; installed (third-party) plugins run isolated when the shell provides a sandbox.
+import type { LoadedPack, PackStore, PluginRuntime } from "../../contracts/access";
 import type { PackInfo } from "../../contracts/managers";
 import type { PackData, PackManifest } from "../../contracts/pack";
 import type { KeyValueStorage, ModuleLoader } from "../../contracts/platform";
@@ -34,10 +34,15 @@ export interface PackLibrary extends PackStore {
   remove(packId: string): Promise<boolean>;
 }
 
+/** Starts a third-party plugin in a sandbox of its own (the web's opaque-origin plugin worker). */
+export type IsolatePlugin = (plugin: { source: string; data: PackData }) => Promise<Result<PluginRuntime>>;
+
 export interface PackLibraryOptions {
   builtIns: BuiltInPack[];
   storage: KeyValueStorage;
   loadModule: ModuleLoader;
+  /** Where installed plugins run. Without it (Node, tests) they load like built-in ones, through `loadModule`. */
+  isolate?: IsolatePlugin;
 }
 
 /**
@@ -48,7 +53,7 @@ const infoKey = (packId: string) => `info/${packId}`;
 const contentsKey = (packId: string) => `contents/${packId}`;
 type StoredContents = { data: PackData; plugin: string };
 
-export function createPackLibrary({ builtIns, storage, loadModule }: PackLibraryOptions): PackLibrary {
+export function createPackLibrary({ builtIns, storage, loadModule, isolate }: PackLibraryOptions): PackLibrary {
   /** Loaded packs by id; a pack's plugin module is imported once. */
   const loaded = new Map<string, Promise<LoadedPack | undefined>>();
 
@@ -69,15 +74,34 @@ export function createPackLibrary({ builtIns, storage, loadModule }: PackLibrary
     return ok(plugin as Plugin);
   }
 
+  /** An installed pack's plugin: in its sandbox when there is one, else loaded here. */
+  async function startInstalled(info: PackInfo, data: PackData, source: string): Promise<Result<LoadedPack>> {
+    if (isolate) {
+      const runtime = await isolate({ source, data });
+      return runtime.ok ? ok({ info, data, isolated: runtime.value }) : runtime;
+    }
+    const plugin = await loadPlugin(source);
+    return plugin.ok ? ok({ info, data, plugin: plugin.value }) : plugin;
+  }
+
+  /** Stops the sandbox of a pack that is about to be replaced or removed. */
+  function forget(packId: string) {
+    void loaded.get(packId)?.then(
+      (pack) => pack?.isolated?.dispose?.(),
+      () => undefined,
+    );
+    loaded.delete(packId);
+  }
+
   async function load(packId: string): Promise<LoadedPack | undefined> {
     const info = await installedInfo(packId);
     if (info) {
       const contents = (await storage.get(contentsKey(packId))) as StoredContents | undefined;
       if (!contents) throw new Error(`The stored pack ${packId} is incomplete`);
-      const plugin = await loadPlugin(contents.plugin);
+      const pack = await startInstalled(info, contents.data, contents.plugin);
       // It loaded when it was installed; failing now means the stored copy is damaged.
-      if (!plugin.ok) throw new Error(`The stored plugin of ${packId} no longer loads`);
-      return { info, data: contents.data, plugin: plugin.value };
+      if (!pack.ok) throw new Error(`The stored plugin of ${packId} no longer loads`);
+      return pack.value;
     }
     const builtIn = builtIns.find((pack) => pack.info.manifest.id === packId);
     return builtIn && { info: builtIn.info, ...(await builtIn.load()) };
@@ -98,13 +122,14 @@ export function createPackLibrary({ builtIns, storage, loadModule }: PackLibrary
     },
 
     async install({ manifest, data, hash, plugin: source }) {
-      const plugin = await loadPlugin(source);
-      if (!plugin.ok) return plugin;
       const info: PackInfo = { manifest, hash, builtIn: false };
+      const pack = await startInstalled(info, data, source);
+      if (!pack.ok) return pack;
       await storage.delete(infoKey(manifest.id));
       await storage.set(contentsKey(manifest.id), { data, plugin: source } satisfies StoredContents);
       await storage.set(infoKey(manifest.id), info);
-      loaded.set(manifest.id, Promise.resolve({ info, data, plugin: plugin.value }));
+      forget(manifest.id);
+      loaded.set(manifest.id, Promise.resolve(pack.value));
       return ok(info);
     },
 
@@ -112,7 +137,7 @@ export function createPackLibrary({ builtIns, storage, loadModule }: PackLibrary
       if (!(await installedInfo(packId))) return false;
       await storage.delete(infoKey(packId));
       await storage.delete(contentsKey(packId));
-      loaded.delete(packId);
+      forget(packId);
       return true;
     },
   };
