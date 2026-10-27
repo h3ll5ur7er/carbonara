@@ -1,0 +1,10 @@
+# Satisfactory by Coffee Stain Studios. data/ and icons/ are generated from the game's own files with
+# `pnpm pack:import satisfactory` (see README.md); the sources and their terms are in CREDITS.md.
+id: satisfactory
+name: Satisfactory
+version: 1.0.0
+engine: ^1
+game: { name: Satisfactory, version: "1.1" }
+data: data/
+plugin: plugin/index.js
+theme: { accent: "#f5a623" }
