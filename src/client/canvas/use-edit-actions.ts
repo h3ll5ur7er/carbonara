@@ -10,6 +10,7 @@ import { blueprintName } from "../features/subgraphs/path";
 import { setCanvasEditActions, type CanvasEditActions } from "./edit-actions";
 import type { NavigationActions } from "./use-navigation";
 import type { Point } from "./adapter";
+import { clipboardActions } from "./clipboard-actions";
 import { align, distribute, straightenChain, type AlignMode, type Box } from "./model/align";
 import { freeSpot, obstaclesOf } from "./model/free-spot";
 import { rateChoices, settingsFor } from "./model/format";
@@ -88,13 +89,24 @@ export function useEditActions({
       arrange(direction) {
         const selected = selection.current.nodes;
         const nodeIds = selected.length >= 2 ? selected : undefined;
+        // The layout engine gets the nodes as they'll be drawn: arranged down, their flows enter at the top and
+        // leave at the bottom (the editing manager turns them).
+        const arranged = new Set(nodeIds ?? Object.keys(shown?.nodes ?? {}));
+        const turned = Object.fromEntries(
+          Object.keys(shown?.nodes ?? {}).map((id) => {
+            const { flow, ...at } = layout?.[id] ?? { x: 0, y: 0 };
+            const turn = arranged.has(id) && !at.locked ? direction : flow;
+            return [id, { ...at, ...(turn === "down" && { flow: "down" as const }) }];
+          }),
+        );
+        const views = shown ? createSceneBuilder()(shown, turned, pack, document).nodes : scene.nodes;
         report(
           "Arrange",
           connector.editing.arrange({
             documentId,
             graph,
             direction,
-            shapes: shapesOf(scene.nodes),
+            shapes: shapesOf(views),
             ...(nodeIds && { nodeIds }),
           }),
         );
@@ -149,6 +161,16 @@ export function useEditActions({
         if (ids.length === 0) return;
         const locked = !ids.every((id) => layout?.[id]?.locked);
         void apply([{ type: "setLocked", graph, ids, locked }], locked ? "Lock" : "Unlock");
+      },
+      toggleCollapse() {
+        const frames = selection.current.nodes.flatMap((id) => {
+          const node = shown?.nodes[id];
+          return node?.kind === "frame" ? [{ id, collapsed: !!node.collapsed }] : [];
+        });
+        if (frames.length === 0) return;
+        const collapsed = !frames.every((frame) => frame.collapsed);
+        const ids = frames.map((frame) => frame.id);
+        void apply([{ type: "setCollapsed", graph, ids, collapsed }], collapsed ? "Collapse frame" : "Expand frame");
       },
       showRatesIn(choice) {
         // The fastest solid carrier: what "belts" means in factory games.
@@ -230,6 +252,7 @@ export function useEditActions({
       undo: () => report("Undo", connector.editing.undo({ documentId })),
       redo: () => report("Redo", connector.editing.redo({ documentId })),
       placeNew,
+      ...clipboardActions({ connector, document, pack, graph, shown, scene, selection, apply }),
       ...navigation,
     };
   }, [

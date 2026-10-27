@@ -7,6 +7,7 @@ import type { Events } from "../contracts/managers";
 import type { AnalysisResults } from "../contracts/results";
 import { compile } from "../engines/compiler";
 import { platesModule, templatePack, waterLoop } from "../engines/compiler/template.fixture";
+import { copyNodes, pasteCommands } from "../engines/editing/clipboard";
 import { applyCommands, type ResolvedCommand } from "../engines/editing/commands";
 import { loadSolver } from "../engines/solver";
 import { createEventBus } from "../utilities/events";
@@ -148,7 +149,17 @@ describe("the analysis manager", () => {
     const { edit, command, documents, analysis } = setUp();
     edit(waterLoop());
     await analysis.getResults({ documentId: "doc-water", graph: "root" });
-    const edits: ResolvedCommand[][] = [
+    let pasted = 0;
+    // A paste, as the editing manager makes one: new nodes and flows, and their layout.
+    const paste = (document: Document): ResolvedCommand[] => {
+      const copied = copyNodes(document, "root", ["plates", "wash"]);
+      if (!copied.ok) throw new Error(JSON.stringify(copied.error));
+      const options = { offset: { x: 400, y: 0 }, connections: true };
+      const made = pasteCommands(document, "root", copied.value, options, () => `pasted${pasted++}`);
+      if (!made.ok) throw new Error(JSON.stringify(made.error));
+      return made.value.commands;
+    };
+    const edits: (ResolvedCommand[] | typeof paste)[] = [
       [{ type: "setPin", graph: "root", id: "smelt", pin: { type: "machines", count: 2 } }],
       [{ type: "setRate", graph: "root", id: "plates", perSecond: 2 }],
       [{ type: "removeNodes", graph: "root", ids: ["purify"] }],
@@ -160,9 +171,12 @@ describe("the analysis manager", () => {
       [{ type: "setRate", graph: "root", id: "plates", perSecond: 1.5 }],
       [{ type: "expand", graph: "root", id: "cell1" }],
       [{ type: "setRate", graph: "root", id: "plates", perSecond: 3 }],
+      paste,
+      [{ type: "setRate", graph: "root", id: "plates", perSecond: 1 }],
     ];
-    for (const commands of edits) {
-      command("doc-water", commands);
+    for (const step of edits) {
+      const current = documents.get("doc-water")?.document as Document;
+      command("doc-water", typeof step === "function" ? step(current) : step);
       const followed = await analysis.getResults({ documentId: "doc-water", graph: "root" });
       // Another manager, which sees each version whole.
       const fresh = setUp();

@@ -67,20 +67,24 @@ export interface MachineGroup {
   share: number;
 }
 
-/** Whole machines at 100%, then one machine for the rest: 4.375 → 4 × 100% + 1 × 37.5%. */
-export function splitMachines(count: number): MachineGroup[] {
+/**
+ * Whole machines at 100%, then one machine for the rest (`fill`: 4.375 → 4 × 100% + 1 × 37.5%), or every machine
+ * at the same clock (`even`: 4.375 → 5 × 87.5%).
+ */
+export function splitMachines(count: number, groupsAs: "fill" | "even" = "fill"): MachineGroup[] {
   const cleaned = clean(count);
   if (cleaned <= 0) return [];
   const whole = Math.floor(cleaned);
   const rest = cleaned - whole;
+  if (groupsAs === "even" && rest > 0) return [{ machines: whole + 1, share: cleaned / (whole + 1) }];
   const groups: MachineGroup[] = [];
   if (whole > 0) groups.push({ machines: whole, share: 1 });
   if (rest > 0) groups.push({ machines: 1, share: rest });
   return groups;
 }
 
-export function formatMachines(count: number): string {
-  return splitMachines(count)
+export function formatMachines(count: number, groupsAs: "fill" | "even" = "fill"): string {
+  return splitMachines(count, groupsAs)
     .map((group) => `${group.machines} × ${formatPercent(group.share)}`)
     .join(" + ");
 }

@@ -32,6 +32,7 @@ import { useFind } from "../features/find/find-store";
 import type { Id } from "../../contracts/pack";
 import { useEditActions, type Selection } from "./use-edit-actions";
 import { useNavigation } from "./use-navigation";
+import { usePaste } from "./use-paste";
 import { setViewportCentre } from "./viewport";
 
 /** The renderer in use; the only place that names it. */
@@ -123,6 +124,7 @@ function EmptyCanvas() {
       onDelete={ignore}
       onEditText={ignore}
       onResize={ignore}
+      onToggleCollapsed={ignore}
       onViewSettled={ignore}
       onViewCentre={setViewportCentre}
       onSelectionChange={ignore}
@@ -167,6 +169,12 @@ function DocumentCanvas({
     [buildScene, shown, layout, pack, subgraphs],
   );
 
+  // A paste waiting to be placed is drawn over any other ghost: it's what the person did last.
+  const paste = usePaste(document, graph, scene);
+  const shownGhost = paste.ghost ?? ghost;
+  const placeGhost = paste.ghost ? paste.onPlace : onGhostPlace;
+  const cancelGhost = paste.ghost ? paste.onCancel : onGhostCancel;
+
   const [buildGhostScene] = useState(createSceneBuilder);
   // The ghost's content and its placement change apart: moving it mustn't rebuild (or re-reveal) it.
   const {
@@ -175,7 +183,7 @@ function DocumentCanvas({
     label: ghostLabel,
     placement,
     results: ghostResults,
-  } = ghost ?? {};
+  } = shownGhost ?? {};
   const content = useMemo(
     () =>
       ghostGraph &&
@@ -212,12 +220,19 @@ function DocumentCanvas({
 
   const onMoveNodes: CanvasViewProps["onMoveNodes"] = useCallback(
     (moved) => {
+      // A collapsed frame takes what it holds along, so they're still inside when it opens.
+      const carried = scene.nodes.flatMap((view) => {
+        const frame = view.hiddenBy && moved[view.hiddenBy];
+        const from = view.hiddenBy && layout?.[view.hiddenBy];
+        if (!frame || !from || moved[view.id]) return [];
+        return [[view.id, { x: view.position.x + frame.x - from.x, y: view.position.y + frame.y - from.y }] as const];
+      });
       const positions = Object.fromEntries(
-        Object.entries(moved).map(([id, point]) => [id, { ...layout?.[id as LocalId], ...point }]),
+        [...Object.entries(moved), ...carried].map(([id, point]) => [id, { ...layout?.[id as LocalId], ...point }]),
       );
       void apply([{ type: "moveNodes", graph, positions }], "Move");
     },
-    [apply, graph, layout],
+    [apply, graph, layout, scene],
   );
   const onConnect: CanvasViewProps["onConnect"] = useCallback(
     (edge) => void apply([{ type: "connect", graph, edge }], "Connect"),
@@ -303,6 +318,18 @@ function DocumentCanvas({
     },
     [apply, graph, shown],
   );
+  const onToggleCollapsed: CanvasViewProps["onToggleCollapsed"] = useCallback(
+    (id) => {
+      const node = shown?.nodes[id];
+      if (node?.kind !== "frame") return;
+      const collapsed = !node.collapsed;
+      void apply(
+        [{ type: "setCollapsed", graph, ids: [id], collapsed }],
+        collapsed ? "Collapse frame" : "Expand frame",
+      );
+    },
+    [apply, graph, shown],
+  );
   const onResize: CanvasViewProps["onResize"] = useCallback(
     (id, rect) =>
       void apply([{ type: "moveNodes", graph, positions: { [id]: { ...layout?.[id], ...rect } } }], "Resize"),
@@ -380,11 +407,12 @@ function DocumentCanvas({
           onDelete={onDelete}
           onEditText={onEditText}
           onResize={onResize}
+          onToggleCollapsed={onToggleCollapsed}
           onViewSettled={navigation.onViewSettled}
           {...(onOpenSubgraph && { onOpenSubgraph })}
           ghost={ghostScene}
-          {...(onGhostPlace && { onGhostPlace })}
-          {...(onGhostCancel && { onGhostCancel })}
+          {...(placeGhost && { onGhostPlace: placeGhost })}
+          {...(cancelGhost && { onGhostCancel: cancelGhost })}
           overlay={overlay}
         />
       </CanvasContextMenu>

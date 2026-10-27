@@ -54,8 +54,13 @@ export function findInFactory(document: Document, pack: PackData, query: string)
 
 /** The recipes that make the same main product as `recipeId`: what it can be swapped for. */
 export function alternativesFor(pack: PackData, recipeId: Id): Recipe[] {
-  const main = mainProduct(pack.recipes.find((recipe) => recipe.id === recipeId));
-  return pack.recipes.filter((recipe) => recipe.id !== recipeId && main !== undefined && mainProduct(recipe) === main);
+  const main = mainProduct(
+    pack,
+    pack.recipes.find((recipe) => recipe.id === recipeId),
+  );
+  return pack.recipes.filter(
+    (recipe) => recipe.id !== recipeId && main !== undefined && mainProduct(pack, recipe) === main,
+  );
 }
 
 /**
@@ -88,8 +93,19 @@ export function recipeChangeCommands(
   });
 }
 
-function mainProduct(recipe: Recipe | undefined): Id | undefined {
-  return Object.keys(recipe?.out ?? {})[0];
+/**
+ * What a recipe is for: its first output, unless it takes apart something made from that output (Motor
+ * Recycling gives gears back, but it takes motors, whose recipe is for making them from gears). Then it has none.
+ */
+function mainProduct(pack: PackData, recipe: Recipe | undefined): Id | undefined {
+  const [first] = Object.keys(recipe?.out ?? {});
+  if (!recipe || first === undefined) return undefined;
+  const madeFromIt = pack.recipes.filter((other) => other.in[first] !== undefined).map((other) => firstOutput(other));
+  return Object.keys(recipe.in).some((item) => madeFromIt.includes(item)) ? undefined : first;
+}
+
+function firstOutput(recipe: Recipe): Id | undefined {
+  return Object.keys(recipe.out)[0];
 }
 
 interface Names {

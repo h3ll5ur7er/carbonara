@@ -37,7 +37,15 @@ export const Node = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("instance"), blueprint: LocalId }),
   z.object({ kind: z.literal("port"), direction: z.enum(["in", "out"]), item: Id }).describe("A blueprint's boundary."),
   z.object({ kind: z.literal("note"), text: z.string() }),
-  z.object({ kind: z.literal("frame"), label: z.string(), tone: z.string().optional() }),
+  z.object({
+    kind: z.literal("frame"),
+    label: z.string(),
+    tone: z.string().optional(),
+    collapsed: z
+      .literal(true)
+      .optional()
+      .describe("Folded to its label bar: the canvas hides the nodes it holds and draws their flows to the bar."),
+  }),
 ]);
 export type Node = z.infer<typeof Node>;
 export type NodeKind = Node["kind"];
@@ -74,6 +82,13 @@ export const Position = z.object({
   height: z.number().positive().optional(),
   locked: z.literal(true).optional().describe("Locked nodes stay put: dragging, nudging and arranging leave them."),
   tag: TagColour.optional().describe("A colour tag the user gave the node."),
+  flow: z
+    .literal("down")
+    .optional()
+    .describe(
+      "Flows enter the node at the top and leave at the bottom, as arranging top to bottom leaves them; " +
+        "on the left and right when left out.",
+    ),
 });
 export type Position = z.infer<typeof Position>;
 

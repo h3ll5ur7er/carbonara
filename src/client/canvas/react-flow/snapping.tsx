@@ -61,7 +61,7 @@ export function useSnapping() {
       const [panX, panY, zoom] = transform;
       const visible: Rect = { x: -panX / zoom, y: -panY / zoom, width: width / zoom, height: height / zoom };
       const others = nodes
-        .filter((node) => !moving.has(node.id) && node.type !== "frame")
+        .filter((node) => !moving.has(node.id) && node.type !== "frame" && !node.hidden)
         .map(rectOf)
         .filter((rect) => intersects(rect, visible));
       const snapped = snapDrag({ ...rectOf(leadNode), ...lead.position }, others, {

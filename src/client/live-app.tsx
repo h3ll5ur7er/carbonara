@@ -6,7 +6,7 @@ import { formatShortcut, platformOf } from "./core/commands-shortcuts";
 import { paletteCommandId } from "./features/command-palette/command-palette";
 import { appRegistry } from "./shell/app-commands";
 import { AppShell, EmptyState } from "./shell/app-shell";
-import { inspectNode, productionEdit } from "./shell/inspector/inspect";
+import { inspectNode, inspectSelection, productionEdit } from "./shell/inspector/inspect";
 import type { InspectorPanelProps } from "./shell/inspector/inspector-panel";
 import { usePluginDescription } from "./shell/inspector/plugin-description";
 import { useConnector } from "./core/connector";
@@ -173,8 +173,8 @@ function WelcomeCanvas({ loaded }: { loaded: boolean }) {
 }
 
 /**
- * The inspector's view of the active document: its one selected node (in the graph on screen), its save profile
- * while none is selected.
+ * The inspector's view of the active document: its selected nodes (in the graph on screen), its save profile while
+ * none is selected.
  */
 function useInspected(
   { info, document, packData }: ActiveDocument,
@@ -190,9 +190,21 @@ function useInspected(
       const settings = document.settings.plugin ?? {};
       return { profile: { documentId: info.id, pack: packData, settings, plugin } };
     }
-    if (!nodeId) return null;
     // The inspector reads the root graph: inside a subgraph, it's given the blueprint's graph as the root.
     const shown = scopedTo(document, graph);
+    if (!nodeId) {
+      // Several nodes: the plugin fields they share, edited on all of them at once.
+      const nodeIds = current.nodeIds;
+      const node = inspectSelection({
+        document: shown,
+        pack: packData,
+        results: results ?? undefined,
+        nodeIds,
+        plugin,
+      });
+      const [first] = nodeIds;
+      return node && first ? { target: { documentId: info.id, nodeId: first, nodeIds, graph }, node } : null;
+    }
     const node = inspectNode({ document: shown, pack: packData, results: results ?? undefined, nodeId, plugin });
     if (!node) return null;
     return {

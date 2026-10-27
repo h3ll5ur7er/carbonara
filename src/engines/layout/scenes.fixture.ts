@@ -57,6 +57,25 @@ export function shapeOf(node: Node, position?: Position): NodeShape {
   }
 }
 
+/**
+ * The shapes as the canvas draws nodes whose flows run down (model/scene.ts, `orient`): inputs spread along
+ * the top edge, outputs along the bottom.
+ */
+export function downShapes(shapes: Record<string, NodeShape>): Record<string, NodeShape> {
+  return Object.fromEntries(
+    Object.entries(shapes).map(([id, shape]) => {
+      const along = (side: "in" | "out") => shape.ports.filter((port) => port.side === side);
+      const place = (side: "in" | "out") =>
+        along(side).map((port, index, all) => ({
+          ...port,
+          x: (shape.width * (index + 1)) / (all.length + 1),
+          y: side === "in" ? 0 : shape.height,
+        }));
+      return [id, { ...shape, ports: [...place("in"), ...place("out")] }];
+    }),
+  );
+}
+
 type Spec = Record<string, [node: Node, x: number, y: number, size?: { width: number; height: number }]>;
 type Edges = Record<string, [from: string, to: string, item: string]>;
 

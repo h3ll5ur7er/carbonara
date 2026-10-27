@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Document, Graph } from "../../../contracts/document";
 import { PackData } from "../../../contracts/pack";
+import { COLLAPSED_FRAME_HEIGHT } from "./geometry";
 import { createSceneBuilder, handleId, type NodeView } from "./scene";
 
 const pack = PackData.parse({
@@ -80,6 +81,78 @@ describe("buildScene", () => {
     expect(rows).toEqual([...rows].sort((a, b) => a - b));
     expect(new Set(rows).size).toBe(4);
     expect(smelter.height).toBeGreaterThan(rows[3] ?? Infinity);
+  });
+
+  it("puts ports on the left and right, or on the top and bottom of nodes whose flows run down", () => {
+    const down = Object.fromEntries(
+      ["mine", "smelter", "split", "goal"].map((id) => [id, { x: 0, y: 0, flow: "down" as const }]),
+    );
+    const sideways = build().nodes;
+    const turned = createSceneBuilder()(graph, down, pack).nodes;
+    const sides = (nodes: typeof turned, id: string) =>
+      nodes.find((node) => node.id === id)?.ports.map((port) => port.side);
+    expect(sides(sideways, "smelter")).toEqual(["left", "left", "right", "right"]);
+    expect(sides(turned, "smelter")).toEqual(["top", "top", "bottom", "bottom"]);
+    expect(sides(turned, "mine")).toEqual(["bottom"]);
+    expect(sides(turned, "goal")).toEqual(["top"]);
+    expect(sides(turned, "split")).toEqual(["top", "bottom"]);
+
+    // Spread evenly along their edge, inputs on top, outputs at the bottom.
+    const smelter = turned.find((node) => node.id === "smelter");
+    if (!smelter) throw new Error("missing node");
+    const third = smelter.width / 3;
+    expect(smelter.ports.map((port) => [port.x, port.y])).toEqual([
+      [third, 0],
+      [2 * third, 0],
+      [third, smelter.height],
+      [2 * third, smelter.height],
+    ]);
+    const goal = turned.find((node) => node.id === "goal");
+    expect(goal?.ports[0]).toMatchObject({ x: (goal?.width ?? 0) / 2, y: 0 });
+  });
+
+  it("folds a collapsed frame to its label bar, hides what it holds and draws their flows to the bar", () => {
+    const folded: Graph = {
+      ...graph,
+      nodes: { ...graph.nodes, area: { kind: "frame", label: "Smelting", collapsed: true } },
+    };
+    const layout = { ...positions, split: { x: 800, y: 0 }, goal: { x: 1000, y: 0 }, memo: { x: 0, y: 600 } };
+    const scene = createSceneBuilder()(folded, layout, pack);
+    const view = (id: string) => scene.nodes.find((node) => node.id === id);
+    expect(view("mine")?.hiddenBy).toBe("area");
+    expect(view("smelter")?.hiddenBy).toBe("area");
+    expect(view("split")?.hiddenBy).toBeUndefined();
+    expect(view("memo")?.hiddenBy).toBeUndefined();
+    expect(view("area")).toMatchObject({ kind: "frame", width: 600, height: COLLAPSED_FRAME_HEIGHT, members: 2 });
+    expect(view("area")?.ports.map((port) => [port.handle, port.side])).toEqual([
+      ["in", "left"],
+      ["out", "right"],
+    ]);
+    // The flow inside the frame is hidden; the one leaving it starts at the bar.
+    expect(scene.edges.map((edge) => [edge.id, edge.source, edge.sourceHandle, edge.target])).toEqual([
+      ["b", "area", "out", "split"],
+      ["c", "split", "out", "goal"],
+    ]);
+  });
+
+  it("hides a collapsed frame inside another along with the rest", () => {
+    const nested: Graph = {
+      nodes: {
+        outer: { kind: "frame", label: "Outer", collapsed: true },
+        inner: { kind: "frame", label: "Inner", collapsed: true },
+        mine: { kind: "source", item: "ore" },
+      },
+      edges: {},
+    };
+    const layout = {
+      outer: { x: 0, y: 0, width: 1000, height: 1000 },
+      inner: { x: 100, y: 100, width: 400, height: 400 },
+      mine: { x: 200, y: 200 },
+    };
+    const nodes = createSceneBuilder()(nested, layout, pack).nodes;
+    expect(nodes.find((node) => node.id === "inner")?.hiddenBy).toBe("outer");
+    expect(nodes.find((node) => node.id === "mine")?.hiddenBy).toBe("outer");
+    expect(nodes.find((node) => node.id === "outer")).toMatchObject({ members: 2 });
   });
 
   it("gives sources one output, sinks one input and junctions one of each", () => {

@@ -25,6 +25,21 @@ describe("applyFieldEdit", () => {
     });
   });
 
+  it("sets the field on every selected node at once, as one undo step", async () => {
+    const editing = mockEditing({ ok: true, value: info });
+    await applyFieldEdit(
+      editing,
+      { documentId: "doc-1", nodeId: "a", nodeIds: ["a", "b", "c"] },
+      { key: "clock", descriptor: clock, value: 150 },
+    );
+    expect(editing.apply).toHaveBeenCalledTimes(1);
+    expect(editing.apply).toHaveBeenCalledWith({
+      documentId: "doc-1",
+      commands: ["a", "b", "c"].map((id) => ({ type: "setNodeFields", graph: "root", id, fields: { clock: 150 } })),
+      label: "Set Clock to 150 % on 3 machines",
+    });
+  });
+
   it("edits a node inside a subgraph", async () => {
     const editing = mockEditing({ ok: true, value: info });
     await applyFieldEdit(

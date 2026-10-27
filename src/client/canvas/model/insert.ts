@@ -6,7 +6,7 @@ import type { Edge, LocalId } from "../../../contracts/document";
 import type { Id } from "../../../contracts/pack";
 import type { Point } from "../adapter";
 import { flowPoints, isBackward } from "./edge-path";
-import type { CanvasScene, NodeView } from "./scene";
+import type { CanvasScene, NodeView, PortSide } from "./scene";
 import type { Rect } from "./snap";
 
 /** Points sampled along each flow when looking for the one under a node. */
@@ -23,8 +23,17 @@ export function edgeUnder(rect: Rect, scene: CanvasScene, node: NodeView): Local
     if (!consumer || insertedItem(node, edge.item, consumer) === undefined) continue;
     const source = portPoint(views.get(edge.source), edge.sourceHandle);
     const target = portPoint(views.get(edge.target), edge.targetHandle);
-    // Loops back run below their nodes; nothing is dropped onto them.
-    if (!source || !target || isBackward(source.x, target.x)) continue;
+    if (!source || !target) continue;
+    const ends = {
+      sourceX: source.x,
+      sourceY: source.y,
+      targetX: target.x,
+      targetY: target.y,
+      sourceSide: source.side,
+      targetSide: target.side,
+    };
+    // Loops back run past their nodes; nothing is dropped onto them.
+    if (isBackward(ends)) continue;
     const box = {
       x: Math.min(source.x, target.x),
       y: Math.min(source.y, target.y),
@@ -34,7 +43,6 @@ export function edgeUnder(rect: Rect, scene: CanvasScene, node: NodeView): Local
     if (box.x > rect.x + rect.width || box.right < rect.x || box.y > rect.y + rect.height || box.bottom < rect.y) {
       continue;
     }
-    const ends = { sourceX: source.x, sourceY: source.y, targetX: target.x, targetY: target.y };
     if (flowPoints(ends, SAMPLES).some(inside)) return edge.id;
   }
   return undefined;
@@ -57,9 +65,9 @@ export function insertedItem(node: NodeView, item: Id, consumer: NodeView): Id |
   return [item, ...makes].find((candidate) => makes.includes(candidate) && takes(consumer, candidate));
 }
 
-function portPoint(view: NodeView | undefined, handle: string): Point | undefined {
+function portPoint(view: NodeView | undefined, handle: string): (Point & { side: PortSide }) | undefined {
   const port = view?.ports.find((candidate) => candidate.handle === handle);
-  return view && port && { x: view.position.x + port.x, y: view.position.y + port.y };
+  return view && port && { x: view.position.x + port.x, y: view.position.y + port.y, side: port.side };
 }
 
 /**

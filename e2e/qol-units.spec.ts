@@ -20,6 +20,15 @@ test("rates can be shown in belts, and machine counts evenly clocked", async ({ 
   await page.getByRole("option", { name: "× Conveyor" }).click();
   // 22 plates a second on 15-a-second conveyors.
   await expect(gears).toContainText("1.47 × Conveyor");
+  // A sink's rate in belts gets a line of its own, so neither it nor the item's name is cut short.
+  const goal = page.locator('[data-id="goal"]');
+  await expect(goal).toContainText("0.73 of 1 × Conveyor");
+  const clipped = await goal
+    .locator("span.truncate")
+    .evaluateAll((spans) =>
+      spans.filter((span) => span.scrollWidth > span.clientWidth).map((span) => span.textContent),
+    );
+  expect(clipped).toEqual([]);
 
   await expect(page).toHaveScreenshot("rates-in-belts.png");
   const commands = await page.evaluate(() => window.carbonaraScene?.commands ?? []);

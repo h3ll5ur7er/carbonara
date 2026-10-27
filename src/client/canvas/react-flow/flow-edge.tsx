@@ -2,35 +2,48 @@
 // belt is, and particles that travel at a speed and spacing that encode the rate.
 import { BaseEdge, useStore, type EdgeProps, type ReactFlowState } from "@xyflow/react";
 import { memo, useCallback, type CSSProperties } from "react";
-import { flowPath, isBackward } from "../model/edge-path";
+import { flowPath, isBackward, type PathEnds } from "../model/edge-path";
 import { flowParticles, flowSaturation, flowWidth } from "../model/flow-style";
 import { useEdgeSlot } from "./context";
 import type { FlowEdge as FlowEdgeType } from "./types";
 
-/** How far below the lower node a backward flow loops. */
+/** How far past the farther node a backward flow loops. */
 const LOOP_CLEARANCE = 36;
 
 export const FlowEdge = memo(function FlowEdge(props: EdgeProps<FlowEdgeType>) {
-  if (isBackward(props.sourceX, props.targetX)) return <BackwardFlow {...props} />;
-  return <FlowPath id={props.id} path={flowPath(props)} selected={props.selected ?? false} />;
+  const ends = endsOf(props);
+  if (isBackward(ends)) return <BackwardFlow {...props} />;
+  return <FlowPath id={props.id} path={flowPath(ends)} selected={props.selected ?? false} />;
 });
 
-/** A recycling loop: it routes below both of its nodes, so it needs their extent. */
-function BackwardFlow(props: EdgeProps<FlowEdgeType>) {
-  const { source, target } = props;
-  const below = useStore(
-    useCallback(
-      (state: ReactFlowState) => Math.max(bottomOf(state, source), bottomOf(state, target)) + LOOP_CLEARANCE,
-      [source, target],
-    ),
-  );
-  return <FlowPath id={props.id} path={flowPath({ ...props, below })} selected={props.selected ?? false} />;
+/** Where the flow starts and ends, and which way its ports face (React Flow's positions are the same words). */
+function endsOf(props: EdgeProps<FlowEdgeType>): PathEnds {
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition } = props;
+  return { sourceX, sourceY, targetX, targetY, sourceSide: sourcePosition, targetSide: targetPosition };
 }
 
-function bottomOf(state: ReactFlowState, id: string): number {
+/**
+ * A recycling loop: it routes past both of its nodes (below them, or to their right when flows run down), so it
+ * needs their extent.
+ */
+function BackwardFlow(props: EdgeProps<FlowEdgeType>) {
+  const { source, target } = props;
+  const down = props.sourcePosition === "bottom";
+  const loopAt = useStore(
+    useCallback(
+      (state: ReactFlowState) => Math.max(farSide(state, source, down), farSide(state, target, down)) + LOOP_CLEARANCE,
+      [source, target, down],
+    ),
+  );
+  return <FlowPath id={props.id} path={flowPath({ ...endsOf(props), loopAt })} selected={props.selected ?? false} />;
+}
+
+/** A node's bottom edge, or its right edge when flows run down. */
+function farSide(state: ReactFlowState, id: string, down: boolean): number {
   const node = state.nodeLookup.get(id);
   if (!node) return 0;
-  return node.internals.positionAbsolute.y + (node.measured.height ?? node.height ?? 0);
+  const { x, y } = node.internals.positionAbsolute;
+  return down ? x + (node.measured.width ?? node.width ?? 0) : y + (node.measured.height ?? node.height ?? 0);
 }
 
 function FlowPath({ id, path, selected }: { id: string; path: string; selected: boolean }) {

@@ -229,6 +229,11 @@
                   },
                   "tone": {
                     "type": "string"
+                  },
+                  "collapsed": {
+                    "description": "Folded to its label bar: the canvas hides the nodes it holds and draws their flows to the bar.",
+                    "type": "boolean",
+                    "const": true
                   }
                 },
                 "required": [
@@ -524,6 +529,11 @@
                         },
                         "tone": {
                           "type": "string"
+                        },
+                        "collapsed": {
+                          "description": "Folded to its label bar: the canvas hides the nodes it holds and draws their flows to the bar.",
+                          "type": "boolean",
+                          "const": true
                         }
                       },
                       "required": [
@@ -640,6 +650,11 @@
                 "blue",
                 "purple"
               ]
+            },
+            "flow": {
+              "description": "Flows enter the node at the top and leave at the bottom, as arranging top to bottom leaves them; on the left and right when left out.",
+              "type": "string",
+              "const": "down"
             }
           },
           "required": [

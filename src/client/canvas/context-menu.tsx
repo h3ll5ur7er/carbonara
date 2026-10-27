@@ -15,6 +15,7 @@ type Target = "node" | "flow" | "canvas";
 /** The commands for each place, in groups separated by a line. */
 const ITEMS: Record<Target, string[][]> = {
   node: [
+    ["edit.copy", "edit.cut", "edit.duplicate"],
     ["view.zoomToSelection", "arrange.leftToRight", "align.straightenChain"],
     ["arrange.frameSelection", "arrange.toggleLock"],
     ["subgraph.collapse", "subgraph.open", "subgraph.expand"],
@@ -22,6 +23,7 @@ const ITEMS: Record<Target, string[][]> = {
   ],
   flow: [["edit.delete"]],
   canvas: [
+    ["edit.paste", "edit.pasteWithConnections"],
     ["edit.addNote", "edit.find"],
     ["arrange.leftToRight", "view.zoomToFit", "view.bookmark", "file.exportPng"],
     ["edit.undo", "edit.redo"],

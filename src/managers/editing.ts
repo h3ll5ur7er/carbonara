@@ -10,6 +10,7 @@ import type { DocumentInfo, Events, ManagerImplementation } from "../contracts/m
 import type { Patch } from "../contracts/patches";
 import { fail, ok, type Result } from "../contracts/result";
 import { applyCommands, applyPatches, describeCommands, type ResolvedCommand } from "../engines/editing/commands";
+import { copyNodes, pasteCommands, pasteLabel } from "../engines/editing/clipboard";
 import { arrange, type ElkRunner } from "../engines/layout/arrange";
 import { placeProposal } from "../engines/planning";
 import type { EventBus } from "../utilities/events";
@@ -83,17 +84,23 @@ export function createEditingManager({
 
   /** Applies a batch as one undo step. */
   function commit(documentId: string, commands: Command[], label: string | undefined): Result<DocumentInfo> {
+    return commitResolved(
+      documentId,
+      commands.map((command) => withId(command, newId)),
+      label ?? describeCommands(commands),
+    );
+  }
+
+  /** Applies a batch whose new nodes and flows have their ids as one undo step. */
+  function commitResolved(documentId: string, commands: ResolvedCommand[], label: string): Result<DocumentInfo> {
     const open = documents.get(documentId);
     if (!open) return unknownDocument(documentId);
-    const result = applyCommands(
-      open.document,
-      commands.map((command) => withId(command, newId)),
-    );
+    const result = applyCommands(open.document, commands);
     if (!result.ok) return result;
     const { document, patches, inversePatches } = result.value;
     if (patches.length === 0) return ok(documentInfo(open));
 
-    const step = { label: label ?? describeCommands(commands), patches, inversePatches };
+    const step = { label, patches, inversePatches };
     const history = historyOf(documentId);
     history.undo.push(step);
     history.redo = [];
@@ -124,7 +131,8 @@ export function createEditingManager({
       const positions = open.document.layout[scope] ?? {};
       const arranged = await arrange({ graph, positions, shapes, direction, nodeIds }, layout);
 
-      // ELK takes a moment: move the nodes that still exist then, keeping their other layout fields.
+      // ELK takes a moment: move the nodes that still exist then, keeping their other layout fields. Their flows
+      // run the way they were arranged: down puts their ports on the top and bottom edges.
       const latest = documents.get(documentId);
       if (!latest) return unknownDocument(documentId);
       const nodes = graphOf(latest.document, scope)?.nodes ?? {};
@@ -132,10 +140,29 @@ export function createEditingManager({
       const moves = Object.fromEntries(
         Object.entries(arranged)
           .filter(([id]) => nodes[id] && !latestLayout[id]?.locked)
-          .map(([id, at]) => [id, { ...latestLayout[id], ...at }]),
+          .map(([id, at]) => {
+            const { flow: _flow, ...kept } = latestLayout[id] ?? {};
+            return [id, { ...kept, ...at, ...(direction === "down" && { flow: "down" as const }) }];
+          }),
       );
       if (Object.keys(moves).length === 0) return ok(documentInfo(latest));
       return commit(documentId, [{ type: "moveNodes", graph: scope, positions: moves }], "Arrange");
+    },
+    copy: async ({ documentId, graph, nodeIds }) => {
+      const open = documents.get(documentId);
+      if (!open) return unknownDocument(documentId);
+      return copyNodes(open.document, graph, nodeIds);
+    },
+    paste: async ({ documentId, graph, clipboard, offset, connections, label }) => {
+      const open = documents.get(documentId);
+      if (!open) return unknownDocument(documentId);
+      const paste = pasteCommands(open.document, graph, clipboard, { offset, connections }, newId);
+      if (!paste.ok) return paste;
+      const { commands, nodeIds, leftOut } = paste.value;
+      const pasted = (document: DocumentInfo) => ok({ document, nodeIds, leftOut });
+      if (commands.length === 0) return pasted(documentInfo(open));
+      const result = commitResolved(documentId, commands, label ?? pasteLabel(nodeIds.length));
+      return result.ok ? pasted(result.value) : result;
     },
   };
 }

@@ -2,10 +2,11 @@
 // arranging, undo, and where a new node should go. Set by the document canvas on screen; empty without one.
 import type { Node, Position, TagColour } from "../../contracts/document";
 import type { ArrangeDirection } from "../../contracts/layout";
+import type { ClipboardActions } from "./clipboard-actions";
 import type { AlignMode, DistributeAxis } from "./model/align";
 import type { NavigationActions } from "./use-navigation";
 
-export interface CanvasEditActions extends NavigationActions {
+export interface CanvasEditActions extends NavigationActions, ClipboardActions {
   /** Lays out the selection (two or more nodes) or else the whole graph. */
   arrange(direction: ArrangeDirection): void;
   /** Deletes the selected nodes and flows; with `bridge`, reconnects the flows that ran through the nodes. */
@@ -24,6 +25,8 @@ export interface CanvasEditActions extends NavigationActions {
   tag(tag: TagColour | null): void;
   /** Locks the selected nodes, or unlocks them when they all are locked already. */
   toggleLock(): void;
+  /** Collapses the selected frames to their label bar, or expands them when they all are collapsed already. */
+  toggleCollapse(): void;
   /** Shows rates in a rate unit (`per_minute`), a belt (`belt:<id>`), or `belts`: the pack's fastest belt. */
   showRatesIn(choice: string): void;
   /** Switches machine counts between "4 × 100% + 1 × 37.5%" and "5 × 87.5%". */

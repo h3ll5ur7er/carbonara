@@ -62,6 +62,24 @@ describe("replacing a recipe", () => {
     expect(alternativesFor(templatePack, "iron-plate").map((recipe) => recipe.id)).toEqual(["iron-plate-from-ore"]);
   });
 
+  it("doesn't count taking something apart as making its parts", () => {
+    // Motor Recycling gives gears back first, but it takes motors, which are made from gears.
+    expect(alternativesFor(templatePack, "iron-gear").map((recipe) => recipe.id)).toEqual([]);
+    expect(alternativesFor(templatePack, "recycle-motor").map((recipe) => recipe.id)).toEqual([]);
+  });
+
+  it("still counts a recipe that cleans up a byproduct of its own product", () => {
+    // Purifying takes the dirty water that washing leaves, but washing is made for the ferrite, not the dirty water.
+    const pack = {
+      ...templatePack,
+      recipes: [
+        ...templatePack.recipes,
+        { id: "pump-water", buildings: ["purifier"], time: 1, in: {}, out: { water: 1 } },
+      ],
+    };
+    expect(alternativesFor(pack, "purify-water").map((recipe) => recipe.id)).toEqual(["pump-water"]);
+  });
+
   it("swaps the recipe in every graph and drops the flows the new one can't take, in one batch", () => {
     // The coal smelting recipe takes ferrite ore and coal: the washed ferrite flow no longer fits.
     expect(

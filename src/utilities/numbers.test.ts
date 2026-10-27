@@ -116,6 +116,13 @@ describe("splitting machine counts", () => {
     expect(formatMachines(4.375)).toBe("4 × 100% + 1 × 37.5%");
   });
 
+  it("runs every machine at the same clock when asked to (even)", () => {
+    expect(splitMachines(4.375, "even")).toEqual([{ machines: 5, share: 0.875 }]);
+    expect(formatMachines(4.375, "even")).toBe("5 × 87.5%");
+    expect(formatMachines(3, "even")).toBe("3 × 100%");
+    expect(formatMachines(0.5, "even")).toBe("1 × 50%");
+  });
+
   it("handles whole, partial and zero counts", () => {
     expect(formatMachines(3)).toBe("3 × 100%");
     expect(formatMachines(2.9999999999)).toBe("3 × 100%");

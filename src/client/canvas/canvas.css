@@ -276,14 +276,28 @@
   .react-flow.ghost-following .react-flow__node.ghost-frame {
     pointer-events: none;
   }
-  .react-flow.ghost-following .react-flow__pane {
+  .react-flow.ghost-following .react-flow__pane,
+  .react-flow.ghost-following .react-flow__node {
     cursor: copy;
+  }
+  /* A following ghost breathes softly, so it reads as held, not placed. */
+  @media (prefers-reduced-motion: no-preference) {
+    .react-flow.ghost-following .ghost-frame-area {
+      animation: ghost-breathe 1.8s var(--ease-in-out) infinite;
+    }
   }
 
   .react-flow__connectionline path {
     stroke: var(--color-accent);
     stroke-width: 2;
     stroke-dasharray: 6 4;
+  }
+}
+
+@keyframes ghost-breathe {
+  50% {
+    background: color-mix(in oklab, var(--color-accent) 9%, transparent);
+    box-shadow: 0 0 0 10px color-mix(in oklab, var(--color-accent) 7%, transparent);
   }
 }
 
