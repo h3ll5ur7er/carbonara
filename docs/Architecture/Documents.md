@@ -18,7 +18,7 @@ graph:                                  # the root graph
 blueprints:                             # subgraph definitions, see Subgraphs
   <id>: { name: Iron rods, graph: { nodes, edges } }
 layout:                                 # positions, per graph: `root` or a blueprint id
-  root: { <node id>: { x, y, width?, height? } }
+  root: { <node id>: { x, y, width?, height?, locked? } }
 settings: { rateUnit: per_minute }      # display unit for this document
 ```
 
@@ -53,6 +53,16 @@ Documents and the solver IR store every rate in **items per second**. Packs stat
 
 Documents change only through `Command`s ([[src/contracts/commands.ts]]) sent to `editing.apply`. The `editing` engine ([[src/engines/editing/commands.ts]]) applies a batch of commands as one step and returns the new document with the Immer patches that redo it and the inverse patches that undo it. It is pure: the manager chooses the ids of new nodes and edges before calling it.
 
+| Command | Does |
+| --- | --- |
+| `addNode` | Adds a node and its position |
+| `removeNodes` | Removes nodes, their positions and every edge that touches them |
+| `connect` / `disconnect` | Adds an edge / removes edges |
+| `moveNodes` | Replaces positions (the whole `Position`, so callers keep `width`, `height` and `locked`) |
+| `setNodeFields`, `setPin` | A recipe node's plugin fields, its pin |
+| `setRate` | A source's limit or a sink's target |
+| `setLocked` | Locks nodes in place (`locked: true` on their position, which it creates at the origin if missing) or unlocks them |
+
 A batch is all or nothing. The engine rejects it, as a value with the path of the offending command (`["commands", 1, "edge", "from"]`), when a command:
 
 - names a graph that doesn't exist (`root` or a blueprint id), or a node or edge that doesn't exist in it;
@@ -68,6 +78,7 @@ The `editing` manager ([[src/managers/editing.ts]]) runs the use case:
 - It gives new nodes and edges without an id a random UUID, applies the batch through the engine and saves the result in the `DocumentStore`, which raises the document's version by one.
 - It keeps an undo and a redo stack per document. One `apply` batch is one step, named by the caller's `label` or after its commands ("Move nodes"). A new edit clears the redo stack; closing a document (`documentsChanged` without it) drops its history.
 - It publishes `documentChanged` with the patches, the new version and the label (`Undo Move nodes` for an undo, whose patches are the step's inverse patches). A rejected batch changes nothing and publishes nothing.
+- `editing.arrange({ documentId, graph, direction, nodeIds?, shapes })` asks the `layout` engine for new positions and applies them as one `moveNodes` step labelled "Arrange", keeping each position's other fields. ELK runs asynchronously, so it moves only the nodes that still exist (and aren't locked) when it's done. The rules are on [[Design/Editor quality of life]] (Auto-arrange and lock).
 
 ## Read model
 

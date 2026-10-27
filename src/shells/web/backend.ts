@@ -4,6 +4,7 @@ import builtInPacks from "virtual:built-in-packs";
 import { createAutosavedDocumentStore } from "../../access/documents/autosave";
 import { createPackLibrary } from "../../access/packs/library";
 import type { Issue } from "../../contracts/issues";
+import type { ElkRunner } from "../../engines/layout/arrange";
 import { managers, type Events } from "../../contracts/managers";
 import type { EventMessage, Request } from "../../contracts/rpc";
 import { createAnalysisManager } from "../../managers/analysis";
@@ -39,7 +40,7 @@ export function startBackend(transport: Transport): void {
 
   const dispatch = createDispatcher(managers, {
     workspace: createWorkspaceManager({ documents, packs, events: bus, newId, restoreProblems: () => restoreProblems }),
-    editing: createEditingManager({ documents, events: bus, newId }),
+    editing: createEditingManager({ documents, events: bus, newId, layout: elkInWorker() }),
     packs: createPacksManager({ library: packs, bus }),
     analysis: createAnalysisManager({ bus, documents, packs }),
   });
@@ -47,4 +48,21 @@ export function startBackend(transport: Transport): void {
     await restored;
     transport.send(await dispatch(message as Request));
   });
+}
+
+/**
+ * ELK for the layout engine, in a worker of its own, started on the first arrange. Not in this worker: ELK's
+ * bundle takes over `self.onmessage` in any worker it loads in, and a long layout would hold up every other call.
+ */
+function elkInWorker(): ElkRunner {
+  let elk: Promise<ElkRunner> | undefined;
+  return {
+    layout: async (graph) => {
+      // A classic worker: ELK's script is not a module.
+      elk ??= Promise.all([import("elkjs/lib/elk-api.js"), import("elkjs/lib/elk-worker.min.js?url")]).then(
+        ([{ default: ELK }, { default: url }]) => new ELK({ workerFactory: () => new Worker(url) }),
+      );
+      return (await elk).layout(graph);
+    },
+  };
 }

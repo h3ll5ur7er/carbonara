@@ -62,8 +62,29 @@ function apply(draft: Draft<Document>, command: Command, newId: () => string) {
     case "moveNodes":
       Object.assign(layout, command.positions);
       return;
+    case "removeNodes": {
+      const removed = new Set(command.ids);
+      for (const id of removed) {
+        Reflect.deleteProperty(graph.nodes, id);
+        Reflect.deleteProperty(layout, id);
+      }
+      for (const [id, edge] of Object.entries(graph.edges)) {
+        if (removed.has(edge.from) || removed.has(edge.to)) Reflect.deleteProperty(graph.edges, id);
+      }
+      return;
+    }
+    case "disconnect":
+      for (const id of command.ids) Reflect.deleteProperty(graph.edges, id);
+      return;
+    case "setLocked":
+      for (const id of command.ids) {
+        const position = (layout[id] ??= { x: 0, y: 0 });
+        if (command.locked) position.locked = true;
+        else delete position.locked;
+      }
+      return;
     default:
-      // The scenes only add, connect and move; other edits wait for the editing engine (CARB-32).
+      // Scenes only follow the edits that change what their canvas shows; the editing engine has the full rules.
       return;
   }
 }

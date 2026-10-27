@@ -209,6 +209,27 @@ describe("moving nodes", () => {
   });
 });
 
+describe("locking nodes", () => {
+  it("marks their positions locked, and unlocks them again", () => {
+    const { document: locked } = edit({ type: "setLocked", graph: "root", ids: ["ore", "split"], locked: true });
+    expect(locked.layout["root"]?.["ore"]).toEqual({ x: 0, y: 0, locked: true });
+    // A node without a position yet gets one where the canvas draws it: the origin.
+    expect(locked.layout["root"]?.["split"]).toEqual({ x: 0, y: 0, locked: true });
+    const result = applyCommands(locked, [{ type: "setLocked", graph: "root", ids: ["ore"], locked: false }]);
+    expect(result.ok && result.value.document.layout["root"]?.["ore"]).toEqual({ x: 0, y: 0 });
+  });
+
+  it("changes nothing when the nodes already are as asked", () => {
+    expect(edit({ type: "setLocked", graph: "root", ids: ["smelt"], locked: false }).patches).toEqual([]);
+  });
+
+  it("rejects unknown nodes", () => {
+    expect(rejection({ type: "setLocked", graph: "root", ids: ["ghost"], locked: true })).toEqual([
+      { path: ["commands", 0, "ids", 0], message: "Unknown node ghost" },
+    ]);
+  });
+});
+
 describe("setting fields and pins", () => {
   it("merges fields into a recipe node", () => {
     const { document: next, patches } = edit({

@@ -10,6 +10,27 @@ These features decide whether the editor feels pleasant during a long session. T
 - **Align** left, centre, right, top, middle or bottom. **Distribute** horizontally or vertically. **Straighten chain** lines up a linear chain on one row.
 - Snap to grid (hold `Alt` to bypass), smart alignment guides with spacing indicators, and arrow-key nudging (`Shift` for big steps).
 
+### Auto-arrange and lock
+
+| Command | Shortcut | Does |
+| --- | --- | --- |
+| Arrange left to right | `Shift+A` | Lays out the selection (two or more nodes), or else the whole graph, flowing to the right |
+| Arrange top to bottom | — | The same, flowing down (palette and menus) |
+| Lock or unlock selection | `Shift+L` | Locked nodes wear a padlock; dragging, nudging and arranging leave them where they are. Unlocks when every selected node is locked |
+
+How arranging works ([[src/engines/layout/arrange.ts]], called by `editing.arrange` in [[src/managers/editing.ts]]):
+
+- **ELK layered** with fixed port positions: the client sends each node's size and port offsets (`shapes`, [[src/contracts/layout.ts]]), because only the canvas knows its geometry. Nodes keep today's reading order where ELK can (`considerModelOrder`), so arranging twice changes nothing and small edits don't reshuffle the factory. Sources start the flow (first layer), even when they feed a loop deep inside it. Network-simplex node placement gives straight runs between ports.
+- **Frames move with what they hold.** A frame takes part when it and every node whose centre it holds can move: it becomes a compound node in ELK and is resized around its nodes, with room for its label. Otherwise it stays, and its nodes are arranged like any other. Notes inside a moving frame move with it; notes outside frames stay.
+- **What stays put:** locked nodes and the nodes outside the selection. The arranged block keeps the top-left corner of where its nodes were (on the grid) and is pushed clear of the nodes that stay, across the flow.
+- It is **one edit** ("Arrange": a `moveNodes` step), so one undo puts everything back.
+- **Where it runs:** in the backend worker, as a pure engine, with ELK itself in a worker of its own that the composition root starts on the first arrange ([[src/shells/web/backend.ts]]). We chose the backend over a client-side worker because the layout rules are an engine (the architecture's `layout` area, reachable by MCP later), not canvas code; and not in the backend worker's own thread because ELK's bundle takes over `self.onmessage` in any worker it loads in, and a long layout would hold up solving. Tests run ELK in-process (`elk.bundled.js`).
+- Tests: no overlaps and fewer crossings than a scrambled start on the canonical scenes (and no more than their hand-made layout), producers left of consumers, frames holding their nodes, and a property test over random graphs with frames, notes and locked nodes ([[src/engines/layout/arrange.test.ts]]); [[e2e/qol-arrange.spec.ts]] runs it in the app.
+
+**Moves glide.** Whenever the document moves nodes the canvas didn't move itself (arranging, aligning, undoing a move), they glide to their new place: `--duration-base` for short moves, `--duration-slow` for long ones, instantly with reduced motion ([[src/client/canvas/model/tween.ts]]). Moves the canvas made itself (a drop, a nudge) are remembered until the document confirms them, so a quick burst of nudges never pulls a node back.
+
+**New nodes land clear.** A node added from the recipe picker or quick-add goes to the nearest spot, in grid steps, that keeps a grid step clear of every other node (frames aside) ([[src/client/canvas/model/free-spot.ts]]). Quick-add centres it in the visible canvas first.
+
 ### Selecting, snapping and nudging on the canvas
 
 | Gesture | Does |

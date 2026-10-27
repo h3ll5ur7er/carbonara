@@ -37,6 +37,8 @@ interface NodeViewBase {
   width: number;
   height: number;
   ports: PortView[];
+  /** Locked nodes can't be dragged, nudged or arranged. */
+  locked?: true;
 }
 
 export type NodeView = NodeViewBase &
@@ -134,7 +136,7 @@ export function createSceneBuilder() {
         cached.pack === pack &&
         cached.junctionItem === junctionItem
           ? cached.view
-          : nodeView(id, node, position, index, junctionItem);
+          : lockedIf(position, nodeView(id, node, position, index, junctionItem));
       next.set(id, { node, position, pack, junctionItem, view });
       (view.kind === "frame" ? frames : others).push(view);
     }
@@ -279,6 +281,10 @@ function nodeView(
         ports: [],
       };
   }
+}
+
+function lockedIf(position: Position | undefined, view: NodeView): NodeView {
+  return position?.locked ? { ...view, locked: true } : view;
 }
 
 function port(direction: PortDirection, item: ItemView, x: number, y: number): PortView {

@@ -68,6 +68,7 @@ export const Position = z.object({
   y: z.number(),
   width: z.number().positive().optional(),
   height: z.number().positive().optional(),
+  locked: z.literal(true).optional().describe("Locked nodes stay put: dragging, nudging and arranging leave them."),
 });
 export type Position = z.infer<typeof Position>;
 

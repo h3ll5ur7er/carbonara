@@ -2,6 +2,7 @@
 // entry goes to `editing.apply`. Outcomes are reported as toasts.
 import { useEffect, useState } from "react";
 import type { Position } from "../../../contracts/document";
+import { canvasEditActions } from "../../canvas/edit-actions";
 import { viewportCentre } from "../../canvas/viewport";
 import { useConnector } from "../../core/connector";
 import { errorMessage, toast } from "../../shell/toasts";
@@ -44,7 +45,10 @@ export function useQuickAdd(document: QuickAddDocument | null): QuickAdd | null 
   return {
     entries: loaded.entries,
     add(entry) {
-      addRecipeNode(connector.editing, documentId, entry, viewportCentre() ?? origin).then(
+      // Mid-view, clear of the nodes already there, when a canvas is on screen.
+      const position =
+        canvasEditActions()?.placeNew({ kind: "recipe", recipe: entry.recipeId }) ?? viewportCentre() ?? origin;
+      addRecipeNode(connector.editing, documentId, entry, position).then(
         (result) =>
           result.ok
             ? toast({ tone: "success", title: `Added ${entry.title}` })

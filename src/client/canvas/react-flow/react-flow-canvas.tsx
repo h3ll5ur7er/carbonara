@@ -22,8 +22,9 @@ import {
   type OnConnectEnd,
   type OnNodeDrag,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { CanvasViewProps, Insets, Point } from "../adapter";
+import type { Move } from "../model/tween";
 import { connectionItem } from "../model/connect";
 import { particlesShown } from "../model/flow-style";
 import { lodTier } from "../model/lod";
@@ -40,6 +41,7 @@ import { handleBounds } from "./port-handle";
 import { RecipeNode } from "./recipe-node";
 import { SnapMarks, useSnapping } from "./snapping";
 import { SinkNode, SourceNode } from "./terminal-nodes";
+import { motionDurations, useMoveTween } from "./tween";
 import type { FlowEdge as FlowEdgeType, FlowNode } from "./types";
 
 const nodeTypes = {
@@ -81,12 +83,16 @@ function FlowCanvas({
   const [nodes, setNodes] = useState(() => scene.nodes.map((view) => toFlowNode(view)));
   const [edges, setEdges] = useState(() => scene.edges.map((view) => toFlowEdge(view)));
   const [shownScene, setShownScene] = useState(scene);
+  /** Where the canvas put nodes itself (a drop, a nudge), until the document says the same. */
+  const pending = useRef(new Map<string, Point>());
   if (shownScene !== scene) {
     // A new document version: adopt it, keeping what only the canvas knows (selection, a drag in progress).
+    // Nodes that moved keep their place for now and glide to the new one (below).
     setShownScene(scene);
     setNodes((current) => mergeNodes(scene, current));
     setEdges((current) => mergeEdges(scene, current));
   }
+  const glide = useMoveTween(setNodes);
 
   // One subscriber to the zoom for the whole canvas: nodes re-render only when the tier changes.
   const lod = useStore((state) => lodTier(state.transform[2]));
@@ -94,6 +100,34 @@ function FlowCanvas({
   const context = useMemo(() => ({ results, rateUnit, lod }), [results, rateUnit, lod]);
 
   const store = useStoreApi<FlowNode, FlowEdgeType>();
+  // Once per adopted scene. It reads `nodes`: React Flow's store catches up with them in an effect of its own.
+  const glided = useRef(shownScene);
+  useLayoutEffect(() => {
+    if (glided.current === shownScene) return;
+    glided.current = shownScene;
+    const moves = new Map<string, Move>();
+    for (const node of nodes) {
+      const to = node.data.view.position;
+      const local = pending.current.get(node.id);
+      if (local) {
+        // A newer local move is on its way to the document: don't pull the node back meanwhile.
+        if (local.x === to.x && local.y === to.y) pending.current.delete(node.id);
+        continue;
+      }
+      if (!node.dragging && (node.position.x !== to.x || node.position.y !== to.y)) {
+        moves.set(node.id, { from: node.position, to });
+      }
+    }
+    glide(moves);
+  }, [shownScene, nodes, glide]);
+  const moveLocally = useCallback(
+    (moved: Record<string, Point>) => {
+      for (const [id, position] of Object.entries(moved)) pending.current.set(id, position);
+      onMoveNodes(moved);
+    },
+    [onMoveNodes],
+  );
+
   const snapping = useSnapping();
   const { snapChanges } = snapping;
   const onNodesChange = useCallback(
@@ -109,8 +143,8 @@ function FlowCanvas({
   );
   const { onNodeDragEnd } = snapping;
   const onNodeDragStop: OnNodeDrag<FlowNode> = useCallback(
-    (_event, _node, dragged) => onMoveNodes(onNodeDragEnd(dragged)),
-    [onMoveNodes, onNodeDragEnd],
+    (_event, _node, dragged) => moveLocally(onNodeDragEnd(dragged)),
+    [moveLocally, onNodeDragEnd],
   );
   const isValidConnection = useCallback(
     (connection: Connection | FlowEdgeType) => connectionItem(normalise(connection)) !== undefined,
@@ -195,7 +229,7 @@ function FlowCanvas({
       const editable =
         event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable]");
       if (!offset || editable) return;
-      const selected = store.getState().nodes.filter((node) => node.selected);
+      const selected = store.getState().nodes.filter((node) => node.selected && !node.data.view.locked);
       if (selected.length === 0) return;
       event.preventDefault();
       event.stopPropagation();
@@ -208,14 +242,18 @@ function FlowCanvas({
           return position ? { ...node, position } : node;
         }),
       );
-      onMoveNodes(moved);
+      moveLocally(moved);
     },
-    [store, onMoveNodes],
+    [store, moveLocally],
   );
 
   // React Flow wants this handler stable; it reports every selection change, including box and lasso.
   const reportSelection = useCallback(
-    ({ nodes: selected }: { nodes: FlowNode[] }) => onSelectionChange(selected.map((node) => node.id)),
+    ({ nodes: selected, edges: selectedEdges }: { nodes: FlowNode[]; edges: FlowEdgeType[] }) =>
+      onSelectionChange(
+        selected.map((node) => node.id),
+        selectedEdges.map((edge) => edge.id),
+      ),
     [onSelectionChange],
   );
 
@@ -288,7 +326,7 @@ const PAN_BUTTONS = [1, 2];
 
 /** The slow motion token in milliseconds: 0 when the user prefers reduced motion. */
 function motionDuration(): number {
-  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--duration-slow")) || 0;
+  return motionDurations().slow;
 }
 
 /** Room around a fitted graph, in screen pixels, on top of what the panels cover. */
@@ -328,7 +366,8 @@ function toFlowNode(view: NodeView, previous?: FlowNode): FlowNode {
   return {
     id: view.id,
     type: view.kind,
-    position: previous?.dragging ? previous.position : view.position,
+    // An existing node keeps its place: a drag goes on, and a moved node glides there (see the layout effect).
+    position: previous ? previous.position : view.position,
     width: view.width,
     height: view.height,
     // Known sizes count as measured, so culled nodes that were never drawn still take part in fitting.
@@ -336,6 +375,7 @@ function toFlowNode(view: NodeView, previous?: FlowNode): FlowNode {
     handles: view.ports.map(handleBounds),
     data: { view },
     ...(view.kind === "frame" && { zIndex: -1 }),
+    ...(view.locked && { draggable: false, className: "is-locked" }),
     ...(previous?.selected && { selected: true }),
     ...(previous?.dragging && { dragging: true }),
   };

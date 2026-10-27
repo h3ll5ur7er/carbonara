@@ -84,6 +84,12 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       id: fc.constantFrom("ore", "out", ...pools.recipes),
       perSecond: fc.option(fc.double({ min: 0, max: 100, noNaN: true }), { nil: null }),
     }),
+    fc.record({
+      type: fc.constant("setLocked" as const),
+      graph,
+      ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),
+      locked: fc.boolean(),
+    }),
   );
 }
 

@@ -120,6 +120,9 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Switch light and dark theme\s*Ctrl\s*Shift\s*L/,
     /Zoom to fit\s*F/,
     /Zoom to selection\s*Shift\s*F/,
+    /Arrange left to right\s*Shift\s*A/,
+    /Arrange top to bottom/,
+    /Lock or unlock selection\s*Shift\s*L/,
   ]);
   // Typeahead moves to the item, wherever new commands put it.
   await page.keyboard.type("Toggle i");

@@ -34,6 +34,9 @@ export const Command = z.discriminatedUnion("type", [
       .nullable()
       .describe("A source's supply limit or a sink's target, in items per second; null removes it."),
   }),
+  z
+    .object({ type: z.literal("setLocked"), graph: GraphScope, ids: z.array(LocalId).min(1), locked: z.boolean() })
+    .describe("Locks nodes in place (dragging, nudging and arranging leave them), or unlocks them."),
 ]);
 export type Command = z.infer<typeof Command>;
 export type CommandInput = z.input<typeof Command>;

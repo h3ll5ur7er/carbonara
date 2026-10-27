@@ -1,7 +1,8 @@
 // Every manager method a client may call, with validated arguments and, where it is exposed, its MCP tool.
 // The RPC dispatcher, the client connector and the MCP server are all derived from this file.
 import { z } from "zod";
-import { Command } from "./commands";
+import { Command, GraphScope } from "./commands";
+import { ArrangeOptions } from "./layout";
 import type { OpenDocument } from "./access";
 import type { Patch } from "./patches";
 import type { Issue } from "./issues";
@@ -86,6 +87,8 @@ export const managers = {
       description: "Undo the last change to a document.",
     }),
     redo: method<DocumentInfo>()(documentRef),
+    /** Lays the graph (or some of its nodes) out automatically; one `moveNodes` step, labelled "Arrange". */
+    arrange: method<Result<DocumentInfo>>()(documentRef.extend({ graph: GraphScope, ...ArrangeOptions.shape })),
   },
   analysis: {
     getResults: method<AnalysisResults | null>()(documentRef.extend({ graph: z.string().default("root") })),

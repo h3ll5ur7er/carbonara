@@ -13,9 +13,12 @@ import { RecipePicker } from "../features/recipe-picker/recipe-picker";
 import { errorMessage, toast } from "../shell/toasts";
 import type { CanvasAdapter, CanvasViewProps, Insets, PortDrop, Viewport } from "./adapter";
 import "./canvas.css";
+import { freeSpot, obstaclesOf } from "./model/free-spot";
+import { GRID } from "./model/geometry";
 import { createResultSlots } from "./model/result-slots";
 import { createSceneBuilder, type CanvasScene } from "./model/scene";
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
+import { useEditActions, type Selection } from "./use-edit-actions";
 import { setViewportCentre } from "./viewport";
 
 /** The renderer in use; the only place that names it. */
@@ -148,6 +151,16 @@ function DocumentCanvas({
     [apply, graph],
   );
 
+  const selection = useRef<Selection>({ nodes: [], edges: [] });
+  const onSelection: CanvasViewProps["onSelectionChange"] = useCallback(
+    (nodes, edges) => {
+      selection.current = { nodes, edges };
+      onSelectionChange(nodes);
+    },
+    [onSelectionChange],
+  );
+  useEditActions({ document, pack, graph, scene, selection, apply });
+
   // The recipe picker, while a connection dropped in empty space waits for its other end.
   const [drop, setDrop] = useState<(PortDrop & { bounds: { left: number; right: number; height: number } }) | null>(
     null,
@@ -169,9 +182,9 @@ function DocumentCanvas({
       if (!drop) return;
       setDrop(null);
       const pick = { graph, from: drop, entry, drop: drop.flow, id: newNodeId(entry) };
-      void apply(pickCommands(pack, pick), `Add ${entry.title}`);
+      void apply(clearOfOthers(pickCommands(pack, pick), scene, pack), `Add ${entry.title}`);
     },
-    [apply, drop, graph, pack],
+    [apply, drop, graph, pack, scene],
   );
 
   return (
@@ -186,7 +199,7 @@ function DocumentCanvas({
         onConnect={onConnect}
         onPortDropped={onPortDropped}
         onViewCentre={setViewportCentre}
-        onSelectionChange={onSelectionChange}
+        onSelectionChange={onSelection}
       />
       {drop && request && (
         <RecipePicker
@@ -208,6 +221,17 @@ function DocumentCanvas({
 function newNodeId(entry: PickerEntry): LocalId {
   const base = entry.kind === "recipe" ? entry.id : `${entry.kind}-${entry.item.id}`;
   return `${base}-${crypto.randomUUID().slice(0, 6)}`;
+}
+
+/** Moves the nodes the commands add off the nodes already there, as little as it takes. */
+function clearOfOthers(commands: CommandInput[], scene: CanvasScene, pack: PackData): CommandInput[] {
+  const obstacles = obstaclesOf(scene.nodes);
+  return commands.map((command) => {
+    if (command.type !== "addNode") return command;
+    const [view] = createSceneBuilder()({ nodes: { new: command.node }, edges: {} }, undefined, pack).nodes;
+    const wanted = { ...command.position, width: view?.width ?? 0, height: view?.height ?? 0 };
+    return { ...command, position: { ...command.position, ...freeSpot(wanted, obstacles, GRID) } };
+  });
 }
 
 function issuesText(issues: Issue[]): string {

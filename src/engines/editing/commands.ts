@@ -51,6 +51,7 @@ const LABELS: Record<Command["type"], string> = {
   setNodeFields: "Change fields",
   setPin: "Change pin",
   setRate: "Change rate",
+  setLocked: "Lock nodes",
 };
 
 /** A name for the history when the caller gives none. */
@@ -131,6 +132,18 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
       const key = node.kind === "source" ? "maxPerSecond" : "targetPerSecond";
       if (command.perSecond === null) Reflect.deleteProperty(node, key);
       else Object.assign(node, { [key]: command.perSecond });
+      return;
+    }
+    case "setLocked": {
+      for (const [index, id] of command.ids.entries()) {
+        if (!graph.nodes[id]) return issue(["ids", index], `Unknown node ${id}`);
+      }
+      for (const id of command.ids) {
+        const position = document.layout[scope]?.[id];
+        if (command.locked && !position?.locked) {
+          (document.layout[scope] ??= {})[id] = { ...(position ?? { x: 0, y: 0 }), locked: true };
+        } else if (!command.locked && position?.locked) Reflect.deleteProperty(position, "locked");
+      }
       return;
     }
   }

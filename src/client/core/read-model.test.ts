@@ -36,6 +36,7 @@ function fakeBackend() {
       apply: () => Promise.reject(new Error("not used")),
       undo: () => Promise.reject(new Error("not used")),
       redo: () => Promise.reject(new Error("not used")),
+      arrange: () => Promise.reject(new Error("not used")),
     },
     on(event, listener) {
       const set = listeners.get(event) ?? new Set();
