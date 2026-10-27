@@ -131,20 +131,25 @@ export function LimitBar({ used, limit, unit }: { used: number; limit: number; u
   );
 }
 
-/** A red callout listing what's short. */
+/**
+ * A red callout listing what's short. `alert` reads it out when it appears: right for a plan's one-off result, not
+ * for totals that follow every solve (they announce in words that change less often, see announcement.ts).
+ */
 export function Shortfalls({
   title,
   shortfalls,
   unit,
+  alert = false,
 }: {
   title: string;
   shortfalls: SummaryFacts["shortfalls"];
   unit: RateUnit;
+  alert?: boolean;
 }) {
   if (shortfalls.length === 0) return null;
   return (
     <div
-      role="alert"
+      role={alert ? "alert" : undefined}
       className="flex gap-2.5 rounded-md bg-danger-soft px-3 py-2.5 text-xs text-danger inset-ring inset-ring-danger/25"
     >
       <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />

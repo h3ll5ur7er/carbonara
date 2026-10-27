@@ -212,8 +212,12 @@ function GoalsForm({ planner, document, pack, rateUnit }: PlannerTarget & { plan
               }
             >
               <TabsList aria-label="Use as few" className="w-44">
-                <TabsTrigger value="resources">Resources</TabsTrigger>
-                <TabsTrigger value="buildings">Buildings</TabsTrigger>
+                <TabsTrigger value="resources" panel={false}>
+                  Resources
+                </TabsTrigger>
+                <TabsTrigger value="buildings" panel={false}>
+                  Buildings
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -380,7 +384,7 @@ function ProposalCard({ planner, pack, rateUnit }: { planner: PlannerState; pack
             })}
           </ul>
           <SummaryStats facts={facts} powerMW={proposal.summary.powerMW} unit={rateUnit} />
-          <Shortfalls title="The map can’t supply all of it" shortfalls={facts.shortfalls} unit={rateUnit} />
+          <Shortfalls title="The map can’t supply all of it" shortfalls={facts.shortfalls} unit={rateUnit} alert />
         </div>
         <SummaryList title="Buildings">
           <BuildingRows buildings={facts.buildings} />

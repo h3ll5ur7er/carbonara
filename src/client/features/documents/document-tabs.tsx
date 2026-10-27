@@ -1,4 +1,5 @@
-// The open factories as tabs in the top bar: click to switch, double-click to rename, × to close, + for a new one.
+// The open factories as tabs in the top bar: click to switch, double-click to rename, × or Delete to close, + for a
+// new one.
 import { Plus, X } from "lucide-react";
 import { useRef } from "react";
 import { useModels, useWorkspace } from "../../core/models";
@@ -33,19 +34,30 @@ export function DocumentTabs() {
                   type="button"
                   role="tab"
                   aria-selected={active}
+                  aria-keyshortcuts="Delete"
                   onClick={() => workspace.activate(document.id)}
                   onDoubleClick={() => documentActions.renameDocument(document.id)}
-                  className="flex h-full min-w-0 items-center gap-2 rounded-md pr-1 pl-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
+                  onKeyDown={(event) => {
+                    if (event.key !== "Delete") return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeFromKeyboard(document.id);
+                  }}
+                  className="flex h-full min-w-0 items-center gap-2 rounded-md pr-1 pl-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   <TabDot active={active} />
                   <span className="truncate">{document.name}</span>
                 </button>
               )}
+              {/* For the pointer. A tab list holds only tabs, so the keyboard and screen readers close a tab with
+                  Delete on it (its `aria-keyshortcuts`) or "Close factory" instead. */}
               <IconButton
                 label={`Close ${document.name}`}
                 icon={<X />}
                 size="sm"
                 tooltip={false}
+                tabIndex={-1}
+                aria-hidden
                 onClick={() => documentActions.closeDocument(document.id)}
                 className={cx(
                   "mr-0.5 size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
@@ -59,6 +71,25 @@ export function DocumentTabs() {
       <IconButton label="New factory" icon={<Plus />} size="sm" onClick={documentActions.newDocument} />
     </nav>
   );
+}
+
+/** Closes a factory from its focused tab, and moves the focus to the tab that's active then (or to New factory). */
+function closeFromKeyboard(documentId: string) {
+  documentActions.closeDocument(documentId);
+  let frames = 0;
+  // Once the tab has gone, taking the focus with it (about a second at most; a refused close leaves it be).
+  const settle = () => {
+    const focused = document.activeElement;
+    if (focused && focused !== document.body) {
+      if (++frames < 60) requestAnimationFrame(settle);
+      return;
+    }
+    const next =
+      document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ??
+      document.querySelector<HTMLElement>('nav[aria-label="Factories"] button[aria-label="New factory"]');
+    next?.focus();
+  };
+  requestAnimationFrame(settle);
 }
 
 function TabDot({ active }: { active: boolean }) {

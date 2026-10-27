@@ -33,7 +33,7 @@ test("starts with a welcome and opens new factories in tabs", async ({ page }) =
   await page.getByRole("tab", { name: "Iron" }).click();
   await expect(page.getByRole("tab", { name: "Iron" })).toHaveAttribute("aria-selected", "true");
 
-  await page.getByRole("button", { name: "Close Iron" }).click();
+  await page.locator('button[aria-label="Close Iron"]').click();
   await expect(tabs(page)).toHaveText(["Steel"]);
   await expect(page.getByRole("tab", { name: "Steel" })).toHaveAttribute("aria-selected", "true");
 
@@ -96,7 +96,7 @@ test("renames a factory from its tab, as one undoable step", async ({ page }) =>
 
 test("reopens a closed factory from the recent list after a reload", async ({ page }) => {
   await newFactory(page, "Iron");
-  await page.getByRole("button", { name: "Close Iron" }).click();
+  await page.locator('button[aria-label="Close Iron"]').click();
   await page.reload();
   const recent = page.getByRole("region", { name: "Recent" });
   await expect(recent.getByRole("button")).toHaveText([/^Iron/]);
