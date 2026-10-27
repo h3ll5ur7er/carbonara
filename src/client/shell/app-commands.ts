@@ -1,8 +1,20 @@
 // The app's commands. Register every new action here (or in a registry built from these), so the palette,
 // the menus and the keyboard all reach it.
-import { Command, Download, FilePlus, FolderOpen, Link, PanelLeft, PanelRight, SunMoon, X } from "lucide-react";
+import {
+  Command,
+  Download,
+  Keyboard,
+  FilePlus,
+  FolderOpen,
+  Link,
+  PanelLeft,
+  PanelRight,
+  SunMoon,
+  X,
+} from "lucide-react";
 import { canvasCommands } from "../canvas/commands";
-import { createCommandRegistry, type CommandDefinition } from "../core/commands";
+import type { CommandDefinition } from "../core/commands";
+import { customisableRegistry, setCheatSheetOpen, useShortcuts } from "../features/shortcuts/store";
 import { paletteCommandId } from "../features/command-palette/command-palette";
 import { documentActions } from "../features/documents/actions";
 import { togglePalette } from "../features/command-palette/palette-store";
@@ -93,6 +105,16 @@ export const appCommands: CommandDefinition[] = [
     run: toggleThemePreference,
   },
   ...canvasCommands,
+  {
+    id: "help.shortcuts",
+    title: "Keyboard shortcuts",
+    group: "Help",
+    shortcut: "?",
+    keywords: ["keys", "cheat sheet", "customise", "customize", "rebind", "help"],
+    icon: Keyboard,
+    run: () => setCheatSheetOpen(!useShortcuts.getState().cheatSheetOpen),
+  },
 ];
 
-export const appRegistry = createCommandRegistry(appCommands);
+/** The registry the app uses: the commands above, with the shortcuts the person chose. */
+export const appRegistry = customisableRegistry(appCommands);

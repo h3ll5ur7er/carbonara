@@ -28,6 +28,8 @@ export interface CanvasEditActions extends NavigationActions {
   showRatesIn(choice: string): void;
   /** Switches machine counts between "4 × 100% + 1 × 37.5%" and "5 × 87.5%". */
   toggleMachineGroups(): void;
+  /** Downloads a picture of the whole graph. */
+  exportImage(format: "png" | "svg"): void;
   undo(): void;
   redo(): void;
   /** Where a node added from outside the canvas (quick-add) goes: mid-view, clear of the others. */

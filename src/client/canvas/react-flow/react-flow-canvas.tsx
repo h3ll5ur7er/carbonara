@@ -5,6 +5,7 @@
 import {
   applyEdgeChanges,
   applyNodeChanges,
+  getNodesBounds,
   Background,
   BackgroundVariant,
   ReactFlow,
@@ -42,6 +43,8 @@ import { RecipeNode } from "./recipe-node";
 import { SnapMarks, useSnapping } from "./snapping";
 import { useAltHeld, useInsertTarget } from "./edge-gestures";
 import { SinkNode, SourceNode } from "./terminal-nodes";
+import { toPng, toSvg } from "html-to-image";
+import { imageFrame } from "../model/image-frame";
 import { withTag } from "./tag-badge";
 import { motionDurations, useMoveTween } from "./tween";
 import type { FlowEdge as FlowEdgeType, FlowNode } from "./types";
@@ -102,6 +105,9 @@ function FlowCanvas({
     setEdges((current) => mergeEdges(scene, current));
   }
   const glide = useMoveTween(setNodes);
+  /** While a picture is taken: every node drawn. */
+  const [exporting, setExporting] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
 
   // One subscriber to the zoom for the whole canvas: nodes re-render only when the tier changes.
   const lod = useStore((state) => lodTier(state.transform[2]));
@@ -277,6 +283,45 @@ function FlowCanvas({
           void fitView({ ...fitOptions(insets), nodes: targets, duration: motionDuration() }).then(settled);
         }
       },
+      image: async (format) => {
+        // Every node has to be drawn for the picture, so culling stops while it's taken.
+        setExporting(true);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        try {
+          const viewport = root.current?.querySelector<HTMLElement>(".react-flow__viewport");
+          if (!viewport) throw new Error("The canvas isn't on screen");
+          const frame = imageFrame(getNodesBounds(store.getState().nodes), FIT_MARGIN, MAX_IMAGE_SIDE);
+          const { x, y, zoom } = frame.viewport;
+          const options = {
+            backgroundColor: backgroundOf(root.current),
+            width: frame.width,
+            height: frame.height,
+            pixelRatio: 1,
+            style: {
+              width: `${frame.width}px`,
+              height: `${frame.height}px`,
+              transform: `translate(${x}px, ${y}px) scale(${zoom})`,
+            },
+          };
+          return await (format === "png" ? toPng(viewport, options) : toSvg(viewport, options));
+        } finally {
+          setExporting(false);
+        }
+      },
+      select: (nodeIds, edgeIds = []) => {
+        const nodesChosen = new Set(nodeIds);
+        const edgesChosen = new Set(edgeIds);
+        setNodes((current) =>
+          current.map((node) =>
+            node.selected === nodesChosen.has(node.id) ? node : { ...node, selected: nodesChosen.has(node.id) },
+          ),
+        );
+        setEdges((current) =>
+          current.map((edge) =>
+            edge.selected === edgesChosen.has(edge.id) ? edge : { ...edge, selected: edgesChosen.has(edge.id) },
+          ),
+        );
+      },
       goTo: (viewport) => void setViewport(viewport, { duration: motionDuration() }).then(settled),
       view: () => {
         const { transform, width, height } = store.getState();
@@ -348,7 +393,7 @@ function FlowCanvas({
 
   return (
     <CanvasContext value={context}>
-      <div className={`size-full ${altHeld ? "alt-held" : ""}`} onKeyDownCapture={onKeyDownCapture}>
+      <div ref={root} className={`size-full ${altHeld ? "alt-held" : ""}`} onKeyDownCapture={onKeyDownCapture}>
         <LassoArea onLasso={onLasso}>
           <ReactFlow<FlowNode, FlowEdgeType>
             nodes={nodes}
@@ -388,7 +433,7 @@ function FlowCanvas({
             className={`lod-${lod} ${particles ? "" : "particles-off"}`}
             // Culling pays off while part of the graph is on screen. At chip zoom most of it is, and mounting
             // and unmounting chips at the screen edges on every pan frame costs more than drawing them all.
-            onlyRenderVisibleElements={lod !== "chip"}
+            onlyRenderVisibleElements={lod !== "chip" && !exporting}
           >
             <Background
               id="minor"
@@ -429,6 +474,18 @@ function motionDuration(): number {
 const FIT_MARGIN = 48;
 
 const MAX_ZOOM = 2;
+
+/** The colour behind the canvas: of the nearest element that paints one (the canvas backdrop). */
+function backgroundOf(element: Element | null): string {
+  for (let current = element; current; current = current.parentElement) {
+    const colour = getComputedStyle(current).backgroundColor;
+    if (colour && colour !== "transparent" && colour !== "rgba(0, 0, 0, 0)") return colour;
+  }
+  return getComputedStyle(document.body).backgroundColor;
+}
+
+/** Exported pictures stay this size or smaller along their longest side, in pixels. */
+const MAX_IMAGE_SIDE = 8192;
 
 function fitOptions(insets: Insets): FitViewOptions {
   return {

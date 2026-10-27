@@ -7,10 +7,14 @@ export interface CanvasActions {
   zoomToFit(): void;
   /** Shows the selected nodes, or the whole graph when nothing is selected. */
   zoomToSelection(): void;
+  /** Selects these nodes (and these flows), and nothing else. */
+  select(nodeIds: string[], edgeIds?: string[]): void;
   /** Selects these nodes and brings them into view (find's jump). */
   focus(nodeIds: string[]): void;
   /** Moves the view there, animated (bookmarks, back and forward). */
   goTo(viewport: Viewport): void;
+  /** A picture of the whole graph as a data URL. */
+  image(format: "png" | "svg"): Promise<string>;
   /** Where the view is now, and the canvas's size in screen pixels. */
   view(): { viewport: Viewport; size: { width: number; height: number } };
 }

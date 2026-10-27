@@ -20,6 +20,7 @@ import { createResultSlots } from "./model/result-slots";
 import { insertCommands } from "./model/insert";
 import { createSceneBuilder, type CanvasScene, type NodeView } from "./model/scene";
 import { ReactFlowCanvas } from "./react-flow/react-flow-canvas";
+import { CanvasContextMenu } from "./context-menu";
 import { SelectionToolbar } from "./selection-toolbar";
 import { UnitsPicker } from "./units-picker";
 import { MultiEdit } from "./multi-edit";
@@ -285,25 +286,27 @@ function DocumentCanvas({
 
   return (
     <div ref={container} className="relative size-full">
-      <Renderer
-        scene={scene}
-        {...(viewport && { initialViewport: viewport })}
-        insets={insets}
-        results={slots}
-        rateUnit={rateUnit}
-        machineGroups={document.settings.machineGroups ?? "fill"}
-        onMoveNodes={onMoveNodes}
-        onConnect={onConnect}
-        onPortDropped={onPortDropped}
-        onViewCentre={setViewportCentre}
-        onSelectionChange={onSelection}
-        onInsert={onInsert}
-        onRewire={onRewire}
-        onDelete={onDelete}
-        onEditText={onEditText}
-        onResize={onResize}
-        onViewSettled={navigation.onViewSettled}
-      />
+      <CanvasContextMenu>
+        <Renderer
+          scene={scene}
+          {...(viewport && { initialViewport: viewport })}
+          insets={insets}
+          results={slots}
+          rateUnit={rateUnit}
+          machineGroups={document.settings.machineGroups ?? "fill"}
+          onMoveNodes={onMoveNodes}
+          onConnect={onConnect}
+          onPortDropped={onPortDropped}
+          onViewCentre={setViewportCentre}
+          onSelectionChange={onSelection}
+          onInsert={onInsert}
+          onRewire={onRewire}
+          onDelete={onDelete}
+          onEditText={onEditText}
+          onResize={onResize}
+          onViewSettled={navigation.onViewSettled}
+        />
+      </CanvasContextMenu>
       {several && !finding && (
         <SelectionToolbar
           left={insets.left}

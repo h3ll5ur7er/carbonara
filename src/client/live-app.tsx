@@ -14,6 +14,7 @@ import { createDocumentActions, setDocumentActions } from "./features/documents/
 import { DocumentTabs } from "./features/documents/document-tabs";
 import { sharedDocumentIn } from "./features/documents/links";
 import { NewDocumentDialog } from "./features/documents/new-document-dialog";
+import { CheatSheet } from "./features/shortcuts/cheat-sheet";
 import { Welcome } from "./features/documents/welcome";
 import { errorMessage, toast } from "./shell/toasts";
 
@@ -53,6 +54,7 @@ export function LiveApp() {
         selection={inspected}
       />
       <NewDocumentDialog />
+      <CheatSheet />
     </>
   );
 }

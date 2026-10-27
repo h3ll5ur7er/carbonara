@@ -15,7 +15,8 @@ import { rateChoices, settingsFor } from "./model/format";
 import { GRID } from "./model/geometry";
 import { createSceneBuilder, type CanvasScene } from "./model/scene";
 import { shapesOf } from "./model/shapes";
-import { viewportCentre } from "./viewport";
+import { canvasActions, viewportCentre } from "./viewport";
+import { download, imageFileName } from "../features/export/export";
 
 export interface Selection {
   nodes: LocalId[];
@@ -159,12 +160,32 @@ export function useEditActions({
           even ? "Round machines to buildable" : "Fill machines to 100%",
         );
       },
+      exportImage(format) {
+        const image = canvasActions()?.image(format);
+        image?.then(
+          (url) => download(url, imageFileName(document.name, format)),
+          (error: unknown) => failed("Export the picture", errorMessage(error)),
+        );
+      },
       undo: () => report("Undo", connector.editing.undo({ documentId })),
       redo: () => report("Redo", connector.editing.redo({ documentId })),
       placeNew,
       ...navigation,
     };
-  }, [connector, document.settings, documentId, graph, shown, layout, pack, scene, selection, apply, navigation]);
+  }, [
+    connector,
+    document.name,
+    document.settings,
+    documentId,
+    graph,
+    shown,
+    layout,
+    pack,
+    scene,
+    selection,
+    apply,
+    navigation,
+  ]);
 
   useEffect(() => {
     setCanvasEditActions(actions);

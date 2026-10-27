@@ -37,6 +37,9 @@ describe("appCommands", () => {
       "tag.blue",
       "tag.purple",
       "tag.none",
+      // Exporting is rare: palette, menus and the canvas's context menu.
+      "file.exportPng",
+      "file.exportSvg",
     ]);
     for (const command of appCommands) {
       if (!paletteOnly.has(command.id)) expect(command.shortcut, command.id).toBeDefined();
