@@ -2,7 +2,7 @@
 id: CARB-85
 title: Find opens the way into subgraphs
 type: improvement
-status: review
+status: done
 priority: medium
 labels: [subgraphs, canvas, ux]
 ---

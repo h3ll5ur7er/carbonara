@@ -2,7 +2,7 @@
 id: CARB-86
 title: Inspector and planner inside subgraphs
 type: improvement
-status: review
+status: done
 priority: medium
 labels: [subgraphs, inspector, planner]
 ---

@@ -2,7 +2,7 @@
 id: CARB-87
 title: Manage blueprints in the library
 type: feature
-status: review
+status: done
 priority: low
 labels: [subgraphs, ux]
 ---

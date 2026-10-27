@@ -17,6 +17,8 @@ async function select(page: Page, ids: string[]) {
   for (const [index, id] of ids.entries()) {
     await page.locator(`[data-id="${id}"]`).click({ modifiers: index === 0 ? [] : ["Shift"] });
   }
+  // Each click is handled after React Flow's next render; a shortcut pressed before the last one lands acts on less.
+  await expect(page.locator(".react-flow__node.selected")).toHaveCount(ids.length);
 }
 
 for (const colorScheme of ["dark", "light"] as const) {
@@ -35,14 +37,16 @@ test("aligning from the toolbar lines the nodes up in one edit", async ({ page }
   await openScene(page, "congested&zoom=0.8&focus=smelt-a");
   await select(page, ["wash-a", "smelt-b"]);
   await page.getByRole("toolbar", { name: "Selection" }).getByRole("button", { name: "Align top edges" }).click();
-  expect(await appliedCommands(page)).toEqual([
-    expect.objectContaining({ type: "moveNodes", positions: { "smelt-b": { x: 912, y: 0 } } }),
-  ]);
+  await expect
+    .poll(() => appliedCommands(page))
+    .toEqual([expect.objectContaining({ type: "moveNodes", positions: { "smelt-b": { x: 912, y: 0 } } })]);
   await page.getByRole("toolbar", { name: "Selection" }).getByRole("button", { name: "Align left edges" }).click();
-  expect((await appliedCommands(page))[1]).toMatchObject({
-    type: "moveNodes",
-    positions: { "smelt-b": { x: 504, y: 0 } },
-  });
+  await expect
+    .poll(async () => (await appliedCommands(page))[1])
+    .toMatchObject({
+      type: "moveNodes",
+      positions: { "smelt-b": { x: 504, y: 0 } },
+    });
 });
 
 test("distributing from the palette spaces the nodes evenly", async ({ page }) => {
@@ -52,9 +56,9 @@ test("distributing from the palette spaces the nodes evenly", async ({ page }) =
   await page.keyboard.type("distribute horizontally");
   await page.getByRole("option", { name: /Distribute horizontally/ }).click();
   // ore-split ends at 408 and plate-merge starts at 1320; the washer (312 wide) goes in the middle of the gap.
-  expect(await appliedCommands(page)).toEqual([
-    expect.objectContaining({ type: "moveNodes", positions: { "wash-b": { x: 708, y: 336 } } }),
-  ]);
+  await expect
+    .poll(() => appliedCommands(page))
+    .toEqual([expect.objectContaining({ type: "moveNodes", positions: { "wash-b": { x: 708, y: 336 } } })]);
 });
 
 test("Shift+S straightens a chain so its flows run level", async ({ page }) => {
@@ -63,11 +67,13 @@ test("Shift+S straightens a chain so its flows run level", async ({ page }) => {
   await page.keyboard.press("Shift+S");
   // The ore keeps its place and the splitter is level with it already; the washer's ore input comes down to the
   // splitter's output (252 + 24 - 108), and the smelter's input to the washer's clean ferrite (168 + 164 - 108).
-  // The last edit: under load a click can land as a tiny drag, which is an edit of its own before it.
-  expect((await appliedCommands(page)).at(-1)).toEqual(
-    expect.objectContaining({
-      type: "moveNodes",
-      positions: { "wash-a": { x: 504, y: 168 }, "smelt-a": { x: 912, y: 224 } },
-    }),
-  );
+  // The last edit, once it's applied: under load a click can land as a tiny drag, which is an edit of its own.
+  await expect
+    .poll(async () => (await appliedCommands(page)).at(-1))
+    .toEqual(
+      expect.objectContaining({
+        type: "moveNodes",
+        positions: { "wash-a": { x: 504, y: 168 }, "smelt-a": { x: 912, y: 224 } },
+      }),
+    );
 });

@@ -2,7 +2,7 @@
 id: CARB-90
 title: Blueprints travel with a copy
 type: improvement
-status: review
+status: done
 priority: low
 labels: [qol, subgraphs]
 wave: "3"
