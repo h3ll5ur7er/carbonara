@@ -29,6 +29,8 @@ It runs in the browser and as a desktop app (Tauri). The desktop app also runs a
 | [[Architecture/Plugins]] | Plugin hooks and how game mechanics map onto them |
 | [[Architecture/MCP server]] | The desktop app's MCP server and its tools |
 | [[Architecture/Desktop]] | The Tauri shell: storage, files, menus, packaging, releases and updates |
+| [[Guides/Pack authoring]] | Build a game pack: from `carbonara-pack new` to a published `.cpack`, with a starter factory |
+| [[Guides/Plugin authoring]] | Give a pack its mechanics: every plugin hook, with a worked example and tests |
 | [[Design]] | Visual design and core interactions |
 | [[Design/Editor quality of life]] | Auto-arrange, ghost paste, alignment, find, balance … |
 | [[Conventions]] | Engineering rules: volatility, TDD, KISS, DRY/WET, SOLID, YAGNI |

@@ -5,8 +5,10 @@ import type { PackStore } from "../contracts/access";
 import { Document } from "../contracts/document";
 import { exampleDocument } from "../contracts/document.fixture";
 import type { Events, PackInfo } from "../contracts/managers";
-import { PackManifest } from "../contracts/pack";
+import { PackData, PackManifest } from "../contracts/pack";
+import { createPreferenceStore } from "../access/preferences/preferences";
 import { createEventBus } from "../utilities/events";
+import { createMemoryKeyValueStorage } from "../utilities/memory-key-value";
 import { createWorkspaceManager } from "./workspace";
 
 const template: PackInfo = {
@@ -21,15 +23,34 @@ const template: PackInfo = {
   builtIn: true,
 };
 
+const starter = {
+  id: "wire",
+  name: "Copper wire",
+  graph: { nodes: { ore: { kind: "source", item: "cuprite-ore" } }, edges: {} },
+  layout: { root: { ore: { x: 0, y: 0 } } },
+  settings: { rateUnit: "per_minute" },
+};
+
 function setup() {
   const documents = createMemoryDocumentStore();
   const events = createEventBus<Events>();
   const lists: string[][] = [];
-  events.subscribe("documentsChanged", ({ documents: open }) => lists.push(open.map((document) => document.id)));
-  const packs: PackStore = { list: async () => [template], get: async () => undefined };
+  const names: string[][] = [];
+  events.subscribe("documentsChanged", ({ documents: open }) => {
+    lists.push(open.map((document) => document.id));
+    names.push(open.map((document) => document.name));
+  });
+  const packs: PackStore = {
+    list: async () => [template],
+    get: async (packId) =>
+      packId === "template"
+        ? { info: template, data: PackData.parse({ starters: [starter] }), plugin: { id: "template" } }
+        : undefined,
+  };
   let ids = 0;
-  const workspace = createWorkspaceManager({ documents, packs, events, newId: () => `new-${++ids}` });
-  return { documents, lists, workspace };
+  const preferences = createPreferenceStore(createMemoryKeyValueStorage());
+  const workspace = createWorkspaceManager({ documents, packs, preferences, events, newId: () => `new-${++ids}` });
+  return { documents, events, lists, names, workspace };
 }
 
 const json = (document: unknown) => strToU8(JSON.stringify(document));
@@ -45,11 +66,21 @@ describe("the workspace manager", () => {
     const workspace = createWorkspaceManager({
       documents: createMemoryDocumentStore(),
       packs: { list: async () => [], get: async () => undefined },
+      preferences: createPreferenceStore(createMemoryKeyValueStorage()),
       events: createEventBus<Events>(),
       newId: () => "x",
       restoreProblems: () => problems,
     });
     await expect(workspace.getRestoreProblems({})).resolves.toEqual(problems);
+  });
+
+  it("remembers preferences, changing only the ones given", async () => {
+    const { workspace } = setup();
+    await expect(workspace.getPreferences({})).resolves.toEqual({});
+    await expect(workspace.setPreferences({ preferences: { tour: { step: 3, finished: true } } })).resolves.toEqual({
+      tour: { step: 3, finished: true },
+    });
+    await expect(workspace.getPreferences({})).resolves.toEqual({ tour: { step: 3, finished: true } });
   });
 
   it("answers pings", async () => {
@@ -76,6 +107,24 @@ describe("the workspace manager", () => {
       settings: {},
     });
     expect(lists).toEqual([["new-1"]]);
+  });
+
+  it("creates a document from one of the pack's starter factories", async () => {
+    const { workspace, documents } = setup();
+    await workspace.createDocument({ name: "My wire", packId: "template", starter: "wire" });
+    expect(documents.get("new-1")?.document).toMatchObject({
+      name: "My wire",
+      pack: { id: "template", version: "1.0.0", hash: "sha256-template" },
+      graph: starter.graph,
+      layout: starter.layout,
+      settings: starter.settings,
+    });
+  });
+
+  it("refuses starters the pack doesn't have", async () => {
+    await expect(
+      setup().workspace.createDocument({ name: "Wire", packId: "template", starter: "ghost" }),
+    ).rejects.toThrow("Template Works has no starter factory ghost");
   });
 
   it("refuses packs that aren't installed", async () => {
@@ -138,6 +187,43 @@ describe("the workspace manager", () => {
     await workspace.closeDocument({ documentId: "doc-1" });
     await expect(workspace.listDocuments({})).resolves.toMatchObject([{ id: "new-1" }]);
     expect(lists.at(-1)).toEqual(["new-1"]);
+  });
+
+  it("announces the list again when a document is renamed, but not for other edits", async () => {
+    const { workspace, documents, events, names } = setup();
+    await workspace.importDocument({ bytes: json(exampleDocument) });
+    const moved = { op: "replace" as const, path: ["layout", "root", "ore", "x"], value: 5 };
+    events.publish("documentChanged", { documentId: "doc-1", version: 2, patches: [moved] });
+    documents.put({ ...iron, name: "Iron works" });
+    const renamed = { op: "replace" as const, path: ["name"], value: "Iron works" };
+    events.publish("documentChanged", { documentId: "doc-1", version: 3, patches: [renamed] });
+    expect(names).toEqual([["Iron"], ["Iron works"]]);
+  });
+
+  it("lists closed documents as recent and opens them again", async () => {
+    const { workspace, lists } = setup();
+    await workspace.importDocument({ bytes: json(exampleDocument) });
+    await workspace.closeDocument({ documentId: "doc-1" });
+    await expect(workspace.listRecent({})).resolves.toMatchObject([{ id: "doc-1", name: "Iron" }]);
+
+    await expect(workspace.openRecent({ documentId: "doc-1" })).resolves.toMatchObject({
+      ok: true,
+      value: { id: "doc-1", name: "Iron", version: 1 },
+    });
+    expect(lists).toEqual([["doc-1"], [], ["doc-1"]]);
+    await expect(workspace.listRecent({})).resolves.toEqual([]);
+  });
+
+  it("refuses to reopen a document that isn't recent", async () => {
+    await expect(setup().workspace.openRecent({ documentId: "ghost" })).resolves.toMatchObject({ ok: false });
+  });
+
+  it("reopens a recent document as a copy when one with its id is open", async () => {
+    const { workspace } = setup();
+    await workspace.importDocument({ bytes: json(exampleDocument) });
+    await workspace.closeDocument({ documentId: "doc-1" });
+    await workspace.importDocument({ bytes: json(exampleDocument) });
+    await expect(workspace.openRecent({ documentId: "doc-1" })).resolves.toMatchObject({ value: { id: "new-1" } });
   });
 
   it("ignores closing a document that isn't open", async () => {

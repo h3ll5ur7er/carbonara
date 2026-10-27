@@ -121,6 +121,10 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
       ),
     }),
     fc.record({
+      type: fc.constant("renameDocument" as const),
+      name: fc.constantFrom("Iron", "Iron works", "Steel"),
+    }),
+    fc.record({
       type: fc.constant("removeAndBridge" as const),
       graph,
       ids: fc.uniqueArray(nodeId, { minLength: 1, maxLength: 2 }),

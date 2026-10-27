@@ -68,6 +68,7 @@ const LABELS: Record<Command["type"], string> = {
   collapse: "Collapse into subgraph",
   expand: "Expand subgraph",
   renameBlueprint: "Rename blueprint",
+  renameDocument: "Rename factory",
 };
 
 /** A name for the history when the caller gives none. */
@@ -100,6 +101,10 @@ function applyCommand(document: Document, command: ResolvedCommand): Issue | und
     const blueprint = document.blueprints[command.blueprint];
     if (!blueprint) return issue(["blueprint"], `Unknown blueprint ${command.blueprint}`);
     blueprint.name = command.name;
+    return;
+  }
+  if (command.type === "renameDocument") {
+    if (document.name !== command.name) document.name = command.name;
     return;
   }
   const scope = command.graph;

@@ -17,6 +17,7 @@ const NO_PACK: PackData = {
   recipes: [],
   logistics: [],
   resources: [],
+  starters: [],
 };
 
 const breadcrumbs = (page: Page) => page.getByRole("navigation", { name: "Subgraph" });

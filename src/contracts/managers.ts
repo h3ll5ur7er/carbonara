@@ -8,6 +8,7 @@ import type { Patch } from "./patches";
 import type { Issue } from "./issues";
 import { Id, type PackData, type PackManifest, type RateUnit } from "./pack";
 import type { PluginDescription } from "./plugin";
+import { Preferences } from "./preferences";
 import type { AnalysisResults, EdgeResult, NodeResult } from "./results";
 import type { Result } from "./result";
 
@@ -52,6 +53,15 @@ export interface DocumentInfo {
   packId: string;
   /** Increases with every change; events and results carry it. */
   version: number;
+}
+
+/** A document closed recently, which `workspace.openRecent` opens again. */
+export interface RecentDocument {
+  id: string;
+  name: string;
+  packId: string;
+  /** When it was closed, in milliseconds since 1970. */
+  closedAt: number;
 }
 
 export interface PackInfo {
@@ -160,7 +170,10 @@ const planRequest = z.object({
 export const managers = {
   workspace: {
     ping: method<"pong">()(none),
-    createDocument: method<DocumentInfo>()(z.object({ name: z.string(), packId: z.string().min(1) })),
+    /** An empty document for a pack, or a copy of one of its starter factories (`PackData.starters`, by id). */
+    createDocument: method<DocumentInfo>()(
+      z.object({ name: z.string(), packId: z.string().min(1), starter: Id.optional() }),
+    ),
     listDocuments: method<DocumentInfo[]>()(none, {
       tool: "list_documents",
       group: "read",
@@ -170,9 +183,17 @@ export const managers = {
     importDocument: method<Result<DocumentInfo>>()(z.object({ bytes: z.instanceof(Uint8Array) })),
     /** The document as a `.carbonara` file: gzipped JSON. */
     exportDocument: method<Uint8Array<ArrayBuffer>>()(documentRef),
+    /** Closes a document; it stays among the recent documents (a few, newest first) to open again. */
     closeDocument: method<undefined>()(documentRef),
+    listRecent: method<RecentDocument[]>()(none),
+    /** Opens a recently closed document again (under a new id if one with its id is open). */
+    openRecent: method<Result<DocumentInfo>>()(documentRef),
     /** Problems restoring last session's documents (e.g. made with a newer Carbonara); they stay saved. */
     getRestoreProblems: method<Issue[]>()(none),
+    /** What Carbonara remembers about the person across sessions. */
+    getPreferences: method<Preferences>()(none),
+    /** Changes the preferences given (the others stay) and answers them all. */
+    setPreferences: method<Preferences>()(z.object({ preferences: Preferences })),
     /** The URL fragment (without `#`) that opens a copy of the document: the compressed document itself. */
     createShareLink: method<string>()(documentRef),
     openShareLink: method<Result<DocumentInfo>>()(z.object({ fragment: z.string() })),

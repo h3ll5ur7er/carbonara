@@ -9,6 +9,7 @@ const pack = {
   buildings: [],
   recipes: [],
   resources: [],
+  starters: [],
   logistics: [
     {
       id: "transport-belt",

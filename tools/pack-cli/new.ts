@@ -27,7 +27,8 @@ export function newPack(
   const folder = join(into, id);
   if (existsSync(folder)) return fail([{ path: [folder], message: "Already exists" }]);
 
-  cpSync(TEMPLATE, folder, { recursive: true });
+  // The template's starter factory fits its data only, which the new pack replaces (an import wipes data/).
+  cpSync(TEMPLATE, folder, { recursive: true, filter: (source) => source !== join(TEMPLATE, "starters") });
 
   const manifestPath = join(folder, "manifest.yaml");
   const manifest = parseDocument(readFileSync(manifestPath, "utf8"));
@@ -47,7 +48,7 @@ export function newPack(
     .join("/");
   writeFileSync(
     join(folder, "plugin", "index.ts"),
-    `// The plugin of ${name}. It does nothing yet: add hooks when the game needs them (docs/Architecture/Plugins.md).
+    `// The plugin of ${name}. It does nothing yet: add hooks when the game needs them (docs/Guides/Plugin-authoring.md).
 import { definePlugin } from "${contracts.startsWith(".") ? contracts : `./${contracts}`}";
 
 export default definePlugin({ id: "${id}" });

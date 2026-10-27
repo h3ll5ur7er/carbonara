@@ -18,6 +18,8 @@ satisfactory.cpack              # zip archive
 ├─ plugin/
 │  └─ index.js                  # bundled ESM: definePlugin({...}), see Plugins
 ├─ icons/                       # WebP, referenced from data
+├─ starters/                    # optional: starter factories, one per file (pack format 1.1)
+│  └─ iron-rods.yaml
 ├─ locales/                     # optional: en.yaml, de.yaml … for names
 ├─ CREDITS.md                   # asset sources, permissions, attribution
 └─ README.md                    # shown in the pack manager
@@ -86,7 +88,18 @@ data/recipes.yaml:7:11: recipes[0].in.coal: Unknown item 'coal'
 manifest.yaml:4:1: engine: Needs pack format ^2, but this version of Carbonara reads pack format 1.0.0
 ```
 
-**Pack format.** `PACK_FORMAT` in [[src/engines/packs/format.ts]] is the pack format and plugin API version this build implements (now `1.0.0`). A manifest's `engine` range (`^1`, `~1.2`, `1.2.3`, npm semantics) must include it, or the pack is refused before its data is read. Bump the minor version for additive changes and the major for breaking ones. The broken fixture packs in [[src/engines/packs/broken-packs.test.ts]] pin the message for each kind of mistake; add one when you add a rule.
+**Pack format.** `PACK_FORMAT` in [[src/engines/packs/format.ts]] is the pack format and plugin API version this build implements (now `1.1.0`; 1.1 added starter factories). A manifest's `engine` range (`^1`, `~1.2`, `1.2.3`, npm semantics) must include it, or the pack is refused before its data is read. Bump the minor version for additive changes and the major for breaking ones. The broken fixture packs in [[src/engines/packs/broken-packs.test.ts]] pin the message for each kind of mistake; add one when you add a rule.
+
+## Starter factories
+
+A pack may ship starter factories: small, working factories a new document can start from. The first run opens the first one with the welcome tour ([[Design]], Welcome and tour), so a new player's first look at a game is a factory rather than an empty canvas. Every built-in pack has one: *Copper wire* (Template Works), *Iron rods* (Satisfactory), *Iron gears* (Factorio), each with a gap where the tour has the player add the next machine.
+
+- **Files:** `starters/*.yaml` or `*.json` in the pack, one factory each. The file name is the starter's id, so it follows the id rules. A starter is a document's `graph`, `layout`, `blueprints` and `settings` plus a `name` and an optional `description` ([[src/contracts/pack.ts]] `StarterFile`; `schemas/pack-starter.schema.json`); other fields are ignored, so a saved `.carbonara` file, unzipped, is a starter.
+- **Reading:** `readPackFiles` reads them in name order into `PackData.starters` (with their ids), so they travel wherever the pack data goes: built-in packs' data modules, installed packs' stored contents, `packs.getPackData`. The packs engine checks that every recipe, building, item and belt a starter names is in the pack, and that every flow joins nodes the starter has; problems point into the starter's file.
+- **Opening:** `workspace.createDocument({ name, packId, starter })` copies the starter into a new document for the pack.
+- **Why in the pack, not the app:** a starter is game content. It names the game's recipes and items, changes when the game's data changes, and should arrive with a new game without a release of the app (open/closed). It sits in a folder of its own, not in `data/`, because `carbonara-pack import` regenerates `data/` and would delete it. `carbonara-pack new` leaves the template's starter out, since it only fits the template's data.
+
+How to write one: [[Guides/Pack authoring]] (Add a starter factory).
 
 ## Built-in and third-party packs
 
@@ -137,8 +150,10 @@ sequenceDiagram
 
 ## Authoring
 
+The step-by-step guides are [[Guides/Pack authoring]] and [[Guides/Plugin authoring]]; this section is the reference.
+
 - `carbonara-pack new <id> [--into packs] [--name <name>]` scaffolds a pack from `packs/_template` (*Template Works*), a small original example game with a no-op plugin. It sets the id, name and version `0.1.0`, writes a fresh README, CREDITS and plugin, and points the plugin's import of `definePlugin` at this repository wherever the new folder is. The template is the starting point for authors and a test fixture; production builds of the app don't list it.
-- `carbonara-pack validate <folder>` lists every problem as `file:line:column: path: message`, `build <folder> [--out dist/packs]` bundles the plugin with esbuild and zips a reproducible `.cpack` (printing its SHA-256), and `dev <folder>` builds, then rebuilds on every change. Packs inside this repository's `packs/` also reload in a running `pnpm dev`; loading a pack folder from elsewhere into the running app (File System Access API on the web, a folder watch on desktop) is [[CARB-72]].
+- `carbonara-pack validate <folder>` lists every problem as `file:line:column: path: message`, and type-checks a TypeScript plugin with the repository's compiler options ([[tools/pack-cli/typecheck.ts]]; building alone doesn't, since esbuild only strips types), `build <folder> [--out dist/packs]` bundles the plugin with esbuild and zips a reproducible `.cpack` (printing its SHA-256), and `dev <folder>` builds, then rebuilds on every change. Packs inside this repository's `packs/` also reload in a running `pnpm dev`; loading a pack folder from elsewhere into the running app (File System Access API on the web, a folder watch on desktop) is [[CARB-72]].
 - `carbonara-pack import <pack> <file>… [--icons <folder>]…` ([[tools/pack-cli/import.ts]]) runs the pack plugin's importer to regenerate `data/` and `icons/` from the game's own data files (Satisfactory's `Docs.json`, Factorio's `--dump-data` output) when a game updates, turns icon images into 64×64 WebP (the left square of an image wider than tall, Factorio's mipmap strips), writes one Prettier-clean YAML file per section, and then validates the pack. `<pack>` is a folder or the id of a pack in `packs/`. The importer's `accepts` lists the file names it reads.
 - The CLI ([[tools/pack-cli/main.ts]]; `pnpm carbonara-pack …`, with `pnpm pack:build` and `pnpm pack:import` as shorthands) calls the packs engine directly rather than the packs manager. Going through the manager would mean zipping a folder only to unzip it again and wiring a backend with stand-in storage to call one pure function; no CLI command needs installed packs. Revisit when one does (installing into the desktop app's pack folder, say).
 - The MCP server exposes the same steps as tools for AI-assisted authoring ([[Architecture/MCP server]]).

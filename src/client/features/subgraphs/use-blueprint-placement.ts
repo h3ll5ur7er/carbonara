@@ -112,7 +112,15 @@ export function useBlueprintPlacement(document: Document | undefined, graph: str
         const [view] = createSceneBuilder()(
           { nodes: { [GHOST_NODE]: { kind: "instance", blueprint: id } }, edges: {} },
           undefined,
-          { units: { rate: "per_second" }, items: [], buildings: [], recipes: [], logistics: [], resources: [] },
+          {
+            units: { rate: "per_second" },
+            items: [],
+            buildings: [],
+            recipes: [],
+            logistics: [],
+            resources: [],
+            starters: [],
+          },
           document,
         ).nodes;
         const snap = (value: number) => Math.round(value / GRID) * GRID;

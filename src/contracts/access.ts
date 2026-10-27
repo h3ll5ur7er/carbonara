@@ -1,7 +1,7 @@
 // What managers need from the access components that more than one manager uses.
 // Each access component implements its interface; managers get it injected by the composition root.
 import type { Document } from "./document";
-import type { DocumentInfo, PackInfo, Proposal, ProposalStatus } from "./managers";
+import type { DocumentInfo, PackInfo, Proposal, ProposalStatus, RecentDocument } from "./managers";
 import type { Id, PackData } from "./pack";
 import type { Plugin, PluginDescription } from "./plugin";
 import type { Result } from "./result";
@@ -28,7 +28,12 @@ export interface DocumentStore {
   get(documentId: string): OpenDocument | undefined;
   /** Stores a new or changed document and returns it with its new version. */
   put(document: Document): OpenDocument;
+  /** Closes a document: it heads the recently closed ones, of which the store keeps a few. */
   remove(documentId: string): void;
+  /** The documents closed most recently, newest first. */
+  recent(): RecentDocument[];
+  /** Takes a recently closed document off that list, to open it again; undefined when it isn't on it. */
+  takeRecent(documentId: string): Document | undefined;
 }
 
 /**

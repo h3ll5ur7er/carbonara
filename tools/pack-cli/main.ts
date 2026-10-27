@@ -10,10 +10,11 @@ import { buildPack, packFolder } from "./build";
 import { watchPack } from "./dev";
 import { importPack } from "./import";
 import { newPack } from "./new";
+import { typecheckPlugin } from "./typecheck";
 
 const USAGE = `Usage:
   carbonara-pack new <id> [--into packs] [--name <name>]   Create a pack from the template
-  carbonara-pack validate <folder>                         Check a pack and list its problems
+  carbonara-pack validate <folder>                         Check a pack (and type-check its plugin) and list its problems
   carbonara-pack build <folder> [--out dist/packs]         Build <out>/<id>-<version>.cpack
   carbonara-pack dev <folder> [--out dist/packs]           Build, then rebuild on every change
   carbonara-pack import <folder> <file>… [--icons <folder>]…
@@ -68,6 +69,8 @@ export async function run(argv: string[], output: Output): Promise<number> {
     case "validate": {
       const pack = await packFolder(target);
       if (!pack.ok) return problems(pack.error, target);
+      const typeErrors = typecheckPlugin(target);
+      if (typeErrors.length > 0) return problems(typeErrors, target);
       output.log(`${pack.value.contents.manifest.name} ${pack.value.contents.manifest.version} is valid`);
       return 0;
     }

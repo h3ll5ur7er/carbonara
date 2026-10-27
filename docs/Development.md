@@ -33,7 +33,7 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 | `pnpm format` / `pnpm format:check` | Prettier |
 | `pnpm schema` | Regenerates the JSON Schemas in `schemas/` from the zod contracts |
 | `pnpm mcp:tools` | Regenerates the MCP server's manifest (`crates/mcp/manifest.json`: tools, resources, prompts) from the manager contracts ([[Architecture/MCP server]]) |
-| `pnpm carbonara-pack <command>` | The pack CLI: `new`, `validate`, `build`, `dev`, `import` ([[Architecture/Game-packs#Authoring]]) |
+| `pnpm carbonara-pack <command>` | The pack CLI: `new`, `validate` (which also type-checks the plugin), `build`, `dev`, `import` ([[Guides/Pack authoring]], [[Architecture/Game-packs#Authoring]]) |
 | `pnpm pack:build <folder> [--out dist/packs]` | Bundles a pack folder's plugin and zips it into `<out>/<id>-<version>.cpack` |
 | `pnpm pack:import <pack> <file>… [--icons <folder>]…` | Regenerates a pack's data and icons with its plugin's importer |
 | `pnpm bench` | Edit → results timings on generated 500 / 1k / 10k / 50k-node factories, with the WebAssembly module as built (`pnpm build:wasm` builds release). Exits with 1 when a budget from [[Architecture/Solver]] is exceeded |
@@ -62,6 +62,7 @@ Run `pnpm e2e` too when you changed anything the user can see, and `cargo clippy
 - **Screenshots render in one place.** `pnpm e2e` runs Playwright inside `mcr.microsoft.com/playwright:v1.63.0-noble` ([[scripts/e2e.mjs]]), and CI's e2e job runs in the same image. Fonts, anti-aliasing and the browser build all come from the image, so a baseline made on any machine matches CI. Baselines made outside the image (`pnpm e2e:host`) don't: text renders a pixel differently and the strict comparison fails. Docker must be running; in the cloud environment start it with `dockerd &`.
 - `@playwright/test` is pinned to the image's version (1.63.0); upgrade both together.
 - Parallel worktrees each pick their own port: `E2E_PORT=5174 pnpm e2e`.
+- The first run's game picker and tour ([[Design]], Welcome and tour) don't appear in automated browsers, so every spec starts at the usual welcome. Open `/?first-run` to test them ([[e2e/onboarding.spec.ts]]).
 
 ### Scenes
 

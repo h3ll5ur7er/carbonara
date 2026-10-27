@@ -20,6 +20,8 @@ import { followProposals } from "./features/planner/planner-store";
 import { CheatSheet } from "./features/shortcuts/cheat-sheet";
 import { Welcome } from "./features/documents/welcome";
 import { McpHost } from "./features/mcp/host";
+import { TourCard } from "./features/onboarding/tour-card";
+import { useOnboarding } from "./features/onboarding/use-onboarding";
 import { errorMessage, toast } from "./shell/toasts";
 import { scopedTo } from "./features/subgraphs/path";
 import { useSubgraphView, type SubgraphView } from "./features/subgraphs/use-subgraph-view";
@@ -46,6 +48,7 @@ export function LiveApp() {
   useReportRestoreProblems();
   const subgraph = useSubgraphView({ ...active, leaveShortcut: keysOf("subgraph.leave") });
   const { graph } = subgraph;
+  useOnboarding(active);
   const [selection, setSelection] = useState<Selection | null>(null);
   const onSelectionChange = useCallback(
     (nodeIds: string[]) => setSelection(info ? { documentId: info.id, graph, nodeIds } : null),
@@ -93,6 +96,7 @@ export function LiveApp() {
       <NewDocumentDialog />
       <McpHost />
       <CheatSheet />
+      {info && <TourCard />}
     </>
   );
 }

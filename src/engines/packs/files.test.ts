@@ -79,6 +79,40 @@ describe("readPackFiles", () => {
     });
   });
 
+  it("reads the starter factories in starters/, in name order, with their file names as ids", () => {
+    const starter = (name: string) =>
+      text(`name: ${name}\ngraph:\n  nodes: { ore: { kind: source, item: ore } }\n  edges: {}\n`);
+    const result = readPackFiles({
+      ...files,
+      "starters/b-more.yaml": starter("More"),
+      "starters/a.json": starter("A"),
+    });
+    expect(result.ok && result.value.data.starters).toEqual([
+      expect.objectContaining({ id: "a", name: "A", layout: {}, blueprints: {}, settings: {} }),
+      expect.objectContaining({ id: "b-more", name: "More" }),
+    ]);
+  });
+
+  it("locates reference problems of a starter in its file", () => {
+    const result = readPackFiles({
+      ...files,
+      "starters/plates.yaml": text(
+        "name: Plates\ngraph:\n  nodes:\n    smelt: { kind: recipe, recipe: gear }\n  edges: {}\n",
+      ),
+    });
+    expect(result).toEqual({
+      ok: false,
+      error: [
+        {
+          path: ["starters/plates.yaml", "graph", "nodes", "smelt", "recipe"],
+          message: "Unknown recipe 'gear'",
+          line: 4,
+          column: 28,
+        },
+      ],
+    });
+  });
+
   it("reports broken references across files", () => {
     const result = readPackFiles({
       ...files,
