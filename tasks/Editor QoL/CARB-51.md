@@ -2,7 +2,7 @@
 id: CARB-51
 title: Copy and paste with a ghost preview
 type: feature
-status: review
+status: done
 priority: urgent
 labels: [qol, ux]
 wave: "3"
