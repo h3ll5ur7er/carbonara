@@ -128,3 +128,27 @@ test("plans in the buildings asked for", async ({ page }) => {
   // Twice as fast: 1.25 fast assemblers make the motors that took 2.5 assemblers.
   await expect(page.locator('.react-flow__node[data-id="motor"]')).toContainText("× 1.25");
 });
+
+test("keeps the buildings asked for with the factory, in its save profile, as an undoable edit", async ({ page }) => {
+  const planner = await planGoal(page, "motor", "0.25");
+  await planner.getByRole("button", { name: "Adjust" }).click();
+  await planner.getByLabel("Recipes for the Assembler run in").click();
+  await page.getByRole("option", { name: "Fast Assembler" }).click();
+  await planner.getByRole("button", { name: "Close planner" }).click();
+
+  // The save profile shows the choice; the planner starts from it again.
+  const inspector = page.getByRole("complementary", { name: "Inspector" });
+  const choice = inspector
+    .getByRole("region", { name: "Planner defaults" })
+    .getByLabel("Recipes for the Assembler run in");
+  await expect(choice).toContainText("Fast Assembler");
+  await page.keyboard.press("p");
+  await expect(planner.getByLabel("Recipes for the Assembler run in")).toContainText("Fast Assembler");
+  await planner.getByRole("button", { name: "Plan", exact: true }).click();
+  await expect(planner.getByRole("region", { name: "Buildings" })).toContainText("Fast Assembler");
+  await planner.getByRole("button", { name: "Discard" }).click();
+
+  await page.keyboard.press("ControlOrMeta+Z");
+  await expect(choice).not.toContainText("Fast Assembler");
+  await expect(choice).toContainText("Assembler");
+});

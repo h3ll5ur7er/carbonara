@@ -350,6 +350,28 @@ describe("smarter plans", () => {
     expect(dear.summary.raw).toEqual({ "ferrite-ore": expect.closeTo(2, 9), coal: expect.closeTo(1, 9) });
   });
 
+  it("start from the buildings and resource weights saved with the document, unless the request names its own", async () => {
+    const saved: Document = {
+      ...factory(),
+      settings: { planning: { buildings: ["fast-assembler"], resourceWeights: { water: 100 } } },
+    };
+    const planning = setUp(saved);
+    const { objective, alternates, exclude } = defaults;
+    const asked = async (options: Partial<PlanOptions>, item = "iron-plate") => {
+      const result = await planning.planProduction({
+        documentId: "doc",
+        targets: [{ item, perSecond: 0.25 }],
+        options: { objective, alternates, exclude, ...options },
+      });
+      if (!result.ok) throw new Error(JSON.stringify(result.error));
+      return result.value;
+    };
+    expect(recipesIn(await asked({}))).toEqual(["iron-plate-from-ore"]);
+    expect(recipesIn(await asked({ resourceWeights: {} }))).not.toContain("iron-plate-from-ore");
+    expect((await asked({}, "motor")).summary.buildings.assembler).toBeUndefined();
+    expect((await asked({ buildings: [] }, "motor")).summary.buildings["fast-assembler"]).toBeUndefined();
+  });
+
   it("ask the plugin which recipes the save allows, with its settings' defaults filled in", async () => {
     // Without a profile the setting is at its default, which rules the washer out.
     const plugin = {

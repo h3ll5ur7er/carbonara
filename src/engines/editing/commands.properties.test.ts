@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { Document, type Graph, type Node } from "../../contracts/document";
+import { Document, type Graph, type Node, type PlanningSettings } from "../../contracts/document";
 import { exampleDocument } from "../../contracts/document.fixture";
 import { applyCommands, applyPatches, type Edit, type ResolvedCommand } from "./commands";
 
@@ -116,6 +116,11 @@ function commandIn(pools: Pools): fc.Arbitrary<ResolvedCommand> {
           rateUnit: fc.constantFrom("per_second" as const, "per_minute" as const, null),
           belt: fc.constantFrom("belt-mk1", "pipe", null),
           machineGroups: fc.constantFrom("fill" as const, "even" as const, null),
+          planning: fc.constantFrom<PlanningSettings | null>(
+            { buildings: ["furnace"] },
+            { resourceWeights: { water: 2 } },
+            null,
+          ),
         },
         { requiredKeys: [] },
       ),

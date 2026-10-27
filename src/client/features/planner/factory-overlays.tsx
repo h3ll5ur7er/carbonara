@@ -50,7 +50,12 @@ export function useFactoryOverlays({ info, document, pack, results }: FactoryOve
     previewing: planner.ghost !== undefined,
     layers: ready && (
       <>
-        <PlannerPanel document={{ id: ready.info.id, name: ready.info.name }} pack={ready.pack} rateUnit={rateUnit} />
+        <PlannerPanel
+          document={{ id: ready.info.id, name: ready.info.name }}
+          pack={ready.pack}
+          rateUnit={rateUnit}
+          planning={ready.document.settings.planning}
+        />
         {heatmap && <HeatmapLegend left={left} right={right} />}
         <SankeyOverlay document={ready.document} pack={ready.pack} results={results} rateUnit={rateUnit} />
         {/* While the planner is open, its card sums up the proposal instead; the overview covers the canvas. */}

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PackData } from "../../../contracts/pack";
@@ -77,5 +77,27 @@ describe("SaveProfile", () => {
     await userEvent.type(screen.getByRole("searchbox", { name: "Filter alternates" }), "bolt");
     expect(screen.queryByRole("checkbox", { name: "Stamped Plate" })).toBeNull();
     expect(screen.getByRole("checkbox", { name: "Bolted Plate" })).toBeTruthy();
+  });
+
+  it("keeps the planner's resource weights, each change one command", async () => {
+    const mined = PackData.parse({
+      items: [...pack.items, { id: "ore", name: "Ore", form: "solid" }],
+      buildings: pack.buildings,
+      recipes: pack.recipes,
+      resources: [{ item: "ore" }],
+    });
+    const apply = renderProfile({ pack: mined, planning: { buildings: ["press"] } });
+    const planner = screen.getByRole("region", { name: "Planner defaults" });
+    await userEvent.click(within(planner).getByRole("button", { name: /Resource weights/ }));
+    const weight = within(planner).getByRole("spinbutton", { name: "Weight of Ore" });
+    await userEvent.clear(weight);
+    await userEvent.type(weight, "5{Enter}");
+    expect(apply).toHaveBeenCalledExactlyOnceWith({
+      documentId: "doc",
+      commands: [
+        { type: "setSettings", settings: { planning: { buildings: ["press"], resourceWeights: { ore: 5 } } } },
+      ],
+      label: "Weigh Ore at 5",
+    });
   });
 });

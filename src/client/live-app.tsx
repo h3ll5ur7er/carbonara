@@ -188,7 +188,9 @@ function useInspected(
     if (!info || !document || !packData) return null;
     if (!current || current.nodeIds.length === 0) {
       const settings = document.settings.plugin ?? {};
-      return { profile: { documentId: info.id, pack: packData, settings, plugin } };
+      return {
+        profile: { documentId: info.id, pack: packData, settings, plugin, planning: document.settings.planning },
+      };
     }
     // The inspector reads the root graph: inside a subgraph, it's given the blueprint's graph as the root.
     const shown = scopedTo(document, graph);
