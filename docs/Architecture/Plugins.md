@@ -58,7 +58,7 @@ A plugin's answers are treated as input: checked, never trusted. Diagnostics car
 
 Clients never run plugin code. `packs.describePlugin({ packId, settings })` ([[src/contracts/managers.ts]]) returns a `PluginDescription`: node fields by building id, the settings fields and the metrics, computed by `describePlugin` in the hooks module wherever the plugin runs. The inspector loads it per document ([[src/client/shell/inspector/plugin-description.ts]]) and reloads it when the document's plugin settings change.
 
-Where a pack's plugin runs is a `PluginRuntime` ([[src/contracts/access.ts]]): `compile(document)` → the model plus a `results(outcome, version)` that maps the solution back, and `describe(settings)`. `runtimeOf(pack)` ([[src/engines/compiler/runtime.ts]]) gives built-in packs a local runtime around the same compiler functions; the analysis and packs managers only talk to runtimes.
+Where a pack's plugin runs is a `PluginRuntime` ([[src/contracts/access.ts]]): `compile(document)` → the model plus a `results(outcome, version)` that maps the solution back, `compiler()` → a `DocumentCompiler` that compiles one document's versions one after another and redoes only what changed (the analysis manager keeps one per document; [[Architecture/Solver]], Performance), and `describe(settings)`. Plugin hooks are taken to be pure: a node whose object didn't change keeps what the hooks said about it. The sandbox's compiler compiles every version from scratch, since the whole document crosses into the sandbox anyway. `runtimeOf(pack)` ([[src/engines/compiler/runtime.ts]]) gives built-in packs a local runtime around the same compiler functions; the analysis and packs managers only talk to runtimes.
 
 ## How mechanics map onto hooks
 
