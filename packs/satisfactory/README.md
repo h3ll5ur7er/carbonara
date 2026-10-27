@@ -2,7 +2,7 @@
 
 Plan factories for [Satisfactory](https://www.satisfactorygame.com/) 1.1 by Coffee Stain Studios: every item, every recipe a machine runs (alternates included), the fuels each generator burns, belts Mk.1 to Mk.6, pipelines Mk.1 and Mk.2, and the map's resource limits. Rates are per minute, as in the game.
 
-Clock speed, power shards, somersloops and the power curve come with a later version of the plugin.
+The plugin models clock speed (1–250 %), power shards, somersloops (with an optional budget for the whole factory), the alternates your save has unlocked, and power use and generation. Select a machine to set its clock speed, shards and somersloops; with nothing selected, the inspector shows the factory's save profile.
 
 ## Updating to a new game version
 

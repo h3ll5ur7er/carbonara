@@ -1,19 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Model } from "../../contracts/solver";
 import { TIE_BREAK, weigh } from "./objective";
-import type { Role } from "./superstructure";
 
-const roles: Record<string, Role> = {
-  "raw:ore": { kind: "raw", item: "ore" },
-  "recipe:smelt": { kind: "recipe", recipe: "smelt" },
-  "hub:ore": { kind: "hub", item: "ore" },
-  "target:plate": { kind: "target", item: "plate" },
-};
-const ids = Object.keys(roles);
+/** As the compiler builds it: a raw source (cost 1), a recipe, a hub, a target sink, and a one-output recipe. */
 const model: Model = {
-  items: 2,
+  items: 3,
   nodes: [
-    { kind: "process", rates: [{ item: 0, perSecond: 1 }], cost: 1 },
+    { kind: "process", rates: [{ item: 0, perSecond: 1 }], max: 500, cost: 1 },
     {
       kind: "process",
       rates: [
@@ -24,6 +17,7 @@ const model: Model = {
     },
     { kind: "junction", rates: [], cost: 0 },
     { kind: "process", rates: [{ item: 1, perSecond: -1 }], pin: 1, cost: 0 },
+    { kind: "process", rates: [{ item: 2, perSecond: 2 }], cost: 0 },
   ],
   edges: [],
   constraints: [],
@@ -32,15 +26,15 @@ const costs = (weighed: Model) => weighed.nodes.map((node) => node.cost);
 
 describe("the planning objective", () => {
   it("minimises raw resources first, then machines", () => {
-    expect(costs(weigh(model, ids, roles, "resources"))).toEqual([1, TIE_BREAK, 0, 0]);
+    expect(costs(weigh(model, "resources"))).toEqual([1, TIE_BREAK, 0, 0, TIE_BREAK]);
   });
 
   it("minimises machines first, then raw resources", () => {
-    expect(costs(weigh(model, ids, roles, "buildings"))).toEqual([TIE_BREAK, 1, 0, 0]);
+    expect(costs(weigh(model, "buildings"))).toEqual([TIE_BREAK, 1, 0, 0, 1]);
   });
 
   it("changes nothing but the costs", () => {
-    const weighed = weigh(model, ids, roles, "buildings");
+    const weighed = weigh(model, "buildings");
     expect(weighed.nodes.map(({ cost: _cost, ...node }) => node)).toEqual(
       model.nodes.map(({ cost: _cost, ...node }) => node),
     );

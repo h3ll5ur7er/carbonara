@@ -232,6 +232,24 @@ describe("planning production", () => {
     expect(proposal.results.nodes[smelter?.id ?? ""]?.activity).toBeCloseTo(3, 9);
   });
 
+  it("counts buildings whose ids are also names on plain objects, such as Satisfactory's constructor", async () => {
+    const renamed = (id: string) => (id === "furnace" ? "constructor" : id);
+    const data = {
+      ...template.data,
+      buildings: template.data.buildings.map((building) => ({ ...building, id: renamed(building.id) })),
+      recipes: template.data.recipes.map((recipe) => ({ ...recipe, buildings: recipe.buildings.map(renamed) })),
+    };
+    const documents = createMemoryDocumentStore();
+    documents.put(factory());
+    const planning = createPlanningManager({ documents, packs: { get: async () => ({ ...template, data }) } });
+    const result = await planning.planProduction({
+      documentId: "doc",
+      targets: [{ item: "iron-plate", perSecond: 1 }],
+      options: defaults,
+    });
+    expect(result.ok && result.value.summary.buildings).toEqual({ constructor: 3, washer: 1, purifier: 1 });
+  });
+
   it("refuses unknown documents and items", async () => {
     const planning = setUp();
     expect(

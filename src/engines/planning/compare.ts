@@ -6,7 +6,13 @@ import type { Plugin } from "../../contracts/plugin";
 import { allowedRecipes, makes } from "./superstructure";
 
 /** The recipes the plan may use that make the item, in pack order. */
-export function rivals(pack: PackData, plugin: Plugin, document: Document, options: PlanOptions, item: Id): Id[] {
+export function rivals(
+  pack: PackData,
+  plugin: Plugin | undefined,
+  document: Document,
+  options: PlanOptions,
+  item: Id,
+): Id[] {
   return allowedRecipes(pack, plugin, document, options)
     .filter((recipe) => makes(recipe, item))
     .map((recipe) => recipe.id);

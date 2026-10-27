@@ -15,7 +15,8 @@ export interface SuperstructureInput {
   /** The document the plan is for: its id, pack and plugin settings carry over. */
   document: Document;
   pack: PackData;
-  plugin: Plugin;
+  /** Asked which recipes are available; without one (an isolated plugin), all are. */
+  plugin?: Plugin;
   targets: PlanTarget[];
   options: PlanOptions;
   /** Makes the targets with this recipe only, never from a raw source (to compare recipes). */
@@ -147,14 +148,19 @@ export function buildSuperstructure({
 }
 
 /** The recipes the plan may use, in pack order. */
-export function allowedRecipes(pack: PackData, plugin: Plugin, document: Document, options: PlanOptions): Recipe[] {
+export function allowedRecipes(
+  pack: PackData,
+  plugin: Plugin | undefined,
+  document: Document,
+  options: PlanOptions,
+): Recipe[] {
   const context = { pack, settings: document.settings.plugin ?? {} };
   const excluded = new Set(options.exclude);
   return pack.recipes.filter(
     (recipe) =>
       !excluded.has(recipe.id) &&
       (options.alternates || !recipe.tags?.includes("alternate")) &&
-      plugin.recipeAvailable?.(recipe, context) !== false,
+      plugin?.recipeAvailable?.(recipe, context) !== false,
   );
 }
 

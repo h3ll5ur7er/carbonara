@@ -101,6 +101,23 @@ describe("InspectorPanel", () => {
     await waitFor(() => expect(useToasts.getState().toasts[0]?.description).toBe("Unknown method editing.apply"));
   });
 
+  it("shows what the pack's plugin derived and what it warns about", () => {
+    renderPanel(vi.fn(), {
+      selection: {
+        ...selection,
+        node: {
+          ...selection.node,
+          metrics: [{ label: "Power use", value: "13.43 MW" }],
+          problems: [{ kind: "warning", message: "Clock 150 % needs a power shard" }],
+        },
+      },
+    });
+    const metrics = screen.getByRole("region", { name: "Metrics" });
+    expect(metrics.textContent).toContain("Power use");
+    expect(metrics.textContent).toContain("13.43 MW");
+    expect(screen.getByRole("list", { name: "Problems" }).textContent).toContain("Clock 150 % needs a power shard");
+  });
+
   it("invites a selection when nothing is selected", () => {
     renderPanel(vi.fn(), { selection: null });
     expect(screen.getByText("Nothing selected")).toBeTruthy();

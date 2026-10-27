@@ -62,17 +62,23 @@ export async function importPack(
   return ok({ files: written, icons: Object.keys(icons).length });
 }
 
-/** Every image below the folders as `icons/<name>.webp` at the fixed size, the largest source winning per name. */
+/**
+ * Every image below the folders as `icons/<name>.webp` at the fixed size, the largest source winning per name.
+ * An image wider than tall is a strip of mipmaps (Factorio's icons: 64 px, then 32, 16 and 8 to its right), whose
+ * left square is the icon.
+ */
 async function readIcons(folders: string[]): Promise<Record<string, Uint8Array>> {
-  const best = new Map<string, { path: string; width: number }>();
+  const best = new Map<string, { path: string; size: number; height: number }>();
   for (const path of folders.flatMap((folder) => [...walk(folder)]).filter((file) => IMAGE.test(file))) {
     const name = basename(path, extname(path)).replace(SIZE_SUFFIX, "");
-    const width = (await sharp(path).metadata()).width;
-    if (width > (best.get(name)?.width ?? 0)) best.set(name, { path, width });
+    const { width, height } = await sharp(path).metadata();
+    const size = Math.min(width, height);
+    if (size > (best.get(name)?.size ?? 0)) best.set(name, { path, size, height });
   }
   const icons: Record<string, Uint8Array> = {};
-  for (const [name, { path }] of best) {
+  for (const [name, { path, size, height }] of best) {
     icons[`icons/${name}.webp`] = await sharp(path)
+      .extract({ left: 0, top: 0, width: size, height })
       .resize(ICON_SIZE, ICON_SIZE, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .webp({ quality: 85, alphaQuality: 90, effort: 6 })
       .toBuffer();

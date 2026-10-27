@@ -132,8 +132,12 @@ function summarise(
     if (role?.kind !== "recipe" || entry.node.kind !== "recipe") continue;
     const buildingId = entry.node.building ?? recipes.get(role.recipe)?.buildings[0];
     if (buildingId === undefined) continue;
-    buildings[buildingId] = (buildings[buildingId] ?? 0) + Math.ceil(machines);
-    powerMW += entry.result.derived?.powerMW ?? (buildingsById.get(buildingId)?.power?.consume ?? 0) * machines;
+    // Own keys only: an id such as Satisfactory's "constructor" would otherwise start from Object.prototype's.
+    const counted = Object.hasOwn(buildings, buildingId) ? (buildings[buildingId] ?? 0) : 0;
+    buildings[buildingId] = counted + Math.ceil(machines);
+    // The plugin's power metric (Satisfactory's `power`, in MW) where it derives one.
+    const derived = entry.result.derived?.power ?? entry.result.derived?.powerMW;
+    powerMW += derived ?? (buildingsById.get(buildingId)?.power?.consume ?? 0) * machines;
   }
   const shortfalls: Record<Id, number> = {};
   for (const diagnostic of results.diagnostics) {

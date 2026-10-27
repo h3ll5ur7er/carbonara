@@ -1,0 +1,35 @@
+[package]
+name = "carbonara-mcp"
+version = "0.1.0"
+description = "Carbonara's MCP server: Streamable HTTP on localhost with a token, and a stdio bridge"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "carbonara-mcp-stdio"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+getrandom = "0.3"
+rmcp = { version = "3.8", default-features = false, features = [
+  "server",
+  "client",
+  "transport-io",
+  "transport-streamable-http-server",
+  "transport-streamable-http-client-reqwest",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio-util = "0.7"
+
+[dev-dependencies]
+reqwest = { version = "0.13", default-features = false }
+rmcp = { version = "3.8", default-features = false, features = ["transport-child-process"] }
+tempfile = "3"

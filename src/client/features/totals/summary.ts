@@ -44,6 +44,11 @@ export function summaryFacts(summary: ProposalSummary, pack: PackData): SummaryF
   };
 }
 
+/** Power in MW a plugin derived for a node: `power` (Satisfactory's metric) or `powerMW`. */
+export function derivedPower(derived: Record<string, number> | undefined): number | undefined {
+  return derived?.power ?? derived?.powerMW;
+}
+
 /** A solved document summed up: the totals the analysis reports, power, unused byproducts and shortages. */
 export interface FactorySummary extends ProposalSummary {
   /** What leaves the factory through its outputs (sinks), by item. */
@@ -53,8 +58,9 @@ export interface FactorySummary extends ProposalSummary {
 export function factorySummary(document: Document, pack: PackData, results: AnalysisResults): FactorySummary {
   const recipes = new Map(pack.recipes.map((recipe) => [recipe.id, recipe]));
   const buildings = new Map(pack.buildings.map((building) => [building.id, building]));
+  // Own keys only: an id such as "constructor" would otherwise start from Object.prototype's.
   const add = (amounts: Record<Id, number>, item: Id, perSecond: number) =>
-    (amounts[item] = (amounts[item] ?? 0) + perSecond);
+    (amounts[item] = (Object.hasOwn(amounts, item) ? (amounts[item] ?? 0) : 0) + perSecond);
 
   let powerMW = 0;
   const outputs: Record<Id, number> = {};
@@ -63,9 +69,9 @@ export function factorySummary(document: Document, pack: PackData, results: Anal
     if (!result) continue;
     if (node.kind === "sink") add(outputs, node.item, result.activity);
     if (node.kind !== "recipe") continue;
-    // The plugin's power curve where it derives one, else the building's draw at 100% per machine.
+    // The plugin's power (in MW) where it derives one, else the building's draw at 100% per machine.
     const building = buildings.get(node.building ?? recipes.get(node.recipe)?.buildings[0] ?? "");
-    powerMW += result.derived?.powerMW ?? (building?.power?.consume ?? 0) * result.activity;
+    powerMW += derivedPower(result.derived) ?? (building?.power?.consume ?? 0) * result.activity;
   }
 
   const byproducts: Record<Id, number> = {};

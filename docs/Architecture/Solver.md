@@ -26,12 +26,13 @@ The `compiler` engine ([[src/engines/compiler/compile.ts]]) builds the model; `t
 
 | Document | IR |
 | --- | --- |
-| `recipe` | Process node; activity = machine count. Rate per machine = amount / (time / building speed), after the plugin's `effectiveRecipe` (identity by default) with the node's fields filled from `nodeFields` defaults. Cost 0 |
+| `recipe` | Process node; activity = machine count. Rate per machine = amount / (time / building speed), after the plugin's `effectiveRecipe` (identity by default) with the node's fields checked against `nodeFields` and their defaults filled in. Cost 0 |
 | `source` | Process node with rate +1; `maxPerSecond` → `max`. Cost 1 per item/s, so raw use is minimised |
 | `sink` | Process node with rate −1; `targetPerSecond` → `pin` |
 | `junction` | Junction |
 | Machine pin / rate pin | `pin` = count / (rate ÷ the recipe's net rate of the item); misses are reported back in the pin's own unit |
 | Edge `logistics` | `capacity`, converted from the pack's `units.rate` to items per second |
+| Plugin `constraints` | `constraints`, over recipe nodes' activities (see [[Architecture/Plugins]], The hook pipeline) |
 | `instance`, `port` | Not compiled yet (subgraphs, Wave 2): an `error` diagnostic |
 | `note`, `frame` | Left out |
 

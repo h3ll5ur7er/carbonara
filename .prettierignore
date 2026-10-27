@@ -7,3 +7,4 @@ docs
 schemas
 .claude/worktrees
 src/contracts/ir
+crates/mcp/manifest.json

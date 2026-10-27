@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Document } from "../../../contracts/document";
 import { PackData } from "../../../contracts/pack";
+import type { PluginDescription } from "../../../contracts/plugin";
 import type { AnalysisResults } from "../../../contracts/results";
 import { inspectNode, productionEdit } from "./inspect";
 
@@ -77,6 +78,44 @@ describe("inspectNode", () => {
   it("shows other nodes without production settings", () => {
     expect(inspect("split")).toMatchObject({ title: "Junction" });
     expect(inspect("split")?.production).toBeUndefined();
+  });
+
+  it("shows the plugin's fields for the node's building, with the node's values", () => {
+    const clock = { kind: "number", label: "Clock speed", min: 1, max: 250, unit: "%", default: 100 } as const;
+    const plugin: PluginDescription = {
+      nodeFields: { furnace: { clock } },
+      settingsFields: {},
+      metrics: { power: { label: "Power use", unit: "MW" } },
+    };
+    const clocked = structuredClone(document);
+    clocked.graph.nodes.smelt = { kind: "recipe", recipe: "copper-plate", fields: { clock: 150 } };
+    const withMetrics: AnalysisResults = {
+      ...results,
+      nodes: {
+        ...results.nodes,
+        smelt: { activity: 3, inputs: {}, outputs: {}, derived: { power: 13.4321, heat: 2 } },
+      },
+      diagnostics: [
+        { kind: "warning", node: "smelt", message: "Clock speed 150 % needs a power shard" },
+        { kind: "error", node: "free", message: "Not this one" },
+        { kind: "deficit", node: "smelt", item: "ore", perSecond: 1 },
+      ],
+    };
+    expect(inspectNode({ document: clocked, pack, results: withMetrics, nodeId: "smelt", plugin })).toMatchObject({
+      fields: { clock },
+      values: { clock: 150 },
+      metrics: [
+        { label: "Power use", value: "13.43 MW" },
+        { label: "heat", value: "2" },
+      ],
+      problems: [{ kind: "warning", message: "Clock speed 150 % needs a power shard" }],
+    });
+    expect(inspectNode({ document, pack, results, nodeId: "free", plugin })).toMatchObject({
+      fields: { clock },
+      values: {},
+      metrics: [],
+      problems: [],
+    });
   });
 
   it("shows nothing for a node that isn't there", () => {

@@ -43,11 +43,22 @@ describe("a factory's summary", () => {
     });
   });
 
-  it("uses the plugin's power where it derives one", () => {
+  it("uses the plugin's power where it derives one (Satisfactory's `power`, in MW)", () => {
     const derived = structuredClone(works.results);
-    for (const result of Object.values(derived.nodes)) result.derived = { powerMW: 2 };
+    for (const result of Object.values(derived.nodes)) result.derived = { power: 2 };
     const recipes = Object.values(works.document.graph.nodes).filter((node) => node.kind === "recipe").length;
     expect(factorySummary(works.document, templatePack, derived).powerMW).toBeCloseTo(2 * recipes, 9);
+  });
+
+  it("adds up items whose ids are also names on plain objects", () => {
+    const results: AnalysisResults = {
+      ...works.results,
+      diagnostics: [
+        { kind: "surplus", node: "a", item: "constructor", perSecond: 1 },
+        { kind: "surplus", node: "b", item: "constructor", perSecond: 2 },
+      ],
+    };
+    expect(factorySummary(works.document, templatePack, results).byproducts).toEqual({ constructor: 3 });
   });
 
   it("counts shortages and unused byproducts from the diagnostics", () => {

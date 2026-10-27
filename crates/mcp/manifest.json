@@ -1,0 +1,1014 @@
+{
+  "instructions": "Carbonara is a node-based factory planner for automation games. A document is a factory: a graph of recipe nodes (machines running a recipe), sources (raw inputs), sinks (targets) and junctions, connected by edges that each carry one item. Carbonara solves every document for the rates of every edge and the number of machines of every node.\n\nTools take a documentId; \"active\" names the document on screen. Rates in results are items per second. Read tools are always allowed. Planning, editing and pack authoring tools only work once the person allows them in Carbonara (AI access); if a tool is refused, ask them to switch its group on. Every edit is one undoable step in the document's history, shown as \"AI: <label>\".",
+  "tools": [
+    {
+      "name": "list_documents",
+      "description": "List the factory documents open in Carbonara: id, name, game pack and version.",
+      "group": "read",
+      "manager": "workspace",
+      "method": "listDocuments",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_graph",
+      "description": "A document's graph: its nodes (recipes, sources, sinks, junctions …), the edges between them and the nodes' positions. Large graphs come back summarised: node counts per recipe and item instead of every node.",
+      "group": "read",
+      "manager": "editing",
+      "method": "getDocument",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The document's id from list_documents, or \"active\" for the document on screen in Carbonara."
+          }
+        },
+        "required": [
+          "documentId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "edit_graph",
+      "description": "Change a document with a batch of commands: add nodes, connect them, set node fields, rates and pins, move, disconnect or remove nodes. The whole batch is one step in the undo history; give it a short label saying what it does, such as \"Add steel smelting\". Nodes connect by item; recipe nodes take recipe ids from get_pack_data. Positions are canvas pixels: lay nodes out left to right along the flow, about 320 apart. Answers the document's new version, or the problems that stopped the batch.",
+      "group": "edit",
+      "manager": "editing",
+      "method": "apply",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The document's id from list_documents, or \"active\" for the document on screen in Carbonara."
+          },
+          "commands": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "addNode"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "description": "Chosen by the manager when left out.",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "node": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "recipe"
+                            },
+                            "recipe": {
+                              "type": "string",
+                              "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                            },
+                            "building": {
+                              "description": "One of the recipe's buildings; the recipe's first when left out.",
+                              "type": "string",
+                              "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                            },
+                            "fields": {
+                              "description": "Values of the pack plugin's node fields.",
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": [
+                                  "number",
+                                  "string",
+                                  "boolean"
+                                ]
+                              }
+                            },
+                            "pin": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "machines"
+                                    },
+                                    "count": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "count"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "rate"
+                                    },
+                                    "item": {
+                                      "type": "string",
+                                      "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                                    },
+                                    "perSecond": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "item",
+                                    "perSecond"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "recipe"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "source"
+                            },
+                            "item": {
+                              "type": "string",
+                              "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                            },
+                            "maxPerSecond": {
+                              "description": "Most this source supplies; unlimited when left out.",
+                              "type": "number",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "item"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "sink"
+                            },
+                            "item": {
+                              "type": "string",
+                              "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                            },
+                            "targetPerSecond": {
+                              "type": "number",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "item"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "junction",
+                              "description": "Splits and merges flows: splitters, mergers, buses."
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "instance"
+                            },
+                            "blueprint": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "blueprint"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "port"
+                            },
+                            "direction": {
+                              "type": "string",
+                              "enum": [
+                                "in",
+                                "out"
+                              ]
+                            },
+                            "item": {
+                              "type": "string",
+                              "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "direction",
+                            "item"
+                          ],
+                          "description": "A blueprint's boundary."
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "note"
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "text"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "frame"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "tone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "label"
+                          ]
+                        }
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "width": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        "height": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "node",
+                    "position"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "removeNodes"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "ids": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "ids"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "connect"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "edge": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "to": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "fromPort": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "toPort": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "item": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                        },
+                        "logistics": {
+                          "description": "Belt or pipe tier; limits the flow to its capacity.",
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                        },
+                        "ratio": {
+                          "description": "Fixed share of the source node's output of this item.",
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to",
+                        "item"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "edge"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "disconnect"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "ids": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "ids"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "moveNodes"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "positions": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "x": {
+                            "type": "number"
+                          },
+                          "y": {
+                            "type": "number"
+                          },
+                          "width": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "height": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "x",
+                          "y"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "positions"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "setNodeFields"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "fields": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": [
+                          "number",
+                          "string",
+                          "boolean"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id",
+                    "fields"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "setPin"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "pin": {
+                      "anyOf": [
+                        {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "const": "machines"
+                                },
+                                "count": {
+                                  "type": "number",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "count"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "const": "rate"
+                                },
+                                "item": {
+                                  "type": "string",
+                                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                                },
+                                "perSecond": {
+                                  "type": "number",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "item",
+                                "perSecond"
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id",
+                    "pin"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "setPluginSettings"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "settings": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {},
+                      "description": "Merged into the document's `settings.plugin` (the save profile); null removes a setting."
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "settings"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "setRate"
+                    },
+                    "graph": {
+                      "default": "root",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "perSecond": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A source's supply limit or a sink's target, in items per second; null removes it."
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id",
+                    "perSecond"
+                  ]
+                }
+              ]
+            }
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "documentId",
+          "commands"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "undo",
+      "description": "Undo the last change to a document.",
+      "group": "edit",
+      "manager": "editing",
+      "method": "undo",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The document's id from list_documents, or \"active\" for the document on screen in Carbonara."
+          }
+        },
+        "required": [
+          "documentId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_totals",
+      "description": "Totals of a solved document: raw inputs by item (items per second) and buildings by building id. Null while the document isn't solved.",
+      "group": "read",
+      "manager": "analysis",
+      "method": "getResults",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The document's id from list_documents, or \"active\" for the document on screen in Carbonara."
+          },
+          "graph": {
+            "default": "root",
+            "type": "string"
+          }
+        },
+        "required": [
+          "documentId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_diagnostics",
+      "description": "Problems of a solved document: deficits, surpluses (byproducts), overflowing belts and pipes, missed pins and errors, with rates in items per second. An empty list means the factory runs as planned.",
+      "group": "read",
+      "manager": "analysis",
+      "method": "getResults",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The document's id from list_documents, or \"active\" for the document on screen in Carbonara."
+          },
+          "graph": {
+            "default": "root",
+            "type": "string"
+          }
+        },
+        "required": [
+          "documentId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "plan_production",
+      "description": "Plan a production chain that makes the target items at the given rates (items per second) with the document's pack, using as few raw resources (or buildings) as possible. Returns a proposal: the nodes and flows to add next to the existing factory, a summary (buildings, raw inputs, byproducts, power) and anything that can't be met. Nothing changes until the proposal's commands are applied.",
+      "group": "plan",
+      "manager": "planning",
+      "method": "planProduction",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The document's id from list_documents, or \"active\" for the document on screen in Carbonara."
+          },
+          "options": {
+            "default": {
+              "objective": "resources",
+              "alternates": true,
+              "exclude": []
+            },
+            "type": "object",
+            "properties": {
+              "objective": {
+                "default": "resources",
+                "description": "What to use as little of: raw resources, or buildings.",
+                "type": "string",
+                "enum": [
+                  "resources",
+                  "buildings"
+                ]
+              },
+              "alternates": {
+                "default": true,
+                "description": "Whether alternate recipes may be used.",
+                "type": "boolean"
+              },
+              "exclude": {
+                "default": [],
+                "description": "Recipes the plan must not use.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                }
+              }
+            }
+          },
+          "targets": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "item": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                },
+                "perSecond": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Items per second."
+                }
+              },
+              "required": [
+                "item",
+                "perSecond"
+              ]
+            }
+          }
+        },
+        "required": [
+          "documentId",
+          "targets"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "compare_recipes",
+      "description": "Compare the recipes that make an item: plan the item at the given rate (items per second) once with each recipe and report each plan's buildings, raw inputs, byproducts and power, best first.",
+      "group": "plan",
+      "manager": "planning",
+      "method": "compareRecipes",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The document's id from list_documents, or \"active\" for the document on screen in Carbonara."
+          },
+          "options": {
+            "default": {
+              "objective": "resources",
+              "alternates": true,
+              "exclude": []
+            },
+            "type": "object",
+            "properties": {
+              "objective": {
+                "default": "resources",
+                "description": "What to use as little of: raw resources, or buildings.",
+                "type": "string",
+                "enum": [
+                  "resources",
+                  "buildings"
+                ]
+              },
+              "alternates": {
+                "default": true,
+                "description": "Whether alternate recipes may be used.",
+                "type": "boolean"
+              },
+              "exclude": {
+                "default": [],
+                "description": "Recipes the plan must not use.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+                }
+              }
+            }
+          },
+          "item": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+          },
+          "perSecond": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Items per second."
+          }
+        },
+        "required": [
+          "documentId",
+          "item",
+          "perSecond"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_packs",
+      "description": "List the installed game packs.",
+      "group": "read",
+      "manager": "packs",
+      "method": "listPacks",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_pack_data",
+      "description": "A game pack's data: items, recipes (inputs and outputs per craft, seconds per craft, buildings), buildings, logistics (belt and pipe capacities, in the pack's rate unit) and raw resources.",
+      "group": "read",
+      "manager": "packs",
+      "method": "getPackData",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "packId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "packId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "carbonara://schemas/pack-manifest.json",
+      "name": "Pack manifest schema",
+      "description": "JSON Schema of a pack's manifest.yaml.",
+      "mimeType": "application/json",
+      "text": "{\n  \"title\": \"Carbonara pack manifest (manifest.yaml)\",\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"id\": {\n      \"type\": \"string\",\n      \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n    },\n    \"name\": {\n      \"type\": \"string\",\n      \"minLength\": 1\n    },\n    \"version\": {\n      \"type\": \"string\",\n      \"pattern\": \"^\\\\d+\\\\.\\\\d+\\\\.\\\\d+(-[0-9A-Za-z.-]+)?$\"\n    },\n    \"engine\": {\n      \"type\": \"string\",\n      \"pattern\": \"^[\\\\^~]?\\\\d+(\\\\.\\\\d+){0,2}$\",\n      \"description\": \"The pack format and plugin API versions the pack was written for.\"\n    },\n    \"game\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"name\": {\n          \"type\": \"string\",\n          \"minLength\": 1\n        },\n        \"version\": {\n          \"type\": \"string\"\n        }\n      },\n      \"required\": [\n        \"name\"\n      ]\n    },\n    \"data\": {\n      \"default\": \"data/\",\n      \"description\": \"Folder whose files are merged, in name order, into the pack data.\",\n      \"type\": \"string\",\n      \"minLength\": 1\n    },\n    \"plugin\": {\n      \"type\": \"string\",\n      \"minLength\": 1,\n      \"description\": \"The plugin module. Every pack has one; the template's does nothing.\"\n    },\n    \"theme\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"accent\": {\n          \"type\": \"string\",\n          \"pattern\": \"^#[0-9a-fA-F]{6}$\"\n        }\n      }\n    }\n  },\n  \"required\": [\n    \"id\",\n    \"name\",\n    \"version\",\n    \"engine\",\n    \"plugin\"\n  ]\n}\n"
+    },
+    {
+      "uri": "carbonara://schemas/pack-data.json",
+      "name": "Pack data schema",
+      "description": "JSON Schema of a pack's data/*.yaml files.",
+      "mimeType": "application/json",
+      "text": "{\n  \"title\": \"Carbonara pack data file (data/*.yaml)\",\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"units\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"rate\": {\n          \"type\": \"string\",\n          \"enum\": [\n            \"per_second\",\n            \"per_minute\",\n            \"per_hour\"\n          ]\n        }\n      },\n      \"required\": [\n        \"rate\"\n      ]\n    },\n    \"items\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"id\": {\n            \"type\": \"string\",\n            \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n          },\n          \"name\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"form\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"solid\",\n              \"fluid\"\n            ]\n          },\n          \"icon\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"aliases\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"minLength\": 1\n            }\n          }\n        },\n        \"required\": [\n          \"id\",\n          \"name\",\n          \"form\"\n        ]\n      }\n    },\n    \"buildings\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"id\": {\n            \"type\": \"string\",\n            \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n          },\n          \"name\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"icon\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"aliases\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"minLength\": 1\n            }\n          },\n          \"speed\": {\n            \"default\": 1,\n            \"description\": \"Crafting speed: a recipe taking `time` seconds takes `time / speed` in this building.\",\n            \"type\": \"number\",\n            \"exclusiveMinimum\": 0\n          },\n          \"power\": {\n            \"description\": \"Power in MW: what the building consumes or produces at 100%.\",\n            \"type\": \"object\",\n            \"properties\": {\n              \"consume\": {\n                \"type\": \"number\",\n                \"minimum\": 0\n              },\n              \"produce\": {\n                \"type\": \"number\",\n                \"minimum\": 0\n              }\n            }\n          },\n          \"fields\": {\n            \"description\": \"Settings the pack's plugin interprets, such as the clock range.\",\n            \"type\": \"object\",\n            \"propertyNames\": {\n              \"type\": \"string\"\n            },\n            \"additionalProperties\": {\n              \"type\": \"object\",\n              \"propertyNames\": {\n                \"type\": \"string\"\n              },\n              \"additionalProperties\": {\n                \"type\": [\n                  \"number\",\n                  \"string\",\n                  \"boolean\"\n                ]\n              }\n            }\n          }\n        },\n        \"required\": [\n          \"id\",\n          \"name\"\n        ]\n      }\n    },\n    \"recipes\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"id\": {\n            \"type\": \"string\",\n            \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n          },\n          \"name\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"icon\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"buildings\": {\n            \"minItems\": 1,\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n            },\n            \"description\": \"Buildings that can run the recipe; the first is the default.\"\n          },\n          \"time\": {\n            \"type\": \"number\",\n            \"exclusiveMinimum\": 0,\n            \"description\": \"Seconds per craft at speed 1.\"\n          },\n          \"in\": {\n            \"default\": {},\n            \"type\": \"object\",\n            \"propertyNames\": {\n              \"type\": \"string\",\n              \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n            },\n            \"additionalProperties\": {\n              \"type\": \"number\",\n              \"exclusiveMinimum\": 0\n            }\n          },\n          \"out\": {\n            \"type\": \"object\",\n            \"propertyNames\": {\n              \"type\": \"string\",\n              \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n            },\n            \"additionalProperties\": {\n              \"type\": \"number\",\n              \"exclusiveMinimum\": 0\n            },\n            \"description\": \"Amounts per craft; probabilistic outputs are written as expected values.\"\n          },\n          \"tags\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"minLength\": 1\n            }\n          }\n        },\n        \"required\": [\n          \"id\",\n          \"buildings\",\n          \"time\",\n          \"out\"\n        ]\n      }\n    },\n    \"logistics\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"id\": {\n            \"type\": \"string\",\n            \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n          },\n          \"name\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"aliases\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"minLength\": 1\n            }\n          },\n          \"carries\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"solid\",\n              \"fluid\"\n            ]\n          },\n          \"capacity\": {\n            \"type\": \"number\",\n            \"exclusiveMinimum\": 0,\n            \"description\": \"Throughput in the pack's rate unit.\"\n          }\n        },\n        \"required\": [\n          \"id\",\n          \"carries\",\n          \"capacity\"\n        ]\n      }\n    },\n    \"resources\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"item\": {\n            \"type\": \"string\",\n            \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n          },\n          \"limit\": {\n            \"description\": \"The most the map yields, in the pack's rate unit.\",\n            \"type\": \"number\",\n            \"exclusiveMinimum\": 0\n          },\n          \"extractors\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n            }\n          }\n        },\n        \"required\": [\n          \"item\"\n        ]\n      }\n    }\n  }\n}\n"
+    },
+    {
+      "uri": "carbonara://schemas/document.json",
+      "name": "Document schema",
+      "description": "JSON Schema of a Carbonara document: graph, blueprints, layout and settings.",
+      "mimeType": "application/json",
+      "text": "{\n  \"title\": \"Carbonara document (.carbonara)\",\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"format\": {\n      \"type\": \"string\",\n      \"const\": \"carbonara\"\n    },\n    \"version\": {\n      \"type\": \"number\",\n      \"const\": 1\n    },\n    \"id\": {\n      \"type\": \"string\",\n      \"minLength\": 1\n    },\n    \"name\": {\n      \"type\": \"string\"\n    },\n    \"pack\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"id\": {\n          \"type\": \"string\",\n          \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n        },\n        \"version\": {\n          \"type\": \"string\"\n        },\n        \"hash\": {\n          \"type\": \"string\"\n        }\n      },\n      \"required\": [\n        \"id\",\n        \"version\",\n        \"hash\"\n      ]\n    },\n    \"graph\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"nodes\": {\n          \"type\": \"object\",\n          \"propertyNames\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"additionalProperties\": {\n            \"oneOf\": [\n              {\n                \"type\": \"object\",\n                \"properties\": {\n                  \"kind\": {\n                    \"type\": \"string\",\n                    \"const\": \"recipe\"\n                  },\n                  \"recipe\": {\n                    \"type\": \"string\",\n                    \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                  },\n                  \"building\": {\n                    \"description\": \"One of the recipe's buildings; the recipe's first when left out.\",\n                    \"type\": \"string\",\n                    \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                  },\n                  \"fields\": {\n                    \"description\": \"Values of the pack plugin's node fields.\",\n                    \"type\": \"object\",\n                    \"propertyNames\": {\n                      \"type\": \"string\"\n                    },\n                    \"additionalProperties\": {\n                      \"type\": [\n                        \"number\",\n                        \"string\",\n                        \"boolean\"\n                      ]\n                    }\n                  },\n                  \"pin\": {\n                    \"oneOf\": [\n                      {\n                        \"type\": \"object\",\n                        \"properties\": {\n                          \"type\": {\n                            \"type\": \"string\",\n                            \"const\": \"machines\"\n                          },\n                          \"count\": {\n                            \"type\": \"number\",\n                            \"minimum\": 0\n                          }\n                        },\n                        \"required\": [\n                          \"type\",\n                          \"count\"\n                        ]\n                      },\n                      {\n                        \"type\": \"object\",\n                        \"properties\": {\n                          \"type\": {\n                            \"type\": \"string\",\n                            \"const\": \"rate\"\n                          },\n                          \"item\": {\n                            \"type\": \"string\",\n                            \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                          },\n                          \"perSecond\": {\n                            \"type\": \"number\",\n                            \"minimum\": 0\n                          }\n                        },\n                        \"required\": [\n                          \"type\",\n                          \"item\",\n                          \"perSecond\"\n                        ]\n                      }\n                    ]\n                  }\n                },\n                \"required\": [\n                  \"kind\",\n                  \"recipe\"\n                ]\n              },\n              {\n                \"type\": \"object\",\n                \"properties\": {\n                  \"kind\": {\n                    \"type\": \"string\",\n                    \"const\": \"source\"\n                  },\n                  \"item\": {\n                    \"type\": \"string\",\n                    \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                  },\n                  \"maxPerSecond\": {\n                    \"description\": \"Most this source supplies; unlimited when left out.\",\n                    \"type\": \"number\",\n                    \"minimum\": 0\n                  }\n                },\n                \"required\": [\n                  \"kind\",\n                  \"item\"\n                ]\n              },\n              {\n                \"type\": \"object\",\n                \"properties\": {\n                  \"kind\": {\n                    \"type\": \"string\",\n                    \"const\": \"sink\"\n                  },\n                  \"item\": {\n                    \"type\": \"string\",\n                    \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                  },\n                  \"targetPerSecond\": {\n                    \"type\": \"number\",\n                    \"minimum\": 0\n                  }\n                },\n                \"required\": [\n                  \"kind\",\n                  \"item\"\n                ]\n              },\n              {\n                \"type\": \"object\",\n                \"properties\": {\n                  \"kind\": {\n                    \"type\": \"string\",\n                    \"const\": \"junction\",\n                    \"description\": \"Splits and merges flows: splitters, mergers, buses.\"\n                  }\n                },\n                \"required\": [\n                  \"kind\"\n                ]\n              },\n              {\n                \"type\": \"object\",\n                \"properties\": {\n                  \"kind\": {\n                    \"type\": \"string\",\n                    \"const\": \"instance\"\n                  },\n                  \"blueprint\": {\n                    \"type\": \"string\",\n                    \"minLength\": 1\n                  }\n                },\n                \"required\": [\n                  \"kind\",\n                  \"blueprint\"\n                ]\n              },\n              {\n                \"type\": \"object\",\n                \"properties\": {\n                  \"kind\": {\n                    \"type\": \"string\",\n                    \"const\": \"port\"\n                  },\n                  \"direction\": {\n                    \"type\": \"string\",\n                    \"enum\": [\n                      \"in\",\n                      \"out\"\n                    ]\n                  },\n                  \"item\": {\n                    \"type\": \"string\",\n                    \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                  }\n                },\n                \"required\": [\n                  \"kind\",\n                  \"direction\",\n                  \"item\"\n                ],\n                \"description\": \"A blueprint's boundary.\"\n              },\n              {\n                \"type\": \"object\",\n                \"properties\": {\n                  \"kind\": {\n                    \"type\": \"string\",\n                    \"const\": \"note\"\n                  },\n                  \"text\": {\n                    \"type\": \"string\"\n                  }\n                },\n                \"required\": [\n                  \"kind\",\n                  \"text\"\n                ]\n              },\n              {\n                \"type\": \"object\",\n                \"properties\": {\n                  \"kind\": {\n                    \"type\": \"string\",\n                    \"const\": \"frame\"\n                  },\n                  \"label\": {\n                    \"type\": \"string\"\n                  },\n                  \"tone\": {\n                    \"type\": \"string\"\n                  }\n                },\n                \"required\": [\n                  \"kind\",\n                  \"label\"\n                ]\n              }\n            ]\n          }\n        },\n        \"edges\": {\n          \"type\": \"object\",\n          \"propertyNames\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"additionalProperties\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"from\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"to\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"fromPort\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"toPort\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"item\": {\n                \"type\": \"string\",\n                \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n              },\n              \"logistics\": {\n                \"description\": \"Belt or pipe tier; limits the flow to its capacity.\",\n                \"type\": \"string\",\n                \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n              },\n              \"ratio\": {\n                \"description\": \"Fixed share of the source node's output of this item.\",\n                \"type\": \"number\",\n                \"minimum\": 0,\n                \"maximum\": 1\n              }\n            },\n            \"required\": [\n              \"from\",\n              \"to\",\n              \"item\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"nodes\",\n        \"edges\"\n      ]\n    },\n    \"blueprints\": {\n      \"default\": {},\n      \"type\": \"object\",\n      \"propertyNames\": {\n        \"type\": \"string\",\n        \"minLength\": 1\n      },\n      \"additionalProperties\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"name\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"graph\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"nodes\": {\n                \"type\": \"object\",\n                \"propertyNames\": {\n                  \"type\": \"string\",\n                  \"minLength\": 1\n                },\n                \"additionalProperties\": {\n                  \"oneOf\": [\n                    {\n                      \"type\": \"object\",\n                      \"properties\": {\n                        \"kind\": {\n                          \"type\": \"string\",\n                          \"const\": \"recipe\"\n                        },\n                        \"recipe\": {\n                          \"type\": \"string\",\n                          \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                        },\n                        \"building\": {\n                          \"description\": \"One of the recipe's buildings; the recipe's first when left out.\",\n                          \"type\": \"string\",\n                          \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                        },\n                        \"fields\": {\n                          \"description\": \"Values of the pack plugin's node fields.\",\n                          \"type\": \"object\",\n                          \"propertyNames\": {\n                            \"type\": \"string\"\n                          },\n                          \"additionalProperties\": {\n                            \"type\": [\n                              \"number\",\n                              \"string\",\n                              \"boolean\"\n                            ]\n                          }\n                        },\n                        \"pin\": {\n                          \"oneOf\": [\n                            {\n                              \"type\": \"object\",\n                              \"properties\": {\n                                \"type\": {\n                                  \"type\": \"string\",\n                                  \"const\": \"machines\"\n                                },\n                                \"count\": {\n                                  \"type\": \"number\",\n                                  \"minimum\": 0\n                                }\n                              },\n                              \"required\": [\n                                \"type\",\n                                \"count\"\n                              ]\n                            },\n                            {\n                              \"type\": \"object\",\n                              \"properties\": {\n                                \"type\": {\n                                  \"type\": \"string\",\n                                  \"const\": \"rate\"\n                                },\n                                \"item\": {\n                                  \"type\": \"string\",\n                                  \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                                },\n                                \"perSecond\": {\n                                  \"type\": \"number\",\n                                  \"minimum\": 0\n                                }\n                              },\n                              \"required\": [\n                                \"type\",\n                                \"item\",\n                                \"perSecond\"\n                              ]\n                            }\n                          ]\n                        }\n                      },\n                      \"required\": [\n                        \"kind\",\n                        \"recipe\"\n                      ]\n                    },\n                    {\n                      \"type\": \"object\",\n                      \"properties\": {\n                        \"kind\": {\n                          \"type\": \"string\",\n                          \"const\": \"source\"\n                        },\n                        \"item\": {\n                          \"type\": \"string\",\n                          \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                        },\n                        \"maxPerSecond\": {\n                          \"description\": \"Most this source supplies; unlimited when left out.\",\n                          \"type\": \"number\",\n                          \"minimum\": 0\n                        }\n                      },\n                      \"required\": [\n                        \"kind\",\n                        \"item\"\n                      ]\n                    },\n                    {\n                      \"type\": \"object\",\n                      \"properties\": {\n                        \"kind\": {\n                          \"type\": \"string\",\n                          \"const\": \"sink\"\n                        },\n                        \"item\": {\n                          \"type\": \"string\",\n                          \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                        },\n                        \"targetPerSecond\": {\n                          \"type\": \"number\",\n                          \"minimum\": 0\n                        }\n                      },\n                      \"required\": [\n                        \"kind\",\n                        \"item\"\n                      ]\n                    },\n                    {\n                      \"type\": \"object\",\n                      \"properties\": {\n                        \"kind\": {\n                          \"type\": \"string\",\n                          \"const\": \"junction\",\n                          \"description\": \"Splits and merges flows: splitters, mergers, buses.\"\n                        }\n                      },\n                      \"required\": [\n                        \"kind\"\n                      ]\n                    },\n                    {\n                      \"type\": \"object\",\n                      \"properties\": {\n                        \"kind\": {\n                          \"type\": \"string\",\n                          \"const\": \"instance\"\n                        },\n                        \"blueprint\": {\n                          \"type\": \"string\",\n                          \"minLength\": 1\n                        }\n                      },\n                      \"required\": [\n                        \"kind\",\n                        \"blueprint\"\n                      ]\n                    },\n                    {\n                      \"type\": \"object\",\n                      \"properties\": {\n                        \"kind\": {\n                          \"type\": \"string\",\n                          \"const\": \"port\"\n                        },\n                        \"direction\": {\n                          \"type\": \"string\",\n                          \"enum\": [\n                            \"in\",\n                            \"out\"\n                          ]\n                        },\n                        \"item\": {\n                          \"type\": \"string\",\n                          \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                        }\n                      },\n                      \"required\": [\n                        \"kind\",\n                        \"direction\",\n                        \"item\"\n                      ],\n                      \"description\": \"A blueprint's boundary.\"\n                    },\n                    {\n                      \"type\": \"object\",\n                      \"properties\": {\n                        \"kind\": {\n                          \"type\": \"string\",\n                          \"const\": \"note\"\n                        },\n                        \"text\": {\n                          \"type\": \"string\"\n                        }\n                      },\n                      \"required\": [\n                        \"kind\",\n                        \"text\"\n                      ]\n                    },\n                    {\n                      \"type\": \"object\",\n                      \"properties\": {\n                        \"kind\": {\n                          \"type\": \"string\",\n                          \"const\": \"frame\"\n                        },\n                        \"label\": {\n                          \"type\": \"string\"\n                        },\n                        \"tone\": {\n                          \"type\": \"string\"\n                        }\n                      },\n                      \"required\": [\n                        \"kind\",\n                        \"label\"\n                      ]\n                    }\n                  ]\n                }\n              },\n              \"edges\": {\n                \"type\": \"object\",\n                \"propertyNames\": {\n                  \"type\": \"string\",\n                  \"minLength\": 1\n                },\n                \"additionalProperties\": {\n                  \"type\": \"object\",\n                  \"properties\": {\n                    \"from\": {\n                      \"type\": \"string\",\n                      \"minLength\": 1\n                    },\n                    \"to\": {\n                      \"type\": \"string\",\n                      \"minLength\": 1\n                    },\n                    \"fromPort\": {\n                      \"type\": \"string\",\n                      \"minLength\": 1\n                    },\n                    \"toPort\": {\n                      \"type\": \"string\",\n                      \"minLength\": 1\n                    },\n                    \"item\": {\n                      \"type\": \"string\",\n                      \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                    },\n                    \"logistics\": {\n                      \"description\": \"Belt or pipe tier; limits the flow to its capacity.\",\n                      \"type\": \"string\",\n                      \"pattern\": \"^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$\"\n                    },\n                    \"ratio\": {\n                      \"description\": \"Fixed share of the source node's output of this item.\",\n                      \"type\": \"number\",\n                      \"minimum\": 0,\n                      \"maximum\": 1\n                    }\n                  },\n                  \"required\": [\n                    \"from\",\n                    \"to\",\n                    \"item\"\n                  ]\n                }\n              }\n            },\n            \"required\": [\n              \"nodes\",\n              \"edges\"\n            ]\n          }\n        },\n        \"required\": [\n          \"name\",\n          \"graph\"\n        ]\n      }\n    },\n    \"layout\": {\n      \"default\": {},\n      \"type\": \"object\",\n      \"propertyNames\": {\n        \"type\": \"string\"\n      },\n      \"additionalProperties\": {\n        \"type\": \"object\",\n        \"propertyNames\": {\n          \"type\": \"string\",\n          \"minLength\": 1\n        },\n        \"additionalProperties\": {\n          \"type\": \"object\",\n          \"properties\": {\n            \"x\": {\n              \"type\": \"number\"\n            },\n            \"y\": {\n              \"type\": \"number\"\n            },\n            \"width\": {\n              \"type\": \"number\",\n              \"exclusiveMinimum\": 0\n            },\n            \"height\": {\n              \"type\": \"number\",\n              \"exclusiveMinimum\": 0\n            }\n          },\n          \"required\": [\n            \"x\",\n            \"y\"\n          ]\n        }\n      }\n    },\n    \"settings\": {\n      \"default\": {},\n      \"type\": \"object\",\n      \"properties\": {\n        \"rateUnit\": {\n          \"type\": \"string\",\n          \"enum\": [\n            \"per_second\",\n            \"per_minute\",\n            \"per_hour\"\n          ]\n        },\n        \"plugin\": {\n          \"description\": \"Settings of the pack's plugin, e.g. a save profile.\",\n          \"type\": \"object\",\n          \"propertyNames\": {\n            \"type\": \"string\"\n          },\n          \"additionalProperties\": {}\n        }\n      }\n    }\n  },\n  \"required\": [\n    \"format\",\n    \"version\",\n    \"id\",\n    \"name\",\n    \"pack\",\n    \"graph\"\n  ]\n}\n"
+    },
+    {
+      "uri": "carbonara://docs/plugin-api.ts",
+      "name": "Plugin API",
+      "description": "The TypeScript API a pack's plugin implements (plugin/index.ts), with its documentation.",
+      "mimeType": "text/x-typescript",
+      "text": "// The API a game pack's plugin implements (docs/Architecture/Plugins.md). Every hook is optional.\n// Hooks are added when a pack needs them, not before.\nimport type { LocalId } from \"./document\";\nimport type { Building, Id, PackData, PackDataFile, Recipe } from \"./pack\";\nimport type { Comparison } from \"./solver\";\n\nexport type FieldValue = number | string | boolean;\n\n/** A node setting the inspector renders without plugin UI code. */\nexport type FieldDescriptor =\n  | { kind: \"number\"; label: string; min: number; max: number; step?: number; unit?: string; default: number }\n  | { kind: \"choice\"; label: string; options: string[]; default: string }\n  | { kind: \"toggle\"; label: string; default: boolean };\n\n/** How the inspector names a metric that `derive` returns. */\nexport interface MetricDescriptor {\n  label: string;\n  unit?: string;\n}\n\n/** What the plugin sees of the document and the pack. */\nexport interface PluginContext {\n  pack: PackData;\n  /** The document's settings for this plugin (`settings.plugin`), such as a save profile with unlocked recipes. */\n  settings: Record<string, unknown>;\n}\n\nexport interface NodeContext {\n  recipe: Recipe;\n  building: Building;\n  /** The node's field values: every field the plugin declares, checked against its descriptor, defaults filled in. */\n  fields: Record<string, FieldValue>;\n}\n\n/** A recipe node as the `constraints` hook sees it. */\nexport interface PluginNode extends NodeContext {\n  id: LocalId;\n}\n\n/** A recipe as one node runs it: amounts per craft and seconds per craft, all modifiers applied. */\nexport interface EffectiveRecipe {\n  time: number;\n  in: Record<string, number>;\n  out: Record<string, number>;\n}\n\n/** `Σ coefficient · machines(node)  op  rhs` over recipe nodes, by id. Hard: a solve that can't meet it fails. */\nexport interface PluginConstraint {\n  terms: { node: LocalId; coefficient: number }[];\n  op: Comparison;\n  rhs: number;\n}\n\n/** Something wrong with a node's settings, shown on the node. */\nexport interface PluginProblem {\n  kind: \"error\" | \"warning\";\n  message: string;\n}\n\nexport interface Plugin {\n  id: string;\n  /** Node fields for nodes running in this building. */\n  nodeFields?(building: Building, context: PluginContext): Record<string, FieldDescriptor>;\n  /** Document-wide settings (budgets of a save profile), stored in `settings.plugin` and shown in the Save profile. */\n  settingsFields?(context: PluginContext): Record<string, FieldDescriptor>;\n  /** How the inspector names the metrics `derive` returns, by key. */\n  metrics?: Record<string, MetricDescriptor>;\n  /** Whether the recipe may be used, e.g. alternates that aren't unlocked yet. */\n  recipeAvailable?(recipe: Recipe, context: PluginContext): boolean;\n  /** Pre-solve: the recipe as this node runs it. Must stay linear in the machine count. */\n  effectiveRecipe?(node: NodeContext, context: PluginContext): EffectiveRecipe;\n  /** Pre-solve: linear constraints over machine counts, such as a global budget of a scarce item. */\n  constraints?(nodes: PluginNode[], context: PluginContext): PluginConstraint[];\n  /** Pre-solve: what's wrong with a node's settings, shown as warnings or errors on it. */\n  validate?(node: NodeContext, context: PluginContext): PluginProblem[];\n  /** Post-solve metrics; non-linear is fine here (e.g. the Satisfactory power curve). */\n  derive?(node: NodeContext & { machines: number }, context: PluginContext): Record<string, number>;\n  /** Maintainer tooling: regenerate the pack data from the game's own files. */\n  importer?: {\n    accepts: string[];\n    run(files: Record<string, Uint8Array>): { data: PackDataFile; icons: Record<string, Uint8Array> };\n  };\n}\n\n/** Identity function that gives plugin authors type checking. */\nexport function definePlugin(plugin: Plugin): Plugin {\n  return plugin;\n}\n\n/** What a client needs to show a plugin's settings and metrics without running its code (`packs.describePlugin`). */\nexport interface PluginDescription {\n  /** Node fields by building id; buildings without fields are left out. */\n  nodeFields: Record<Id, Record<string, FieldDescriptor>>;\n  settingsFields: Record<string, FieldDescriptor>;\n  metrics: Record<string, MetricDescriptor>;\n}\n\n/**\n * The save profile's unlocked alternate recipes: `settings.plugin.unlocked`, a list of recipe ids. The Save profile\n * panel edits it and plugins read it in `recipeAvailable`. Undefined (no profile) means every alternate is unlocked.\n */\nexport const UNLOCKED_SETTING = \"unlocked\";\n\nexport function unlockedRecipes(settings: Record<string, unknown>): Id[] | undefined {\n  const unlocked = settings[UNLOCKED_SETTING];\n  return Array.isArray(unlocked) ? unlocked.filter((id): id is Id => typeof id === \"string\") : undefined;\n}\n\n/** Recipes the save profile governs: those tagged `alternate`. */\nexport const isAlternate = (recipe: Recipe): boolean => recipe.tags?.includes(\"alternate\") === true;\n"
+    },
+    {
+      "uri": "carbonara://documents/active",
+      "name": "Active document",
+      "description": "The graph of the document on screen in Carbonara, summarised when it's large.",
+      "mimeType": "application/json",
+      "tool": "get_graph",
+      "arguments": {
+        "documentId": "active"
+      }
+    }
+  ],
+  "prompts": [
+    {
+      "name": "design_production_line",
+      "description": "Design a production line for an item and a rate in the document on screen.",
+      "arguments": [
+        {
+          "name": "item",
+          "description": "What to make, such as steel plate.",
+          "required": true
+        },
+        {
+          "name": "rate",
+          "description": "How much, such as \"2 full yellow belts\" or \"60 per minute\".",
+          "required": true
+        }
+      ],
+      "text": "Design a production line in Carbonara that makes {{item}} at {{rate}}.\n\n1. Work in the document on screen (documentId \"active\") unless I name another one. Read its game pack with get_pack_data: the item, the recipes that make it and, if the rate is given in belts, the belt's capacity (logistics, in the pack's rate unit).\n2. Convert the rate to items per second.\n3. If plan_production is available, plan with it and show me the proposal. Otherwise build the line with one edit_graph batch: a sink with the target rate, a recipe node for each step, sources for the raw inputs, and edges between them. Label the batch.\n4. Check get_diagnostics and fix any deficit. Then report get_totals: machines per building and raw inputs."
+    },
+    {
+      "name": "create_pack",
+      "description": "Create a Carbonara game pack for a game.",
+      "arguments": [
+        {
+          "name": "game",
+          "description": "The game the pack is for.",
+          "required": true
+        }
+      ],
+      "text": "Help me create a Carbonara game pack for {{game}}.\n\nRead the resources carbonara://schemas/pack-manifest.json, carbonara://schemas/pack-data.json and carbonara://docs/plugin-api.ts first. A pack is a folder with a manifest.yaml, data/*.yaml files (items, buildings, recipes, logistics, resources) and, for rules the data can't express, a plugin/index.ts. Take the numbers from the game's own data, and use no assets the game's publisher hasn't allowed. Write the files for me, then have me run `pnpm carbonara-pack validate <folder>` and fix what it reports."
+    }
+  ]
+}

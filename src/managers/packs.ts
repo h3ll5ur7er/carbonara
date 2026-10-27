@@ -3,6 +3,7 @@
 import { openArchive, sha256 } from "../access/packs/archive";
 import type { PackLibrary } from "../access/packs/library";
 import type { Events, ManagerImplementation } from "../contracts/managers";
+import { runtimeOf } from "../engines/compiler";
 import { readManifest, readPackFiles } from "../engines/packs/files";
 import type { EventBus } from "../utilities/events";
 
@@ -13,15 +14,19 @@ export interface PacksManagerOptions {
 
 export function createPacksManager({ library, bus }: PacksManagerOptions): ManagerImplementation<"packs"> {
   const announce = async () => bus.publish("packsChanged", { packs: await library.list() });
+  async function loaded(packId: string) {
+    const pack = await library.get(packId);
+    if (!pack) throw new Error(`Unknown pack '${packId}'`);
+    return pack;
+  }
 
   return {
     listPacks: () => library.list(),
 
-    async getPackData({ packId }) {
-      const pack = await library.get(packId);
-      if (!pack) throw new Error(`Unknown pack '${packId}'`);
-      return pack.data;
-    },
+    getPackData: async ({ packId }) => (await loaded(packId)).data,
+
+    // Asks the plugin where it runs: third-party plugins never run in the client or the backend worker.
+    describePlugin: async ({ packId, settings }) => runtimeOf(await loaded(packId)).describe(settings),
 
     // Runs no pack code: this is what the trust prompt shows before the user decides.
     async inspectPack({ bytes }) {

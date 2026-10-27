@@ -45,7 +45,7 @@ test("copies a share link that opens a copy of the factory", async ({ page, cont
   await context.grantPermissions(["clipboard-read", "clipboard-write"], baseURL ? { origin: baseURL } : {});
   await newFactory(page, "Shared plan");
   await page.keyboard.press("ControlOrMeta+Shift+E");
-  await expect(page.getByText("Share link copied")).toBeVisible();
+  await expect(page.getByText("Share link copied", { exact: true })).toBeVisible();
   const link = await page.evaluate(() => navigator.clipboard.readText());
   expect(link).toMatch(/#doc=[A-Za-z0-9_-]+$/);
 

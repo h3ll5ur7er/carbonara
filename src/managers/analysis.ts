@@ -4,7 +4,7 @@
 import type { DocumentStore, PackStore } from "../contracts/access";
 import type { Events, ManagerImplementation } from "../contracts/managers";
 import type { AnalysisResults } from "../contracts/results";
-import { compile, toResults } from "../engines/compiler";
+import { runtimeOf } from "../engines/compiler";
 import { createSolver, type IncrementalSolver } from "../engines/solver";
 import type { EventBus } from "../utilities/events";
 
@@ -66,9 +66,10 @@ export function createAnalysisManager({ bus, documents, packs }: AnalysisDepende
         state,
         unsolved(documentId, version, `The pack "${document.pack.id}" isn't installed`),
       );
-    const compiled = compile({ document, pack: pack.data, plugin: pack.plugin });
+    // Built-in plugins compile right here; third-party ones in their sandbox, in one round trip.
+    const compiled = await runtimeOf(pack).compile(document);
     state.solver ??= await createSolver();
-    publish(documentId, state, toResults(compiled, state.solver.solve(compiled.model), pack.plugin, version));
+    publish(documentId, state, await compiled.results(state.solver.solve(compiled.model), version));
   }
 
   function publish(documentId: string, state: DocumentState, results: AnalysisResults) {

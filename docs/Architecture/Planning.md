@@ -18,12 +18,12 @@ sequenceDiagram
   C->>M: planProduction(documentId, targets, options)
   M->>P: buildSuperstructure(document, pack, plugin, targets, options)
   P-->>M: superstructure (a document graph) + roles
-  M->>K: compile(superstructure)
-  K-->>M: model
+  M->>K: runtimeOf(pack).compile(superstructure)
+  K-->>M: model (+ results mapping)
   M->>P: weigh(model, objective)
   M->>S: solve(weighed model)
   S-->>M: solution
-  M->>K: toResults(solution)
+  M->>K: results(solution)
   M->>P: propose(superstructure, results, document)
   P-->>M: proposal
   M-->>C: Result<Proposal>
@@ -53,6 +53,8 @@ sequenceDiagram
 
 The small weight breaks ties and keeps zero-cost loops from running. Machines are priced per machine (fractional), in the recipe's default building.
 
+The manager compiles through the pack's plugin runtime (`runtimeOf`), so third-party packs compile in their sandbox, and the compiled model doesn't name its nodes. `weigh` tells them apart by the compiler's conventions ([[Architecture/Solver]], From documents to the IR): a raw source costs 1, a sink has a single negative rate, junctions are junctions, and everything else is a machine. An isolated plugin can't be asked `recipeAvailable` from the manager, so for third-party packs every recipe is a candidate (the compiled plan then carries the compiler's "isn't unlocked" warnings).
+
 ## Proposal
 
 `propose` ([[src/engines/planning/proposal.ts]]) reads the solve in superstructure ids and builds the `Proposal`:
@@ -62,7 +64,7 @@ The small weight breaks ties and keeps zero-cost loops from running. Machines ar
 - **Layout** ([[src/engines/planning/layout.ts]]): layered, left to right. A depth-first walk from the raw inputs drops the edges that close cycles; every node goes one column right of its furthest input; raw inputs take the first column and targets the last; columns are ordered by the barycentre of their neighbours; nodes line up with what feeds them (raw inputs with what they feed) and land on the grid. Node sizes approximate the canvas geometry, which the engines can't import. It's a stand-in until the `layout` engine ([[CARB-49]]); auto-arrange tidies up further.
 - **Placement:** right of the document's factory with an 8-grid gap, level with its top; at the origin in an empty document.
 - **Commands:** `addNode` for each node, then `connect` for each flow, for one `editing.apply` batch (one undo step).
-- **Preview results** under the commands' ids (machine counts, rates, flows) for the ghost, and a **summary**: buildings (rounded up per node), raw inputs, byproducts, shortfalls (deficits, e.g. when a raw input hits its map limit) and power (the plugin's derived `powerMW`, else the building's `power.consume` × machines).
+- **Preview results** under the commands' ids (machine counts, rates, flows) for the ghost, and a **summary**: buildings (rounded up per node), raw inputs, byproducts, shortfalls (deficits, e.g. when a raw input hits its map limit) and power (the plugin's derived `power`, Satisfactory's metric in MW, or `powerMW`; else the building's `power.consume` × machines).
 
 Accepting a proposal gives a document whose own solve has no deficits and the same raw use (tested for every item the template pack makes, in [[src/managers/planning.test.ts]]).
 
@@ -75,3 +77,5 @@ Accepting a proposal gives a document whose own solve has no deficits and the sa
 - Recipes run in their default building; choosing buildings (a faster assembler) would be one candidate per recipe and building.
 - Flows get no belt or pipe; the plan's flows are as wide as they need to be.
 - The plan doesn't use what the existing factory already makes; it's planned on its own.
+- Raw inputs all weigh the same per item/s. With Factorio's Space Age data, "fewest raw items" for steel prefers asteroid crushing and foundry casting (3.2 chunks/s) over 150 iron ore/s; excluding the foundry, crusher, electromagnetic plant and recycler recipes gives the ore plan (960 stone furnaces, the default building). Per-resource weights or a plugin `recipeAvailable` tied to a save profile would make this choice explicit.
+- Planning the whole Factorio pack takes about 2 s (the superstructure reaches much of the pack through asteroid recipes); about 20 ms with Space Age excluded.

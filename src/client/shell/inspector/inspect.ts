@@ -1,9 +1,10 @@
 // What the inspector shows for a node, and the edit its production control makes. The production settings
-// (a recipe's machine count, a sink's target, a source's limit) belong to every node of their kind; the
-// plugin's fields come on top once the backend can describe them (CARB-41).
+// (a recipe's machine count, a sink's target, a source's limit) belong to every node of their kind; the pack
+// plugin's fields, its derived metrics and its warnings come on top, from the plugin's description.
 import type { CommandInput } from "../../../contracts/commands";
 import type { Document, Node } from "../../../contracts/document";
 import type { PackData, RateUnit } from "../../../contracts/pack";
+import type { PluginDescription } from "../../../contracts/plugin";
 import type { AnalysisResults } from "../../../contracts/results";
 import { clean, formatMachines, formatNumber } from "../../../utilities/numbers";
 import { fromPerSecond, rateSuffix, toPerSecond } from "../../../utilities/units";
@@ -26,11 +27,13 @@ export interface InspectInput {
   pack: PackData;
   results: AnalysisResults | null | undefined;
   nodeId: string;
+  /** The pack plugin's fields and metrics; without it, recipe nodes show no plugin fields. */
+  plugin?: PluginDescription | undefined;
 }
 
 const rateUnitOf = (document: Document, pack: PackData): RateUnit => document.settings.rateUnit ?? pack.units.rate;
 
-export function inspectNode({ document, pack, results, nodeId }: InspectInput): InspectedNode | null {
+export function inspectNode({ document, pack, results, nodeId, plugin }: InspectInput): InspectedNode | null {
   const node = document.graph.nodes[nodeId];
   if (!node) return null;
   const unit = rateUnitOf(document, pack);
@@ -43,8 +46,22 @@ export function inspectNode({ document, pack, results, nodeId }: InspectInput): 
       const buildingId = node.building ?? recipe?.buildings[0];
       const building = pack.buildings.find((candidate) => candidate.id === buildingId);
       const running = activity !== undefined && clean(activity) > 0 ? ` · ${formatMachines(activity)}` : "";
+      const derived = Object.entries(results?.nodes[nodeId]?.derived ?? {});
       return {
-        ...base,
+        fields: (buildingId && plugin?.nodeFields[buildingId]) || {},
+        values: node.fields ?? {},
+        metrics: derived.map(([key, value]) => {
+          const metric = plugin?.metrics[key];
+          return {
+            label: metric?.label ?? key,
+            value: `${formatNumber(value, 2)}${metric?.unit ? ` ${metric.unit}` : ""}`,
+          };
+        }),
+        problems: (results?.diagnostics ?? []).flatMap((diagnostic) =>
+          (diagnostic.kind === "warning" || diagnostic.kind === "error") && diagnostic.node === nodeId
+            ? [{ kind: diagnostic.kind, message: diagnostic.message }]
+            : [],
+        ),
         title: recipeName(pack, node.recipe),
         subtitle: `${building?.name ?? buildingId ?? "Unknown building"}${running}`,
         production: {

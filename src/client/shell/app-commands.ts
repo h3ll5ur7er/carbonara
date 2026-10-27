@@ -1,6 +1,6 @@
 // The app's commands. Register every new action here (or in a registry built from these), so the palette,
 // the menus and the keyboard all reach it.
-import { Command, Download, FilePlus, FolderOpen, Link, PanelLeft, PanelRight, SunMoon, X } from "lucide-react";
+import { Bot, Command, Download, FilePlus, FolderOpen, Link, PanelLeft, PanelRight, SunMoon, X } from "lucide-react";
 import { canvasCommands } from "../canvas/commands";
 import { plannerCommands } from "../features/planner/commands";
 import { totalsCommands } from "../features/totals/commands";
@@ -9,6 +9,7 @@ import { heatmapCommands } from "../features/heatmap/commands";
 import { createCommandRegistry, type CommandDefinition } from "../core/commands";
 import { paletteCommandId } from "../features/command-palette/command-palette";
 import { documentActions } from "../features/documents/actions";
+import { setMcpDialogOpen } from "../features/mcp/host-store";
 import { togglePalette } from "../features/command-palette/palette-store";
 import { toggleThemePreference } from "../ui/use-theme";
 import { togglePanel } from "./panels";
@@ -101,6 +102,15 @@ export const appCommands: CommandDefinition[] = [
   ...totalsCommands,
   ...sankeyCommands,
   ...heatmapCommands,
+  {
+    id: "ai.access",
+    title: "AI access and activity…",
+    group: "AI",
+    shortcut: "Mod+Shift+A",
+    keywords: ["mcp", "assistant", "claude", "permissions", "log", "connect"],
+    icon: Bot,
+    run: () => setMcpDialogOpen(true),
+  },
 ];
 
 export const appRegistry = createCommandRegistry(appCommands);
