@@ -2,7 +2,7 @@
 id: CARB-65
 title: Polish every scene
 type: improvement
-status: review
+status: done
 priority: high
 labels: [ui]
 wave: "3"
