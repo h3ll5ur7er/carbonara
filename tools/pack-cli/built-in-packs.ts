@@ -1,26 +1,13 @@
-// Bundles the packs in `packs/` into the app at build time, as the virtual module `virtual:built-in-packs`
-// (a list of BuiltInPack, src/access/packs/library.ts). Each pack's data and plugin are separate modules that load on
-// first use. The template pack is included only by the dev server, so the app has something to plan with until
-// the game packs land. Changing a file in `packs/` while the dev server runs rebuilds the packs and reloads the app.
-import { existsSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-import type { Plugin } from "vite";
+// Renders the packs in `packs/` as the source of the virtual modules behind `virtual:built-in-packs` (a list of
+// BuiltInPack, src/access/packs/library.ts): an index, and per pack a data and a plugin module that load on first
+// use. The Vite plugin (vite-plugin.ts) runs this file as a script, which prints the modules as JSON.
 import type { PackInfo } from "../../src/contracts/managers";
 import { fail, ok, type Result } from "../../src/contracts/result";
 import { sha256 } from "../../src/access/packs/archive";
 import { describeIssue } from "../../src/utilities/issues";
 import { packFolder } from "./build";
 
-const INDEX = "virtual:built-in-packs";
-const TEMPLATE = "_template";
-
-/** The folders below `root` that hold a pack, in name order. */
-export function findPackFolders(root: string, includeTemplate: boolean): string[] {
-  return readdirSync(root)
-    .filter((name) => (includeTemplate || name !== TEMPLATE) && existsSync(join(root, name, "manifest.yaml")))
-    .sort()
-    .map((name) => join(root, name));
-}
+export const INDEX = "virtual:built-in-packs";
 
 /** The source of every virtual module, by id; fails with a readable message when a pack is broken. */
 export async function renderBuiltInPacks(folders: string[]): Promise<Result<Map<string, string>, string>> {
@@ -43,40 +30,7 @@ export async function renderBuiltInPacks(folders: string[]): Promise<Result<Map<
   return ok(new Map([[INDEX, `export default [\n${entries.join(",\n")}\n];`], ...modules]));
 }
 
-export function builtInPacks(packsFolder = "packs"): Plugin {
-  const root = resolve(packsFolder);
-  let includeTemplate = false;
-  let modules: Promise<Result<Map<string, string>, string>> | undefined;
-
-  return {
-    name: "carbonara:built-in-packs",
-    configResolved(config) {
-      includeTemplate = config.command === "serve";
-    },
-    resolveId(id) {
-      return id === INDEX || id.startsWith(`${INDEX}/`) ? `\0${id}` : undefined;
-    },
-    async load(id) {
-      if (!id.startsWith(`\0${INDEX}`)) return undefined;
-      modules ??= renderBuiltInPacks(findPackFolders(root, includeTemplate));
-      const result = await modules;
-      if (!result.ok) {
-        modules = undefined;
-        this.error(`Built-in packs don't build:\n${result.error}`);
-      }
-      return result.value.get(id.slice(1));
-    },
-    configureServer(server) {
-      const reload = (file: string) => {
-        if (!file.startsWith(root)) return;
-        modules = undefined;
-        for (const module of server.moduleGraph.idToModuleMap.values()) {
-          if (module.id?.startsWith(`\0${INDEX}`)) server.moduleGraph.invalidateModule(module);
-        }
-        server.ws.send({ type: "full-reload" });
-      };
-      server.watcher.add(root);
-      server.watcher.on("change", reload).on("add", reload).on("unlink", reload);
-    },
-  };
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const result = await renderBuiltInPacks(process.argv.slice(2));
+  process.stdout.write(JSON.stringify(result.ok ? { ok: true, value: [...result.value] } : result));
 }

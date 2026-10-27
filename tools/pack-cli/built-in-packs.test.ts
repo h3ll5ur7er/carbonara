@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { sha256 } from "../../src/access/packs/archive";
 import { packFolder } from "./build";
-import { findPackFolders, renderBuiltInPacks } from "./built-in-packs";
+import { renderBuiltInPacks } from "./built-in-packs";
+import { findPackFolders, renderInChildProcess } from "./vite-plugin";
 
 const importSource = (code: string) => import(/* @vite-ignore */ `data:text/javascript,${encodeURIComponent(code)}`);
 
@@ -41,6 +42,12 @@ describe("built-in packs", () => {
     expect(data.default.recipes).toHaveLength(12);
     const plugin = await importSource(modules.get("virtual:built-in-packs/template/plugin") ?? "");
     expect(plugin.default).toEqual({ id: "template" });
+  });
+
+  it("are built in a child process for the Vite plugin, with the same result", async () => {
+    const inProcess = await renderBuiltInPacks(["packs/_template"]);
+    const child = await renderInChildProcess(["packs/_template"]);
+    expect(child).toEqual({ ok: true, value: inProcess.ok ? [...inProcess.value] : [] });
   });
 
   it("refuse to build when a pack is broken, naming the problem", async () => {

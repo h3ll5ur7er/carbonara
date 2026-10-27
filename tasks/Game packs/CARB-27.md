@@ -24,5 +24,5 @@ Decisions:
 - Trusting is installing: the client inspects first (`inspectPack` runs no pack code), shows the prompt, and installs on confirmation. The manager validates the bytes again on install instead of remembering inspections.
 - The trust prompt shows the issues instead when the pack can't be installed, located by file, line and column.
 - The dialogs use the native `<dialog>` element (focus trap, Escape, top layer) inside the feature until the design system has a dialog primitive ([[CARB-21]]); swap them then.
-- Fixed the layer lint rule so a one-file component's test (`managers/packs.test.ts`) counts as the same component.
+- The workspace and packs managers share one pack library in the composition root, replacing the stand-in `PackStore` the Documents epic left there.
 - No component tests for the dialogs: the client has no DOM test setup yet, so the e2e tests cover the behaviour.

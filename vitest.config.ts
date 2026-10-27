@@ -1,5 +1,5 @@
 import { defineConfig } from "vitest/config";
-import { builtInPacks } from "./tools/pack-cli/built-in-packs";
+import { builtInPacks } from "./tools/pack-cli/vite-plugin.ts";
 
 export default defineConfig({
   plugins: [builtInPacks()],

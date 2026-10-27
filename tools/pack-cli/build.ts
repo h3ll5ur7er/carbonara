@@ -10,6 +10,7 @@ import { readFolder } from "../../src/platforms/node/folder";
 
 /** Zip entries carry a timestamp; a fixed one keeps builds reproducible. */
 const MTIME = "2000-01-01T00:00:00Z";
+export const PLUGIN_SOURCE = "plugin/index.ts";
 
 export interface BuiltPack {
   files: Record<string, Uint8Array>;
@@ -24,15 +25,20 @@ export async function packFolder(folder: string): Promise<Result<BuiltPack>> {
     if (!name.endsWith(".ts")) files[name] = bytes; // plugin sources are bundled below
   }
 
-  const source = join(folder, "plugin", "index.ts");
-  if (exists(source)) {
-    const bundle = await build({ entryPoints: [source], bundle: true, format: "esm", write: false, minify: true });
-    files["plugin/index.js"] = bundle.outputFiles[0]?.contents ?? new Uint8Array();
-  }
+  const plugin = await bundlePlugin(folder);
+  if (plugin) files["plugin/index.js"] = plugin;
 
   const contents = readPackFiles(files);
   if (!contents.ok) return contents;
   return ok({ files, contents: contents.value, archive: zipSync(files, { level: 9, mtime: MTIME }) });
+}
+
+/** `plugin/index.ts` bundled into one ES module, or undefined when the pack's plugin is plain JavaScript. */
+export async function bundlePlugin(folder: string): Promise<Uint8Array | undefined> {
+  const source = join(folder, PLUGIN_SOURCE);
+  if (!exists(source)) return undefined;
+  const bundle = await build({ entryPoints: [source], bundle: true, format: "esm", write: false, minify: true });
+  return bundle.outputFiles[0]?.contents ?? new Uint8Array();
 }
 
 /** Writes `<out>/<id>-<version>.cpack`; writes nothing when the folder isn't a valid pack. */
@@ -51,19 +57,5 @@ function exists(path: string): boolean {
     return statSync(path).isFile();
   } catch {
     return false;
-  }
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const [folder, out] = process.argv.slice(2);
-  if (!folder) {
-    console.error("Usage: pnpm pack:build <pack folder> [output folder]");
-    process.exit(2);
-  }
-  const result = await buildPack(folder, out);
-  if (result.ok) console.log(`Built ${result.value.file}`);
-  else {
-    for (const issue of result.error) console.error(`${issue.path.join(" › ")}: ${issue.message}`);
-    process.exit(1);
   }
 }

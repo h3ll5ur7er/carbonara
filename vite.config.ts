@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { builtInPacks } from "./tools/pack-cli/built-in-packs";
+import { builtInPacks } from "./tools/pack-cli/vite-plugin.ts";
 
 export default defineConfig({
   root: "src/shells/web",

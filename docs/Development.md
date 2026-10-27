@@ -10,6 +10,8 @@ pnpm build:wasm   # the solver's WebAssembly module, needed before the first `pn
 pnpm dev          # http://127.0.0.1:5173
 ```
 
+The dev server builds every pack in `packs/` into the app, the template pack included (production builds leave the template out). Editing a pack reloads the app.
+
 Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in `crates/`.
 
 [TOC]
@@ -28,7 +30,9 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 | `pnpm e2e` | Playwright end-to-end and screenshot tests (starts the dev server itself) |
 | `pnpm format` / `pnpm format:check` | Prettier |
 | `pnpm schema` | Regenerates the JSON Schemas in `schemas/` from the zod contracts |
-| `pnpm pack:build <folder> [out]` | Bundles a pack folder's plugin and zips it into `<out>/<id>-<version>.cpack` (default `dist/packs/`) |
+| `pnpm carbonara-pack <command>` | The pack CLI: `new`, `validate`, `build`, `dev`, `import` ([[Architecture/Game-packs#Authoring]]) |
+| `pnpm pack:build <folder> [--out dist/packs]` | Bundles a pack folder's plugin and zips it into `<out>/<id>-<version>.cpack` |
+| `pnpm pack:import <pack> <file>… [--icons <folder>]…` | Regenerates a pack's data and icons with its plugin's importer |
 | `cargo test` | Rust tests (solver) |
 | `cargo clippy --all-targets -- -D warnings` / `cargo fmt --check` | Rust lint and format |
 
