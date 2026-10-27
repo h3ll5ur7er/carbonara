@@ -110,13 +110,13 @@ export function PortRow({ port, slot, divided }: { port: PortView; slot: NodeSlo
       title={deficit ? `Short of ${port.item.name}` : undefined}
     >
       {!output && <ItemChip item={port.item} size="sm" />}
-      <span className="min-w-0 flex-1 truncate text-xs text-fg-muted">{port.item.name}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">{port.item.name}</span>
       {deficit !== undefined && <ShortIcon />}
       <Rate
         perSecond={rate}
         unit={unit}
         form={port.item.form}
-        className={`text-xs ${deficit ? "text-flow-over-capacity" : "text-fg"}`}
+        className={`text-sm ${deficit ? "text-flow-over-capacity" : "text-fg"}`}
       />
       {output && <ItemChip item={port.item} size="sm" />}
     </li>
