@@ -17,7 +17,7 @@ pub use incremental::Solver;
 
 use formulation::{Hold, Tier};
 use ir::{Comparison, Model, Solution, Unsolvable};
-use program::{Backend, BackendError, MicroLp, Program};
+use program::{Backend, BackendError, MicroLp, Program, Terms};
 pub use validate::{InvalidModel, validate};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,8 +84,31 @@ fn minimise_in_order(
     tiers: &[Tier],
     backend: &impl Backend,
 ) -> Result<Vec<f64>, SolveError> {
+    let tiers: Vec<&Tier> = tiers.iter().filter(|tier| !tier.terms.is_empty()).collect();
     let mut values = None;
-    for tier in tiers.iter().filter(|tier| !tier.terms.is_empty()) {
+    // Shortcut, exact and measured (bench/): when the leading slack tiers can all be zero at once, one LP
+    // proves it, and they're held at zero together. A plan without shortages then needs two LPs fewer;
+    // one with shortages needs one more.
+    let leading = tiers
+        .iter()
+        .take_while(|tier| matches!(tier.hold, Hold::EachSlack))
+        .count();
+    let mut start = 0;
+    if leading > 1 {
+        let combined: Terms = tiers[..leading]
+            .iter()
+            .flat_map(|tier| tier.terms.iter().copied())
+            .collect();
+        let solved = backend.minimise(program, &combined)?;
+        if combined.iter().all(|&(var, _)| solved[var] <= ZERO) {
+            for &(var, _) in &combined {
+                program.bounds[var].1 = 0.0;
+            }
+            values = Some(solved);
+            start = leading;
+        }
+    }
+    for tier in &tiers[start..] {
         let solved = backend.minimise(program, &tier.terms)?;
         match tier.hold {
             Hold::EachSlack => {

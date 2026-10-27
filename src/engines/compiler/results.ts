@@ -34,6 +34,14 @@ export function toResults(
   const item = (index: number) => compiled.items[index] as Id;
   const node = (index: number) => compiled.nodes[index] as string;
 
+  // Edge indices per node, so junctions don't scan every edge.
+  const incoming: number[][] = model.nodes.map(() => []);
+  const outgoing: number[][] = model.nodes.map(() => []);
+  model.edges.forEach((edge, e) => {
+    incoming[edge.to]?.push(e);
+    outgoing[edge.from]?.push(e);
+  });
+
   const nodes: Record<string, NodeResult> = {};
   model.nodes.forEach((modelNode, index) => {
     const activity = solution.activity[index] ?? 0;
@@ -45,11 +53,8 @@ export function toResults(
       else add(outputs, item(rate.item), rate.perSecond * activity);
     }
     if (modelNode.kind === "junction") {
-      model.edges.forEach((edge, e) => {
-        const flow = solution.flow[e] ?? 0;
-        if (edge.to === index) add(inputs, item(edge.item), flow);
-        if (edge.from === index) add(outputs, item(edge.item), flow);
-      });
+      for (const e of incoming[index] ?? []) add(inputs, item(model.edges[e]?.item ?? 0), solution.flow[e] ?? 0);
+      for (const e of outgoing[index] ?? []) add(outputs, item(model.edges[e]?.item ?? 0), solution.flow[e] ?? 0);
     }
     const context = compiled.info[index]?.context;
     const derived = context && plugin.derive?.({ ...context, machines: activity }, compiled.context);

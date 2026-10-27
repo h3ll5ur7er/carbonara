@@ -2,7 +2,8 @@
 mod common;
 
 use carbonara_solver::ir::*;
-use carbonara_solver::{SolveError, solve};
+use carbonara_solver::program::{Backend, BackendError, MicroLp, Program, Var};
+use carbonara_solver::{SolveError, solve, solve_whole};
 use common::*;
 
 const ORE: u32 = 0;
@@ -280,4 +281,43 @@ fn a_node_limited_to_zero_stays_at_zero() {
     chain.nodes[2].pin = Some(0.0);
     let solution = solved(&chain);
     assert_eq!(solution.activity[1], 0.0);
+}
+
+/// Counts the LPs a solve needs.
+struct Counting(std::cell::Cell<usize>);
+
+impl Backend for Counting {
+    fn minimise(
+        &self,
+        program: &Program,
+        objective: &[(Var, f64)],
+    ) -> Result<Vec<f64>, BackendError> {
+        self.0.set(self.0.get() + 1);
+        MicroLp.minimise(program, objective)
+    }
+}
+
+fn lps_for(model: &Model) -> (usize, Solution) {
+    let counting = Counting(std::cell::Cell::new(0));
+    let solution = solve_whole(model, &counting).expect("solvable");
+    (counting.0.get(), solution)
+}
+
+#[test]
+fn a_plan_without_shortages_settles_pins_deficits_and_overflow_in_one_lp() {
+    let mut chain = smelting(1.0, 10.0);
+    chain.edges[0].capacity = Some(5.0);
+    let (lps, solution) = lps_for(&chain);
+    // pins, deficits and overflow at once; then cost; then surplus
+    assert_eq!(lps, 3);
+    assert_eq!(solution, solved(&chain));
+}
+
+#[test]
+fn a_plan_with_shortages_still_settles_each_tier_in_turn() {
+    let mut chain = smelting(4.0, 2.0);
+    chain.edges[0].capacity = Some(1.0);
+    let (lps, solution) = lps_for(&chain);
+    assert_eq!(lps, 6);
+    assert_close(total(&solution.deficit), 2.0);
 }
