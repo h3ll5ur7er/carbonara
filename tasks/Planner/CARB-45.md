@@ -2,7 +2,7 @@
 id: CARB-45
 title: Plan production from goals
 type: feature
-status: review
+status: done
 priority: high
 labels: [planner, engines]
 wave: "2"

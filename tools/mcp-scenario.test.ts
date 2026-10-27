@@ -4,83 +4,29 @@
 // workspace, editing and analysis managers, the Factorio pack and the solver. The Rust side of the trip is tested
 // in crates/mcp.
 //
-// Stand-ins until the real pieces are merged, each marked SWITCH below:
+// Stand-ins until the real pieces exist, each marked SWITCH below:
 // - the client converts "2 full yellow belts" itself, from the pack's logistics, until convert_rate exists
 //   (planning manager);
-// - `fakePlanning` stands in for the planning manager's plan_production (CARB-45);
 // - accepting runs the proposal's commands through edit_graph until apply_proposal exists (CARB-46).
 import { readdirSync, readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
-import { z } from "zod";
 import factorioPlugin from "../packs/factorio/plugin/index";
 import { createMcpAccess } from "../src/client/features/mcp/access";
 import { startMcpBridge } from "../src/client/features/mcp/bridge";
 import type { DocumentStore, LoadedPack, OpenDocument, PackStore } from "../src/contracts/access";
-import { Command, type CommandInput } from "../src/contracts/commands";
-import { managers, type DocumentInfo, type Events, type MethodContract } from "../src/contracts/managers";
+import { managers as contracts, type DocumentInfo, type Events, type Proposal } from "../src/contracts/managers";
 import type { PackData } from "../src/contracts/pack";
+import type { Result } from "../src/contracts/result";
 import type { Request, Response } from "../src/contracts/rpc";
 import { readPackFiles } from "../src/engines/packs/files";
 import { loadSolver } from "../src/engines/solver";
 import { createAnalysisManager } from "../src/managers/analysis";
 import { createEditingManager } from "../src/managers/editing";
+import { createPlanningManager } from "../src/managers/planning";
 import { createWorkspaceManager } from "../src/managers/workspace";
 import { createEventBus } from "../src/utilities/events";
 import { connect, createDispatcher, type Transport } from "../src/utilities/rpc";
 import { buildManifest } from "./mcp-tools";
-
-// SWITCH: the planning manager's contract (CARB-45) replaces this one; its tool comes through the generator as is.
-const Proposal = z.object({
-  summary: z.object({ buildings: z.record(z.string(), z.number()), raw: z.record(z.string(), z.number()) }),
-  commands: z.array(Command),
-});
-type Proposal = z.infer<typeof Proposal>;
-
-const contracts = {
-  ...managers,
-  planning: {
-    planProduction: {
-      args: z.object({ documentId: z.string().min(1), targets: z.record(z.string(), z.number().positive()) }),
-      mcp: {
-        tool: "plan_production",
-        group: "plan",
-        description: "Plan a production line for target rates (items per second) as a proposal.",
-      },
-    } satisfies MethodContract<z.ZodType, Proposal>,
-  },
-};
-
-/**
- * SWITCH: the real planner. This one knows one line, steel from iron ore in steel furnaces (speed 2): a steel
- * plate takes 5 iron plates and 16 s, an iron plate 1 iron ore and 3.2 s.
- */
-const fakePlanning = {
-  async planProduction({ targets }: { documentId: string; targets: Record<string, number> }): Promise<Proposal> {
-    const steel = targets["steel-plate"] ?? 0;
-    const iron = 5 * steel;
-    const furnaces = steel / (2 / 16) + iron / (2 / 3.2);
-    const at = (x: number) => ({ x, y: 0 });
-    const furnace = (recipe: string) => ({ kind: "recipe" as const, recipe, building: "steel-furnace" });
-    const commands: CommandInput[] = [
-      { type: "addNode", id: "ore", node: { kind: "source", item: "iron-ore" }, position: at(0) },
-      { type: "addNode", id: "iron", node: furnace("iron-plate"), position: at(320) },
-      { type: "addNode", id: "steel", node: furnace("steel-plate"), position: at(640) },
-      {
-        type: "addNode",
-        id: "out",
-        node: { kind: "sink", item: "steel-plate", targetPerSecond: steel },
-        position: at(960),
-      },
-      { type: "connect", edge: { from: "ore", to: "iron", item: "iron-ore" } },
-      { type: "connect", edge: { from: "iron", to: "steel", item: "iron-plate" } },
-      { type: "connect", edge: { from: "steel", to: "out", item: "steel-plate" } },
-    ];
-    return Proposal.parse({
-      summary: { buildings: { "steel-furnace": furnaces }, raw: { "iron-ore": iron } },
-      commands,
-    });
-  },
-};
 
 /** The documents open in this session, in memory. */
 function memoryDocuments(): DocumentStore {
@@ -136,7 +82,7 @@ function carbonara() {
     editing: createEditingManager({ documents, events: bus, newId }),
     analysis: createAnalysisManager({ bus, documents, packs }),
     packs: { listPacks: async () => [factorio.info], getPackData: async () => factorio.data },
-    planning: fakePlanning,
+    planning: createPlanningManager({ documents, packs }),
   });
   const backendListeners: ((message: unknown) => void)[] = [];
   const backend = connect(contracts, {
@@ -221,16 +167,27 @@ describe("Steel, 2 full yellow belts, through MCP", () => {
     const target = 2 * (belt?.capacity ?? 0);
     expect(target).toBe(30);
 
-    // Planning is off until the person allows it.
-    const targets = { documentId: "active", targets: { "steel-plate": target } };
+    // Planning is off until the person allows it. Steel the classic way: from iron ore in furnaces, without
+    // Space Age's asteroid crushing and foundry casting, which use fewer raw items.
+    const spaceAge = new Set(["foundry", "crusher", "electromagnetic-plant", "recycler"]);
+    const exclude = pack.recipes
+      .filter(({ buildings }) => buildings.some((building) => spaceAge.has(building)))
+      .map(({ id }) => id);
+    const targets = {
+      documentId: "active",
+      targets: [{ item: "steel-plate", perSecond: target }],
+      options: { exclude },
+    };
     expect(await client.call("plan_production", targets)).toMatchObject({
       ok: false,
       error: expect.stringMatching(/Plan tools are switched off/),
     });
     access.allow("plan", true);
-    const proposal = expectOk(await client.call<Proposal>("plan_production", targets));
-    // The wiki's numbers: 480 steel furnaces and 9000 iron ore per minute.
-    expect(proposal.summary).toEqual({ buildings: { "steel-furnace": 480 }, raw: { "iron-ore": 150 } });
+    const planned = expectOk(await client.call<Result<Proposal>>("plan_production", targets));
+    if (!planned.ok) throw new Error(planned.error.map(({ message }) => message).join("\n"));
+    const proposal = planned.value;
+    // 9000 iron ore per minute, in each recipe's default building: 960 stone furnaces (speed 1).
+    expect(proposal.summary).toMatchObject({ buildings: { "stone-furnace": 960 }, raw: { "iron-ore": 150 } });
 
     // The person accepts. SWITCH: apply_proposal once it exists.
     access.allow("edit", true);

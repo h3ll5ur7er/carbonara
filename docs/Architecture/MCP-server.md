@@ -97,10 +97,12 @@ A view ([[src/client/features/mcp/views.ts]]) is the part of the method's value 
 | Read | `get_diagnostics` | `analysis.getResults`, view `diagnostics` | Deficits, surpluses, overflows, missed pins, errors |
 | Read | `list_packs` | `packs.listPacks` | |
 | Read | `get_pack_data` | `packs.getPackData` | Items, recipes, buildings, logistics, resources: the ids `edit_graph` needs |
+| Plan | `plan_production` | `planning.planProduction` | A proposal for target rates: the commands that build it, a preview solve and a summary ([[Architecture/Planning]]) |
+| Plan | `compare_recipes` | `planning.compareRecipes` | The recipes that make an item, compared by what a plan with each one costs |
 | Edit | `edit_graph` | `editing.apply` | Any batch of [[src/contracts/commands.ts]] commands, as one undo step |
 | Edit | `undo` | `editing.undo` | |
 
-Still to come, each with the manager method it needs: `search_catalog` and `get_recipe` (a catalog query on the packs manager, for packs too large for `get_pack_data`), `explain_node` (analysis), `convert_rate`, `plan_production` and `compare_recipes` (planning, [[CARB-45]]), `apply_proposal` ([[CARB-46]]), `auto_arrange` ([[CARB-49]]), `replace_recipe` ([[CARB-53]]), `create_subgraph` ([[CARB-39]]), and the pack authoring tools `scaffold_pack`, `read_pack_file` / `write_pack_file` (only inside a dev pack folder), `validate_pack`, `reload_dev_pack` and `build_cpack` ([[CARB-72]]). `get_pack_schema` and `get_plugin_api_docs` became resources.
+Still to come, each with the manager method it needs: `search_catalog` and `get_recipe` (a catalog query on the packs manager, for packs too large for `get_pack_data`), `explain_node` (analysis), `convert_rate` (planning), `apply_proposal` and showing an MCP proposal as a ghost in the app ([[CARB-82]]), `auto_arrange` ([[CARB-49]]), `replace_recipe` ([[CARB-53]]), `create_subgraph` ([[CARB-39]]), and the pack authoring tools `scaffold_pack`, `read_pack_file` / `write_pack_file` (only inside a dev pack folder), `validate_pack`, `reload_dev_pack` and `build_cpack` ([[CARB-72]]). `get_pack_schema` and `get_plugin_api_docs` became resources.
 
 **One edit tool, not one per command.** `edit_graph` takes any batch of commands rather than separate `add_nodes`, `connect` and `set_node_fields` tools: the command union is the single source of truth for edits, so new commands reach MCP clients without touching the generator; a production line (nodes plus the edges between them) stays one undo step, as each tool call should be; and the JSON Schema of the union documents every command for the model. The cost is one large input schema.
 
@@ -127,10 +129,10 @@ Still to come, each with the manager method it needs: `search_catalog` and `get_
 "Steel, 2 full yellow belts":
 
 1. `convert_rate` finds that a yellow belt carries 15/s in the Factorio pack, so the target is 30/s = 1800 steel/min.
-2. `plan_production({ steel-plate: 1800/min })` creates a ghost proposal next to the existing factory: 480 steel furnaces (240 smelting iron plate, 240 making steel) and 9000 iron ore/min.
+2. `plan_production({ steel-plate: 30/s })` returns a proposal next to the existing factory: 960 stone furnaces (the recipes' default building; 480 smelting iron plate, 480 making steel) and 9000 iron ore/min.
 3. You click *Accept*, and `auto_arrange` tidies it up.
 
-[[tools/mcp-scenario.test.ts]] runs this session against the real managers, the Factorio pack and the solver: a scripted client sends every call as the server does, through the bridge and its permissions. It checks that planning is refused until allowed, that the accepted line solves without diagnostics and matches the proposal (480 steel furnaces, 150 iron ore/s), and that one undo, labelled "Undo AI: …", removes it. Until their tasks land, the client reads the belt capacity from `get_pack_data` instead of calling `convert_rate`, a fake stands in for `plan_production` ([[CARB-45]]), and accepting goes through `edit_graph` instead of `apply_proposal` ([[CARB-46]]); each spot is marked `SWITCH` in the test.
+[[tools/mcp-scenario.test.ts]] runs this session against the real managers, the Factorio pack and the solver: a scripted client sends every call as the server does, through the bridge and its permissions. It checks that planning is refused until allowed, that the accepted line solves without diagnostics and matches the proposal (960 stone furnaces, 150 iron ore/s), and that one undo, labelled "Undo AI: …", removes it. It plans with the real planner, excluding the Space Age recipes (asteroid crushing and foundry casting use fewer raw items). Until their tasks land, the client reads the belt capacity from `get_pack_data` instead of calling `convert_rate`, and accepting goes through `edit_graph` instead of `apply_proposal` ([[CARB-82]]); each spot is marked `SWITCH` in the test.
 
 ## Security
 
