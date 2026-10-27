@@ -3,7 +3,10 @@
 import type { Document } from "./document";
 import type { DocumentInfo, PackInfo } from "./managers";
 import type { PackData } from "./pack";
-import type { Plugin } from "./plugin";
+import type { Plugin, PluginDescription } from "./plugin";
+import type { Result } from "./result";
+import type { AnalysisResults } from "./results";
+import type { Model, Solution, Unsolvable } from "./solver";
 
 export interface OpenDocument {
   document: Document;
@@ -28,11 +31,29 @@ export interface DocumentStore {
   remove(documentId: string): void;
 }
 
-/** A pack ready to use: its data and its plugin module, loaded. */
-export interface LoadedPack {
-  info: PackInfo;
-  data: PackData;
-  plugin: Plugin;
+/**
+ * A pack ready to use: its data and its plugin, loaded. Built-in packs are trusted: their plugin is called right
+ * here. A third-party pack's plugin runs isolated (the opaque-origin plugin sandbox, docs/Architecture/Plugins.md),
+ * so only its runtime is at hand.
+ */
+export type LoadedPack = { info: PackInfo; data: PackData } & (
+  { plugin: Plugin; isolated?: undefined } | { plugin?: undefined; isolated: PluginRuntime }
+);
+
+/** The compiler engine with a pack's plugin, run wherever that plugin lives. */
+export interface PluginRuntime {
+  /** Compiles the document into the solver IR (one round trip when the plugin is isolated). */
+  compile(document: Document): Promise<CompiledModel>;
+  /** The plugin's fields, settings and metrics under these document settings (`settings.plugin`). */
+  describe(settings: Record<string, unknown>): Promise<PluginDescription>;
+  /** Stops an isolated plugin; the runtime can't be used afterwards. */
+  dispose?(): void;
+}
+
+export interface CompiledModel {
+  model: Model;
+  /** Maps the solver's answer back to the document, with the plugin's derived metrics. */
+  results(outcome: Result<Solution, Unsolvable>, version: number): Promise<AnalysisResults>;
 }
 
 /** Built-in and installed packs (packs access). Installing and removing come with CARB-25 and CARB-27. */

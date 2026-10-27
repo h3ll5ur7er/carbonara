@@ -49,6 +49,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup # builds the WebAssembly module in release mode
       - run: pnpm bench
+      - name: Canvas frame budgets (e2e/canvas-perf.spec.ts)
+        if: always()
+        run: pnpm exec playwright install --with-deps chromium && pnpm e2e:host
+        env:
+          E2E_PERF: 1
+          CI: true
 
   e2e:
     name: End-to-end and screenshots

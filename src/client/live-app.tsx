@@ -8,6 +8,7 @@ import { appRegistry } from "./shell/app-commands";
 import { AppShell, EmptyState } from "./shell/app-shell";
 import { inspectNode, productionEdit } from "./shell/inspector/inspect";
 import type { InspectorPanelProps } from "./shell/inspector/inspector-panel";
+import { usePluginDescription } from "./shell/inspector/plugin-description";
 import { useConnector } from "./core/connector";
 import { useActiveDocument, useModels, useWorkspace, type ActiveDocument } from "./core/models";
 import { createDocumentActions, setDocumentActions } from "./features/documents/actions";
@@ -101,23 +102,30 @@ function WelcomeCanvas({ loaded }: { loaded: boolean }) {
   );
 }
 
-/** The inspector's view of the one selected node of the active document; nothing for none or several. */
+/** The inspector's view of the active document: its one selected node, its save profile while none is selected. */
 function useInspected(
   { info, document, packData, results }: ActiveDocument,
   selection: { documentId: string; nodeIds: string[] } | null,
 ): InspectorPanelProps["selection"] {
+  const plugin = usePluginDescription(info?.packId, document?.settings.plugin);
   return useMemo(() => {
     const nodeId =
       selection?.documentId === info?.id && selection?.nodeIds.length === 1 ? selection.nodeIds[0] : undefined;
-    if (!nodeId || !info || !document || !packData) return null;
-    const node = inspectNode({ document, pack: packData, results, nodeId });
+    if (!info || !document || !packData) return null;
+    const selected = selection?.documentId === info.id ? selection.nodeIds.length : 0;
+    if (selected === 0) {
+      const settings = document.settings.plugin ?? {};
+      return { profile: { documentId: info.id, pack: packData, settings, plugin } };
+    }
+    if (!nodeId) return null;
+    const node = inspectNode({ document, pack: packData, results, nodeId, plugin });
     if (!node) return null;
     return {
       target: { documentId: info.id, nodeId },
       node,
       productionEdit: (value) => productionEdit(document, packData, nodeId, value),
     };
-  }, [selection, info, document, packData, results]);
+  }, [selection, info, document, packData, results, plugin]);
 }
 
 /** Opens the document of a share link the page was opened with, then removes it from the address bar. */

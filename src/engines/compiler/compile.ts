@@ -2,11 +2,12 @@
 // (recipes, buildings, belts, pins, rate units) map onto activities and rates (docs/Architecture/Solver.md).
 // Pure and deterministic: the same document gives byte-identical IR, whatever order its maps were built in.
 import type { Document, LocalId, Node } from "../../contracts/document";
-import type { Building, Id, PackData, Recipe } from "../../contracts/pack";
-import type { FieldValue, NodeContext, Plugin, PluginContext } from "../../contracts/plugin";
+import type { Id, PackData } from "../../contracts/pack";
+import type { NodeContext, Plugin, PluginContext } from "../../contracts/plugin";
 import type { Diagnostic } from "../../contracts/results";
 import type { Model, ModelEdge, ModelNode } from "../../contracts/solver";
 import { toPerSecond } from "../../utilities/units";
+import { pluginConstraints, pluginContext, prepareRecipeNode } from "./hooks";
 
 export interface CompileInput {
   document: Document;
@@ -49,12 +50,13 @@ interface Draft {
   info: NodeInfo;
 }
 
-type Compiling = { ok: true; draft: Draft; problem?: string } | { ok: false; problem: string };
+/** A node that isn't compiled has a problem, unless the plugin's hooks reported it already. */
+type Compiling = { ok: true; draft: Draft; problem?: string } | { ok: false; problem?: string };
 
 const byId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 export function compile({ document, pack, plugin }: CompileInput): Compiled {
-  const context: PluginContext = { pack, settings: document.settings.plugin ?? {} };
+  const { context, diagnostics: settingsDiagnostics } = pluginContext(pack, plugin, document.settings.plugin);
   const items = new Map(pack.items.map((item, index) => [item.id, index]));
   const recipes = new Map(pack.recipes.map((recipe) => [recipe.id, recipe]));
   const buildings = new Map(pack.buildings.map((building) => [building.id, building]));
@@ -123,8 +125,10 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
     if (!building || !recipe.buildings.includes(buildingId)) {
       return { ok: false, problem: `Recipe "${recipe.id}" can't run in "${buildingId}"` };
     }
-    const nodeContext: NodeContext = { recipe, building, fields: fieldsOf(node, building) };
-    const effective = plugin.effectiveRecipe?.(nodeContext, context) ?? asRunBy(recipe);
+    const prepared = prepareRecipeNode(plugin, context, id, recipe, building, node.fields);
+    nodeDiagnostics.push(...prepared.diagnostics);
+    const { context: nodeContext, effective } = prepared;
+    if (!effective) return { ok: false };
     const unknown = [...Object.keys(effective.in), ...Object.keys(effective.out)].find((item) => !items.has(item));
     if (unknown !== undefined) return { ok: false, problem: `Unknown item "${unknown}"` };
 
@@ -154,12 +158,6 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
       draft.info.pinRate = net;
     }
     return { ok: true, draft };
-  }
-
-  function fieldsOf(node: Extract<Node, { kind: "recipe" }>, building: Building): Record<string, FieldValue> {
-    const descriptors = plugin.nodeFields?.(building, context) ?? {};
-    const defaults = Object.fromEntries(Object.entries(descriptors).map(([name, field]) => [name, field.default]));
-    return { ...defaults, ...node.fields };
   }
 
   const edgeDiagnostics: Diagnostic[] = [];
@@ -216,6 +214,10 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
   const index = (item: Id) => itemIndex.get(item) as number;
   const draftList = [...drafts.values()];
   const nodeIndex = new Map(draftList.map((draft, position) => [draft.id, position]));
+  const recipeNodes = draftList.flatMap((draft) =>
+    draft.info.context ? [{ id: draft.id, ...draft.info.context }] : [],
+  );
+  const plugged = pluginConstraints(plugin, context, recipeNodes, nodeIndex);
 
   return {
     documentId: document.id,
@@ -236,20 +238,15 @@ export function compile({ document, pack, plugin }: CompileInput): Compiled {
         ...(edge.capacity !== undefined && { capacity: edge.capacity }),
         ...(edge.ratio !== undefined && { ratio: edge.ratio }),
       })),
-      constraints: [],
+      constraints: plugged.constraints,
     },
     nodes: draftList.map((draft) => draft.id),
     edges: kept.map((edge) => edge.id),
     items: itemIds,
     info: draftList.map((draft) => draft.info),
     context,
-    diagnostics: [...nodeDiagnostics, ...edgeDiagnostics],
+    diagnostics: [...settingsDiagnostics, ...nodeDiagnostics, ...edgeDiagnostics, ...plugged.diagnostics],
   };
-}
-
-/** The identity of the `effectiveRecipe` hook. */
-function asRunBy(recipe: Recipe) {
-  return { time: recipe.time, in: recipe.in, out: recipe.out };
 }
 
 function netRate(draft: Draft, item: Id): number {

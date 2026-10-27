@@ -24,7 +24,9 @@ if (spawnSync("docker", ["info"], { stdio: "ignore" }).status !== 0) {
   process.exit(1);
 }
 
-const env = ["E2E_PORT", "CI"].flatMap((name) => (process.env[name] ? ["-e", `${name}=${process.env[name]}`] : []));
+const env = ["E2E_PORT", "CI", "E2E_PERF"].flatMap((name) =>
+  process.env[name] ? ["-e", `${name}=${process.env[name]}`] : [],
+);
 run("docker", [
   "run",
   "--rm",

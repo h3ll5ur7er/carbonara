@@ -265,6 +265,21 @@ describe("setting fields and pins", () => {
   });
 });
 
+describe("setting the plugin's document settings", () => {
+  it("merges settings into the save profile, and null removes one", () => {
+    const { document: started } = edit({
+      type: "setPluginSettings",
+      graph: "root",
+      settings: { unlocked: ["alt-a"], budget: 3 },
+    });
+    expect(started.settings.plugin).toEqual({ unlocked: ["alt-a"], budget: 3 });
+    const next = applyCommands(started, [
+      { type: "setPluginSettings", graph: "root", settings: { unlocked: null, limit: true } },
+    ]);
+    expect(next.ok && next.value.document.settings.plugin).toEqual({ budget: 3, limit: true });
+  });
+});
+
 describe("a batch of commands", () => {
   it("sees the effects of earlier commands", () => {
     const { document: next } = edit(

@@ -3,7 +3,9 @@ import { PackData, PackManifest } from "../../contracts/pack";
 import type { KeyValueStorage } from "../../contracts/platform";
 import { definePlugin } from "../../contracts/plugin";
 import { createMemoryKeyValueStorage } from "../../utilities/memory-key-value";
-import { createPackLibrary, type BuiltInPack, type PackToInstall } from "./library";
+import type { PluginRuntime } from "../../contracts/access";
+import { fail, ok } from "../../contracts/result";
+import { createPackLibrary, type BuiltInPack, type IsolatePlugin, type PackToInstall } from "./library";
 
 const manifest = (id: string, name: string) =>
   PackManifest.parse({ id, name, version: "1.0.0", engine: "^1", plugin: "plugin/index.js" });
@@ -33,7 +35,7 @@ describe("the pack library", () => {
     expect(await packs.list()).toEqual([builtIn.info]);
     const loaded = await packs.get("works");
     expect(loaded?.info).toEqual(builtIn.info);
-    expect(loaded?.plugin.id).toBe("works-core");
+    expect(loaded?.plugin?.id).toBe("works-core");
     expect(loaded?.data.items[0]?.id).toBe("ore");
   });
 
@@ -57,7 +59,7 @@ describe("the pack library", () => {
     await library(storage).install(thirdParty("kept"));
     const reopened = library(storage);
     expect((await reopened.list()).map((info) => info.manifest.id)).toEqual(["works", "kept"]);
-    expect((await reopened.get("kept"))?.plugin.id).toBe("kept-plugin");
+    expect((await reopened.get("kept"))?.plugin?.id).toBe("kept-plugin");
   });
 
   it("replaces an installed pack with a new version", async () => {
@@ -66,18 +68,18 @@ describe("the pack library", () => {
     await packs.install({ ...thirdParty("aaa", `export default { id: "second" };`), hash: "d".repeat(64) });
     expect((await packs.list()).filter((info) => info.manifest.id === "aaa")).toHaveLength(1);
     expect((await packs.get("aaa"))?.info.hash).toBe("d".repeat(64));
-    expect((await packs.get("aaa"))?.plugin.id).toBe("second");
+    expect((await packs.get("aaa"))?.plugin?.id).toBe("second");
   });
 
   it("lets an installed pack stand in for the built-in with its id until it's removed", async () => {
     const packs = library();
     await packs.install(thirdParty("works"));
     expect(await packs.list()).toMatchObject([{ manifest: { id: "works" }, builtIn: false }]);
-    expect((await packs.get("works"))?.plugin.id).toBe("works-plugin");
+    expect((await packs.get("works"))?.plugin?.id).toBe("works-plugin");
 
     expect(await packs.remove("works")).toBe(true);
     expect(await packs.list()).toEqual([builtIn.info]);
-    expect((await packs.get("works"))?.plugin.id).toBe("works-core");
+    expect((await packs.get("works"))?.plugin?.id).toBe("works-core");
   });
 
   it("removes installed packs but not built-in ones", async () => {
@@ -110,5 +112,76 @@ describe("the pack library", () => {
         },
       ],
     });
+  });
+});
+
+describe("the pack library with isolated plugins", () => {
+  /** Stands in for the plugin sandbox: records what it was asked to load and which runtimes were stopped. */
+  function sandbox() {
+    const loaded: string[] = [];
+    const disposed: string[] = [];
+    const isolate: IsolatePlugin = async ({ source }) => {
+      if (source.includes("broken")) return fail([{ path: ["plugin/index.js"], message: "The plugin doesn't load" }]);
+      loaded.push(source);
+      const runtime: PluginRuntime = {
+        compile: async () => {
+          throw new Error("not used");
+        },
+        describe: async () => ({ nodeFields: {}, settingsFields: {}, metrics: {} }),
+        dispose: () => disposed.push(source),
+      };
+      return ok(runtime);
+    };
+    return { isolate, loaded, disposed };
+  }
+
+  it("runs installed plugins isolated and never loads their code here", async () => {
+    const { isolate, loaded } = sandbox();
+    const imported: string[] = [];
+    const packs = createPackLibrary({
+      builtIns: [builtIn],
+      storage: createMemoryKeyValueStorage(),
+      loadModule: async (source) => {
+        imported.push(source);
+        return loadModule(source);
+      },
+      isolate,
+    });
+    expect(await packs.install(thirdParty("aaa"))).toMatchObject({ ok: true });
+    const pack = await packs.get("aaa");
+    expect(pack?.plugin).toBeUndefined();
+    expect(pack?.isolated).toBeDefined();
+    expect(loaded).toEqual(['export default { id: "aaa-plugin" };']);
+    expect(imported).toEqual([]);
+    // Built-in packs are trusted and stay in this worker.
+    expect((await packs.get("works"))?.plugin?.id).toBe("works-core");
+  });
+
+  it("isolates installed plugins again when they're loaded from storage", async () => {
+    const storage = createMemoryKeyValueStorage();
+    const first = createPackLibrary({ builtIns: [], storage, loadModule, isolate: sandbox().isolate });
+    await first.install(thirdParty("kept"));
+    const { isolate, loaded } = sandbox();
+    const reopened = createPackLibrary({ builtIns: [], storage, loadModule, isolate });
+    expect((await reopened.get("kept"))?.isolated).toBeDefined();
+    expect(loaded).toHaveLength(1);
+  });
+
+  it("refuses a pack whose plugin doesn't load in the sandbox", async () => {
+    const { isolate } = sandbox();
+    const packs = createPackLibrary({ builtIns: [], storage: createMemoryKeyValueStorage(), loadModule, isolate });
+    expect(await packs.install(thirdParty("bad", "broken"))).toMatchObject({ ok: false });
+    expect(await packs.list()).toEqual([]);
+  });
+
+  it("stops the sandbox of a pack that is replaced or removed", async () => {
+    const { isolate, disposed } = sandbox();
+    const packs = createPackLibrary({ builtIns: [], storage: createMemoryKeyValueStorage(), loadModule, isolate });
+    await packs.install(thirdParty("aaa"));
+    await packs.get("aaa");
+    await packs.install(thirdParty("aaa", 'export default { id: "second" };'));
+    expect(disposed).toEqual(['export default { id: "aaa-plugin" };']);
+    await packs.remove("aaa");
+    expect(disposed).toEqual(['export default { id: "aaa-plugin" };', 'export default { id: "second" };']);
   });
 });

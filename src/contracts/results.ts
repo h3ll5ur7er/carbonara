@@ -21,7 +21,8 @@ export type Diagnostic =
   | { kind: "deficit" | "surplus"; node: LocalId; item: Id; perSecond: number }
   | { kind: "overflow"; edge: LocalId; perSecond: number }
   | { kind: "pinMiss"; node: LocalId; difference: number }
-  | { kind: "error"; message: string; node?: LocalId };
+  /** Errors leave something out of the solve; warnings (e.g. from the pack's plugin) don't. */
+  | { kind: "error" | "warning"; message: string; node?: LocalId };
 
 export interface Totals {
   /** Net raw inputs taken from sources, by item. */

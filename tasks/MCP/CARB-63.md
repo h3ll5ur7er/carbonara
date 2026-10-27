@@ -2,7 +2,7 @@
 id: CARB-63
 title: Plan 2 yellow belts of steel end to end
 type: chore
-status: review
+status: done
 priority: medium
 labels: [mcp, tests]
 wave: "2"

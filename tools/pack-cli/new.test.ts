@@ -38,7 +38,7 @@ describe("carbonara-pack new", () => {
     const packs = createPacksManager({ library, bus: createEventBus<Events>() });
     const installed = await packs.installPack({ bytes: new Uint8Array(readFileSync(built.value.file)) });
     expect(installed).toMatchObject({ ok: true, value: { manifest: { id: "fresh", name: "Fresh" } } });
-    expect((await library.get("fresh"))?.plugin.id).toBe("fresh");
+    expect((await library.get("fresh"))?.plugin?.id).toBe("fresh");
   });
 
   it("refuses ids a pack can't have and folders that exist", () => {

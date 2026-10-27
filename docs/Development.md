@@ -28,6 +28,7 @@ Rebuild the WebAssembly module with `pnpm build:wasm` after changing anything in
 | `pnpm typecheck` | TypeScript only |
 | `pnpm test` / `pnpm test:watch` | Vitest unit and property tests |
 | `pnpm e2e` | Playwright end-to-end and screenshot tests, inside the pinned Playwright Docker image (starts the dev server itself) |
+| `E2E_PERF=1 pnpm e2e` | Only the canvas frame-budget tests (`e2e/*perf.spec.ts`), which the normal run leaves out because they depend on machine load |
 | `pnpm e2e:host` | The same tests on this machine's browser — quicker to start, but screenshots may differ from the baselines |
 | `pnpm format` / `pnpm format:check` | Prettier |
 | `pnpm schema` | Regenerates the JSON Schemas in `schemas/` from the zod contracts |

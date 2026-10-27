@@ -2,7 +2,7 @@
 // and serves them over a transport (the backend worker's message port).
 import builtInPacks from "virtual:built-in-packs";
 import { createAutosavedDocumentStore } from "../../access/documents/autosave";
-import { createPackLibrary } from "../../access/packs/library";
+import { createPackLibrary, type IsolatePlugin } from "../../access/packs/library";
 import type { Issue } from "../../contracts/issues";
 import { managers, type Events } from "../../contracts/managers";
 import type { EventMessage, Request } from "../../contracts/rpc";
@@ -15,7 +15,12 @@ import { loadModule } from "../../platforms/web/module-loader";
 import { createEventBus } from "../../utilities/events";
 import { createDispatcher, type Transport } from "../../utilities/rpc";
 
-export function startBackend(transport: Transport): void {
+export interface BackendOptions {
+  /** Where third-party plugins run (the opaque-origin plugin sandbox); without it they run in this worker. */
+  isolate?: IsolatePlugin;
+}
+
+export function startBackend(transport: Transport, { isolate }: BackendOptions = {}): void {
   const bus = createEventBus<Events>();
   bus.subscribeAll((event, payload) => transport.send({ event, payload } satisfies EventMessage));
 
@@ -35,6 +40,7 @@ export function startBackend(transport: Transport): void {
     builtIns: builtInPacks,
     storage: createIndexedDbStorage("carbonara-packs"),
     loadModule,
+    ...(isolate && { isolate }),
   });
 
   const dispatch = createDispatcher(managers, {

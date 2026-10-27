@@ -106,7 +106,7 @@ describe("compiling a document into the solver IR", () => {
   it("asks the plugin for node field defaults and the effective recipe", () => {
     const overclocking = definePlugin({
       id: "clocks",
-      nodeFields: () => ({ clock: { kind: "number", label: "Clock", min: 1, max: 250, default: 100 } }),
+      nodeFields: () => ({ clock: { kind: "number", label: "Clock", min: 1, max: 300, default: 100 } }),
       effectiveRecipe: ({ recipe, fields }) => ({ ...recipe, time: recipe.time / (Number(fields.clock) / 100) }),
     });
     const compiled = compile({
