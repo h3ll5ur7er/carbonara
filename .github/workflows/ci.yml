@@ -17,6 +17,12 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm check
       - run: pnpm format:check
+      # The e2e job runs in the Playwright image, which can't compile Rust; it takes the module from here.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: solver-wasm
+          path: src/engines/solver/wasm
+          retention-days: 1
 
   rust:
     name: Rust
@@ -51,12 +57,22 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
+    needs: web
     env:
       PLAYWRIGHT_IN_IMAGE: 1
       CI: true
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: solver-wasm
+          path: src/engines/solver/wasm
       - run: pnpm e2e
       - uses: actions/upload-artifact@v4
         if: failure()
