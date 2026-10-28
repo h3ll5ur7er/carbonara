@@ -21,6 +21,7 @@ The work is planned on the task board (`tasks/`) in waves. Each task has a `wave
 | **M2 It's a game** | Plan with the Satisfactory pack: alternates, overclocking, somersloops. An MCP client can plan a line into the open document as a proposal |
 | **M3 Megafactory** | Keep a 50k-node factory built from subgraphs interactive; plan with the Factorio pack: modules, beacons, quality |
 | **M4 Ship** | Install the desktop app, use the web app, follow the onboarding tour |
+| **M5 Daily driver** | Find any recipe without knowing its name, keep favourites close, and get the next useful step suggested |
 
 ## How agents work the board
 

@@ -2,10 +2,10 @@
 id: CARB-116
 title: Hide the inspector while no factory is open
 type: improvement
-status: backlog
+status: todo
 priority: medium
 labels: [ui, shell]
-wave: "3"
+wave: "4"
 milestone: "M4 Ship"
 ---
 
