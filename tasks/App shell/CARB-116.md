@@ -2,7 +2,7 @@
 id: CARB-116
 title: Hide the inspector while no factory is open
 type: improvement
-status: review
+status: done
 priority: medium
 labels: [ui, shell]
 wave: "4"

@@ -2,7 +2,7 @@
 id: CARB-136
 title: Suggest the recipes the factory needs next
 type: feature
-status: review
+status: done
 priority: low
 labels: [ux, library]
 wave: "4"

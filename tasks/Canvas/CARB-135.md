@@ -2,7 +2,7 @@
 id: CARB-135
 title: Favourite and recent recipes
 type: feature
-status: review
+status: done
 priority: medium
 labels: [ux, library]
 wave: "4"

@@ -2,7 +2,7 @@
 id: CARB-134
 title: Browse every recipe in the left panel
 type: feature
-status: review
+status: done
 priority: high
 labels: [ux, library]
 wave: "4"
