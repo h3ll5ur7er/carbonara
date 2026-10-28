@@ -24,6 +24,17 @@ describe("the preference store", () => {
     await expect(store.update({})).resolves.toEqual({ tour: { step: 1, finished: true } });
   });
 
+  it("remembers favourite and recent recipes per pack, beside the tour", async () => {
+    const entries = new Map<string, unknown>();
+    const store = createPreferenceStore(createMemoryKeyValueStorage(entries));
+    await store.update({ tour: { step: 0, finished: true } });
+    const recipes = { factorio: { favourites: ["iron-gear-wheel"], recent: ["iron-plate", "copper-cable"] } };
+    await expect(store.update({ recipes })).resolves.toEqual({ tour: { step: 0, finished: true }, recipes });
+    await expect(createPreferenceStore(createMemoryKeyValueStorage(entries)).get()).resolves.toMatchObject({
+      recipes,
+    });
+  });
+
   it("ignores stored values it can't read (from another version, say) and unknown keys", async () => {
     const entries = new Map<string, unknown>([
       ["tour", { step: "two" }],

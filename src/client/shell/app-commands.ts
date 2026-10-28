@@ -1,6 +1,7 @@
 // The app's commands. Register every new action here (or in a registry built from these), so the palette,
 // the menus and the keyboard all reach it.
 import {
+  BookOpen,
   Bot,
   Command,
   Download,
@@ -28,7 +29,9 @@ import { documentActions } from "../features/documents/actions";
 import { setMcpDialogOpen } from "../features/mcp/host-store";
 import { togglePalette } from "../features/command-palette/palette-store";
 import { toggleThemePreference } from "../ui/use-theme";
-import { togglePanel } from "./panels";
+import { findRecipe } from "../features/recipe-browser/browser-store";
+import { recipeCommands } from "../features/recipe-browser/commands";
+import { setPanelOpen, togglePanel } from "./panels";
 
 export const appCommands: CommandDefinition[] = [
   {
@@ -105,6 +108,18 @@ export const appCommands: CommandDefinition[] = [
     run: () => togglePanel("left"),
   },
   {
+    id: "library.findRecipe",
+    title: "Find a recipe",
+    group: "View",
+    shortcut: "R",
+    keywords: ["browse", "recipes", "library", "add", "search", "machine", "favourites"],
+    icon: BookOpen,
+    run: () => {
+      setPanelOpen("left", true);
+      findRecipe();
+    },
+  },
+  {
     id: "view.toggleInspector",
     title: "Toggle inspector",
     group: "View",
@@ -123,6 +138,7 @@ export const appCommands: CommandDefinition[] = [
     run: toggleThemePreference,
   },
   ...canvasCommands,
+  ...recipeCommands,
   ...subgraphCommands,
   ...plannerCommands,
   ...totalsCommands,

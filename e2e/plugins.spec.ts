@@ -83,7 +83,8 @@ test("several selected machines share their settings in the inspector, edited at
   const clockOf = async (node: typeof first) => {
     // Clicking a node of a multi-selection keeps the selection (to drag them all): clear it first.
     await page.keyboard.press("Escape");
-    await page.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
+    // Clear of the library, which covers the canvas's left edge.
+    await page.locator(".react-flow__pane").click({ position: { x: 340, y: 20 } });
     await node.click();
     await expect(inspector.getByRole("heading", { name: "2 machines" })).toBeHidden();
     return inspector.getByRole("spinbutton", { name: "Clock speed" });

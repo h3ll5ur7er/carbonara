@@ -16,7 +16,7 @@ async function demoPack(): Promise<{ bytes: Uint8Array; hash: string }> {
     manifest,
     readFileSync(manifest, "utf8")
       .replace("id: template", "id: demo-works")
-      .replace("version: 1.0.0", "version: 1.2.0"),
+      .replace(/^version: .*$/m, "version: 1.2.0"),
   );
   // The template's plugin imports the contracts through a path relative to its own folder.
   const plugin = join(folder, "plugin", "index.ts");
@@ -95,7 +95,7 @@ test("a broken pack shows where it's broken and can't be installed", async ({ pa
   await dropFile(page, "broken.cpack", bytes);
   const prompt = page.getByRole("dialog", { name: "This pack can't be installed" });
   await expect(prompt).toContainText(
-    "manifest.yaml:4:1: engine: Needs pack format ^9, but this version of Carbonara reads pack format 1.1.0",
+    "manifest.yaml:4:1: engine: Needs pack format ^9, but this version of Carbonara reads pack format 1.2.0",
   );
   await expect(prompt.getByRole("button", { name: "Install" })).toHaveCount(0);
 });

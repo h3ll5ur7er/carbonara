@@ -203,7 +203,7 @@ test("a copied subgraph brings its blueprint into another factory, as one undo s
   });
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
   await page.goto(`/#doc=${writeShareLink(document)}`);
-  await page.locator('.react-flow__node[data-id="line-a"] header').click();
+  await page.locator('.react-flow__node[data-id="line-a"]').click();
   await page.keyboard.press("ControlOrMeta+C");
   await expect(page.getByText("Copied 1 node", { exact: true })).toBeVisible();
 
@@ -218,8 +218,8 @@ test("a copied subgraph brings its blueprint into another factory, as one undo s
   // Close enough to read its ports.
   await other.keyboard.press("Shift+F");
   await expect(instance.locator("li")).toHaveText([/Cuprite Ore/, /Copper Wire/, /Slag/]);
-  await other.keyboard.press("ControlOrMeta+B");
   const library = other.getByRole("complementary", { name: "Library" });
+  await library.getByRole("tab", { name: /Blueprints/ }).click();
   await expect(library.getByRole("button", { name: /^Copper Wire line/ })).toContainText("Placed once");
 
   await other.keyboard.press("ControlOrMeta+Z");

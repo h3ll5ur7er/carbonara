@@ -75,7 +75,7 @@ test("a panel resizes by dragging its edge", async ({ page }) => {
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, { steps: 4 });
   await page.mouse.up();
-  await expect(handle).toHaveAttribute("aria-valuenow", "324");
+  await expect(handle).toHaveAttribute("aria-valuenow", "364");
 });
 
 test("the close button and the top bar toggle a panel", async ({ page }) => {

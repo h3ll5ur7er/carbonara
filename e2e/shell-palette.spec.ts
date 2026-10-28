@@ -69,10 +69,11 @@ test("the palette runs commands and shows their shortcuts", async ({ page }) => 
   await openScene(page);
   await page.getByRole("button", { name: /Search or run a command/ }).click();
   await expect(page.getByRole("option", { name: /Toggle library/ })).toContainText("Ctrl");
-  await page.keyboard.type("library");
+  await page.keyboard.type("toggle library");
   await page.keyboard.press("Enter");
   await expect(palette(page)).toBeHidden();
-  await expect(page.getByRole("complementary", { name: "Library" })).toBeVisible();
+  // Open by default with a factory, so the toggle closes it.
+  await expect(page.getByRole("complementary", { name: "Library" })).toBeHidden();
 });
 
 test("Escape closes the palette and Ctrl+K toggles it", async ({ page }) => {
@@ -97,6 +98,10 @@ test("an unmatched search says so", async ({ page }) => {
 test("shortcuts run commands", async ({ page }) => {
   await openScene(page);
   const library = page.getByRole("complementary", { name: "Library" });
+  // The library opens by default once a factory is open.
+  await expect(library).toBeVisible();
+  await page.keyboard.press("Control+B");
+  await expect(library).toBeHidden();
   await page.keyboard.press("Control+B");
   await expect(library).toBeVisible();
   await page.keyboard.press("Control+I");
@@ -121,6 +126,7 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Export picture \(PNG\)/,
     /Export picture \(SVG\)/,
     /Toggle library\s*Ctrl\s*B/,
+    /Find a recipe\s*R/,
     /Toggle inspector\s*Ctrl\s*I/,
     /Switch light and dark theme\s*Ctrl\s*Shift\s*L/,
     /Zoom to fit\s*F/,
@@ -148,6 +154,7 @@ test("the app menu lists every command with its shortcut", async ({ page }) => {
     /Delete selection\s*Del/,
     /Delete and bridge\s*Ctrl\s*Shift\s*Del/,
     /Add note\s*N/,
+    /Favourite recipe/,
     /Arrange left to right\s*Shift\s*A/,
     /Arrange top to bottom/,
     /Align left edges/,

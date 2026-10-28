@@ -180,6 +180,26 @@ export function useGhostLayer({ ghost, onPlace, onCancel, reveal }: GhostLayerOp
     },
     [following, follow, screenToFlowPosition],
   );
+  /** Whether the button went down on the canvas since the ghost started following: then the click places it. */
+  const pressed = useRef(false);
+  useEffect(() => {
+    pressed.current = false;
+  }, [placement]);
+  const onPointerDownCapture = useCallback(() => {
+    pressed.current = true;
+  }, []);
+  /**
+   * For the canvas's root: a drag that began outside the canvas (from the library, holding a blueprint or a recipe)
+   * and is let go over it places the ghost there, where it's drawn.
+   */
+  const onPointerUp = useCallback(
+    (event: PointerEvent) => {
+      const outside = !pressed.current;
+      pressed.current = false;
+      if (following && outside && event.button === 0) onPlace(offset);
+    },
+    [following, offset, onPlace],
+  );
   /** For the canvas's root, capturing: a click anywhere places a following ghost, and does nothing else. */
   const onClickCapture = useCallback(
     (event: MouseEvent) => {
@@ -218,7 +238,17 @@ export function useGhostLayer({ ghost, onPlace, onCancel, reveal }: GhostLayerOp
   }, [following, placement, offset, onPlace, onCancel]);
 
   const shownMarks = (following && marks?.from === placement && marks?.marks) || NO_MARKS;
-  return { nodes, edges, takeChanges, onPointerMove, onClickCapture, following, marks: shownMarks };
+  return {
+    nodes,
+    edges,
+    takeChanges,
+    onPointerMove,
+    onPointerDownCapture,
+    onPointerUp,
+    onClickCapture,
+    following,
+    marks: shownMarks,
+  };
 }
 
 function ghostNode(view: NodeView, offset: Point, following: boolean): FlowNode {

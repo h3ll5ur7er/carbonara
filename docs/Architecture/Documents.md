@@ -146,7 +146,7 @@ Every change to the set publishes `documentsChanged` with the new list, and so d
 
 ### Preferences
 
-The preferences access component ([[src/access/preferences/preferences.ts]]) keeps what the app remembers about the person across sessions in the platform's `KeyValueStorage` (`carbonara-preferences`: IndexedDB on the web, the app data folder on desktop), one key per preference. The shape is [[src/contracts/preferences.ts]], where every preference is optional; a stored value it can't read is ignored rather than failing the rest. Today it holds `tour`, how far the welcome tour got ([[Design]], Welcome and tour). Settings that live in the browser's `localStorage` or in memory (custom shortcuts, theme, panel layout) can move here when they need to follow the person to the desktop app.
+The preferences access component ([[src/access/preferences/preferences.ts]]) keeps what the app remembers about the person across sessions in the platform's `KeyValueStorage` (`carbonara-preferences`: IndexedDB on the web, the app data folder on desktop), one key per preference. The shape is [[src/contracts/preferences.ts]], where every preference is optional; a stored value it can't read is ignored rather than failing the rest. Today it holds `tour`, how far the welcome tour got ([[Design]], Welcome and tour), and `recipes`, the favourite and recently added recipes of each pack by pack id ([[Design]], Recipe browser; the client mirrors them in [[src/client/features/recipe-browser/memory.ts]] and saves each change). Settings that live in the browser's `localStorage` or in memory (custom shortcuts, theme, panel layout) can move here when they need to follow the person to the desktop app.
 
 ## In the client
 

@@ -151,13 +151,24 @@ export function placeNode(
   request: PickerRequest,
   drop: { x: number; y: number },
 ): Placement {
-  const [view] = createSceneBuilder()({ nodes: { new: entryNode(entry) }, edges: {} }, undefined, pack).nodes;
+  return placeNodeAt(pack, entryNode(entry), request, drop);
+}
+
+/** `placeNode` for any node; its size is the node's as drawn. */
+export function placeNodeAt(
+  pack: PackData,
+  node: Node,
+  request: PickerRequest,
+  drop: { x: number; y: number },
+): Placement & { height: number } {
+  const [view] = createSceneBuilder()({ nodes: { new: node }, edges: {} }, undefined, pack).nodes;
   const side = request.side === "out" ? "in" : "out";
   const port = view?.ports.find((candidate) => candidate.handle === handleId(side, request.item));
   const width = view?.width ?? 0;
   const portX = port?.x ?? (side === "in" ? 0 : width);
   const portY = port?.y ?? (view?.height ?? 0) / 2;
-  return { x: Math.round((drop.x - portX) / GRID) * GRID, y: drop.y - portY, width, portY: drop.y };
+  const height = view?.height ?? 0;
+  return { x: Math.round((drop.x - portX) / GRID) * GRID, y: drop.y - portY, width, height, portY: drop.y };
 }
 
 export interface Picked {

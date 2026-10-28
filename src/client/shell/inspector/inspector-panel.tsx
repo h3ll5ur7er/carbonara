@@ -2,7 +2,9 @@
 // the manager refuses (or that fails on the way) shows an error toast. With no node selected but a document
 // open, it shows the document's Save profile instead.
 import type { CommandInput } from "../../../contracts/commands";
+import type { Id } from "../../../contracts/pack";
 import { useConnector } from "../../core/connector";
+import { toggleFavourite, useMemoryOf } from "../../features/recipe-browser/memory";
 import { SaveProfile, type SaveProfileProps } from "../../features/save-profile/save-profile";
 import { errorMessage, toast } from "../toasts";
 import { applyFieldEdit, type FieldEdit, type FieldEditTarget } from "./edit";
@@ -15,6 +17,8 @@ export interface NodeSelection {
   productionEdit?: (value: number | null) => { commands: CommandInput[]; label: string } | null;
   /** A subgraph instance: going into it, and selecting its blueprint's other instances on screen. */
   subgraph?: Pick<InstanceActions, "open" | "selectSiblings"> | undefined;
+  /** A recipe node: its recipe and pack, so the inspector can star the recipe (the recipe browser's favourites). */
+  recipe?: { packId: string; recipe: Id } | undefined;
 }
 
 export interface InspectorPanelProps {
@@ -29,6 +33,8 @@ export function InspectorPanel({ selection }: InspectorPanelProps) {
 
 function NodeInspector({ selection }: { selection: NodeSelection | null }) {
   const connector = useConnector();
+  const recipe = selection?.recipe;
+  const favourites = useMemoryOf(recipe?.packId).favourites;
 
   async function apply(commands: CommandInput[], label: string) {
     if (!selection) return;
@@ -77,6 +83,12 @@ function NodeInspector({ selection }: { selection: NodeSelection | null }) {
       onFieldEdit={onFieldEdit}
       onProductionEdit={onProductionEdit}
       instanceActions={instanceActions}
+      favourite={
+        recipe && {
+          starred: favourites.includes(recipe.recipe),
+          onToggle: () => toggleFavourite(recipe.packId, recipe.recipe),
+        }
+      }
     />
   );
 }

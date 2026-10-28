@@ -125,6 +125,9 @@ test("plans in the buildings asked for", async ({ page }) => {
   await planner.getByRole("button", { name: "Plan", exact: true }).click();
   await expect(planner.getByRole("region", { name: "Buildings" })).toContainText("Fast Assembler");
   await planner.getByRole("button", { name: "Accept" }).click();
+  // With both side panels open the fit lands in compact cards, without rates (CARB-139): close the library.
+  await page.keyboard.press("ControlOrMeta+B");
+  await page.keyboard.press("f");
   // Twice as fast: 1.25 fast assemblers make the motors that took 2.5 assemblers.
   await expect(page.locator('.react-flow__node[data-id="motor"]')).toContainText("× 1.25");
 });

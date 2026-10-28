@@ -1,7 +1,8 @@
 // What the canvas offers the app's commands for editing the document on screen: the actions on its selection,
 // arranging, undo, and where a new node should go. Set by the document canvas on screen; empty without one.
-import type { Node, Position, TagColour } from "../../contracts/document";
+import type { LocalId, Node, Position, TagColour } from "../../contracts/document";
 import type { ArrangeDirection } from "../../contracts/layout";
+import type { Id } from "../../contracts/pack";
 import type { ClipboardActions } from "./clipboard-actions";
 import type { AlignMode, DistributeAxis } from "./model/align";
 import type { NavigationActions } from "./use-navigation";
@@ -37,12 +38,34 @@ export interface CanvasEditActions extends NavigationActions, ClipboardActions {
   redo(): void;
   /** Where a node added from outside the canvas (quick-add) goes: mid-view, clear of the others. */
   placeNew(node: Node): Position;
+  /**
+   * Adds a node from outside the canvas (the recipe browser, quick-add) to the graph on screen, as one undo step
+   * labelled `label`, and selects it once it's drawn. It goes to `position`, else beside the port it connects to,
+   * else where `placeNew` says. Answers its id.
+   */
+  addNode(node: Node, options: AddNodeOptions): LocalId;
+  /** The recipes the selected nodes run, each once, and the pack they're of. */
+  selectedRecipes(): { packId: string; recipes: Id[] };
   /** Collapses the selected nodes into a new subgraph, and selects its instance. */
   collapseSelection(): void;
   /** Expands the selected subgraph instances back into the graph. */
   expandSelection(): void;
   /** Opens the selected subgraph instance. */
   openSubgraph(): void;
+}
+
+export interface AddNodeOptions {
+  label: string;
+  position?: Position | undefined;
+  /** A port of a node on screen to connect the new node to: an input takes from it, an output feeds it. */
+  connectTo?: PortRef | undefined;
+}
+
+/** A node's port by its item and side, as diagnostics and suggestions name it. */
+export interface PortRef {
+  node: LocalId;
+  item: Id;
+  side: "in" | "out";
 }
 
 let actions: CanvasEditActions | undefined;

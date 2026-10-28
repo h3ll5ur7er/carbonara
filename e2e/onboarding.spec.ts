@@ -85,6 +85,9 @@ test("a new player picks a game, gets a starter factory and completes the tour",
 
   // Set a target in the inspector.
   await expect(tourCard(page)).toHaveAttribute("data-tour-step", "target");
+  // With both side panels open the fit lands in compact cards, without rates (CARB-139): close the library.
+  await page.keyboard.press("ControlOrMeta+B");
+  await page.keyboard.press("f");
   await node(page, "wire").click();
   const target = page.getByRole("complementary", { name: "Inspector" }).getByLabel("Target");
   await target.fill("1");

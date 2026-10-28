@@ -1,14 +1,15 @@
 // The command palette (Ctrl+K): every registered command, and with a document open, quick-add by item or
 // recipe name. Type to filter, arrow keys to move, Enter to run, Escape to close.
 import * as RadixDialog from "@radix-ui/react-dialog";
-import { Command } from "cmdk";
-import { CornerDownLeft, Plus, Search } from "lucide-react";
-import { useState } from "react";
+import { Command, defaultFilter } from "cmdk";
+import { CornerDownLeft, History, Plus, Search, Star } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { CommandDefinition, CommandRegistry } from "../../core/commands";
 import { formatShortcut, type Platform } from "../../core/commands-shortcuts";
 import { cx } from "../../ui/cx";
 import { Kbd } from "../../ui/kbd";
 import { setPaletteOpen, usePalette } from "./palette-store";
+import type { QuickAddEntry } from "./quick-add";
 import type { QuickAdd } from "./use-quick-add";
 
 /** The palette's own command; listing it inside the palette would only close it. */
@@ -49,6 +50,36 @@ export function CommandPalette({ registry, platform, quickAdd }: CommandPaletteP
     command.run();
   }
 
+  // Favourite recipes come first in quick-add, then recent ones, then the rest, among what matches.
+  const preferred = useMemo(() => {
+    const bonus = new Map<string, number>();
+    for (const entry of quickAdd?.recent ?? []) bonus.set(quickAddValue(entry), 1);
+    for (const entry of quickAdd?.favourites ?? []) bonus.set(quickAddValue(entry), 2);
+    return bonus;
+  }, [quickAdd]);
+  const filter = (value: string, typed: string, keywords?: string[]) => {
+    const score = defaultFilter(value, typed, keywords);
+    return score > 0 ? score + (preferred.get(value) ?? 0) : 0;
+  };
+  const addItem = (entry: QuickAddEntry, value: string, icon: ReactNode) => (
+    <Command.Item
+      key={value}
+      value={value}
+      keywords={[entry.title, ...entry.keywords]}
+      onSelect={() => {
+        close();
+        quickAdd?.add(entry);
+      }}
+      className={item}
+    >
+      <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-accent-soft text-accent-fg">{icon}</span>
+      <span className="shrink-0 text-fg">{entry.title}</span>
+      <span className="min-w-0 flex-1 truncate text-xs text-fg-subtle">{entry.detail}</span>
+      <EnterHint />
+    </Command.Item>
+  );
+  const plus = <Plus className="size-3.5" aria-hidden />;
+
   return (
     <RadixDialog.Root open={open} onOpenChange={(next) => (next ? setPaletteOpen(true) : close())}>
       <RadixDialog.Portal>
@@ -61,7 +92,7 @@ export function CommandPalette({ registry, platform, quickAdd }: CommandPaletteP
           )}
         >
           <RadixDialog.Title className="sr-only">Command palette</RadixDialog.Title>
-          <Command label="Commands" loop className="flex animate-pop-in flex-col">
+          <Command label="Commands" loop filter={filter} className="flex animate-pop-in flex-col">
             <div className="flex h-13 items-center gap-3 border-b border-line-subtle px-4">
               <Search className="size-4.5 shrink-0 text-fg-subtle" aria-hidden />
               <Command.Input
@@ -76,27 +107,27 @@ export function CommandPalette({ registry, platform, quickAdd }: CommandPaletteP
               <Command.Empty className="px-3 py-8 text-center text-sm text-fg-subtle">
                 Nothing matches “{search}”.
               </Command.Empty>
+              {quickAdd && !search.trim() && quickAdd.favourites.length > 0 && (
+                <Command.Group heading="Favourite recipes">
+                  {quickAdd.favourites.map((entry) =>
+                    addItem(
+                      entry,
+                      `favourite ${entry.recipeId}`,
+                      <Star className="size-3.5 fill-current" aria-hidden />,
+                    ),
+                  )}
+                </Command.Group>
+              )}
+              {quickAdd && !search.trim() && quickAdd.recent.length > 0 && (
+                <Command.Group heading="Recent recipes">
+                  {quickAdd.recent.map((entry) =>
+                    addItem(entry, `recent ${entry.recipeId}`, <History className="size-3.5" aria-hidden />),
+                  )}
+                </Command.Group>
+              )}
               {quickAdd && search.trim() && (
                 <Command.Group heading="Add to factory">
-                  {quickAdd.entries.map((entry) => (
-                    <Command.Item
-                      key={entry.recipeId}
-                      value={`add ${entry.recipeId}`}
-                      keywords={[entry.title, ...entry.keywords]}
-                      onSelect={() => {
-                        close();
-                        quickAdd.add(entry);
-                      }}
-                      className={item}
-                    >
-                      <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-accent-soft text-accent-fg">
-                        <Plus className="size-3.5" aria-hidden />
-                      </span>
-                      <span className="shrink-0 text-fg">{entry.title}</span>
-                      <span className="min-w-0 flex-1 truncate text-xs text-fg-subtle">{entry.detail}</span>
-                      <EnterHint />
-                    </Command.Item>
-                  ))}
+                  {quickAdd.entries.map((entry) => addItem(entry, quickAddValue(entry), plus))}
                 </Command.Group>
               )}
               {groups.map(([group, commands]) => (
@@ -135,6 +166,11 @@ export function CommandPalette({ registry, platform, quickAdd }: CommandPaletteP
       </RadixDialog.Portal>
     </RadixDialog.Root>
   );
+}
+
+/** A quick-add entry's value in the palette. */
+function quickAddValue(entry: QuickAddEntry): string {
+  return `add ${entry.recipeId}`;
 }
 
 function EnterHint() {

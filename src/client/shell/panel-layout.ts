@@ -2,9 +2,9 @@
 
 export type PanelSide = "left" | "right";
 
-/** Widths in CSS pixels. The left panel lists things, the right one (the inspector) holds wider controls. */
+/** Widths in CSS pixels. The left panel lists recipes and blueprints, the right one (the inspector) holds controls. */
 export const panelWidths: Record<PanelSide, { min: number; default: number; max: number }> = {
-  left: { min: 216, default: 264, max: 400 },
+  left: { min: 240, default: 304, max: 440 },
   right: { min: 280, default: 320, max: 480 },
 };
 

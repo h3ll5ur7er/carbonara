@@ -59,7 +59,11 @@ test("right-clicking a node offers what applies to it, and Delete there deletes 
   await openScene(page, "congested&zoom=1&focus=gears");
   await page.locator('[data-id="gears"] header').click({ button: "right" });
   const menu = page.getByRole("menu");
-  await expect(menu.getByRole("menuitem")).toContainText(["Zoom to selection", "Arrange left to right"]);
+  await expect(menu.getByRole("menuitem")).toContainText([
+    "Add to favourites",
+    "Zoom to selection",
+    "Arrange left to right",
+  ]);
   await expect(page).toHaveScreenshot("context-menu-node.png");
   await menu.getByRole("menuitem", { name: /Delete selection/ }).click();
   expect(await appliedCommands(page)).toEqual([expect.objectContaining({ type: "removeNodes", ids: ["gears"] })]);
@@ -68,7 +72,7 @@ test("right-clicking a node offers what applies to it, and Delete there deletes 
 test("right-clicking empty canvas offers the canvas's commands; a right-drag still pans", async ({ page }) => {
   await openScene(page, "congested&zoom=1&focus=gears");
   const pane = page.locator(".react-flow__pane");
-  await pane.click({ button: "right", position: { x: 300, y: 120 } });
+  await pane.click({ button: "right", position: { x: 360, y: 120 } });
   await expect(page.getByRole("menuitem", { name: /Add note/ })).toBeVisible();
   await page.keyboard.press("Escape");
 
@@ -77,7 +81,7 @@ test("right-clicking empty canvas offers the canvas's commands; a right-drag sti
     .evaluate((viewport) => getComputedStyle(viewport).transform);
   // From the same empty spot.
   const box = await pane.boundingBox();
-  const start = { x: (box?.x ?? 0) + 300, y: (box?.y ?? 0) + 120 };
+  const start = { x: (box?.x ?? 0) + 360, y: (box?.y ?? 0) + 120 };
   await page.mouse.move(start.x, start.y);
   await page.mouse.down({ button: "right" });
   await page.mouse.move(start.x + 120, start.y + 60, { steps: 8 });

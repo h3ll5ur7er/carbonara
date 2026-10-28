@@ -7,7 +7,8 @@ import type { PackData } from "../../contracts/pack";
 import { useConnector } from "../core/connector";
 import { errorMessage, toast } from "../shell/toasts";
 import { blueprintName } from "../features/subgraphs/path";
-import { setCanvasEditActions, type CanvasEditActions } from "./edit-actions";
+import { setCanvasEditActions, type CanvasEditActions, type PortRef } from "./edit-actions";
+import { placeNodeAt } from "../features/recipe-picker/picker";
 import type { NavigationActions } from "./use-navigation";
 import type { Point } from "./adapter";
 import { clipboardActions } from "./clipboard-actions";
@@ -15,10 +16,13 @@ import { align, distribute, straightenChain, type AlignMode, type Box } from "./
 import { freeSpot, obstaclesOf } from "./model/free-spot";
 import { rateChoices, settingsFor } from "./model/format";
 import { GRID } from "./model/geometry";
-import { createSceneBuilder, type CanvasScene, type EffectiveItems } from "./model/scene";
+import { createSceneBuilder, handleId, type CanvasScene, type EffectiveItems } from "./model/scene";
 import { shapesOf } from "./model/shapes";
 import { canvasActions, viewportCentre } from "./viewport";
 import { download, imageFileName } from "../features/export/export";
+
+/** How far out from a port, in flow units, a node added to connect to it puts its own port. */
+const BESIDE_PORT = GRID * 6;
 
 export interface Selection {
   nodes: LocalId[];
@@ -79,6 +83,17 @@ export function useEditActions({
       if (Object.keys(positions).length > 0) void apply([{ type: "moveNodes", graph, positions }], label);
     };
     /** Mid-view, clear of the other nodes. */
+    /** Where a node connecting to a port goes: its own port a little way out from it, clear of the others. */
+    const besidePort = ({ node: nodeId, item, side }: PortRef, node: Node) => {
+      const view = scene.nodes.find((candidate) => candidate.id === nodeId);
+      const port = view?.ports.find((candidate) => candidate.handle === handleId(side, item));
+      if (!view || !port) return undefined;
+      const away = (side === "out" ? 1 : -1) * BESIDE_PORT;
+      const drop = { x: view.position.x + port.x + away, y: view.position.y + port.y };
+      const placed = placeNodeAt(pack, node, { item, side }, drop);
+      const wanted = { x: placed.x, y: placed.y, width: placed.width, height: placed.height };
+      return freeSpot(wanted, obstaclesOf(scene.nodes), GRID);
+    };
     const placeNew = (node: Node) => {
       const [view] = createSceneBuilder()({ nodes: { new: node }, edges: {} }, undefined, pack).nodes;
       const width = view?.width ?? 0;
@@ -255,6 +270,32 @@ export function useEditActions({
       undo: () => report("Undo", connector.editing.undo({ documentId })),
       redo: () => report("Redo", connector.editing.redo({ documentId })),
       placeNew,
+      addNode(node, { label, position, connectTo }) {
+        // A readable, practically unique id: what the node runs, plus a random suffix.
+        const id = `${node.kind === "recipe" ? node.recipe : node.kind}-${crypto.randomUUID().slice(0, 6)}`;
+        const beside = connectTo && besidePort(connectTo, node);
+        const commands: CommandInput[] = [
+          { type: "addNode", graph, id, node, position: position ?? beside ?? placeNew(node) },
+        ];
+        if (connectTo) {
+          const { node: other, item, side } = connectTo;
+          commands.push({
+            type: "connect",
+            graph,
+            edge: side === "in" ? { from: id, to: other, item } : { from: other, to: id, item },
+          });
+        }
+        selectWhenShown([id]);
+        void apply(commands, label);
+        return id;
+      },
+      selectedRecipes() {
+        const recipes = selection.current.nodes.flatMap((id) => {
+          const node = shown?.nodes[id];
+          return node?.kind === "recipe" ? [node.recipe] : [];
+        });
+        return { packId: document.pack.id, recipes: [...new Set(recipes)] };
+      },
       ...clipboardActions({ connector, document, pack, graph, shown, scene, selection, apply }),
       ...navigation,
     };

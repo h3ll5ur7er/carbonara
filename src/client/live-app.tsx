@@ -25,6 +25,9 @@ import { TourCard } from "./features/onboarding/tour-card";
 import { useOnboarding } from "./features/onboarding/use-onboarding";
 import { errorMessage, toast } from "./shell/toasts";
 import { scopedTo } from "./features/subgraphs/path";
+import { own } from "../utilities/records";
+import { formatRate, rateDisplayOf } from "./canvas/model/format";
+import { suggest, type Suggestion } from "./features/recipe-browser/suggest";
 import { useSubgraphView, type SubgraphView } from "./features/subgraphs/use-subgraph-view";
 import { useBlueprintPlacement, type BlueprintPlacement } from "./features/subgraphs/use-blueprint-placement";
 import { BlueprintLibrary } from "./features/subgraphs/library-panel";
@@ -57,6 +60,7 @@ export function LiveApp() {
     [info, graph],
   );
   const inspected = useInspected(active, subgraph, selection);
+  const suggestions = useSuggestions(active, subgraph, selection);
   const placement = useBlueprintPlacement(active.document, graph);
   const manage = useBlueprintManagement(active.document);
   const entries = useMemo(
@@ -82,15 +86,16 @@ export function LiveApp() {
           )
         }
         selection={inspected}
+        suggestions={suggestions}
+        blueprintCount={entries.length}
         {...(info && {
-          library: (
+          blueprints: (
             <BlueprintLibrary
               entries={entries}
               placing={placement.placing}
               collapseKeys={keysOf("subgraph.collapse")}
               onPick={placement.pick}
               onPlaceInView={placement.placeInView}
-              onDrop={placement.drop}
               onCancel={placement.cancel}
               manage={manage}
             />
@@ -222,9 +227,11 @@ function useInspected(
     });
     if (!node) return null;
     const siblings = node.instance?.siblings;
+    const raw = own(shown.graph.nodes, nodeId);
     return {
       target: { documentId: info.id, nodeId, graph },
       node,
+      ...(raw?.kind === "recipe" && { recipe: { packId: info.packId, recipe: raw.recipe } }),
       productionEdit: (value) => {
         const edit = productionEdit(shown, packData, nodeId, value);
         return edit && { ...edit, commands: edit.commands.map((command) => ({ ...command, graph })) };
@@ -237,6 +244,31 @@ function useInspected(
       }),
     };
   }, [selection, info, document, packData, results, plugin, graph, onOpenSubgraph]);
+}
+
+/** What the recipe browser suggests for the graph on screen: around the selection, and from its last solve. */
+function useSuggestions(
+  { info, document, packData }: ActiveDocument,
+  { graph, results }: SubgraphView,
+  selection: Selection | null,
+): Suggestion[] {
+  return useMemo(() => {
+    if (!info || !document || !packData) return [];
+    const display = rateDisplayOf(document.settings, packData);
+    const forms = new Map(packData.items.map((item) => [item.id, item.form]));
+    const rate = (perSecond: number, item: string) => {
+      const formatted = formatRate(perSecond, display, forms.get(item));
+      return `${formatted.value}${formatted.unit}`;
+    };
+    const selected = selection?.documentId === info.id && selection.graph === graph ? selection.nodeIds : [];
+    return suggest({
+      graph: scopedTo(document, graph).graph,
+      pack: packData,
+      results: results?.graph === graph ? results : null,
+      selected,
+      rate,
+    });
+  }, [info, document, packData, graph, results, selection]);
 }
 
 /** Opens the document of a share link the page was opened with, then removes it from the address bar. */
