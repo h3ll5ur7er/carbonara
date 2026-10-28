@@ -3,6 +3,7 @@
 import { ArrowRight, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import type { PackInfo } from "../../../contracts/managers";
+import { openWhole } from "../../canvas/viewport";
 import { useConnector } from "../../core/connector";
 import { useModels } from "../../core/models";
 import { errorMessage, toast } from "../../shell/toasts";
@@ -32,6 +33,8 @@ export function GamePicker() {
         ...(starter && { starter: starter.id }),
       });
       await workspace.ready;
+      // The tour points at every part of the starter, so it shows all of it, not just its readable middle.
+      openWhole("next");
       workspace.activate(document.id);
       startTour();
     } catch (error) {

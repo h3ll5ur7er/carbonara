@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { lodTier, type LodTier } from "./lod";
+import { lodTier, READABLE_ZOOM, type LodTier } from "./lod";
 
 describe("lodTier", () => {
   it("shows full cards while text on them is readable", () => {
@@ -30,5 +30,12 @@ describe("lodTier", () => {
         },
       ),
     );
+  });
+});
+
+describe("READABLE_ZOOM", () => {
+  it("is the least zoom that still draws full cards", () => {
+    expect(lodTier(READABLE_ZOOM)).toBe("full");
+    expect(lodTier(READABLE_ZOOM - 0.01)).not.toBe("full");
   });
 });

@@ -27,6 +27,23 @@ export async function openInApp(page: Page, spec: SceneSpec, colorScheme: "dark"
   // longer than an assertion's default 5 s on a loaded runner; what the specs test starts after it.
   await expect(page.locator(".react-flow__node")).toHaveCount(Object.keys(spec.nodes).length, { timeout: 30_000 });
   await page.evaluate(() => document.fonts.ready);
+  // A factory opens readably, around its centre (CARB-139); these specs work on all of it, so they fit it first.
+  await page.keyboard.press("f");
+  await viewSettled(page);
+}
+
+/** Waits until the canvas's view stops moving (a fit or a zoom lands a frame or more after its key). */
+export async function viewSettled(page: Page) {
+  const transform = () => page.locator(".react-flow__viewport").evaluate((viewport) => viewport.style.transform);
+  let last = await transform();
+  await expect
+    .poll(async () => {
+      const now = await transform();
+      const still = now === last;
+      last = now;
+      return still;
+    })
+    .toBe(true);
 }
 
 export interface Box {

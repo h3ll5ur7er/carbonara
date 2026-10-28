@@ -44,6 +44,20 @@ export function setCanvasActions(next: CanvasActions | undefined): void {
 }
 
 let waiting: (() => void)[] = [];
+let whole: "next" | "always" | undefined;
+
+/**
+ * Canvases opening from now on fit all of their graph instead of readably around its centre (docs/Design.md,
+ * Canvas): the next one to come on screen (the tour's starter), or every one (the screenshot scenes).
+ */
+export function openWhole(which: "next" | "always"): void {
+  whole = which;
+}
+
+/** Whether a canvas opening now fits all of its graph. */
+export function opensWhole(): boolean {
+  return whole !== undefined;
+}
 
 /**
  * Resolves once the next canvas to come on screen has set up its view, so its actions can move it: after the
@@ -55,6 +69,7 @@ export function nextCanvasShown(): Promise<void> {
 
 /** A document canvas has set up its first view. */
 export function canvasShown(): void {
+  if (whole === "next") whole = undefined;
   const resolved = waiting;
   waiting = [];
   for (const resolve of resolved) resolve();

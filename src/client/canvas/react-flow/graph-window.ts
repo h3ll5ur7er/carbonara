@@ -24,8 +24,11 @@ export interface GraphWindow {
   /** What to hand React Flow. */
   nodes: FlowNode[];
   edges: FlowEdge[];
-  /** Call once React Flow is set up; fits the whole graph first when `fitWhole`. Windowing starts then. */
-  start(fitWhole: boolean): void;
+  /**
+   * Call once React Flow is set up; fits the graph first when `fit`, zoomed in at least to `least` (around its
+   * centre). Windowing starts then.
+   */
+  start(fit: boolean, least?: number): void;
   /** Fits nodes React Flow may not have (every node when none are given). */
   fitTo(nodes: FlowNode[] | undefined, maxZoom: number, duration: number): Promise<boolean>;
   /** Every node, also those outside the window. */
@@ -67,17 +70,19 @@ export function useGraphWindow({ scene, nodes, edges, exporting, padding }: Grap
   }, [index, box, exporting, nodes, edges]);
 
   const fitTo = useCallback(
-    (targets: FlowNode[] | undefined, maxZoom: number, duration: number) => {
+    (targets: FlowNode[] | undefined, maxZoom: number, duration: number, least?: number) => {
       const { width, height, minZoom } = store.getState();
       const bounds = getNodesBounds(targets ?? all.current);
-      return setViewport(getViewportForBounds(bounds, width, height, minZoom, maxZoom, padding), { duration });
+      const viewport = getViewportForBounds(bounds, width, height, least ?? minZoom, maxZoom, padding);
+      return setViewport(viewport, { duration });
     },
     [store, getNodesBounds, setViewport, padding],
   );
   const start = useCallback(
-    (fitWhole: boolean) => {
-      // A large graph is fitted here, before its window replaces the whole graph in React Flow.
-      if (index && fitWhole && store.getState().width > 0) void fitTo(undefined, 1, 0);
+    (fit: boolean, least?: number) => {
+      // A large graph is fitted here, before its window replaces the whole graph in React Flow, as React Flow
+      // fits a small one.
+      if (index && fit && store.getState().width > 0) void fitTo(undefined, 1, 0, least);
       setStarted(true);
     },
     [index, store, fitTo],

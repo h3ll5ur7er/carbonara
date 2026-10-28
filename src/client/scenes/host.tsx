@@ -1,10 +1,13 @@
 // Renders the scene the URL names, or a list of all scenes. Loaded only in development (see `App`).
 import { lazy, Suspense } from "react";
+import { openWhole } from "../canvas/viewport";
 import { TooltipProvider } from "../ui/tooltip";
 import { pickScene, scenes } from "./registry";
 
 const pick = pickScene(location.search, scenes);
 const SceneComponent = pick.kind === "scene" ? lazy(pick.scene.load) : null;
+// A scene is a picture of all of its composition, not a factory opened to work in: it shows all of it.
+if (SceneComponent) openWhole("always");
 
 export default function SceneHost() {
   return (

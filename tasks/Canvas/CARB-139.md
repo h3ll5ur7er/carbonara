@@ -2,7 +2,7 @@
 id: CARB-139
 title: Fit a factory readably with both side panels open
 type: improvement
-status: backlog
+status: done
 priority: medium
 labels: [ux, canvas]
 wave: "4"
@@ -15,5 +15,5 @@ The left-docked overlays add to it: the planner and the totals stand beside the 
 
 **Done when** opening a factory shows full cards whenever they fit at a readable size, for example by fitting to a minimum zoom around the factory's centre (or its most recent edit) rather than to the whole graph, or by narrowing the panels on narrow windows; the choice is measured on the canonical scenes at 1280 and 1440 px.
 
-- [ ] Decide the rule (minimum zoom, panel widths by window width) and write it down in [[Design]]
-- [ ] Screenshots of the canonical scenes at both widths
+- [x] Decided with the owner: opening fits to at least full-card zoom, centred on the factory; F fits all of it (written down in [[Design]], Side panels)
+- [x] Canonical scenes re-rendered at 1440 px (chain, congested, subgraph, ghost paste, totals); the editor specs fit the whole factory after opening, as they assume

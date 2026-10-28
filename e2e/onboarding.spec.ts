@@ -1,6 +1,7 @@
 // The first run (CARB-64): which game do you play, a starter factory, and the tour through the core loop. Automated
 // browsers skip the first run unless the address asks for it (`?first-run`), so the other specs never see it.
 import { expect, test, type Page } from "@playwright/test";
+import { viewSettled } from "./qol-helpers";
 
 /** The tour card: a non-modal dialog that names its step. */
 const tour = (page: Page) => page.getByRole("dialog").and(page.locator("[data-tour-step]"));
@@ -42,6 +43,9 @@ async function pickGame(page: Page, game = "Template Works") {
     .getByRole("button", { name: new RegExp(game) })
     .click();
   await expect(page.getByRole("tab", { name: "Copper wire", selected: true })).toBeVisible();
+  // The starter opens fitted whole for the tour, which may glide there.
+  await expect(page.locator(".react-flow__node").first()).toBeVisible();
+  await viewSettled(page);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -71,6 +75,7 @@ test("a new player picks a game, gets a starter factory and completes the tour",
   const wire = page.locator(".react-flow__node-recipe").filter({ hasText: "Copper Wire" });
   await expect(wire).toBeVisible();
   await page.keyboard.press("f");
+  await viewSettled(page);
   await connect(
     page,
     '.react-flow__node[data-id="plates"] [data-handleid="out:copper-plate"]',
@@ -88,6 +93,7 @@ test("a new player picks a game, gets a starter factory and completes the tour",
   // With both side panels open the fit lands in compact cards, without rates (CARB-139): close the library.
   await page.keyboard.press("ControlOrMeta+B");
   await page.keyboard.press("f");
+  await viewSettled(page);
   await node(page, "wire").click();
   const target = page.getByRole("complementary", { name: "Inspector" }).getByLabel("Target");
   await target.fill("1");

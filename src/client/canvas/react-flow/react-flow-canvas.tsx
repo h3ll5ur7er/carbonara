@@ -28,12 +28,12 @@ import type { CanvasViewProps, Connected, Insets, Point } from "../adapter";
 import type { Move } from "../model/tween";
 import { connectionItem, portOf } from "../model/connect";
 import { particlesShown } from "../model/flow-style";
-import { lodTier } from "../model/lod";
+import { lodTier, READABLE_ZOOM } from "../model/lod";
 import { nodeLabel } from "../model/node-label";
 import { GRID } from "../model/geometry";
 import type { CanvasScene, EdgeView, NodeView } from "../model/scene";
 import { insideLasso, nudgeOffset } from "../model/selection";
-import { setCanvasActions } from "../viewport";
+import { opensWhole, setCanvasActions } from "../viewport";
 import { visibleCentre } from "../model/view";
 import { GhostFrameNode, useGhostLayer } from "../ghost/use-ghost-layer";
 import { isGhost } from "../ghost/ghost";
@@ -338,10 +338,20 @@ function FlowCanvas({
   }, [reportCentre, store, onViewSettled]);
 
   const { start: startWindow, fitTo, allNodes } = graphWindow;
+  // Opening fits readably: full cards around the factory's centre, beside the side panels; or all of it, when the
+  // app asks (Design, Canvas).
+  const [least] = useState(() => (opensWhole() ? undefined : READABLE_ZOOM));
+  const openFit = useMemo(
+    () => ({ ...fitOptions(insets), ...(least !== undefined && { minZoom: least }) }),
+    [insets, least],
+  );
   const onInit = useCallback(() => {
-    startWindow(!initialViewport);
-    onMoveEnd();
-  }, [startWindow, initialViewport, onMoveEnd]);
+    startWindow(!initialViewport, least);
+    // React Flow fits a graph that isn't windowed once its nodes are measured, which can be after init: the first
+    // view is reported once that fit is done, so a move made on it (the tour's zoom to fit) isn't undone.
+    const fitted = initialViewport || windowed ? Promise.resolve() : fitView({ ...openFit, duration: 0 });
+    void fitted.then(onMoveEnd);
+  }, [startWindow, initialViewport, least, windowed, fitView, openFit, onMoveEnd]);
 
   useEffect(() => {
     // Moves made here settle without React Flow saying so: report them, for back and forward.
@@ -560,7 +570,7 @@ function FlowCanvas({
             attributionPosition="bottom-center"
             isValidConnection={isValidConnection}
             {...(initialViewport ? { defaultViewport: initialViewport } : { fitView: true })}
-            fitViewOptions={fitOptions(insets)}
+            fitViewOptions={openFit}
             minZoom={0.05}
             maxZoom={MAX_ZOOM}
             aria-label="Factory canvas"
