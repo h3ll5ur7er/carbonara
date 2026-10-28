@@ -519,6 +519,8 @@ function FlowCanvas({
         className={`size-full ${altHeld ? "alt-held" : ""}`}
         onKeyDownCapture={onKeyDownCapture}
         onPointerMove={ghostLayer.onPointerMove}
+        onPointerDownCapture={ghostLayer.onPointerDownCapture}
+        onPointerUp={ghostLayer.onPointerUp}
         onClickCapture={ghostLayer.onClickCapture}
       >
         <LassoArea onLasso={onLasso}>

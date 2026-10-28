@@ -18,6 +18,8 @@ const NO_PACK: PackData = {
   logistics: [],
   resources: [],
   starters: [],
+  categories: [],
+  unlocks: [],
 };
 
 const breadcrumbs = (page: Page) => page.getByRole("navigation", { name: "Subgraph" });
@@ -48,14 +50,14 @@ test("collapses a selection, opens it, edits it and comes back with the factory 
   await expect(row(page, "Copper Wire")).toContainText("105");
 
   // Double-click dives in: the line's machines between its ports, the way back in the breadcrumbs.
-  await instances(page).locator("header").dblclick();
+  await instances(page).dblclick();
   await expect(breadcrumbs(page)).toContainText("chain");
   await expect(breadcrumbs(page)).toContainText("Copper Wire line");
   await expect(page.locator(".react-flow__node-port")).toHaveCount(3);
   await expect(page.locator('[data-id="wire"]')).toContainText("Copper Wire");
 
   // Edit inside: without its wire machine, the line makes no more wire.
-  await page.locator('[data-id="wire"] header').click();
+  await page.locator('[data-id="wire"]').click();
   await page.keyboard.press("Delete");
   await expect(page.locator('[data-id="wire"]')).toHaveCount(0);
 
@@ -74,8 +76,8 @@ test("places a blueprint from the library twice; editing the blueprint changes b
   const { document } = subgraphScene(NO_PACK);
   // Only the blueprint: the factory around it is placed from the library.
   await openDocument(page, { ...document, graph: { nodes: {}, edges: {} }, layout: { ...document.layout, root: {} } });
-  await page.keyboard.press("ControlOrMeta+B");
   const library = page.getByRole("complementary", { name: "Library" });
+  await library.getByRole("tab", { name: /Blueprints/ }).click();
   const card = library.getByRole("button", { name: /^Copper Wire line/ });
   await expect(card).toContainText("Not placed");
 
@@ -120,8 +122,9 @@ test("clicking a library card picks the blueprint up, a click on the canvas puts
   const { document } = subgraphScene(NO_PACK);
   await openDocument(page, document);
   await expect(instances(page)).toHaveCount(2);
-  await page.keyboard.press("ControlOrMeta+B");
-  const card = page.getByRole("complementary", { name: "Library" }).getByRole("button", { name: /^Copper Wire line/ });
+  const library = page.getByRole("complementary", { name: "Library" });
+  await library.getByRole("tab", { name: /Blueprints/ }).click();
+  const card = library.getByRole("button", { name: /^Copper Wire line/ });
   await card.click();
   await expect(card).toHaveAttribute("aria-pressed", "true");
   // Above the factory (fitting leaves room there): empty canvas.
@@ -146,8 +149,8 @@ test("clicking a library card picks the blueprint up, a click on the canvas puts
 test("the library renames, duplicates and deletes blueprints, each one step undo takes back", async ({ page }) => {
   const { document } = subgraphScene(NO_PACK);
   await openDocument(page, document);
-  await page.keyboard.press("ControlOrMeta+B");
   const library = page.getByRole("complementary", { name: "Library" });
+  await library.getByRole("tab", { name: /Blueprints/ }).click();
   const actions = (name: string) => library.getByRole("button", { name: `Actions for ${name}`, exact: true });
 
   // Right-click a card to rename the blueprint: every copy follows.
@@ -187,7 +190,7 @@ test("the inspector shows an instance's blueprint and ports, renames it, selects
 }) => {
   const { document } = subgraphScene(NO_PACK);
   await openDocument(page, document);
-  await instances(page).first().locator("header").click();
+  await instances(page).first().click();
   const inspector = page.getByRole("complementary", { name: "Inspector" });
   await expect(inspector.getByRole("heading", { name: "Copper Wire line" })).toBeVisible();
   await expect(inspector).toContainText("placed 2 times");
@@ -207,8 +210,8 @@ test("the inspector shows an instance's blueprint and ports, renames it, selects
   for (const instance of await instances(page).all()) await expect(instance).toHaveClass(/selected/);
 
   // A click on empty canvas, then on one of them: it alone is selected.
-  await page.locator(".react-flow__pane").click({ position: { x: 24, y: 24 } });
-  await instances(page).first().locator("header").click();
+  await page.locator(".react-flow__pane").click({ position: { x: 340, y: 24 } });
+  await instances(page).first().click();
   await inspector.getByRole("button", { name: "Open" }).click();
   await expect(breadcrumbs(page)).toContainText("Wire module");
   await page.keyboard.press("ControlOrMeta+Z");
@@ -218,7 +221,7 @@ test("the inspector shows an instance's blueprint and ports, renames it, selects
 test("the planner plans into the subgraph on screen", async ({ page }) => {
   const { document } = subgraphScene(NO_PACK);
   await openDocument(page, document);
-  await instances(page).first().getByRole("button", { name: "Open" }).click();
+  await instances(page).first().dblclick();
   await expect(breadcrumbs(page)).toContainText("Copper Wire line");
 
   await page.keyboard.press("p");
@@ -277,8 +280,9 @@ for (const colorScheme of ["dark", "light"] as const) {
     await page.evaluate(() => window.document.fonts.ready);
     await breadcrumbs(page).getByRole("button", { name: "Wire works" }).click();
     await expect(instances(page)).toHaveCount(2);
-    await page.keyboard.press("ControlOrMeta+B");
-    await expect(page.getByRole("complementary", { name: "Library" })).toContainText("Copper Wire line");
+    const library = page.getByRole("complementary", { name: "Library" });
+    await library.getByRole("tab", { name: /Blueprints/ }).click();
+    await expect(library).toContainText("Copper Wire line");
     await expect(page).toHaveScreenshot(`instances-library-${colorScheme}.png`, { animations: "disabled" });
   });
 }

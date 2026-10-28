@@ -21,7 +21,7 @@ function zoom(page: Page) {
 
 test("N adds a note, and double-clicking it edits its text in place", async ({ page }) => {
   await openScene(page, "congested&zoom=1&focus=plate-merge");
-  await page.locator(".react-flow__pane").click({ position: { x: 300, y: 600 } });
+  await page.locator(".react-flow__pane").click({ position: { x: 360, y: 600 } });
   await page.keyboard.press("n");
   const note = page.locator(".react-flow__node-note");
   await expect(note).toHaveCount(1);
@@ -79,6 +79,8 @@ for (const colorScheme of ["dark", "light"] as const) {
 for (const colorScheme of ["dark", "light"] as const) {
   test(`a frame collapses to its label bar, its flows meeting at the bar, in ${colorScheme}`, async ({ page }) => {
     await openScene(page, "chain&zoom=0.6&focus=wire", colorScheme);
+    // The collapsed bar would sit under the library.
+    await page.keyboard.press("ControlOrMeta+B");
     const copper = page.locator('.react-flow__node[data-id="copper-frame"]');
     await copper.hover({ position: { x: 300, y: 200 } });
     await page.getByRole("button", { name: "Collapse frame Copper" }).click();

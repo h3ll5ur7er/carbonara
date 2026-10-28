@@ -13,7 +13,7 @@ const entries: LibraryEntry[] = [
 ];
 
 function renderLibrary(props: Partial<BlueprintLibraryProps> = {}) {
-  const handlers = { onPick: vi.fn(), onPlaceInView: vi.fn(), onDrop: vi.fn(), onCancel: vi.fn() };
+  const handlers = { onPick: vi.fn(), onPlaceInView: vi.fn(), onCancel: vi.fn() };
   render(<BlueprintLibrary entries={entries} placing={null} {...handlers} {...props} />);
   return handlers;
 }
@@ -38,8 +38,8 @@ describe("the blueprint library", () => {
     expect(onPlaceInView).toHaveBeenCalledWith("line");
   });
 
-  it("drops what's let go of over the canvas after a drag, and cancels anywhere else", () => {
-    const { onDrop, onCancel } = renderLibrary();
+  it("leaves what's let go of over the canvas to the canvas after a drag, and cancels anywhere else", () => {
+    const { onCancel } = renderLibrary();
     const line = screen.getByRole("button", { name: /Copper line/ });
     const pane = document.createElement("div");
     pane.className = "react-flow__pane";
@@ -51,7 +51,7 @@ describe("the blueprint library", () => {
     at.mockReturnValue(pane);
     fireEvent.pointerDown(line, { button: 0, clientX: 10, clientY: 10 });
     fireEvent.pointerUp(window, { clientX: 400, clientY: 300 });
-    expect(onDrop).toHaveBeenCalledWith("line", { x: 400, y: 300 });
+    expect(onCancel).not.toHaveBeenCalled();
 
     at.mockReturnValue(line);
     fireEvent.pointerDown(line, { button: 0, clientX: 10, clientY: 10 });
@@ -61,7 +61,6 @@ describe("the blueprint library", () => {
     // A click without a drag keeps the blueprint following the pointer.
     fireEvent.pointerDown(line, { button: 0, clientX: 10, clientY: 10 });
     fireEvent.pointerUp(window, { clientX: 11, clientY: 10 });
-    expect(onDrop).toHaveBeenCalledOnce();
     expect(onCancel).toHaveBeenCalledOnce();
     pane.remove();
     Reflect.deleteProperty(document, "elementFromPoint");

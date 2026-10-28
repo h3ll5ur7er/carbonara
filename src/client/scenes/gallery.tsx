@@ -27,6 +27,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
   Menu,
+  MenuCheckboxItem,
   MenuContent,
   MenuItem,
   MenuLabel,
@@ -425,6 +426,7 @@ function TokensCard() {
 }
 
 function OverlaysCard() {
+  const [alternates, setAlternates] = useState(true);
   return (
     <Card title="Menus, tooltips and dialogs" description="Overlays float on glass and close with Escape.">
       <Row>
@@ -447,6 +449,11 @@ function OverlaysCard() {
             <MenuItem icon={<Trash2 />} shortcut={["Del"]} disabled>
               Delete
             </MenuItem>
+            <MenuSeparator />
+            <MenuLabel>Show</MenuLabel>
+            <MenuCheckboxItem checked={alternates} onCheckedChange={setAlternates}>
+              Alternate recipes
+            </MenuCheckboxItem>
           </MenuContent>
         </Menu>
         <Dialog>

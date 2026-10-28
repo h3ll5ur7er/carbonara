@@ -32,8 +32,8 @@ describe("dragPanelWidth", () => {
 
 describe("separatorKey", () => {
   it("moves the edge with the arrow keys, further with Shift", () => {
-    expect(separatorKey("left", 300, { key: "ArrowRight", shiftKey: false })).toEqual({ width: 316 });
-    expect(separatorKey("left", 300, { key: "ArrowLeft", shiftKey: true })).toEqual({ width: 236 });
+    expect(separatorKey("left", 320, { key: "ArrowRight", shiftKey: false })).toEqual({ width: 336 });
+    expect(separatorKey("left", 320, { key: "ArrowLeft", shiftKey: true })).toEqual({ width: 256 });
   });
 
   it("follows the edge's direction on the right side", () => {

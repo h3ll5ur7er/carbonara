@@ -110,6 +110,7 @@ describe("the Factorio importer", () => {
       in: { "iron-ore": 1 },
       out: { "iron-plate": 1 },
       tags: ["productivity"],
+      category: "raw-material",
     });
     expect(find(recipes, "steel-plate")).toMatchObject({
       time: 16,
@@ -370,6 +371,7 @@ describe("the Factorio importer's power generation", () => {
       in: { water: 10.3092783505, heat: 10 },
       out: { "steam@500": 103.092783505 },
       tags: power,
+      unlock: "nuclear-power",
     });
   });
 
@@ -409,6 +411,7 @@ describe("the Factorio importer's power generation", () => {
       in: {},
       out: { heat: 40 },
       tags: power,
+      unlock: "nuclear-power",
     });
     expect(find(recipes, "heating-tower-heat")).toMatchObject({ out: { heat: 40 }, tags: ["space-age", ...power] });
   });
@@ -499,6 +502,70 @@ describe("the Factorio importer's power generation", () => {
   });
 });
 
+describe("the Factorio importer's recipe groups", () => {
+  const { data } = run();
+  const recipe = (id: string) => find(data.recipes, id);
+
+  it("makes the crafting menu's rows categories, in the game's order, under their tab's name", () => {
+    expect(data.categories?.slice(0, 5)).toEqual([
+      { id: "fluid-recipes", name: "Fluid recipes", section: "Intermediate products" },
+      { id: "raw-material", name: "Raw material", section: "Intermediate products" },
+      { id: "fill-barrel", name: "Fill barrel", section: "Intermediate products" },
+      { id: "intermediate-product", name: "Intermediate product", section: "Intermediate products" },
+      { id: "uranium-processing", name: "Uranium processing", section: "Intermediate products" },
+    ]);
+    // Only rows that hold a recipe of the pack.
+    const used = new Set(data.recipes?.map((entry) => entry.category));
+    expect(data.categories?.every((category) => used.has(category.id))).toBe(true);
+  });
+
+  it("files a recipe under its own row, else its main product's", () => {
+    expect(recipe("crude-oil-barrel").category).toBe("fill-barrel");
+    expect(recipe("iron-plate").category).toBe("raw-material");
+    expect(recipe("electronic-circuit").category).toBe("intermediate-product");
+    expect(recipe("uranium-processing").category).toBe("uranium-processing");
+    // Recycling makes several things of one: it sits with what it takes apart.
+    expect(recipe("iron-gear-wheel-recycling").category).toBe("intermediate-product");
+  });
+
+  it("lists the technologies that unlock recipes, by the science they need, then by how deep they sit", () => {
+    expect(data.unlocks).toEqual([
+      { id: "electronics", name: "Electronics" },
+      { id: "recycling", name: "Recycling" },
+      { id: "steel-processing", name: "Steel processing", section: "Automation science pack" },
+      { id: "fluid-handling", name: "Fluid handling", section: "Logistic science pack" },
+      // A technology researched by a trigger needs the science of the technologies before it.
+      { id: "uranium-processing", name: "Uranium processing", section: "Logistic science pack" },
+      { id: "nuclear-power", name: "Nuclear power", section: "Chemical science pack" },
+      { id: "kovarex-enrichment-process", name: "Kovarex enrichment process", section: "Space science pack" },
+    ]);
+  });
+
+  it("gives each recipe the technology that unlocks it, and none to those there from the start", () => {
+    expect(recipe("steel-plate").unlock).toBe("steel-processing");
+    expect(recipe("electronic-circuit").unlock).toBe("electronics");
+    expect(recipe("iron-gear-wheel-recycling").unlock).toBe("recycling");
+    expect(recipe("kovarex-enrichment-process").unlock).toBe("kovarex-enrichment-process");
+    expect(recipe("iron-plate").unlock).toBeUndefined();
+    expect(recipe("iron-gear-wheel").unlock).toBeUndefined();
+  });
+
+  it("unlocks power generation with the building that generates it", () => {
+    expect(recipe("nuclear-reactor-heat").unlock).toBe("nuclear-power");
+    expect(recipe("heat-exchanger-steam").unlock).toBe("nuclear-power");
+    expect(recipe("steam-turbine-electricity@500").unlock).toBe("nuclear-power");
+  });
+
+  it("names a technology of a level after its first level, as the game does", () => {
+    const dump = structuredClone(dumpExcerpt);
+    const technologies = dump.technology as Record<string, Record<string, unknown>>;
+    technologies["steel-processing-2"] = { ...technologies["steel-processing"], name: "steel-processing-2" };
+    delete technologies["steel-processing"];
+    const unlocks = run(gameFiles(dump)).data.unlocks;
+    expect(unlocks).toContainEqual(expect.objectContaining({ id: "steel-processing-2", name: "Steel processing 2" }));
+  });
+});
+
 describe("the committed Factorio pack", () => {
   const folder = "packs/factorio";
   const files: Record<string, Uint8Array> = {
@@ -517,6 +584,27 @@ describe("the committed Factorio pack", () => {
     expect(data.recipes.length).toBeGreaterThan(550);
     expect(data.recipes.filter((recipe) => recipe.tags?.includes("space-age")).length).toBeGreaterThan(150);
     expect(data.recipes.filter((recipe) => recipe.tags?.includes("recycling")).length).toBeGreaterThan(250);
+  });
+
+  it("groups every recipe by its crafting menu row, and by the technology that unlocks it", () => {
+    expect(data.recipes.every((recipe) => recipe.category !== undefined)).toBe(true);
+    expect(find(data.recipes, "electronic-circuit")).toMatchObject({
+      category: "intermediate-product",
+      unlock: "electronics",
+    });
+    expect(find(data.recipes, "iron-plate").unlock).toBeUndefined();
+    expect(find(data.recipes, "iron-gear-wheel-recycling").unlock).toBe("recycling");
+    expect(find(data.categories, "science-pack")).toEqual({
+      id: "science-pack",
+      name: "Science pack",
+      section: "Intermediate products",
+    });
+    expect(find(data.unlocks, "automation-2")).toEqual({
+      id: "automation-2",
+      name: "Automation 2",
+      section: "Logistic science pack",
+    });
+    expect(data.unlocks.length).toBeGreaterThan(100);
   });
 
   it("matches recipe rates from the game", () => {

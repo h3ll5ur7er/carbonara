@@ -53,7 +53,7 @@ const broken: [name: string, change: Record<string, string | null>, messages: st
   [
     "a pack for a newer pack format",
     { "manifest.yaml": edit("manifest.yaml", "^1", "^2") },
-    ["manifest.yaml:4:1: engine: Needs pack format ^2, but this version of Carbonara reads pack format 1.1.0"],
+    ["manifest.yaml:4:1: engine: Needs pack format ^2, but this version of Carbonara reads pack format 1.2.0"],
   ],
   [
     "a missing plugin file",
@@ -63,7 +63,9 @@ const broken: [name: string, change: Record<string, string | null>, messages: st
   [
     "a misspelt section",
     { "data/items.yaml": edit("data/items.yaml", "items:", "itmes:") },
-    ["data/items.yaml:2:1: itmes: Unknown section; use units, items, buildings, recipes, logistics or resources"],
+    [
+      "data/items.yaml:2:1: itmes: Unknown section; use units, items, buildings, recipes, logistics, resources, categories or unlocks",
+    ],
   ],
   [
     "an id with capitals",
@@ -84,6 +86,19 @@ const broken: [name: string, change: Record<string, string | null>, messages: st
     "a recipe using an unknown item",
     { "data/recipes.yaml": edit("data/recipes.yaml", "ore: 1", "coal: 1") },
     ["data/recipes.yaml:7:11: recipes[0].in.coal: Unknown item 'coal'"],
+  ],
+  [
+    "a recipe in a category the pack doesn't list",
+    {
+      "data/recipes.yaml": edit("data/recipes.yaml", "time: 2", "time: 2\n    category: smelting"),
+      "data/groups.yaml": "categories:\n  - { id: casting, name: Casting }\n",
+    },
+    ["data/recipes.yaml:7:5: recipes[0].category: Unknown category 'smelting'"],
+  ],
+  [
+    "an unlock without a name",
+    { "data/groups.yaml": "unlocks:\n  - { id: steel, section: Tier 2 }\n" },
+    ["data/groups.yaml:2:5: unlocks[0].name: Required"],
   ],
   [
     "a building defined in two files",

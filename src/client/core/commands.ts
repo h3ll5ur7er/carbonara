@@ -20,6 +20,11 @@ export interface CommandDefinition {
   /** Other words people may search for. */
   keywords?: string[];
   icon?: ComponentType<{ className?: string }>;
+  /**
+   * For commands whose meaning depends on what they act on: the title context menus show as things stand
+   * ("Remove from favourites"), or null to leave the command out of them. The palette and keys use `title`.
+   */
+  menuTitle?(): string | null;
   run(): void;
 }
 

@@ -44,6 +44,8 @@ describe("appCommands", () => {
       "file.exportSvg",
       // The tour starts by itself on the first run; afterwards it's a palette command.
       "help.tour",
+      // Favourites: also the star on the recipe browser's rows, the inspector and the node's context menu.
+      "recipe.toggleFavourite",
     ]);
     for (const command of appCommands) {
       if (!paletteOnly.has(command.id)) expect(command.shortcut, command.id).toBeDefined();

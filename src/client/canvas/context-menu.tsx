@@ -16,6 +16,7 @@ type Target = "node" | "flow" | "canvas";
 const ITEMS: Record<Target, string[][]> = {
   node: [
     ["edit.copy", "edit.cut", "edit.duplicate"],
+    ["recipe.toggleFavourite"],
     ["view.zoomToSelection", "arrange.leftToRight", "align.straightenChain"],
     ["arrange.frameSelection", "arrange.toggleLock"],
     ["subgraph.collapse", "subgraph.open", "subgraph.expand"],
@@ -51,10 +52,16 @@ export function CanvasContextMenu({ children }: { children: ReactNode }) {
     const node = element?.closest<HTMLElement>(".react-flow__node");
     const flow = element?.closest<HTMLElement>(".react-flow__edge");
     // Right-clicking something outside the selection makes it the selection, as in every editor.
-    if (node?.dataset.id && !node.classList.contains("selected")) canvasActions()?.select([node.dataset.id]);
-    if (flow?.dataset.id && !flow.classList.contains("selected")) canvasActions()?.select([], [flow.dataset.id]);
+    const selectNode = node?.dataset.id && !node.classList.contains("selected") ? node.dataset.id : undefined;
+    const selectFlow = flow?.dataset.id && !flow.classList.contains("selected") ? flow.dataset.id : undefined;
+    if (selectNode) canvasActions()?.select([selectNode]);
+    if (selectFlow) canvasActions()?.select([], [selectFlow]);
     const target: Target = node ? "node" : flow ? "flow" : "canvas";
-    setOpen({ target, x: clientX - bounds.left, y: clientY - bounds.top });
+    const opening = { target, x: clientX - bounds.left, y: clientY - bounds.top };
+    // A new selection reaches the commands once the canvas has rendered it; the menu's titles ask them
+    // ("Add to favourites"), so it opens a frame later then.
+    if (selectNode || selectFlow) requestAnimationFrame(() => setOpen(opening));
+    else setOpen(opening);
   }, []);
 
   const onPointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
@@ -107,19 +114,21 @@ export function CanvasContextMenu({ children }: { children: ReactNode }) {
 function MenuGroup({ ids, separated }: { ids: string[]; separated: boolean }) {
   const commands = ids.flatMap((id) => {
     const command = appRegistry.get(id);
-    return command ? [command] : [];
+    const title = command?.menuTitle ? command.menuTitle() : command?.title;
+    return command && title ? [{ command, title }] : [];
   });
+  if (commands.length === 0) return null;
   return (
     <>
       {separated && <MenuSeparator />}
-      {commands.map((command) => (
-        <CommandItem key={command.id} command={command} />
+      {commands.map(({ command, title }) => (
+        <CommandItem key={command.id} command={command} title={title} />
       ))}
     </>
   );
 }
 
-function CommandItem({ command }: { command: CommandDefinition }) {
+function CommandItem({ command, title }: { command: CommandDefinition; title: string }) {
   const Icon = command.icon;
   return (
     <MenuItem
@@ -127,7 +136,7 @@ function CommandItem({ command }: { command: CommandDefinition }) {
       shortcut={command.shortcut ? formatShortcut(command.shortcut, platform) : undefined}
       onSelect={() => command.run()}
     >
-      {command.title}
+      {title}
     </MenuItem>
   );
 }

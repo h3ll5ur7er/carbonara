@@ -70,8 +70,25 @@ export const Recipe = z.object({
   in: Amounts.default({}),
   out: Amounts.describe("Amounts per craft; probabilistic outputs are written as expected values."),
   tags: z.array(z.string().min(1)).optional(),
+  category: Id.optional().describe("One of the pack's `categories`: the kind of product the recipe makes."),
+  unlock: Id.optional().describe(
+    "One of the pack's `unlocks`: what makes the recipe available in the game. None: it's there from the start.",
+  ),
 });
 export type Recipe = z.infer<typeof Recipe>;
+
+/**
+ * A heading the recipe browser lists recipes under (pack format 1.2): a product category (`categories`) or what
+ * unlocks them in the game (`unlocks`). The browser shows them in the order the pack lists them.
+ */
+export const RecipeGroup = z.object({
+  id: Id,
+  name: Name,
+  section: Name.optional().describe(
+    "A wider heading the group belongs to, such as 'Intermediate products' or 'Tier 2'; groups of a section follow one another.",
+  ),
+});
+export type RecipeGroup = z.infer<typeof RecipeGroup>;
 
 export const Logistics = z.object({
   id: Id,
@@ -115,6 +132,8 @@ const sections = {
   recipes: z.array(Recipe),
   logistics: z.array(Logistics),
   resources: z.array(Resource),
+  categories: z.array(RecipeGroup),
+  unlocks: z.array(RecipeGroup),
 };
 
 /** One file in `data/`: any subset of the sections. */
@@ -125,6 +144,8 @@ export const PackDataFile = z.object({
   recipes: sections.recipes.optional(),
   logistics: sections.logistics.optional(),
   resources: sections.resources.optional(),
+  categories: sections.categories.optional(),
+  unlocks: sections.unlocks.optional(),
 });
 export type PackDataFile = z.infer<typeof PackDataFile>;
 
@@ -136,6 +157,8 @@ export const PackData = z.object({
   recipes: sections.recipes.default([]),
   logistics: sections.logistics.default([]),
   resources: sections.resources.default([]),
+  categories: sections.categories.default([]),
+  unlocks: sections.unlocks.default([]),
   starters: z.array(Starter).default([]).describe("From `starters/`, in file name order."),
 });
 export type PackData = z.infer<typeof PackData>;

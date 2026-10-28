@@ -47,3 +47,9 @@ export function localise(value: unknown, locale: Locale): string | undefined {
   const template = locale.get(key);
   return template?.replace(/__(\d+)__/g, (placeholder, index: string) => texts[Number(index) - 1] ?? placeholder);
 }
+
+/** "assembling-machine-1" → "Assembling machine 1", the way the game's English names read. */
+export function humanise(name: string): string {
+  const words = name.replaceAll("-", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}

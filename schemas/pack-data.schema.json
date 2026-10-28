@@ -190,6 +190,16 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "category": {
+            "description": "One of the pack's `categories`: the kind of product the recipe makes.",
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+          },
+          "unlock": {
+            "description": "One of the pack's `unlocks`: what makes the recipe available in the game. None: it's there from the start.",
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
           }
         },
         "required": [
@@ -264,6 +274,56 @@
         },
         "required": [
           "item"
+        ]
+      }
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "section": {
+            "description": "A wider heading the group belongs to, such as 'Intermediate products' or 'Tier 2'; groups of a section follow one another.",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      }
+    },
+    "unlocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*(@[a-z0-9._-]+)?$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "section": {
+            "description": "A wider heading the group belongs to, such as 'Intermediate products' or 'Tier 2'; groups of a section follow one another.",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "name"
         ]
       }
     }

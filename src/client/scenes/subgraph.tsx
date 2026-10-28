@@ -29,15 +29,9 @@ export default function SubgraphScene() {
     <ConnectorProvider connector={connector}>
       <AppShell
         document={{ id: document.id, name: document.name, packId: "template" }}
-        library={
-          <BlueprintLibrary
-            entries={entries}
-            placing={null}
-            onPick={ignore}
-            onPlaceInView={ignore}
-            onDrop={ignore}
-            onCancel={ignore}
-          />
+        blueprintCount={entries.length}
+        blueprints={
+          <BlueprintLibrary entries={entries} placing={null} onPick={ignore} onPlaceInView={ignore} onCancel={ignore} />
         }
         canvas={
           <div key={graph} className="canvas-backdrop absolute inset-0">

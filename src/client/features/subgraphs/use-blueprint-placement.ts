@@ -1,14 +1,12 @@
 // Placing a blueprint from the library: it follows the pointer over the canvas as a ghost (the shared ghost
-// renderer, pointer mode) until a click, or the end of a drag, puts an instance of it there; Escape cancels.
+// renderer, pointer mode) until a click, or the end of a drag over the canvas, puts an instance of it where the
+// ghost is (the canvas places it, ghost/use-ghost-layer.tsx); Escape cancels.
 // From the keyboard, it goes straight into the middle of the view, clear of the other nodes.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CommandInput } from "../../../contracts/commands";
 import type { Document, LocalId, Node } from "../../../contracts/document";
 import type { CanvasProps } from "../../canvas/canvas";
 import { canvasEditActions } from "../../canvas/edit-actions";
-import { GRID } from "../../canvas/model/geometry";
-import { createSceneBuilder } from "../../canvas/model/scene";
-import { canvasActions } from "../../canvas/viewport";
 import type { Ghost } from "../../canvas/ghost/ghost";
 import { useConnector } from "../../core/connector";
 import { errorMessage, toast } from "../../shell/toasts";
@@ -23,8 +21,6 @@ export interface BlueprintPlacement {
   pick(blueprint: LocalId): void;
   /** Places it in the middle of the view right away. */
   placeInView(blueprint: LocalId): void;
-  /** Places it where a drag let go of it, under this point on screen (client pixels), as the ghost showed it. */
-  drop(blueprint: LocalId, screen: { x: number; y: number }): void;
   cancel(): void;
   /** For the document's canvas while a blueprint follows the pointer. */
   canvas: Pick<CanvasProps, "ghost" | "onGhostPlace" | "onGhostCancel"> | null;
@@ -102,31 +98,6 @@ export function useBlueprintPlacement(document: Document | undefined, graph: str
         if (spot) place(id, spot);
       },
       [place],
-    ),
-    drop: useCallback(
-      (id: LocalId, screen: { x: number; y: number }) => {
-        setPlacing(null);
-        const pointer = canvasActions()?.toFlow(screen);
-        if (!pointer || !document) return;
-        // Centred on the pointer and snapped to the grid, as the ghost following the pointer is drawn.
-        const [view] = createSceneBuilder()(
-          { nodes: { [GHOST_NODE]: { kind: "instance", blueprint: id } }, edges: {} },
-          undefined,
-          {
-            units: { rate: "per_second" },
-            items: [],
-            buildings: [],
-            recipes: [],
-            logistics: [],
-            resources: [],
-            starters: [],
-          },
-          document,
-        ).nodes;
-        const snap = (value: number) => Math.round(value / GRID) * GRID;
-        place(id, { x: snap(pointer.x - (view?.width ?? 0) / 2), y: snap(pointer.y - (view?.height ?? 0) / 2) });
-      },
-      [document, place],
     ),
     cancel,
     canvas: ghost ? { ghost, onGhostPlace, onGhostCancel: cancel } : null,

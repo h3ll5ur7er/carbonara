@@ -83,10 +83,25 @@ for (const colorScheme of ["dark", "light"] as const) {
       await audit(page);
     });
 
-    test("the library passes axe", async ({ page }) => {
+    test("the library's blueprints pass axe", async ({ page }) => {
       await openInApp(page, chain, colorScheme);
-      await page.keyboard.press("ControlOrMeta+b");
-      await expect(page.getByRole("complementary", { name: "Library" })).toBeVisible();
+      const library = page.getByRole("complementary", { name: "Library" });
+      await library.getByRole("tab", { name: /Blueprints/ }).click();
+      await expect(library).toContainText("No blueprints yet");
+      await audit(page);
+    });
+
+    test("the recipe browser passes axe: grouped, with favourites and searching", async ({ page }) => {
+      await openInApp(page, chain, colorScheme);
+      const library = page.getByRole("complementary", { name: "Library" });
+      await expect(library.getByRole("treeitem", { name: /^Furnace/ })).toBeVisible();
+      await audit(page);
+      await library.getByRole("tab", { name: "Unlock" }).click();
+      await library.getByRole("button", { name: "Add Motor to favourites" }).click({ force: true });
+      await expect(library.getByRole("treeitem", { name: /^Favourites/ })).toBeVisible();
+      await audit(page);
+      await library.getByRole("searchbox", { name: "Search recipes" }).fill("plate");
+      await expect(library.getByRole("treeitem", { name: /^Iron Plate/ }).first()).toBeVisible();
       await audit(page);
     });
 

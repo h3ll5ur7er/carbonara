@@ -92,6 +92,7 @@ describe("the Satisfactory importer", () => {
       in: { "iron-ore": 7, water: 4 },
       out: { "iron-ingot": 13 },
       tags: ["alternate"],
+      unlock: "hard-drives",
     });
   });
 
@@ -211,6 +212,80 @@ describe("the Satisfactory importer", () => {
   });
 });
 
+describe("the Satisfactory importer's unlocks", () => {
+  /** The fixture with another schematic that unlocks `recipe`. */
+  function withSchematic(schematic: Record<string, unknown>, recipe: string) {
+    const docs = structuredClone(docsExcerpt);
+    const schematics = docs.find((group) => group.NativeClass.endsWith("FGSchematic'"))?.Classes ?? [];
+    schematics.push({
+      ClassName: "Schematic_Extra_C",
+      mMenuPriority: "0.000000",
+      mTechTier: "0",
+      mUnlocks: [
+        {
+          Class: "BP_UnlockRecipe_C",
+          mRecipes: `("/Script/Engine.BlueprintGeneratedClass'/Game/${recipe}.${recipe}_C'")`,
+        },
+      ],
+      ...schematic,
+    });
+    return run(docsFile(docs)).data;
+  }
+
+  it("lists the milestones that unlock recipes by tier, then hard drive research", () => {
+    expect(run().data.unlocks).toEqual([
+      { id: "coal-power", name: "Coal Power", section: "Tier 3" },
+      { id: "nuclear-power", name: "Nuclear Power", section: "Tier 8" },
+      { id: "hard-drives", name: "Hard drives", section: "MAM research" },
+    ]);
+  });
+
+  it("unlocks a generator's fuels with the milestone that unlocks the generator, alternates with hard drives", () => {
+    const { recipes } = run().data;
+    expect(recipe(recipes, "coal-powered-generator-coal").unlock).toBe("coal-power");
+    expect(recipe(recipes, "nuclear-power-plant-uranium-fuel-rod").unlock).toBe("nuclear-power");
+    expect(recipe(recipes, "alt-pure-iron-ingot").unlock).toBe("hard-drives");
+    // The starting recipes need nothing.
+    expect(recipe(recipes, "iron-ingot").unlock).toBeUndefined();
+  });
+
+  it("files MAM research under its research tree, which comes before hard drives and opens with tier 1", () => {
+    const data = withSchematic(
+      {
+        FullName:
+          "BlueprintGeneratedClass /Game/FactoryGame/Schematics/Research/Caterium_RS/Research_Caterium_1.Research_Caterium_1_C",
+        mType: "EST_MAM",
+        mDisplayName: "Caterium Ingots",
+      },
+      "Recipe_Alternate_PureIronIngot",
+    );
+    expect(recipe(data.recipes, "alt-pure-iron-ingot").unlock).toBe("mam-caterium");
+    expect(data.unlocks).toContainEqual({ id: "mam-caterium", name: "Caterium", section: "MAM research" });
+  });
+
+  it("counts a milestone's background unlocks as the milestone's", () => {
+    const data = withSchematic(
+      {
+        ClassName: "Schematic_3-1-1_C",
+        FullName: "BlueprintGeneratedClass /Game/FactoryGame/Schematics/Progression/Schematic_3-1-1.Schematic_3-1-1_C",
+        mType: "EST_Custom",
+        mDisplayName: "Coal Power - Background Unlocks",
+        mTechTier: "3",
+      },
+      "Recipe_GeneratorNuclear",
+    );
+    // Coal Power (tier 3) now comes with the nuclear plant, before Nuclear Power (tier 8).
+    expect(recipe(data.recipes, "nuclear-power-plant-uranium-fuel-rod").unlock).toBe("coal-power");
+  });
+
+  it("names a pack without schematics' unlocks none", () => {
+    const docs = docsExcerpt.filter((group) => !group.NativeClass.endsWith("FGSchematic'"));
+    const data = run(docsFile(docs)).data;
+    expect(data.unlocks ?? []).toEqual([]);
+    expect(data.recipes?.every((entry) => entry.unlock === undefined)).toBe(true);
+  });
+});
+
 describe("the committed Satisfactory pack", () => {
   const folder = "packs/satisfactory";
   const files: Record<string, Uint8Array> = {
@@ -234,6 +309,24 @@ describe("the committed Satisfactory pack", () => {
     expect(data.recipes).toHaveLength(308);
     expect(data.recipes.filter((entry) => entry.tags?.includes("alternate"))).toHaveLength(110);
     expect(data.recipes.filter((entry) => entry.tags?.includes("power"))).toHaveLength(17);
+  });
+
+  it("says what unlocks each recipe: milestones by tier, MAM research trees, hard drives", () => {
+    expect(find(data.unlocks, "part-assembly")).toEqual({
+      id: "part-assembly",
+      name: "Part Assembly",
+      section: "Tier 2",
+    });
+    expect(find(data.recipes, "reinforced-iron-plate").unlock).toBe("hub-upgrade-3");
+    expect(find(data.recipes, "rotor").unlock).toBe("part-assembly");
+    expect(find(data.recipes, "quickwire").unlock).toBe("mam-caterium");
+    expect(find(data.recipes, "coal-powered-generator-coal").unlock).toBe("coal-power");
+    expect(data.recipes.filter((entry) => entry.unlock === "hard-drives")).toHaveLength(109);
+    expect(data.recipes.filter((entry) => entry.unlock === undefined).map((entry) => entry.id)).toEqual([
+      "iron-ingot",
+      "iron-plate",
+      "iron-rod",
+    ]);
   });
 
   it("matches recipe rates from the game", () => {

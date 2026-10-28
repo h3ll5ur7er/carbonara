@@ -93,6 +93,94 @@ export const docsExcerpt: { NativeClass: string; Classes: ({ ClassName: string }
         mManufactoringDuration: "12.000000",
         mProducedIn: '("/Game/FactoryGame/Buildable/Factory/OilRefinery/Build_OilRefinery.Build_OilRefinery_C")',
       },
+      {
+        ClassName: "Recipe_GeneratorCoal_C",
+        mDisplayName: "Coal-Powered Generator",
+        mIngredients:
+          "((ItemClass=\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Resource/Parts/Rotor/Desc_Rotor.Desc_Rotor_C'\",Amount=10))",
+        mProduct:
+          "((ItemClass=\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Buildable/Factory/GeneratorCoal/Desc_GeneratorCoal.Desc_GeneratorCoal_C'\",Amount=1))",
+        mManufactoringDuration: "1.000000",
+        mProducedIn: '("/Game/FactoryGame/Equipment/BuildGun/BP_BuildGun.BP_BuildGun_C")',
+      },
+      {
+        ClassName: "Recipe_GeneratorNuclear_C",
+        mDisplayName: "Nuclear Power Plant",
+        mIngredients:
+          "((ItemClass=\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Resource/Parts/Rotor/Desc_Rotor.Desc_Rotor_C'\",Amount=10))",
+        mProduct:
+          "((ItemClass=\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Buildable/Factory/GeneratorNuclear/Desc_GeneratorNuclear.Desc_GeneratorNuclear_C'\",Amount=1))",
+        mManufactoringDuration: "1.000000",
+        mProducedIn: '("/Game/FactoryGame/Equipment/BuildGun/BP_BuildGun.BP_BuildGun_C")',
+      },
+    ],
+  },
+  {
+    NativeClass: "/Script/CoreUObject.Class'/Script/FactoryGame.FGSchematic'",
+    Classes: [
+      {
+        ClassName: "Schematic_StartingRecipes_C",
+        FullName:
+          "BlueprintGeneratedClass /Game/FactoryGame/Schematics/Schematic_StartingRecipes.Schematic_StartingRecipes_C",
+        mType: "EST_Custom",
+        mDisplayName: "Starting Blueprints",
+        mMenuPriority: "0.000000",
+        mTechTier: "0",
+        mUnlocks: [
+          {
+            Class: "BP_UnlockRecipe_C",
+            mRecipes:
+              "(\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Recipes/Smelter/Recipe_IngotIron.Recipe_IngotIron_C'\")",
+          },
+        ],
+      },
+      {
+        ClassName: "Schematic_8-1_C",
+        FullName: "BlueprintGeneratedClass /Game/FactoryGame/Schematics/Progression/Schematic_8-1.Schematic_8-1_C",
+        mType: "EST_Milestone",
+        mDisplayName: "Nuclear Power",
+        mMenuPriority: "2.000000",
+        mTechTier: "8",
+        mUnlocks: [
+          {
+            Class: "BP_UnlockRecipe_C",
+            mRecipes:
+              "(\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Recipes/Buildings/Recipe_GeneratorNuclear.Recipe_GeneratorNuclear_C'\")",
+          },
+          { Class: "BP_UnlockInfoOnly_C" },
+        ],
+      },
+      {
+        ClassName: "Schematic_3-1_C",
+        FullName: "BlueprintGeneratedClass /Game/FactoryGame/Schematics/Progression/Schematic_3-1.Schematic_3-1_C",
+        mType: "EST_Milestone",
+        mDisplayName: "Coal Power",
+        mMenuPriority: "1.000000",
+        mTechTier: "3",
+        mUnlocks: [
+          {
+            Class: "BP_UnlockRecipe_C",
+            mRecipes:
+              "(\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Recipes/Buildings/Recipe_GeneratorCoal.Recipe_GeneratorCoal_C'\")",
+          },
+        ],
+      },
+      {
+        ClassName: "Schematic_Alternate_PureIronIngot_C",
+        FullName:
+          "BlueprintGeneratedClass /Game/FactoryGame/Schematics/Alternate/New_Update3/Schematic_Alternate_PureIronIngot.Schematic_Alternate_PureIronIngot_C",
+        mType: "EST_Alternate",
+        mDisplayName: "Alternate: Pure Iron Ingot",
+        mMenuPriority: "0.000000",
+        mTechTier: "0",
+        mUnlocks: [
+          {
+            Class: "BP_UnlockRecipe_C",
+            mRecipes:
+              "(\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Recipes/AlternateRecipes/New_Update3/Recipe_Alternate_PureIronIngot.Recipe_Alternate_PureIronIngot_C'\")",
+          },
+        ],
+      },
     ],
   },
   {

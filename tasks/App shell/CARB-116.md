@@ -2,7 +2,7 @@
 id: CARB-116
 title: Hide the inspector while no factory is open
 type: improvement
-status: todo
+status: review
 priority: medium
 labels: [ui, shell]
 wave: "4"
@@ -21,5 +21,10 @@ fits, and let the welcome centre in the whole window.
 **Done when** the welcome and the game picker show without the inspector, and it comes back as it was once a
 factory opens.
 
-- [ ] Reproducing test
-- [ ] Fix, with the onboarding baselines updated
+- [x] Reproducing test
+- [x] Fix, with the onboarding baselines updated
+
+## Decisions
+
+- Both side panels follow the rule, since the library (now the recipe browser, [[CARB-134]], open by default) has nothing to browse without a factory either. The panels store keeps what the person chose apart from whether a factory is open (`chosen`, `factoryOpen` in [[src/client/shell/panels.ts]]); a panel's `open` is both, so every reader (the canvas's insets, the overlays, the top bar) follows without change. The shell says when a factory opens or the last one closes. A toggle on the welcome is kept for the next factory.
+- Tests: [[src/client/shell/panels.test.ts]] (closed without a factory, back as they were; a toggle remembered) and `e2e/shell.spec.ts` (the welcome without either panel; they come back as left once a factory opens).

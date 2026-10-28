@@ -1,13 +1,13 @@
-// Scene `inspector`: both side panels open, the inspector showing a node with one field of each kind.
+// Scene `inspector`: both side panels open (the library on its recipe browser), the inspector showing a node with
+// one field of each kind.
 // Edits go through a fake editing manager, which refuses to turn on the somersloop (to show an error toast).
 import { useMemo, useState } from "react";
 import type { FieldDescriptor, FieldValue } from "../../contracts/plugin";
 import { fail, ok } from "../../contracts/result";
 import { AppShell } from "../shell/app-shell";
 import { ConnectorProvider } from "../core/connector";
-import { panelWidths } from "../shell/panel-layout";
-import { usePanels } from "../shell/panels";
 import { fakeConnector } from "./fake-backend";
+import { templatePack } from "./template-pack";
 
 /** Fields as a Satisfactory-like plugin declares them for a smelter. */
 const fields: Record<string, FieldDescriptor> = {
@@ -24,6 +24,7 @@ export default function InspectorScene() {
   const connector = useMemo(
     () =>
       fakeConnector({
+        packs: { getPackData: async () => templatePack },
         editing: {
           apply: async ({ commands }) => {
             const fields = commands.flatMap((command) => (command.type === "setNodeFields" ? [command.fields] : []));
@@ -40,16 +41,13 @@ export default function InspectorScene() {
   return (
     <ConnectorProvider connector={connector}>
       <AppShell
+        document={document}
         selection={{
           target: { documentId: document.id, nodeId: "smelter" },
           node: { title: "Iron Plate", subtitle: "Furnace · 4 × 100% + 1 × 37.5%", fields, values },
+          recipe: { packId: document.packId, recipe: "iron-plate" },
         }}
       />
     </ConnectorProvider>
   );
 }
-
-usePanels.setState({
-  left: { open: true, width: panelWidths.left.default },
-  right: { open: true, width: panelWidths.right.default },
-});

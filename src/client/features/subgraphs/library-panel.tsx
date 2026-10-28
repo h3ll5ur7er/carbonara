@@ -6,6 +6,7 @@ import { ArrowRight, Copy, Ellipsis, GripVertical, Layers, Pencil, Trash2 } from
 import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import type { LocalId } from "../../../contracts/document";
 import { ItemChip } from "../../canvas/parts";
+import { overCanvas } from "../../canvas/placing";
 import { Button, IconButton } from "../../ui/button";
 import { Dialog, DialogClose, DialogContent } from "../../ui/dialog";
 import { Kbd } from "../../ui/kbd";
@@ -35,8 +36,7 @@ export interface BlueprintLibraryProps {
   collapseKeys?: string[] | undefined;
   onPick(blueprint: LocalId): void;
   onPlaceInView(blueprint: LocalId): void;
-  /** A drag let go of it over the canvas, at this point on screen. */
-  onDrop(blueprint: LocalId, screen: { x: number; y: number }): void;
+  /** A drag was let go of somewhere other than the canvas (the canvas places what's let go over it). */
   onCancel(): void;
   /** What the cards' menus do; without it, they have none. */
   manage?: BlueprintManagement | undefined;
@@ -56,29 +56,13 @@ export function BlueprintLibrary({
   collapseKeys,
   onPick,
   onPlaceInView,
-  onDrop,
   onCancel,
   manage,
 }: BlueprintLibraryProps) {
   const [renaming, setRenaming] = useState<LocalId | null>(null);
   const [deleting, setDeleting] = useState<LibraryEntry | null>(null);
 
-  if (entries.length === 0) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-8 pb-12 text-center">
-        <span className="grid size-10 place-items-center rounded-xl bg-surface-3 text-fg-subtle inset-ring inset-ring-line-subtle">
-          <Layers className="size-4.5" aria-hidden />
-        </span>
-        <div className="flex flex-col items-center gap-1.5">
-          <p className="text-sm font-medium text-fg-muted">No blueprints yet</p>
-          <p className="text-xs text-fg-subtle">
-            Select machines and collapse them into a subgraph to reuse it anywhere.
-          </p>
-          {collapseKeys && <Kbd keys={collapseKeys} />}
-        </div>
-      </div>
-    );
-  }
+  if (entries.length === 0) return <NoBlueprints collapseKeys={collapseKeys} />;
 
   /** A press that turns into a drag places the blueprint where it's let go over the canvas. */
   const onPointerDown = (entry: LibraryEntry) => (event: PointerEvent<HTMLButtonElement>) => {
@@ -88,10 +72,8 @@ export function BlueprintLibrary({
     const onUp = (up: globalThis.PointerEvent) => {
       window.removeEventListener("pointerup", onUp);
       if (Math.hypot(up.clientX - start.x, up.clientY - start.y) <= DRAG) return; // a click: follow until the next
-      // Let go over empty canvas: it lands there. Anywhere else: never mind.
-      const target = document.elementFromPoint(up.clientX, up.clientY);
-      if (target?.closest(".react-flow__pane")) onDrop(entry.id, { x: up.clientX, y: up.clientY });
-      else onCancel();
+      // Let go over the canvas: the canvas places it where its ghost is. Anywhere else: never mind.
+      if (!overCanvas(up)) onCancel();
     };
     window.addEventListener("pointerup", onUp);
   };
@@ -205,6 +187,24 @@ export function BlueprintLibrary({
         />
       )}
     </section>
+  );
+}
+
+/** The library without blueprints: how to make one. */
+export function NoBlueprints({ collapseKeys }: { collapseKeys?: string[] | undefined }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 px-8 pb-12 text-center">
+      <span className="grid size-10 place-items-center rounded-xl bg-surface-3 text-fg-subtle inset-ring inset-ring-line-subtle">
+        <Layers className="size-4.5" aria-hidden />
+      </span>
+      <div className="flex flex-col items-center gap-1.5">
+        <p className="text-sm font-medium text-fg-muted">No blueprints yet</p>
+        <p className="text-xs text-fg-subtle">
+          Select machines and collapse them into a subgraph to reuse it anywhere.
+        </p>
+        {collapseKeys && <Kbd keys={collapseKeys} />}
+      </div>
+    </div>
   );
 }
 

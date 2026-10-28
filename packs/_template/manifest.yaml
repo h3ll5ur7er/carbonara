@@ -2,8 +2,8 @@
 # and Carbonara's own test fixture. It uses no assets from any real game.
 id: template
 name: Template Works
-version: 1.0.0
-engine: ^1.1
+version: 1.1.0
+engine: ^1.2
 game: { name: Template Works }
 data: data/
 plugin: plugin/index.js

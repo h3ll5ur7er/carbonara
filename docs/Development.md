@@ -75,6 +75,7 @@ A scene is a fixed state of the UI for screenshots and visual QA. In development
 | `gallery` | Every design-system primitive, with a theme and accent switch | `e2e/ui.spec.ts` |
 | `inspector` | Both side panels, the inspector with each kind of field, error toasts | `e2e/shell-panels.spec.ts` |
 | `palette` | A template-pack document, for the command palette and quick-add | `e2e/shell-palette.spec.ts` |
+| `recipe-browser` | The library's recipe browser beside a small copper line, with favourites, recent recipes and suggestions | `e2e/recipe-browser.spec.ts` |
 | `planner` | The planner card's goals and a proposal drawn as a ghost | `e2e/planner-scene.spec.ts` |
 | `totals` | The totals card, from a real-engine fixture with resources near and over their map limits | `e2e/planner-totals.spec.ts` |
 | `sankey`, `heatmap` | The congested factory as a Sankey overview and with the bottleneck heatmap | `e2e/planner-overviews.spec.ts` |

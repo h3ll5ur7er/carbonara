@@ -65,6 +65,8 @@ test("it flows: set a target and see the factory solve", async ({ page }) => {
   const consumers = page.getByRole("dialog", { name: "Connect a consumer" });
   await consumers.getByRole("option", { name: /Copper Plate output/ }).click();
   await expect(page.locator(".react-flow__node")).toHaveCount(3);
+  // With both side panels open the fit lands in compact cards, without rates (CARB-139): close the library.
+  await page.keyboard.press("ControlOrMeta+B");
   // Zoom to fit: the whole factory, clear of the side panels.
   await page.keyboard.press("f");
 

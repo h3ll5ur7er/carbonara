@@ -10,6 +10,7 @@ import { usePanels } from "../shell/panels";
 import type { Issue } from "../../contracts/issues";
 import { pickCommands, recipeUsage, type PickerEntry } from "../features/recipe-picker/picker";
 import { RecipePicker } from "../features/recipe-picker/recipe-picker";
+import { rememberAdded } from "../features/recipe-browser/memory";
 import { errorMessage, toast } from "../shell/toasts";
 import type { CanvasAdapter, CanvasViewProps, Insets, Point, PortDrop, Viewport } from "./adapter";
 import "./canvas.css";
@@ -40,6 +41,7 @@ import type { Id } from "../../contracts/pack";
 import { useEditActions, type Selection } from "./use-edit-actions";
 import { useNavigation } from "./use-navigation";
 import { usePaste } from "./use-paste";
+import { stopPlacing, usePlacing } from "./placing";
 import { setViewportCentre } from "./viewport";
 
 /** The renderer in use; the only place that names it. */
@@ -100,6 +102,8 @@ export function Canvas({
 }
 
 const EMPTY_SCENE: CanvasScene = { nodes: [], edges: [] };
+/** The id of a node dragged in from outside, in its ghost. */
+const PLACING_NODE = "placing";
 const EMPTY_RATES: RateDisplay = { unit: "per_minute" };
 
 /** The side panels float `inset-3` (12 px) from the canvas edges (src/client/shell/side-panel.tsx). */
@@ -186,11 +190,23 @@ function DocumentCanvas({
     [buildScene, shown, layout, pack, subgraphs, effective],
   );
 
-  // A paste waiting to be placed is drawn over any other ghost: it's what the person did last.
+  // A paste waiting to be placed is drawn over any other ghost: it's what the person did last. Then a node being
+  // dragged in from outside (a recipe from the browser), which the person is holding.
   const paste = usePaste(document, graph, scene, effective);
-  const shownGhost = paste.ghost ?? ghost;
-  const placeGhost = paste.ghost ? paste.onPlace : onGhostPlace;
-  const cancelGhost = paste.ghost ? paste.onCancel : onGhostCancel;
+  const placing = usePlacing((state) => state.placing);
+  const placingGhost = useMemo(
+    (): Ghost | undefined =>
+      placing
+        ? {
+            graph: { nodes: { [PLACING_NODE]: placing.node }, edges: {} },
+            positions: { [PLACING_NODE]: { x: 0, y: 0 } },
+            placement: { mode: "pointer" },
+            label: placing.label,
+          }
+        : undefined,
+    [placing],
+  );
+  const shownGhost = paste.ghost ?? placingGhost ?? ghost;
 
   const [buildGhostScene] = useState(createSceneBuilder);
   // The ghost's content and its placement change apart: moving it mustn't rebuild (or re-reveal) it.
@@ -320,6 +336,18 @@ function DocumentCanvas({
     selectWhenShown: selectLater,
   });
   const onDelete: CanvasViewProps["onDelete"] = useCallback((bridge) => actions.deleteSelection(bridge), [actions]);
+  // The node dragged in lands where its ghost is: its top-left corner is the ghost's offset.
+  const onPlacingPlace = useCallback(
+    (offset: Point) => {
+      if (!placing) return;
+      stopPlacing();
+      const label = `Add ${placing.label}`;
+      placing.onPlaced?.(actions.addNode(placing.node, { label, position: offset, connectTo: placing.connectTo }));
+    },
+    [actions, placing],
+  );
+  const placeGhost = paste.ghost ? paste.onPlace : placingGhost ? onPlacingPlace : onGhostPlace;
+  const cancelGhost = paste.ghost ? paste.onCancel : placingGhost ? stopPlacing : onGhostCancel;
   const onInsert: CanvasViewProps["onInsert"] = useCallback(
     (nodeId, edgeId, point) => {
       const edge = shown?.edges[edgeId];
@@ -439,10 +467,11 @@ function DocumentCanvas({
       const from = { node: drop.node, item: drop.item, side: drop.side, ...(drop.port && { port: drop.port }) };
       const pick = { graph, from, entry, drop: drop.flow, id: newNodeId(entry) };
       void apply(clearOfOthers(pickCommands(pack, pick), scene, pack), `Add ${entry.title}`);
+      if (entry.kind === "recipe") rememberAdded(document.pack.id, entry.id);
       // The keyboard carries on from the new node.
       focusNodeWhenShown(pick.id);
     },
-    [apply, drop, graph, pack, scene],
+    [apply, drop, graph, pack, scene, document.pack.id],
   );
 
   return (

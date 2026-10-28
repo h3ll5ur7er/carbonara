@@ -1,5 +1,16 @@
 # Shapes the solver must handle: a water loop (wash ⇄ purify), byproducts (slag, sludge),
 # an alternate recipe, a recipe two buildings can run, and an expected-value output (recycling).
+# Categories and unlocks group the recipes in the recipe browser (pack format 1.2).
+categories:
+  - { id: smelting, name: Smelting, section: Materials }
+  - { id: water, name: Water treatment, section: Materials }
+  - { id: parts, name: Parts, section: Components }
+  - { id: building, name: Building materials, section: Components }
+unlocks:
+  - { id: washing, name: Ore washing, section: Stage 1 }
+  - { id: electronics, name: Electronics, section: Stage 1 }
+  - { id: motors, name: Motors, section: Stage 2 }
+  - { id: waste-reuse, name: Waste reuse, section: Stage 2 }
 recipes:
   - id: wash-ferrite
     name: Washed Ferrite
@@ -7,16 +18,22 @@ recipes:
     time: 2
     in: { ferrite-ore: 2, water: 1 }
     out: { clean-ferrite: 2, dirty-water: 1 }
+    category: water
+    unlock: washing
   - id: purify-water
     buildings: [purifier]
     time: 4
     in: { dirty-water: 4 }
     out: { water: 3, sludge: 1 }
+    category: water
+    unlock: washing
   - id: iron-plate
     buildings: [furnace]
     time: 3
     in: { clean-ferrite: 1 }
     out: { iron-plate: 1 }
+    category: smelting
+    unlock: washing
   - id: iron-plate-from-ore
     name: Iron Plate (Coal Smelting)
     buildings: [furnace]
@@ -24,45 +41,60 @@ recipes:
     in: { ferrite-ore: 2, coal: 1 }
     out: { iron-plate: 1 }
     tags: [alternate]
+    category: smelting
   - id: copper-plate
     buildings: [furnace]
     time: 3
     in: { cuprite-ore: 2 }
     out: { copper-plate: 1, slag: 1 }
+    category: smelting
   - id: iron-gear
     buildings: [assembler, fast-assembler]
     time: 1
     in: { iron-plate: 2 }
     out: { iron-gear: 1 }
+    category: parts
   - id: copper-wire
     buildings: [assembler, fast-assembler]
     time: 0.5
     in: { copper-plate: 1 }
     out: { copper-wire: 2 }
+    category: parts
   - id: circuit
     buildings: [assembler, fast-assembler]
     time: 5
     in: { iron-plate: 1, copper-wire: 3 }
     out: { circuit: 1 }
+    category: parts
+    unlock: electronics
   - id: motor
     buildings: [assembler, fast-assembler]
     time: 10
     in: { iron-gear: 2, circuit: 1, copper-wire: 4 }
     out: { motor: 1 }
+    category: parts
+    unlock: motors
   - id: concrete
     buildings: [mixer]
     time: 2
     in: { slag: 2, sludge: 1, water: 1 }
     out: { concrete: 1 }
+    category: building
+    unlock: waste-reuse
   - id: dry-sludge
     name: Coal from Sludge
     buildings: [furnace]
     time: 6
     in: { sludge: 3 }
     out: { coal: 1 }
+    category: smelting
+    unlock: waste-reuse
   - id: recycle-motor
     name: Motor Recycling
     buildings: [assembler]
     time: 2
     in: { motor: 1 }
     out: { iron-gear: 1, copper-wire: 2, circuit: 0.5 }
+    tags: [recycling]
+    category: parts
+    unlock: motors

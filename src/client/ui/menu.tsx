@@ -2,6 +2,7 @@
 // Both share one look; items show an optional icon and the action's shortcut.
 import * as RadixContextMenu from "@radix-ui/react-context-menu";
 import * as RadixDropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Check } from "lucide-react";
 import type { ReactNode } from "react";
 import { cx } from "./cx";
 import { Kbd } from "./kbd";
@@ -73,6 +74,34 @@ export function MenuItem({ icon, shortcut, disabled, onSelect, children }: MenuI
         {children}
       </ItemContent>
     </RadixDropdownMenu.Item>
+  );
+}
+
+/** An item that turns something on or off: a check shows while it's on, and choosing it keeps the menu open. */
+export function MenuCheckboxItem({
+  checked,
+  onCheckedChange,
+  children,
+}: {
+  checked: boolean;
+  onCheckedChange(checked: boolean): void;
+  children: ReactNode;
+}) {
+  return (
+    <RadixDropdownMenu.CheckboxItem
+      checked={checked}
+      onCheckedChange={onCheckedChange}
+      // Several can be changed in a row.
+      onSelect={(event) => event.preventDefault()}
+      className={item}
+    >
+      <span className="grid size-4 shrink-0 place-items-center">
+        <RadixDropdownMenu.ItemIndicator>
+          <Check className="text-accent-fg!" />
+        </RadixDropdownMenu.ItemIndicator>
+      </span>
+      <span className="flex-1 truncate">{children}</span>
+    </RadixDropdownMenu.CheckboxItem>
   );
 }
 

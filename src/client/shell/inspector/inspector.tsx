@@ -7,6 +7,7 @@ import {
   Layers,
   MousePointerClick,
   SquareDashedMousePointer,
+  Star,
   TriangleAlert,
   Ungroup,
 } from "lucide-react";
@@ -15,7 +16,7 @@ import type { RateUnit } from "../../../contracts/pack";
 import type { FieldDescriptor, FieldValue } from "../../../contracts/plugin";
 import type { ItemView } from "../../canvas/model/scene";
 import { ItemChip, Rate } from "../../canvas/parts";
-import { Button } from "../../ui/button";
+import { Button, IconButton } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { NumberInput } from "../../ui/number-input";
 import { formatNumber, nudgeIncrement } from "../../ui/number";
@@ -75,9 +76,11 @@ export interface InspectorProps {
   onProductionEdit?(value: number | null): unknown;
   /** For a subgraph instance: its buttons and its blueprint's name field do nothing without these. */
   instanceActions?: InstanceActions | undefined;
+  /** For a recipe node: whether its recipe is a favourite, and starring or unstarring it. */
+  favourite?: { starred: boolean; onToggle(): void } | undefined;
 }
 
-export function Inspector({ node, onFieldEdit, onProductionEdit, instanceActions }: InspectorProps) {
+export function Inspector({ node, onFieldEdit, onProductionEdit, instanceActions, favourite }: InspectorProps) {
   if (!node) return <NothingSelected />;
   const fields = Object.entries(node.fields);
   const Icon = node.mixed || node.instance ? Layers : Factory;
@@ -87,10 +90,20 @@ export function Inspector({ node, onFieldEdit, onProductionEdit, instanceActions
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent-fg inset-ring inset-ring-accent/20">
           <Icon className="size-4.5" aria-hidden />
         </span>
-        <div className="flex min-w-0 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <h3 className="truncate text-base font-semibold tracking-tight text-fg">{node.title}</h3>
           {node.subtitle && <p className="truncate text-xs text-fg-subtle">{node.subtitle}</p>}
         </div>
+        {favourite && (
+          <IconButton
+            size="sm"
+            label={favourite.starred ? "Remove from favourites" : "Add to favourites"}
+            aria-pressed={favourite.starred}
+            icon={<Star className={favourite.starred ? "fill-current" : undefined} />}
+            onClick={favourite.onToggle}
+            className={favourite.starred ? "text-accent-fg" : undefined}
+          />
+        )}
       </div>
       {node.problems && node.problems.length > 0 && <Problems problems={node.problems} />}
       {node.production && (

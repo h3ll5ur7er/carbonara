@@ -51,6 +51,8 @@ test("aligning from the toolbar lines the nodes up in one edit", async ({ page }
 
 test("distributing from the palette spaces the nodes evenly", async ({ page }) => {
   await openScene(page, "congested&zoom=0.6&focus=smelt-a");
+  // The ore split sits under the library.
+  await page.keyboard.press("ControlOrMeta+B");
   await select(page, ["ore-split", "wash-b", "plate-merge"]);
   await page.keyboard.press("ControlOrMeta+K");
   await page.keyboard.type("distribute horizontally");

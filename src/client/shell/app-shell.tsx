@@ -1,17 +1,23 @@
 // The app shell: top bar over a full-bleed canvas, side panels floating over it, toasts at the bottom.
 // The live app (live-app.tsx) and the scenes both render it, with real or fixed data.
-import { Library } from "lucide-react";
-import type { ReactNode } from "react";
+import { useLayoutEffect, type ReactNode } from "react";
 import { Canvas } from "../canvas/canvas";
 import { useCommandShortcuts } from "../core/commands-keys";
 import { formatShortcut, platformOf } from "../core/commands-shortcuts";
+import { usePackDataOf } from "../core/pack-data";
 import { CommandPalette } from "../features/command-palette/command-palette";
 import { useQuickAdd } from "../features/command-palette/use-quick-add";
+import { useRecipeMemoryInPreferences } from "../features/recipe-browser/memory";
+import { RecipeBrowser, type RecipeBrowserProps } from "../features/recipe-browser/recipe-browser";
+import { NoBlueprints } from "../features/subgraphs/library-panel";
 import { TopBar } from "../top-bar";
 import { TooltipProvider } from "../ui/tooltip";
 import { appRegistry } from "./app-commands";
 import { InspectorPanel, type InspectorPanelProps } from "./inspector/inspector-panel";
+import { Library } from "./library";
+import { setFactoryOpen } from "./panels";
 import { SidePanel } from "./side-panel";
+import { errorMessage, toast } from "./toasts";
 import { Toaster } from "./toaster";
 
 /** The document on screen, as far as the shell needs it. */
@@ -32,8 +38,12 @@ export interface AppShellProps {
   selection?: InspectorPanelProps["selection"];
   /** The open documents' tabs; one static tab for `document` by default. */
   tabs?: ReactNode;
-  /** What the library panel shows; a note on what it's for by default. */
-  library?: ReactNode;
+  /** The library's Blueprints tab; how to make a blueprint by default. */
+  blueprints?: ReactNode;
+  /** How many blueprints the factory has. */
+  blueprintCount?: number | undefined;
+  /** What the recipe browser suggests the factory adds next. */
+  suggestions?: RecipeBrowserProps["suggestions"];
 }
 
 export function AppShell({
@@ -41,10 +51,19 @@ export function AppShell({
   canvas = <EmptyCanvas />,
   selection = null,
   tabs,
-  library = <LibraryPlaceholder />,
+  blueprints,
+  blueprintCount,
+  suggestions,
 }: AppShellProps) {
   useCommandShortcuts(appRegistry, platform);
-  const quickAdd = useQuickAdd(document);
+  useRecipeMemoryInPreferences();
+  const pack = usePackDataOf(document?.packId, (error) =>
+    toast({ tone: "error", title: "Couldn't load the pack's recipes", description: errorMessage(error) }),
+  );
+  const quickAdd = useQuickAdd(document, pack);
+  // The side panels work on a factory: none beside the welcome (they come back as they were).
+  const factoryOpen = document !== null;
+  useLayoutEffect(() => setFactoryOpen(factoryOpen), [factoryOpen]);
   const keys = (id: string) => {
     const shortcut = appRegistry.get(id)?.shortcut;
     return shortcut ? formatShortcut(shortcut, platform) : undefined;
@@ -61,7 +80,20 @@ export function AppShell({
         <main className="relative min-h-0 flex-1">
           {canvas}
           <SidePanel side="left" title="Library" shortcut={keys("view.toggleLibrary")}>
-            {library}
+            {document && (
+              <Library
+                recipes={
+                  <RecipeBrowser
+                    packId={document.packId}
+                    pack={pack}
+                    findKeys={keys("library.findRecipe")}
+                    suggestions={suggestions}
+                  />
+                }
+                blueprints={blueprints ?? <NoBlueprints collapseKeys={keys("subgraph.collapse")} />}
+                blueprintCount={blueprintCount}
+              />
+            )}
           </SidePanel>
           <SidePanel side="right" title="Inspector" shortcut={keys("view.toggleInspector")}>
             <InspectorPanel selection={selection} />
@@ -111,20 +143,5 @@ function GhostNode() {
       <circle cx="8.5" cy="28" r="4" className="fill-canvas" stroke="currentColor" />
       <circle cx="79.5" cy="28" r="4.5" className="fill-accent" />
     </svg>
-  );
-}
-
-/** Until the pack library exists: says what the panel is for. */
-function LibraryPlaceholder() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 px-8 pb-12 text-center">
-      <span className="grid size-10 place-items-center rounded-xl bg-surface-3 text-fg-subtle inset-ring inset-ring-line-subtle">
-        <Library className="size-4.5" aria-hidden />
-      </span>
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium text-fg-muted">Library</p>
-        <p className="text-xs text-fg-subtle">The pack’s items and recipes will be listed here.</p>
-      </div>
-    </div>
   );
 }

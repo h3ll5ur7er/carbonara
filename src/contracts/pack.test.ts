@@ -79,8 +79,21 @@ describe("PackData", () => {
       recipes: [],
       logistics: [],
       resources: [],
+      categories: [],
+      unlocks: [],
       starters: [],
     });
+  });
+
+  it("groups recipes by category and by what unlocks them (pack format 1.2)", () => {
+    const parsed = PackData.parse({
+      ...data,
+      categories: [{ id: "smelting", name: "Smelting", section: "Intermediate products" }],
+      unlocks: [{ id: "refining", name: "Refining", section: "Tier 2" }],
+      recipes: data.recipes.map((recipe) => ({ ...recipe, category: "smelting", unlock: "refining" })),
+    });
+    expect(parsed.categories).toEqual([{ id: "smelting", name: "Smelting", section: "Intermediate products" }]);
+    expect(parsed.recipes[1]).toMatchObject({ category: "smelting", unlock: "refining" });
   });
 
   it("accepts item variants and fractional expected outputs", () => {
