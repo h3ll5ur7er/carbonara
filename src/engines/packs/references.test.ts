@@ -40,6 +40,30 @@ describe("checkReferences", () => {
     expect(checkReferences(data)).toEqual([{ path: ["resources", 0, "item"], message: "Unknown item 'gold'" }]);
   });
 
+  it("reports categories and unlocks a recipe names but the pack doesn't list", () => {
+    const data = withChange({
+      categories: [{ id: "smelting", name: "Smelting" }],
+      unlocks: [{ id: "steel", name: "Steel", section: "Tier 2" }],
+      recipes: [
+        { ...base.recipes[0], category: "smelting", unlock: "steel" },
+        { ...base.recipes[0], id: "plate-2", category: "casting", unlock: "iron" },
+      ],
+    });
+    expect(checkReferences(data)).toEqual([
+      { path: ["recipes", 1, "category"], message: "Unknown category 'casting'" },
+      { path: ["recipes", 1, "unlock"], message: "Unknown unlock 'iron'" },
+    ]);
+  });
+
+  it("reports categories and unlocks defined twice", () => {
+    const group = { id: "smelting", name: "Smelting" };
+    const data = withChange({ categories: [group, group], unlocks: [group, group] });
+    expect(checkReferences(data)).toEqual([
+      { path: ["categories", 1, "id"], message: "Category 'smelting' is defined twice" },
+      { path: ["unlocks", 1, "id"], message: "Unlock 'smelting' is defined twice" },
+    ]);
+  });
+
   it("reports ids defined twice, at the second definition", () => {
     const data = withChange({ items: [...base.items, { id: "ore", name: "Ore again", form: "solid" }] });
     expect(checkReferences(data)).toEqual([{ path: ["items", 2, "id"], message: "Item 'ore' is defined twice" }]);

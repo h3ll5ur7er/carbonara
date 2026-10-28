@@ -2,12 +2,14 @@
 // loaded it) and its English locale files into pack data. Hides the dump format: prototype types, energy written as
 // strings ("75kW"), recipe categories (one in 2.0, several in 2.1), probabilistic results, defaults the dump leaves
 // out, and that names live in separate locale files. Quality levels become item variants (`iron-plate@rare`), and
-// what the mechanics plugin needs becomes building fields and recipe tags. Power generation becomes recipes of the
+// what the mechanics plugin needs becomes building fields and recipe tags. The crafting menu's rows and the
+// technologies that unlock recipes become the recipe browser's categories and unlocks (groups.ts). Power generation becomes recipes of the
 // buildings that make steam, heat, plasma and electricity, with fluids that generators burn for their heat split by
 // temperature (`steam@500`). Maintainer tooling (`pnpm pack:import factorio`); the app never runs it.
 import type { Building, Item, Logistics, PackDataFile, Recipe, Resource } from "../../../src/contracts/pack";
 import { atTemperature, ELECTRICITY, HEAT, temperatureOf } from "./energy";
-import { localise, parseLocale } from "./locale";
+import { menuCategories, technologyUnlocks } from "./groups";
+import { humanise, localise, parseLocale } from "./locale";
 
 /** The dump, then the English locale of every built-in mod (data/<mod>/locale/en/<mod>.cfg). The locale is optional. */
 export const ACCEPTS = [
@@ -261,6 +263,8 @@ export function importDump(files: Record<string, Uint8Array>): {
 
   /** Each recipe's ingredients as the dump gives them, for their temperature limits. */
   const limits = new Map<string, Amount[]>();
+  /** Where each recipe sits in the game: its crafting menu row, and the recipe whose technology unlocks it. */
+  const placed = new Map<string, { subgroup?: string | undefined; unlockedAs?: string | undefined }>();
   const crafted = Object.values(dump.recipe ?? {}).flatMap((entry): Recipe[] => {
     if (entry.parameter === true) return [];
     const categories = recipeCategories(entry);
@@ -314,6 +318,14 @@ export function importDump(files: Record<string, Uint8Array>): {
       ...(tags.length > 0 && { tags }),
     };
     limits.set(recipe.id, Array.isArray(entry.ingredients) ? (entry.ingredients as Amount[]) : []);
+    placed.set(recipe.id, {
+      // Recycling sits with what it takes apart, as the game shows it.
+      subgroup:
+        text(entry.subgroup) ??
+        text((categories.includes("recycling") ? product(Object.keys(inputs)[0] ?? "") : mainProduct)?.subgroup),
+      // Recipes enabled from the start need no technology.
+      unlockedAs: entry.enabled === false ? entry.name : undefined,
+    });
     return [recipe];
   });
   /** Amounts by item, or undefined when the recipe deals with an item the pack leaves out. */
@@ -337,7 +349,10 @@ export function importDump(files: Record<string, Uint8Array>): {
   const generators = GENERATORS.flatMap((type) => prototypes(type).sort(buildingOrder));
   const powerRecipes = generators.flatMap((entity): Recipe[] => {
     const entityName = named(entity, `entity-name.${entity.name}`);
+    // A building's recipe is named after the item that places it; its technology unlocks the power it makes.
+    const placer = [...items.values()].find((item) => item.place_result === entity.name);
     const recipe = (id: string, made: string, inputs: Record<string, number>, outputs: Record<string, number>) => {
+      placed.set(id, { subgroup: text(placer?.subgroup), unlockedAs: placer?.name ?? entity.name });
       const mod = modOf(entity);
       return {
         id,
@@ -495,6 +510,17 @@ export function importDump(files: Record<string, Uint8Array>): {
     known.add(recipe.id);
   }
 
+  // The recipe browser's groups, listing only what the pack's recipes use. A recipe per steam temperature
+  // (`coal-liquefaction@165`) sits where its recipe does.
+  const rows = menuCategories(dump, locale);
+  const technologies = technologyUnlocks(dump, locale);
+  for (const recipe of recipes) {
+    const where = placed.get(recipe.id) ?? placed.get(temperatureOf(recipe.id)?.fluid ?? recipe.id);
+    if (where?.subgroup !== undefined) recipe.category = rows.use(where.subgroup);
+    const unlock = where?.unlockedAs === undefined ? undefined : technologies.of(where.unlockedAs);
+    if (unlock !== undefined) recipe.unlock = unlock;
+  }
+
   // Resources: what drills mine from resource patches, offshore pumps pump from tiles, agricultural towers harvest
   // from plants and asteroid collectors catch in space.
   const sources = new Map<string, Set<string>>();
@@ -607,6 +633,8 @@ export function importDump(files: Record<string, Uint8Array>): {
       recipes: recipes.sort((a, b) => a.id.localeCompare(b.id)),
       logistics,
       resources,
+      categories: rows.list(),
+      unlocks: technologies.list(),
     },
     icons,
   };
@@ -774,13 +802,11 @@ function number(value: unknown): number | undefined {
   return typeof value === "number" ? value : undefined;
 }
 
+function text(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 /** Drops floating-point noise: 0.007000000000000001 → 0.007. */
 function clean(value: number): number {
   return Number(value.toPrecision(12));
-}
-
-/** "assembling-machine-1" → "Assembling machine 1", the way the game's English names read. */
-function humanise(name: string): string {
-  const words = name.replaceAll("-", " ");
-  return words.charAt(0).toUpperCase() + words.slice(1);
 }

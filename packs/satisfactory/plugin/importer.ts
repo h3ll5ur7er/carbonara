@@ -1,7 +1,9 @@
 // Turns the game's own data file (CommunityResources/Docs/en-US.json, called Docs.json before 1.1) into pack data.
-// Hides the Docs format: Unreal class groups, numbers and object lists written as strings, fluids in litres.
+// Hides the Docs format: Unreal class groups, numbers and object lists written as strings, fluids in litres. What
+// unlocks each recipe (milestones, MAM research, hard drives) comes from the schematics (unlocks.ts).
 // Maintainer tooling (`pnpm pack:import satisfactory`); the app never runs it.
 import type { Building, Item, Logistics, PackDataFile, Recipe, Resource } from "../../../src/contracts/pack";
+import { schematicUnlocks } from "./unlocks";
 
 /** File names the importer reads: the 1.1 name first, then the name older versions used. */
 export const ACCEPTS = ["en-US.json", "Docs.json"];
@@ -105,7 +107,16 @@ export function importDocs(files: Record<string, Uint8Array>): {
   const generatorClasses = classes(GENERATOR_CLASSES).sort(byName);
   const generators = generatorClasses.map((entry) => building(entry, { produce: number(entry, "mPowerProduction") }));
 
-  const machineRecipes = (groups.get("FGRecipe") ?? []).flatMap((entry) => {
+  const unlocks = schematicUnlocks(groups.get("FGSchematic") ?? [], slug);
+  const recipeClasses = groups.get("FGRecipe") ?? [];
+  /** What unlocks a building: the schematic of the build gun recipe that makes it (`Desc_GeneratorCoal_C`). */
+  const buildingUnlock = (buildingClass: string) => {
+    const made = `.${buildingClass.replace(/^Build_/, "Desc_")}'`;
+    const recipe = recipeClasses.find((entry) => text(entry, "mProduct").includes(made));
+    return recipe && unlocks.of(recipe.ClassName);
+  };
+
+  const machineRecipes = recipeClasses.flatMap((entry) => {
     const buildings = classNames(text(entry, "mProducedIn")).flatMap((producer) => {
       const id = buildingIds.get(producer);
       return id && machines.some((machine) => machine.id === id) ? [id] : [];
@@ -113,6 +124,7 @@ export function importDocs(files: Record<string, Uint8Array>): {
     if (buildings.length === 0) return []; // made by hand, at a workbench or with the build gun
     const name = text(entry, "mDisplayName");
     const alternate = name.startsWith("Alternate: ");
+    const unlock = unlocks.of(entry.ClassName);
     const recipe: Recipe = {
       id: alternate ? `alt-${slug(name.slice("Alternate: ".length))}` : slug(name),
       name,
@@ -121,6 +133,7 @@ export function importDocs(files: Record<string, Uint8Array>): {
       in: amounts(text(entry, "mIngredients")),
       out: amounts(text(entry, "mProduct")),
       ...(alternate && { tags: ["alternate"] }),
+      ...(unlock && { unlock }),
     };
     return [recipe];
   });
@@ -141,6 +154,7 @@ export function importDocs(files: Record<string, Uint8Array>): {
     const generatorId = buildingIds.get(generator.ClassName) as string;
     const generatorName = text(generator, "mDisplayName");
     const powerMW = number(generator, "mPowerProduction");
+    const unlock = buildingUnlock(generator.ClassName);
     return (generator.mFuel as Fuel[]).flatMap((fuel): Recipe[] => {
       const fuelClass = itemClasses.get(fuel.mFuelClass);
       if (!fuelClass) return [];
@@ -165,6 +179,7 @@ export function importDocs(files: Record<string, Uint8Array>): {
           in: inputs,
           out: outputs,
           tags: ["power"],
+          ...(unlock && { unlock }),
         },
       ];
     });
@@ -224,6 +239,7 @@ export function importDocs(files: Record<string, Uint8Array>): {
       recipes,
       logistics,
       resources: resources.sort((a, b) => a.item.localeCompare(b.item)),
+      unlocks: unlocks.list(),
     },
     icons,
   };

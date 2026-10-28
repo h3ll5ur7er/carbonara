@@ -11,6 +11,8 @@ export function checkReferences(data: PackData): Issue[] {
   const buildings = definedIds(data.buildings, "buildings", "Building", issues);
   const recipes = definedIds(data.recipes, "recipes", "Recipe", issues);
   const logistics = definedIds(data.logistics, "logistics", "Logistics", issues);
+  const categories = definedIds(data.categories, "categories", "Category", issues);
+  const unlocks = definedIds(data.unlocks, "unlocks", "Unlock", issues);
 
   const known =
     (ids: Set<string>, kind: string): Check =>
@@ -19,11 +21,15 @@ export function checkReferences(data: PackData): Issue[] {
     };
   const item = known(items, "item");
   const building = known(buildings, "building");
+  const category = known(categories, "category");
+  const unlock = known(unlocks, "unlock");
 
   data.recipes.forEach((recipe, r) => {
     recipe.buildings.forEach((id, b) => building(id, ["recipes", r, "buildings", b]));
     for (const id of Object.keys(recipe.in)) item(id, ["recipes", r, "in", id]);
     for (const id of Object.keys(recipe.out)) item(id, ["recipes", r, "out", id]);
+    if (recipe.category !== undefined) category(recipe.category, ["recipes", r, "category"]);
+    if (recipe.unlock !== undefined) unlock(recipe.unlock, ["recipes", r, "unlock"]);
   });
   data.resources.forEach((resource, r) => {
     item(resource.item, ["resources", r, "item"]);

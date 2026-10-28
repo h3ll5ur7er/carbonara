@@ -198,6 +198,8 @@ test("a copied subgraph brings its blueprint into another factory, as one undo s
     logistics: [],
     resources: [],
     starters: [],
+    categories: [],
+    unlocks: [],
   });
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
   await page.goto(`/#doc=${writeShareLink(document)}`);

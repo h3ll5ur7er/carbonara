@@ -120,6 +120,8 @@ export function useBlueprintPlacement(document: Document | undefined, graph: str
             logistics: [],
             resources: [],
             starters: [],
+            categories: [],
+            unlocks: [],
           },
           document,
         ).nodes;

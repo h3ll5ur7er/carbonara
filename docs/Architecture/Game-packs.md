@@ -64,6 +64,12 @@ recipes:
     in:  { iron-ore: 7, water: 4 }
     out: { iron-ingot: 13 }
     tags: [alternate]
+    unlock: refining                   # optional: what unlocks it in the game (pack format 1.2)
+    category: ingots                   # optional: the kind of product it makes (pack format 1.2)
+categories:                            # optional, in the order the recipe browser lists them
+  - { id: ingots, name: Ingots, section: Smelting }
+unlocks:                               # optional, earliest first; recipes without one are there from the start
+  - { id: refining, name: Oil Processing, section: Tier 5 }
 logistics:
   - { id: belt-mk1, name: Conveyor Belt Mk.1, aliases: [mk1 belt], carries: solid, capacity: 60 }
   - { id: pipe-mk1, carries: fluid, capacity: 300 }
@@ -72,6 +78,8 @@ resources:
 ```
 
 `aliases` let plain language ("yellow belt") resolve to data, for the MCP tools and the command palette.
+
+**Recipe groups** (pack format 1.2, [[CARB-134]]): `categories` and `unlocks` are the headings the recipe browser can list a pack's recipes under, besides the building that runs them ([[Design]], Recipe browser). A recipe names one of each with `category` and `unlock`; the packs engine checks that they exist. A `section` gathers groups under a wider heading (Factorio's crafting menu tabs, Satisfactory's tiers), and both lists are shown in the order the pack gives them, so a pack lists its unlocks from the earliest to the latest. Both are optional: a pack without them is browsed by building only. Two recipe tags mean something to the browser too: `alternate` (marked "Alt") and `recycling` (left out until the person asks for it).
 
 Item ids may carry a variant after `@` (`steam@500`, `gear@rare`), for plugins that model temperatures or quality. Probabilistic outputs are written as expected values (`0.25`).
 
@@ -88,7 +96,7 @@ data/recipes.yaml:7:11: recipes[0].in.coal: Unknown item 'coal'
 manifest.yaml:4:1: engine: Needs pack format ^2, but this version of Carbonara reads pack format 1.0.0
 ```
 
-**Pack format.** `PACK_FORMAT` in [[src/engines/packs/format.ts]] is the pack format and plugin API version this build implements (now `1.1.0`; 1.1 added starter factories). A manifest's `engine` range (`^1`, `~1.2`, `1.2.3`, npm semantics) must include it, or the pack is refused before its data is read. Bump the minor version for additive changes and the major for breaking ones. The broken fixture packs in [[src/engines/packs/broken-packs.test.ts]] pin the message for each kind of mistake; add one when you add a rule.
+**Pack format.** `PACK_FORMAT` in [[src/engines/packs/format.ts]] is the pack format and plugin API version this build implements (now `1.2.0`; 1.1 added starter factories, 1.2 recipe categories and unlocks). A manifest's `engine` range (`^1`, `~1.2`, `1.2.3`, npm semantics) must include it, or the pack is refused before its data is read. Bump the minor version for additive changes and the major for breaking ones. The broken fixture packs in [[src/engines/packs/broken-packs.test.ts]] pin the message for each kind of mistake; add one when you add a rule.
 
 ## Starter factories
 
@@ -169,6 +177,8 @@ Conventions the importer follows ([[packs/satisfactory/plugin/importer.ts]]):
 - Each generator fuel becomes a recipe tagged `power` that burns one unit at full power, so fuel, water and nuclear waste flow through the graph.
 - Machines whose power depends on the recipe (Particle Accelerator, Converter, Quantum Encoder) get the middle of their range for now. Every building has `fields.clock`, the clock range the plugin's mechanics read ([[Architecture/Plugins]], Satisfactory).
 - The map's resource limits aren't in the game's data, so the importer keeps them in a table.
+- **Unlocks** ([[packs/satisfactory/plugin/unlocks.ts]]): what unlocks each recipe, from the game's schematics. Milestones and the tier-0 HUB upgrades are listed by tier (`section: Tier 2`), a milestone's background unlocks (`Schematic_8-1-1`) count as the milestone's, MAM research by research tree (`mam-caterium`, from the schematic's `Research/Caterium_RS` folder; a short table names the trees whose folder doesn't spell it out), and alternates as `hard-drives`, both under `section: MAM research`. A recipe several schematics unlock takes the one open earliest: the MAM opens with tier 1. The starting recipes have no unlock. Generator fuels unlock with their generator's build recipe.
+- **No categories:** the game's data has no product category for parts (only the AWESOME Shop's, for half of them), so the pack has none and is browsed by building and by unlock.
 
 ## Factorio pack
 
@@ -188,6 +198,7 @@ Conventions the importer follows ([[packs/factorio/plugin/importer.ts]]):
 - Resources are infinite in Factorio, so they have no `limit`; their extractors are the mining drills of the patch's resource category, offshore pumps for tile fluids (water, lava …), agricultural towers for plants and asteroid collectors for asteroid chunks.
 - Belt throughput is `speed × 8 items per tile × 60 ticks` (yellow 15/s to turbo 60/s), with colour aliases kept in a table; pipe throughput (6000/s) isn't in the data, so it's a constant.
 - Icons are matched by prototype name, then by the dump's icon file name. Factorio's own icons are strips of mipmaps; `pack:import` takes an image wider than tall to be one and uses its left square.
+- **Recipe groups** ([[packs/factorio/plugin/groups.ts]]): categories are the crafting menu's rows (item subgroups, named from their ids: "Science pack"), under their tab's name as the section ("Intermediate products"), in the menu's order. A recipe sits in its own row, else its main product's; recycling sits with what it takes apart. Unlocks are the technologies that unlock recipes, under the latest science pack they need ("Logistic science pack"; one researched by a trigger takes its prerequisites'), ordered by that pack, then by depth in the tree; later levels are named after the first ("Automation 2"). A recipe that several technologies unlock takes the earliest; one enabled from the start has none; power generation unlocks with its building.
 
 ## Assets and permissions
 

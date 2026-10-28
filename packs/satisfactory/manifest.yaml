@@ -2,8 +2,8 @@
 # `pnpm pack:import satisfactory` (see README.md); the sources and their terms are in CREDITS.md.
 id: satisfactory
 name: Satisfactory
-version: 1.0.0
-engine: ^1.1
+version: 1.1.0
+engine: ^1.2
 game: { name: Satisfactory, version: "1.1" }
 data: data/
 plugin: plugin/index.js

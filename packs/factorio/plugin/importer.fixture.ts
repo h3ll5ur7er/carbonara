@@ -15,6 +15,7 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
     "steel-plate": {
       type: "recipe",
       name: "steel-plate",
+      enabled: false,
       categories: ["smelting"],
       energy_required: 16,
       ingredients: [{ type: "item", name: "iron-plate", amount: 5 }],
@@ -31,6 +32,7 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
     "electronic-circuit": {
       type: "recipe",
       name: "electronic-circuit",
+      enabled: false,
       categories: ["crafting", "electromagnetics"],
       ingredients: [
         { type: "item", name: "iron-plate", amount: 1 },
@@ -42,6 +44,7 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
     "copper-cable": {
       type: "recipe",
       name: "copper-cable",
+      enabled: false,
       categories: ["crafting", "electromagnetics"],
       ingredients: [{ type: "item", name: "copper-plate", amount: 1 }],
       results: [{ type: "item", name: "copper-cable", amount: 2 }],
@@ -50,6 +53,7 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
     "uranium-processing": {
       type: "recipe",
       name: "uranium-processing",
+      enabled: false,
       icon: "__base__/graphics/icons/uranium-processing.png",
       categories: ["centrifuging"],
       energy_required: 12,
@@ -65,6 +69,7 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
     "kovarex-enrichment-process": {
       type: "recipe",
       name: "kovarex-enrichment-process",
+      enabled: false,
       icon: "__base__/graphics/icons/kovarex-enrichment-process.png",
       categories: ["centrifuging"],
       energy_required: 60,
@@ -130,6 +135,7 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
     "iron-gear-wheel-recycling": {
       type: "recipe",
       name: "iron-gear-wheel-recycling",
+      enabled: false,
       localised_name: ["recipe-name.recycling", ["item-name.iron-gear-wheel"]],
       icons: [
         { icon: "__recycler__/graphics/icons/recycling.png" },
@@ -145,6 +151,7 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
     "crude-oil-barrel": {
       type: "recipe",
       name: "crude-oil-barrel",
+      enabled: false,
       localised_name: ["recipe-name.fill-barrel", ["fluid-name.crude-oil"]],
       icons: [
         { icon: "__base__/graphics/icons/fluid/barreling/barrel-fill.png", icon_size: 64 },
@@ -290,6 +297,27 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
     },
   },
   item: {
+    "automation-science-pack": {
+      type: "item",
+      name: "automation-science-pack",
+      subgroup: "science-pack",
+      order: "a[automation-science-pack]",
+      stack_size: 200,
+    },
+    "logistic-science-pack": {
+      type: "item",
+      name: "logistic-science-pack",
+      subgroup: "science-pack",
+      order: "b[logistic-science-pack]",
+      stack_size: 200,
+    },
+    "chemical-science-pack": {
+      type: "item",
+      name: "chemical-science-pack",
+      subgroup: "science-pack",
+      order: "d[chemical-science-pack]",
+      stack_size: 200,
+    },
     "iron-ore": {
       type: "item",
       name: "iron-ore",
@@ -1396,6 +1424,147 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
       name: "automation",
       effects: [{ type: "unlock-recipe", recipe: "assembling-machine-1" }],
     },
+    electronics: {
+      type: "technology",
+      name: "electronics",
+      effects: [
+        { type: "unlock-recipe", recipe: "copper-cable" },
+        { type: "unlock-recipe", recipe: "electronic-circuit" },
+        { type: "unlock-recipe", recipe: "lab" },
+      ],
+      research_trigger: { type: "craft-item", item: "copper-plate", count: 10 },
+    },
+    "automation-science-pack": {
+      type: "technology",
+      name: "automation-science-pack",
+      effects: [{ type: "unlock-recipe", recipe: "automation-science-pack" }],
+      prerequisites: ["steam-power", "electronics"],
+      research_trigger: { type: "craft-item", item: "iron-gear-wheel", count: 10 },
+    },
+    "steel-processing": {
+      type: "technology",
+      name: "steel-processing",
+      effects: [
+        { type: "unlock-recipe", recipe: "steel-plate" },
+        { type: "unlock-recipe", recipe: "steel-chest" },
+      ],
+      prerequisites: ["automation-science-pack"],
+      unit: { count: 50, ingredients: [["automation-science-pack", 1]], time: 5 },
+    },
+    "logistic-science-pack": {
+      type: "technology",
+      name: "logistic-science-pack",
+      effects: [{ type: "unlock-recipe", recipe: "logistic-science-pack" }],
+      prerequisites: ["automation-science-pack"],
+      unit: { count: 75, ingredients: [["automation-science-pack", 1]], time: 5 },
+    },
+    "fluid-handling": {
+      type: "technology",
+      name: "fluid-handling",
+      effects: [
+        { type: "unlock-recipe", recipe: "barrel" },
+        { type: "unlock-recipe", recipe: "crude-oil-barrel" },
+      ],
+      prerequisites: ["logistic-science-pack"],
+      unit: {
+        count: 100,
+        ingredients: [
+          ["automation-science-pack", 1],
+          ["logistic-science-pack", 1],
+        ],
+        time: 15,
+      },
+    },
+    "chemical-science-pack": {
+      type: "technology",
+      name: "chemical-science-pack",
+      effects: [{ type: "unlock-recipe", recipe: "chemical-science-pack" }],
+      prerequisites: ["logistic-science-pack"],
+      unit: {
+        count: 75,
+        ingredients: [
+          ["automation-science-pack", 1],
+          ["logistic-science-pack", 1],
+        ],
+        time: 10,
+      },
+    },
+    "uranium-processing": {
+      type: "technology",
+      name: "uranium-processing",
+      effects: [
+        { type: "unlock-recipe", recipe: "centrifuge" },
+        { type: "unlock-recipe", recipe: "uranium-processing" },
+      ],
+      prerequisites: ["chemical-science-pack"],
+      research_trigger: { type: "mine-entity", entity: "uranium-ore" },
+    },
+    "nuclear-power": {
+      type: "technology",
+      name: "nuclear-power",
+      effects: [
+        { type: "unlock-recipe", recipe: "nuclear-reactor" },
+        { type: "unlock-recipe", recipe: "heat-exchanger" },
+        { type: "unlock-recipe", recipe: "steam-turbine" },
+      ],
+      prerequisites: ["uranium-processing"],
+      unit: {
+        count: 800,
+        ingredients: [
+          ["automation-science-pack", 1],
+          ["logistic-science-pack", 1],
+          ["chemical-science-pack", 1],
+        ],
+        time: 30,
+      },
+    },
+    "kovarex-enrichment-process": {
+      type: "technology",
+      name: "kovarex-enrichment-process",
+      effects: [{ type: "unlock-recipe", recipe: "kovarex-enrichment-process" }],
+      prerequisites: ["uranium-processing"],
+      unit: {
+        count: 1500,
+        ingredients: [
+          ["automation-science-pack", 1],
+          ["logistic-science-pack", 1],
+          ["chemical-science-pack", 1],
+          ["space-science-pack", 1],
+        ],
+        time: 30,
+      },
+    },
+    recycling: {
+      type: "technology",
+      name: "recycling",
+      effects: [
+        { type: "unlock-recipe", recipe: "recycler" },
+        { type: "unlock-recipe", recipe: "iron-gear-wheel-recycling" },
+      ],
+      research_trigger: { type: "mine-entity", entity: "scrap" },
+    },
+  },
+  "item-group": {
+    production: { type: "item-group", name: "production", order: "b" },
+    "intermediate-products": { type: "item-group", name: "intermediate-products", order: "c" },
+  },
+  "item-subgroup": {
+    "fluid-recipes": { type: "item-subgroup", name: "fluid-recipes", group: "intermediate-products", order: "a" },
+    "raw-material": { type: "item-subgroup", name: "raw-material", group: "intermediate-products", order: "c" },
+    "fill-barrel": { type: "item-subgroup", name: "fill-barrel", group: "intermediate-products", order: "e" },
+    "intermediate-product": {
+      type: "item-subgroup",
+      name: "intermediate-product",
+      group: "intermediate-products",
+      order: "g",
+    },
+    "uranium-processing": {
+      type: "item-subgroup",
+      name: "uranium-processing",
+      group: "intermediate-products",
+      order: "i",
+    },
+    energy: { type: "item-subgroup", name: "energy", group: "production", order: "b" },
   },
   pipe: {
     pipe: {
@@ -1410,9 +1579,10 @@ export const dumpExcerpt: Record<string, Record<string, Record<string, unknown>>
 
 export const localeExcerpt: Record<string, string> = {
   "base.cfg":
-    "[entity-name]\nstone=Stone\ncopper-ore=Copper ore\niron-ore=Iron ore\nuranium-ore=Uranium ore\ncoal=Coal\nstone-furnace=Stone furnace\nsteel-furnace=Steel furnace\nelectric-furnace=Electric furnace\ntransport-belt=Transport belt\nfast-transport-belt=Fast transport belt\nexpress-transport-belt=Express transport belt\nelectric-mining-drill=Electric mining drill\nburner-mining-drill=Burner mining drill\nsteel-chest=Steel chest\nbeacon=Beacon\noffshore-pump=Offshore pump\npipe=Pipe\nboiler=Boiler\nsteam-engine=Steam engine\nsteam-turbine=Steam turbine\nheat-exchanger=Heat exchanger\nnuclear-reactor=Nuclear reactor\nassembling-machine-1=Assembling machine 1\nassembling-machine-2=Assembling machine 2\nassembling-machine-3=Assembling machine 3\ncentrifuge=Centrifuge\nchemical-plant=Chemical plant\nrocket-silo=Rocket silo\npumpjack=Pumpjack\ncrude-oil=Crude oil\ntree=Tree\ninfinity-chest=Infinity chest\n[fluid-name]\nwater=Water\ncrude-oil=Crude oil\nheavy-oil=Heavy oil\nsteam=Steam\nsulfuric-acid=Sulfuric acid\n[item-name]\nstone=Stone\nwood=Wood\ncopper-ore=Copper ore\niron-ore=Iron ore\nuranium-ore=Uranium ore\ncoal=Coal\ncopper-plate=Copper plate\niron-plate=Iron plate\nsteel-plate=Steel plate\niron-gear-wheel=Iron gear wheel\ncopper-cable=Copper cable\npistol=Pistol\nelectronic-circuit=Electronic circuit\nadvanced-circuit=Advanced circuit\nprocessing-unit=Processing unit\nblueprint=Blueprint\nsulfur=Sulfur\nsolid-fuel=Solid fuel\nbattery=Battery\nbarrel=Barrel\ncrude-oil-barrel=Crude oil barrel\nlow-density-structure=Low density structure\nrocket-fuel=Rocket fuel\nrocket-part=Rocket part\nconcrete=Concrete\nuranium-235=Uranium-235\nuranium-238=Uranium-238\nfilled-barrel=__1__ barrel\ninfinity-chest=Infinity chest\nuranium-fuel-cell=Uranium fuel cell\ndepleted-uranium-fuel-cell=Depleted uranium fuel cell\n[recipe-name]\nuranium-processing=Uranium processing\nkovarex-enrichment-process=Kovarex enrichment process\nfill-barrel=Fill __1__ barrel\n",
+    "[entity-name]\nstone=Stone\ncopper-ore=Copper ore\niron-ore=Iron ore\nuranium-ore=Uranium ore\ncoal=Coal\nstone-furnace=Stone furnace\nsteel-furnace=Steel furnace\nelectric-furnace=Electric furnace\ntransport-belt=Transport belt\nfast-transport-belt=Fast transport belt\nexpress-transport-belt=Express transport belt\nelectric-mining-drill=Electric mining drill\nburner-mining-drill=Burner mining drill\nsteel-chest=Steel chest\nbeacon=Beacon\noffshore-pump=Offshore pump\npipe=Pipe\nboiler=Boiler\nsteam-engine=Steam engine\nsteam-turbine=Steam turbine\nheat-exchanger=Heat exchanger\nnuclear-reactor=Nuclear reactor\nassembling-machine-1=Assembling machine 1\nassembling-machine-2=Assembling machine 2\nassembling-machine-3=Assembling machine 3\ncentrifuge=Centrifuge\nchemical-plant=Chemical plant\nrocket-silo=Rocket silo\npumpjack=Pumpjack\ncrude-oil=Crude oil\ntree=Tree\ninfinity-chest=Infinity chest\n[fluid-name]\nwater=Water\ncrude-oil=Crude oil\nheavy-oil=Heavy oil\nsteam=Steam\nsulfuric-acid=Sulfuric acid\n[item-name]\nautomation-science-pack=Automation science pack\nlogistic-science-pack=Logistic science pack\nchemical-science-pack=Chemical science pack\nstone=Stone\nwood=Wood\ncopper-ore=Copper ore\niron-ore=Iron ore\nuranium-ore=Uranium ore\ncoal=Coal\ncopper-plate=Copper plate\niron-plate=Iron plate\nsteel-plate=Steel plate\niron-gear-wheel=Iron gear wheel\ncopper-cable=Copper cable\npistol=Pistol\nelectronic-circuit=Electronic circuit\nadvanced-circuit=Advanced circuit\nprocessing-unit=Processing unit\nblueprint=Blueprint\nsulfur=Sulfur\nsolid-fuel=Solid fuel\nbattery=Battery\nbarrel=Barrel\ncrude-oil-barrel=Crude oil barrel\nlow-density-structure=Low density structure\nrocket-fuel=Rocket fuel\nrocket-part=Rocket part\nconcrete=Concrete\nuranium-235=Uranium-235\nuranium-238=Uranium-238\nfilled-barrel=__1__ barrel\ninfinity-chest=Infinity chest\nuranium-fuel-cell=Uranium fuel cell\ndepleted-uranium-fuel-cell=Depleted uranium fuel cell\n[item-group-name]\nproduction=Production\nintermediate-products=Intermediate products\n[technology-name]\nelectronics=Electronics\nsteel-processing=Steel processing\nfluid-handling=Fluid handling\nuranium-processing=Uranium processing\nnuclear-power=Nuclear power\nkovarex-enrichment-process=Kovarex enrichment process\n[recipe-name]\nuranium-processing=Uranium processing\nkovarex-enrichment-process=Kovarex enrichment process\nfill-barrel=Fill __1__ barrel\n",
   "space-age.cfg":
     "[entity-name]\nbiochamber=Biochamber\nscrap=Scrap\ncalcite=Calcite\nbig-mining-drill=Big mining drill\nagricultural-tower=Agricultural tower\nasteroid-collector=Asteroid collector\nelectromagnetic-plant=Electromagnetic plant\nfoundry=Foundry\nturbo-transport-belt=Turbo transport belt\nyumako-tree=Yumako tree\nheating-tower=Heating tower\nfusion-reactor=Fusion reactor\nfusion-generator=Fusion generator\n[fluid-name]\nlava=Lava\nmolten-iron=Molten iron\nfusion-plasma=Plasma\nfluoroketone-hot=Fluoroketone (Hot)\nfluoroketone-cold=Fluoroketone (Cold)\n[item-name]\nyumako-mash=Yumako mash\nnutrients=Nutrients\nyumako-seed=Yumako seed\nice=Ice\nscrap=Scrap\nmetallic-asteroid-chunk=Metallic asteroid chunk\nbig-mining-drill=Big mining drill\ncalcite=Calcite\nholmium-ore=Holmium ore\nlithium=Lithium\nturbo-transport-belt=Turbo transport belt\nyumako=Yumako\nfusion-power-cell=Fusion power cell\n[recipe-name]\nacid-neutralisation=Acid neutralisation\nsteam-condensation=Steam condensation\nmolten-iron-from-lava=Molten iron from lava\nyumako-processing=Yumako processing\ncasting-iron=Casting iron\n",
-  "recycler.cfg": "[entity-name]\nrecycler=Recycler\n[recipe-name]\nrecycling=__1__ recycling\n",
+  "recycler.cfg":
+    "[entity-name]\nrecycler=Recycler\n[technology-name]\nrecycling=Recycling\n[recipe-name]\nrecycling=__1__ recycling\n",
   "quality.cfg": "[quality-name]\nnormal=Normal\nuncommon=Uncommon\nrare=Rare\nepic=Epic\nlegendary=Legendary\n",
 };

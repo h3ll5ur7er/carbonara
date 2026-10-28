@@ -18,7 +18,7 @@ const SIZE_SUFFIX = /_(64|128|256|512|1024)$/;
 const SECTIONS: { file: string; keys: (keyof PackDataFile)[] }[] = [
   { file: "items.yaml", keys: ["units", "items"] },
   { file: "buildings.yaml", keys: ["buildings"] },
-  { file: "recipes.yaml", keys: ["recipes"] },
+  { file: "recipes.yaml", keys: ["categories", "unlocks", "recipes"] },
   { file: "logistics.yaml", keys: ["logistics"] },
   { file: "resources.yaml", keys: ["resources"] },
 ];

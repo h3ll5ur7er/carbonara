@@ -10,9 +10,9 @@ describe("buildPack", () => {
   it("turns the template folder into a .cpack the pack engine accepts", async () => {
     const out = mkdtempSync(join(tmpdir(), "cpack-"));
     const result = await buildPack("packs/_template", out);
-    expect(result).toMatchObject({ ok: true, value: { file: join(out, "template-1.0.0.cpack") } });
+    expect(result).toMatchObject({ ok: true, value: { file: join(out, "template-1.1.0.cpack") } });
 
-    const files = unzipSync(readFileSync(join(out, "template-1.0.0.cpack")));
+    const files = unzipSync(readFileSync(join(out, "template-1.1.0.cpack")));
     expect(Object.keys(files).sort()).toEqual([
       "CREDITS.md",
       "README.md",

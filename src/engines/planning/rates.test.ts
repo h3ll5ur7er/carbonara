@@ -10,6 +10,8 @@ const pack = {
   recipes: [],
   resources: [],
   starters: [],
+  categories: [],
+  unlocks: [],
   logistics: [
     {
       id: "transport-belt",

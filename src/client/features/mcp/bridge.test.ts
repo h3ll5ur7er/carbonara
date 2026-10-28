@@ -67,6 +67,8 @@ function fakeManagers() {
         logistics: [],
         resources: [],
         starters: [],
+        categories: [],
+        unlocks: [],
       }),
     },
   });

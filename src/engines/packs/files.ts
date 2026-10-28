@@ -49,8 +49,18 @@ export function readPackFiles(files: Record<string, Uint8Array>): Result<PackCon
     recipes: [],
     logistics: [],
     resources: [],
+    categories: [],
+    unlocks: [],
   };
-  const origins: Origins = { items: [], buildings: [], recipes: [], logistics: [], resources: [] };
+  const origins: Origins = {
+    items: [],
+    buildings: [],
+    recipes: [],
+    logistics: [],
+    resources: [],
+    categories: [],
+    unlocks: [],
+  };
   let units: { value: PackDataFile["units"]; file: string } | undefined;
 
   for (const name of dataFiles) {

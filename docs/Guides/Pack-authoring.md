@@ -39,7 +39,7 @@ The manifest:
 id: brick-works
 name: Brick Works
 version: 0.1.0
-engine: ^1.1 # the pack format (and plugin API) this pack is written for
+engine: ^1.2 # the pack format (and plugin API) this pack is written for
 game: { name: Brick Works } # add `version: "1.4"` for the game version the data matches
 data: data/
 plugin: plugin/index.js # the bundled plugin; the build makes it from plugin/index.ts
@@ -112,11 +112,33 @@ What each section means:
 | `units` | `rate` | The unit of `capacity` and `limit` below, and how the app shows rates for your pack. Documents store items per second whatever you choose |
 | `items` | `id`, `name`, `form` (`solid` or `fluid`), `icon?`, `aliases?` | Solids ride belts, fluids pipes. Aliases are other words people search for |
 | `buildings` | `id`, `name`, `speed?` (1), `power?` (`consume`, `produce` in MW), `fields?`, `icon?`, `aliases?` | `fields` holds whatever your plugin reads (here a temperature range); the app doesn't interpret it |
-| `recipes` | `id`, `buildings`, `time`, `in`, `out`, `name?`, `tags?` | `time` is seconds per craft at speed 1; amounts are per craft. The first building is the default. A recipe without a name is named after its first output. `tags: [alternate]` puts it under the save profile's alternate recipes |
+| `recipes` | `id`, `buildings`, `time`, `in`, `out`, `name?`, `tags?`, `category?`, `unlock?` | `time` is seconds per craft at speed 1; amounts are per craft. The first building is the default. A recipe without a name is named after its first output. `tags: [alternate]` puts it under the save profile's alternate recipes; `tags: [recycling]` keeps it out of the recipe browser until the person asks for recycling. `category` and `unlock` name entries of the two sections below |
 | `logistics` | `id`, `carries`, `capacity`, `name?`, `aliases?` | Belts and pipes; `capacity` is in your rate unit |
 | `resources` | `item`, `limit?`, `extractors?` | Raw inputs. `limit` is the most the map yields, in your rate unit; the totals card warns when a factory needs more |
+| `categories` | `id`, `name`, `section?` | Optional (pack format 1.2): the kinds of product the recipe browser groups recipes by, in the order it lists them. `section` is a wider heading (Smelting, Components) |
+| `unlocks` | `id`, `name`, `section?` | Optional (pack format 1.2): what unlocks recipes in the game (a research, a milestone), earliest first. `section` is the stage it belongs to (Tier 2). A recipe without `unlock` is there from the start |
 
 Ids follow the same rules as the pack id. An item id may carry a variant after `@` (`steam@500`, `gear@rare`) for plugins that model temperatures or quality. Probabilistic outputs are written as expected values (`0.25`).
+
+### Group your recipes
+
+The recipe browser in the app's left panel lists every recipe of your pack, grouped by the building that runs it. Give it two more ways to group them when your game has them: by the kind of product (`categories`) and by what unlocks the recipe (`unlocks`). Groups appear in the order you list them, and a `section` gathers groups under a wider heading:
+
+```yaml
+categories:
+  - { id: masonry, name: Masonry, section: Building materials }
+  - { id: glassware, name: Glassware, section: Building materials }
+unlocks:
+  - { id: kilns, name: Kilns, section: Stage 1 }
+  - { id: wet-mixing, name: Wet mixing, section: Stage 2 }
+recipes:
+  - id: brick
+    # …
+    category: masonry
+    unlock: kilns
+```
+
+Leave both out if your game doesn't have them; the browser then groups by building only. Importers should fill them from the game's own data rather than from a table (see the Factorio and Satisfactory importers, [[Architecture/Game packs]]).
 
 > [!TIP]
 > Items get icons from `icon: icons/<name>.webp`, a path inside the pack. Without one, the app draws the item's initials in a colour of their own, which is fine to start with. Keep icons square; `carbonara-pack import` converts a game's own images for you (see [[Guides/Plugin authoring]], Importing game data).
@@ -176,7 +198,7 @@ layout:
 - The easiest way to make one: build the factory in the app, save it (*Save factory file*, `Ctrl S`), and unzip the `.carbonara` file, which is gzipped JSON: `gunzip -c Brickyard.carbonara > starters/brickyard.json`. The fields a starter doesn't take (`id`, `pack`, `format`, `version`) are ignored.
 - Make it teach: leave a gap where the next machine goes and say so in a note. The tour asks the player to add a recipe, connect it on both sides and set a target, and your starter is where they do it.
 
-`carbonara-pack new` leaves the template's starter out, because it uses the template's items. Starters need pack format 1.1, so keep `engine: ^1.1` in the manifest.
+`carbonara-pack new` leaves the template's starter out, because it uses the template's items. Starters need pack format 1.1 or later, so keep the template's `engine: ^1.2` (or at least `^1.1`) in the manifest.
 
 ## 6. Build the `.cpack`
 
@@ -197,7 +219,7 @@ Before you publish:
 - **Version:** raise `version` (semver) with every release. Installing a pack whose id is installed replaces it; documents remember the version they were planned with.
 - **README.md:** which game, which game version, what's in it and what isn't. The pack manager shows it.
 - **CREDITS.md:** where the data and icons come from. If they come from a game, record the publisher's permission or the fan-content policy that covers them ([[Architecture/Game packs]], Assets and permissions).
-- **`engine`:** `^1.1` while your pack uses starters (or anything else from pack format 1.1); `^1` otherwise. A Carbonara that reads an older format refuses the pack with a clear message instead of half-loading it.
+- **`engine`:** `^1.2` while your pack uses recipe categories or unlocks (pack format 1.2), `^1.1` while it uses starters (1.1), `^1` otherwise. A Carbonara that reads an older format refuses the pack with a clear message instead of half-loading it.
 
 ## Editor help
 

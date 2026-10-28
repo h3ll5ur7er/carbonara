@@ -2,7 +2,7 @@
 // Bump PACK_FORMAT when the manifest, data or plugin API change: minor for additions, major for breaks.
 
 /** The pack format and plugin API version this build of Carbonara implements. */
-export const PACK_FORMAT = "1.1.0";
+export const PACK_FORMAT = "1.2.0";
 
 type Version = [number, number, number];
 
