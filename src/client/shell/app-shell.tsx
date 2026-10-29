@@ -5,6 +5,7 @@ import { Canvas } from "../canvas/canvas";
 import { useCommandShortcuts } from "../core/commands-keys";
 import { formatShortcut, platformOf } from "../core/commands-shortcuts";
 import { usePackDataOf } from "../core/pack-data";
+import { PackIconsProvider, usePackIconsOf } from "../core/pack-icons";
 import { CommandPalette } from "../features/command-palette/command-palette";
 import { useQuickAdd } from "../features/command-palette/use-quick-add";
 import { useRecipeMemoryInPreferences } from "../features/recipe-browser/memory";
@@ -60,6 +61,7 @@ export function AppShell({
   const pack = usePackDataOf(document?.packId, (error) =>
     toast({ tone: "error", title: "Couldn't load the pack's recipes", description: errorMessage(error) }),
   );
+  const icons = usePackIconsOf(document?.packId, pack);
   const quickAdd = useQuickAdd(document, pack);
   // The side panels work on a factory: none beside the welcome (they come back as they were).
   const factoryOpen = document !== null;
@@ -69,40 +71,42 @@ export function AppShell({
     return shortcut ? formatShortcut(shortcut, platform) : undefined;
   };
   return (
-    <TooltipProvider>
-      <div className="flex h-dvh w-dvw flex-col overflow-hidden bg-canvas font-sans text-fg">
-        <TopBar
-          documentName={document?.name ?? "Untitled factory"}
-          tabs={tabs}
-          registry={appRegistry}
-          platform={platform}
-        />
-        <main className="relative min-h-0 flex-1">
-          {canvas}
-          <SidePanel side="left" title="Library" shortcut={keys("view.toggleLibrary")}>
-            {document && (
-              <Library
-                recipes={
-                  <RecipeBrowser
-                    packId={document.packId}
-                    pack={pack}
-                    findKeys={keys("library.findRecipe")}
-                    suggestions={suggestions}
-                  />
-                }
-                blueprints={blueprints ?? <NoBlueprints collapseKeys={keys("subgraph.collapse")} />}
-                blueprintCount={blueprintCount}
-              />
-            )}
-          </SidePanel>
-          <SidePanel side="right" title="Inspector" shortcut={keys("view.toggleInspector")}>
-            <InspectorPanel selection={selection} />
-          </SidePanel>
-        </main>
-      </div>
-      <CommandPalette registry={appRegistry} platform={platform} quickAdd={quickAdd} />
-      <Toaster />
-    </TooltipProvider>
+    <PackIconsProvider value={icons}>
+      <TooltipProvider>
+        <div className="flex h-dvh w-dvw flex-col overflow-hidden bg-canvas font-sans text-fg">
+          <TopBar
+            documentName={document?.name ?? "Untitled factory"}
+            tabs={tabs}
+            registry={appRegistry}
+            platform={platform}
+          />
+          <main className="relative min-h-0 flex-1">
+            {canvas}
+            <SidePanel side="left" title="Library" shortcut={keys("view.toggleLibrary")}>
+              {document && (
+                <Library
+                  recipes={
+                    <RecipeBrowser
+                      packId={document.packId}
+                      pack={pack}
+                      findKeys={keys("library.findRecipe")}
+                      suggestions={suggestions}
+                    />
+                  }
+                  blueprints={blueprints ?? <NoBlueprints collapseKeys={keys("subgraph.collapse")} />}
+                  blueprintCount={blueprintCount}
+                />
+              )}
+            </SidePanel>
+            <SidePanel side="right" title="Inspector" shortcut={keys("view.toggleInspector")}>
+              <InspectorPanel selection={selection} />
+            </SidePanel>
+          </main>
+        </div>
+        <CommandPalette registry={appRegistry} platform={platform} quickAdd={quickAdd} />
+        <Toaster />
+      </TooltipProvider>
+    </PackIconsProvider>
   );
 }
 

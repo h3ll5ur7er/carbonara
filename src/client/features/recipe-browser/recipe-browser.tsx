@@ -21,8 +21,7 @@ import type { Id, PackData } from "../../../contracts/pack";
 import { own } from "../../../utilities/records";
 import { canvasEditActions } from "../../canvas/edit-actions";
 import { focusNodeWhenShown } from "../../canvas/focus";
-import { monogram } from "../../canvas/model/item-chip";
-import { ItemChip } from "../../canvas/parts";
+import { BuildingTile, ItemChip } from "../../canvas/parts";
 import type { PortRef } from "../../canvas/edit-actions";
 import { overCanvas, startPlacing, stopPlacing } from "../../canvas/placing";
 import { IconButton } from "../../ui/button";
@@ -388,9 +387,10 @@ function GroupIcon({ shelf }: { shelf: Shelf }) {
   const tile = "grid size-6 shrink-0 place-items-center rounded-sm ring-1 ring-inset [&_svg]:size-3.5";
   if (shelf.building !== undefined) {
     return (
-      <span aria-hidden className={cx(tile, "bg-accent-soft text-2xs font-semibold text-accent-fg ring-accent-soft")}>
-        {monogram(shelf.name)}
-      </span>
+      <BuildingTile
+        building={{ id: shelf.building, name: shelf.name }}
+        className={cx(tile, "bg-accent-soft text-2xs font-semibold text-accent-fg ring-accent-soft")}
+      />
     );
   }
   const icons: Record<string, ReactNode> = {

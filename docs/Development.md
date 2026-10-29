@@ -119,6 +119,17 @@ The Rust shell (`src/shells/tauri/src-tauri`) is a workspace member but not a de
 
 Without a display (a container, CI), the app can't open a window; `xvfb-run pnpm tauri dev` runs it on a virtual one. The shell's commands are covered by `cargo test`, its TypeScript by `pnpm test`.
 
+## Pack icons
+
+Builds leave out the game packs' icons until each publisher agrees ([[CARB-31]]). `CARBONARA_PACK_ICONS` brings them for the packs it names: `all`, or pack ids separated by commas. Set it in the environment or in a `.env.local` file at the repository's root (git ignores it); it applies to the dev server and to the web and desktop builds.
+
+```bash
+CARBONARA_PACK_ICONS=all pnpm dev            # every pack's icons
+CARBONARA_PACK_ICONS=satisfactory pnpm build # only Satisfactory's
+```
+
+Open `/?first-run` to pick a game and get its starter factory. CI, Pages and the release build set nothing, so they ship no icons; set the variable there for a pack once its `CREDITS.md` records the permission. Without it the app is unchanged: chips and tiles draw monograms, and the screenshot tests run that way.
+
 ## Deployment
 
 Every push to the default branch that passes CI is deployed to GitHub Pages by the `deploy` job in `.github/workflows/ci.yml`: https://h3ll5ur7er.github.io/carbonara/. The build uses `vite build --base=/<repo>/` because Pages serves the app below the repository name. To try that build locally:

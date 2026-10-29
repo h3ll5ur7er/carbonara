@@ -204,6 +204,8 @@ Conventions the importer follows ([[packs/factorio/plugin/importer.ts]]):
 
 Every pack bundles its full data and icons; there are no install-path lookups at runtime. Before we publish a build that includes a game's pack, we get the publisher's OK or confirm their fan-content policy covers it, and record the result in the pack's `CREDITS.md`. Each pack is a separate unit, so a takedown request affects only that game's pack.
 
+Until then the app ships the packs' data but not their icons: a build brings a built-in pack's icons only when `CARBONARA_PACK_ICONS` names it ([[CARB-140]], [[Development]], Pack icons). The icons go to the client through `packs.getPackIcons` and `PackIconsProvider` ([[src/client/core/pack-icons.ts]]); chips and tiles without one draw the monogram.
+
 ## Scope
 
 v1 supports one pack per document. Mod packs that extend a base pack (`extends: factorio`) are a later addition, and the manifest leaves room for it.

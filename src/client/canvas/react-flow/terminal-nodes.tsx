@@ -6,7 +6,7 @@ import { formatNumber, formatRate, type RateDisplay } from "../model/format";
 import { monogram } from "../model/item-chip";
 import type { LodTier } from "../model/lod";
 import type { NodeView } from "../model/scene";
-import { ItemChip, Rate, tint } from "../parts";
+import { ItemChip, OverviewMark, Rate, tint } from "../parts";
 import { useLod, useNodeSlot, useRateUnit } from "./context";
 import { PortHandle } from "./port-handle";
 import { cardRing } from "./recipe-node";
@@ -164,7 +164,9 @@ function TerminalOverview({
         style={tint(view.item.id)}
         className={`item-tint relative grid size-full place-items-center rounded-full bg-(--item-bg) ring-inset ${ring}`}
       >
-        <span className="text-3xl font-bold text-(--item-fg)">{monogram(view.item.name)}</span>
+        <OverviewMark itemId={view.item.id}>
+          <span className="text-3xl font-bold text-(--item-fg)">{monogram(view.item.name)}</span>
+        </OverviewMark>
         {handles}
       </div>
     );

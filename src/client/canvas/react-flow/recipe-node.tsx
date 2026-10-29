@@ -6,7 +6,7 @@ import { MACHINE_STRIP, PORT_PADDING, PORT_ROW, RECIPE_HEADER } from "../model/g
 import { monogram } from "../model/item-chip";
 import type { NodeSlot } from "../model/result-slots";
 import type { PortView } from "../model/scene";
-import { EfficiencyRing, ItemChip, Rate, ShortIcon } from "../parts";
+import { BuildingTile, EfficiencyRing, ItemChip, OverviewMark, Rate, ShortIcon } from "../parts";
 import { useLod, useMachineGroups, useNodeSlot, useRateUnit } from "./context";
 import { PortHandle } from "./port-handle";
 import type { FlowNodeProps } from "./types";
@@ -25,7 +25,9 @@ export const RecipeNode = memo(function RecipeNode({ id, data: { view }, selecte
       <div
         className={`relative grid size-full place-items-center rounded-lg ring-inset ${short ? "bg-flow-over-capacity/25" : "bg-surface-4"} ${selected ? "ring-8 ring-accent" : short ? "ring-4 ring-flow-over-capacity" : "ring-2 ring-line-strong"}`}
       >
-        <span className="text-3xl font-bold text-accent-fg">{monogram(view.title)}</span>
+        <OverviewMark itemId={firstOutput?.item.id}>
+          <span className="text-3xl font-bold text-accent-fg">{monogram(view.title)}</span>
+        </OverviewMark>
         {handles}
       </div>
     );
@@ -36,12 +38,10 @@ export const RecipeNode = memo(function RecipeNode({ id, data: { view }, selecte
       <div
         className={`relative flex size-full items-center gap-5 rounded-lg bg-surface-2 px-6 shadow-panel ${cardRing(selected, short)}`}
       >
-        <span
-          aria-hidden
+        <BuildingTile
+          building={view.building}
           className="grid size-18 shrink-0 place-items-center rounded-lg bg-accent-soft text-2xl font-semibold text-accent-fg"
-        >
-          {monogram(view.building.name)}
-        </span>
+        />
         <div className="flex min-w-0 flex-col gap-1">
           <span className="truncate text-2xl font-semibold tracking-tight text-fg">{view.title}</span>
           <span className="font-mono text-xl text-fg-muted">{machines ? `× ${machines.count}` : "—"}</span>
@@ -56,12 +56,10 @@ export const RecipeNode = memo(function RecipeNode({ id, data: { view }, selecte
       className={`relative flex size-full flex-col rounded-lg bg-surface-2 shadow-panel ${cardRing(selected, short)}`}
     >
       <header style={{ height: RECIPE_HEADER }} className="flex shrink-0 items-center gap-3 px-3">
-        <span
-          aria-hidden
+        <BuildingTile
+          building={view.building}
           className="grid size-10 shrink-0 place-items-center rounded-md bg-accent-soft text-sm font-semibold text-accent-fg ring-1 ring-accent-soft ring-inset"
-        >
-          {monogram(view.building.name)}
-        </span>
+        />
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="truncate text-base font-semibold tracking-tight text-fg">{view.title}</span>

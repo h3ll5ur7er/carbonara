@@ -43,6 +43,22 @@ describe("the pack library", () => {
     expect(await library().get("nope")).toBeUndefined();
   });
 
+  it("gives a built-in pack's icons when the build brought them, and none otherwise", async () => {
+    const icons = { "icons/ore.webp": "data:image/webp;base64,AAAA" };
+    const withIcons: BuiltInPack = { ...builtIn, icons: async () => icons };
+    const packs = createPackLibrary({ builtIns: [withIcons], storage: createMemoryKeyValueStorage(), loadModule });
+    expect(await packs.icons("works")).toEqual(icons);
+    expect(await library().icons("works")).toEqual({});
+    expect(await library().icons("nope")).toEqual({});
+  });
+
+  it("gives no icons for an installed pack, even one standing in for a built-in pack with icons", async () => {
+    const withIcons: BuiltInPack = { ...builtIn, icons: async () => ({ "icons/ore.webp": "data:," }) };
+    const packs = createPackLibrary({ builtIns: [withIcons], storage: createMemoryKeyValueStorage(), loadModule });
+    await packs.install(thirdParty("works"));
+    expect(await packs.icons("works")).toEqual({});
+  });
+
   it("installs a pack, loads its plugin and lists it after the built-ins", async () => {
     const packs = library();
     const installed = await packs.install(thirdParty("aaa"));

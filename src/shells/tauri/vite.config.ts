@@ -3,9 +3,8 @@
 import { defineConfig, mergeConfig } from "vite";
 import web from "../../../vite.config.ts";
 
-export default mergeConfig(
-  web,
-  defineConfig({
+export default defineConfig((env) =>
+  mergeConfig(web(env), {
     root: import.meta.dirname,
     build: { outDir: "../../../dist/desktop" },
     // `tauri dev` loads this port (tauri.conf.json, devUrl); the web app's dev server keeps 5173.

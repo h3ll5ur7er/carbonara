@@ -5,8 +5,7 @@ import type { ReactNode } from "react";
 import type { Item, RateUnit } from "../../../contracts/pack";
 import { fromPerSecond, rateSuffix } from "../../../utilities/units";
 import { formatNumber } from "../../canvas/model/format";
-import { monogram } from "../../canvas/model/item-chip";
-import { ItemChip, Rate } from "../../canvas/parts";
+import { BuildingTile, ItemChip, Rate } from "../../canvas/parts";
 import { cx } from "../../ui/cx";
 import type { SummaryFacts } from "./summary";
 
@@ -72,12 +71,10 @@ export function SummaryList({ title, icon, children }: { title: string; icon?: R
 export function BuildingRows({ buildings }: { buildings: SummaryFacts["buildings"] }) {
   return buildings.map((building) => (
     <li key={building.id} className="flex h-7 items-center gap-2.5">
-      <span
-        aria-hidden
+      <BuildingTile
+        building={building}
         className="grid size-5 shrink-0 place-items-center rounded-xs bg-accent-soft text-2xs font-semibold text-accent-fg"
-      >
-        {monogram(building.name)}
-      </span>
+      />
       <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">{building.name}</span>
       <span className="font-mono text-sm text-fg">× {formatNumber(building.count)}</span>
     </li>

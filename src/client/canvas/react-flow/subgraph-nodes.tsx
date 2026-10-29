@@ -6,7 +6,7 @@ import { memo } from "react";
 import { formatNumber } from "../model/format";
 import { MACHINE_STRIP, PORT_PADDING, RECIPE_HEADER } from "../model/geometry";
 import { monogram } from "../model/item-chip";
-import { ItemChip, Rate } from "../parts";
+import { ItemChip, OverviewMark, Rate } from "../parts";
 import { useLod, useNodeSlot, useOpenSubgraph, useRateUnit } from "./context";
 import { PortHandle } from "./port-handle";
 import { cardRing, PortRow } from "./recipe-node";
@@ -146,7 +146,9 @@ export const PortNode = memo(function PortNode({ id, data: { view }, selected }:
       <div
         className={`relative grid size-full place-items-center rounded-full border-4 border-dashed bg-accent-soft ${ring}`}
       >
-        <span className="text-3xl font-bold text-accent-fg">{monogram(view.item.name)}</span>
+        <OverviewMark itemId={view.item.id}>
+          <span className="text-3xl font-bold text-accent-fg">{monogram(view.item.name)}</span>
+        </OverviewMark>
         {handles}
       </div>
     );

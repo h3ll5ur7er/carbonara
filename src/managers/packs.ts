@@ -25,6 +25,8 @@ export function createPacksManager({ library, bus }: PacksManagerOptions): Manag
 
     getPackData: async ({ packId }) => (await loaded(packId)).data,
 
+    getPackIcons: ({ packId }) => library.icons(packId),
+
     // Asks the plugin where it runs: third-party plugins never run in the client or the backend worker.
     describePlugin: async ({ packId, settings }) => runtimeOf(await loaded(packId)).describe(settings),
 

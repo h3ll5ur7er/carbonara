@@ -1,5 +1,6 @@
 // Small pieces every canvas renderer and the canvas features draw with: item chips, rates, the efficiency ring.
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { useBuildingIcon, useItemIcon } from "../core/pack-icons";
 import type { ItemForm, RateUnit } from "../../contracts/pack";
 import { formatRate, type RateDisplay } from "./model/format";
 import { hueOf, monogram } from "./model/item-chip";
@@ -18,10 +19,11 @@ const CHIP_SIZES = {
 } as const;
 
 /**
- * An item's badge. Packs may leave out icons, so this is the fallback for all of them: a monogram on a tint
- * of the item's own hue. Fluids are round, solids square, so the shape tells them apart without colour.
+ * An item's badge: the pack's icon on a tint of the item's own hue, or, for the many packs without icons, its
+ * monogram. Fluids are round, solids square, so the shape tells them apart without colour.
  */
 export function ItemChip({ item, size = "md" }: { item: ItemView; size?: keyof typeof CHIP_SIZES }) {
+  const icon = useItemIcon(item.id);
   return (
     <span
       aria-hidden
@@ -29,9 +31,30 @@ export function ItemChip({ item, size = "md" }: { item: ItemView; size?: keyof t
       style={tint(item.id)}
       className={`item-tint grid shrink-0 place-items-center bg-(--item-bg) font-semibold text-(--item-fg) ring-1 ring-(--item-line) ring-inset select-none ${CHIP_SIZES[size]} ${item.form === "fluid" ? "rounded-full" : "rounded-sm"}`}
     >
-      {monogram(item.name)}
+      {icon ? <PackIcon src={icon} /> : monogram(item.name)}
     </span>
   );
+}
+
+/** A building's tile: the pack's icon, or the building's monogram. `className` sizes and colours the tile. */
+export function BuildingTile({ building, className }: { building: { id: string; name: string }; className: string }) {
+  const icon = useBuildingIcon(building.id);
+  return (
+    <span aria-hidden title={building.name} className={className}>
+      {icon ? <PackIcon src={icon} /> : monogram(building.name)}
+    </span>
+  );
+}
+
+/** A node's mark at overview zoom: the item's icon, large, or `children` (its monogram) when its pack has none. */
+export function OverviewMark({ itemId, children }: { itemId: string | undefined; children: ReactNode }) {
+  const icon = useItemIcon(itemId ?? "");
+  return icon ? <PackIcon src={icon} className="size-[62%]" /> : children;
+}
+
+/** The image of an icon from a pack, inside a chip or tile, which carries its name. */
+export function PackIcon({ src, className = "size-[82%]" }: { src: string; className?: string }) {
+  return <img src={src} alt="" draggable={false} decoding="async" className={`object-contain ${className}`} />;
 }
 
 /** A rate in the document's unit (in belts, for the items its belt carries); a dash while there is no result. */

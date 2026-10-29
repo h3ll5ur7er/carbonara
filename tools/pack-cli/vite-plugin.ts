@@ -1,6 +1,7 @@
 // Bundles the packs in `packs/` into the app as the virtual module `virtual:built-in-packs`. The template pack is
-// included only by the dev server (and so in e2e tests); production builds ship the game packs. Changing a file in
-// `packs/` while the dev server runs rebuilds the packs and reloads the app.
+// included only by the dev server (and so in e2e tests); production builds ship the game packs. Their icons come
+// along only for the packs `icons` names (CARBONARA_PACK_ICONS, docs/Development.md). Changing a file in `packs/`
+// while the dev server runs rebuilds the packs and reloads the app.
 //
 // The packs are built by built-in-packs.ts in a child process: this file imports only Node built-ins, so the app's
 // TypeScript modules stay out of the Vite config's own module graph (Vite's config loader can't follow their
@@ -27,14 +28,27 @@ export function findPackFolders(root: string, includeTemplate: boolean): string[
 }
 
 /** Builds the packs in a child process and returns the virtual modules' source by id. */
-export async function renderInChildProcess(folders: string[]): Promise<Rendered> {
-  const { stdout } = await promisify(execFile)(process.execPath, ["--import", "tsx", RENDERER, ...folders], {
-    maxBuffer: 512 * 1024 * 1024,
-  });
+export async function renderInChildProcess(folders: string[], icons: readonly string[] = []): Promise<Rendered> {
+  const args = ["--import", "tsx", RENDERER, `--icons=${icons.join(",")}`, ...folders];
+  const { stdout } = await promisify(execFile)(process.execPath, args, { maxBuffer: 512 * 1024 * 1024 });
   return JSON.parse(stdout) as Rendered;
 }
 
-export function builtInPacks(packsFolder = "packs"): Plugin {
+export interface BuiltInPacksOptions {
+  packsFolder?: string;
+  /** The ids of the packs whose icons the build brings, or `all`. */
+  icons?: readonly string[];
+}
+
+/** The packs `CARBONARA_PACK_ICONS` names (`all`, or ids separated by commas). */
+export function iconPacks(setting: string | undefined): string[] {
+  return (setting ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+export function builtInPacks({ packsFolder = "packs", icons = [] }: BuiltInPacksOptions = {}): Plugin {
   const root = resolve(packsFolder);
   let includeTemplate = false;
   let modules: Promise<Rendered> | undefined;
@@ -49,7 +63,7 @@ export function builtInPacks(packsFolder = "packs"): Plugin {
     },
     async load(id) {
       if (!id.startsWith(`\0${INDEX}`)) return undefined;
-      modules ??= renderInChildProcess(findPackFolders(root, includeTemplate));
+      modules ??= renderInChildProcess(findPackFolders(root, includeTemplate), icons);
       const result = await modules;
       if (!result.ok) {
         modules = undefined;

@@ -409,6 +409,11 @@ export const managers = {
         "A game pack's data: items, recipes (inputs and outputs per craft, seconds per craft, buildings), " +
         "buildings, logistics (belt and pipe capacities, in the pack's rate unit) and raw resources.",
     }),
+    /**
+     * The pack's icons as URLs (data URLs today), by the path its data names them by. Empty unless the build brings
+     * them: a game's art ships only with its publisher's OK (CARB-31, docs/Development.md, Pack icons).
+     */
+    getPackIcons: method<Record<string, string>>()(z.object({ packId: z.string().min(1) })),
     /** The pack plugin's node fields, document settings and metrics under a document's `settings.plugin`. */
     describePlugin: method<PluginDescription>()(
       z.object({ packId: z.string().min(1), settings: z.record(z.string(), z.unknown()).default({}) }),

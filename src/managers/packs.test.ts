@@ -157,4 +157,23 @@ describe("the packs manager", () => {
     await expect(packs.removePack({ packId: "works" })).rejects.toThrow("No installed pack 'works'");
     await expect(packs.getPackData({ packId: "nope" })).rejects.toThrow("Unknown pack 'nope'");
   });
+
+  it("gives the icons the build brought for a pack, and none without", async () => {
+    const icons = { "icons/press.webp": "data:image/webp;base64,AAAA" };
+    const library = createPackLibrary({
+      builtIns: [
+        builtIn,
+        {
+          ...builtIn,
+          info: { ...builtIn.info, manifest: { ...builtIn.info.manifest, id: "art" } },
+          icons: async () => icons,
+        },
+      ],
+      storage: createMemoryKeyValueStorage(),
+      loadModule,
+    });
+    const packs = createPacksManager({ library, bus: createEventBus<Events>() });
+    expect(await packs.getPackIcons({ packId: "art" })).toEqual(icons);
+    expect(await packs.getPackIcons({ packId: "works" })).toEqual({});
+  });
 });

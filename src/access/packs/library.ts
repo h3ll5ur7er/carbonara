@@ -13,6 +13,8 @@ import { fail, ok, type Result } from "../../contracts/result";
 export interface BuiltInPack {
   info: PackInfo;
   load(): Promise<{ data: PackData; plugin: Plugin }>;
+  /** Its icons as URLs, by the path its data names them by; only when the build brings them (CARB-31). */
+  icons?(): Promise<Record<string, string>>;
 }
 
 /** A pack the packs engine has validated, ready to be kept. */
@@ -32,6 +34,11 @@ export interface PackLibrary extends PackStore {
   install(pack: PackToInstall): Promise<Result<PackInfo>>;
   /** Removes an installed pack; false when no pack with that id is installed. */
   remove(packId: string): Promise<boolean>;
+  /**
+   * The pack's icons as URLs, by the path its data names them by. Only built-in packs whose icons the build brings
+   * have any: installed packs don't keep theirs yet (CARB-137).
+   */
+  icons(packId: string): Promise<Record<string, string>>;
 }
 
 /** Starts a third-party plugin in a sandbox of its own (the web's opaque-origin plugin worker). */
@@ -113,6 +120,11 @@ export function createPackLibrary({ builtIns, storage, loadModule, isolate }: Pa
       const installed = (await Promise.all(keys.map((key) => storage.get(key)))) as PackInfo[];
       const replaced = new Set(installed.map((info) => info.manifest.id));
       return [...builtIns.map((pack) => pack.info).filter((info) => !replaced.has(info.manifest.id)), ...installed];
+    },
+
+    async icons(packId) {
+      if (await installedInfo(packId)) return {};
+      return (await builtIns.find((pack) => pack.info.manifest.id === packId)?.icons?.()) ?? {};
     },
 
     get(packId) {
